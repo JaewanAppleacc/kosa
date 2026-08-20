@@ -1,0 +1,70 @@
+{
+  "session_id": "sess_14528a5021c44036be3a47555df18a79",
+  "user_id": "demo_user_01",
+  "title": "구조를 읽고 사람의 반응까지 생각하는 탐색형 설계자",
+  "highlights": [
+    {
+      "text": "복잡한 내용에서 핵심과 흐름을 찾아 정리하는 데 흥미를 느껴요.",
+      "supporting_trait_ids": [
+        "pattern_finding"
+      ]
+    },
+    {
+      "text": "단순히 감상하기보다 왜 이런 구조가 되었는지 생각하는 편이에요.",
+      "supporting_trait_ids": [
+        "causal_analysis"
+      ]
+    },
+    {
+      "text": "결과물을 만들 때 보는 사람이 어떻게 받아들일지도 중요하게 생각해요.",
+      "supporting_trait_ids": [
+        "audience_response_prediction"
+      ]
+    },
+    {
+      "text": "기존 방식을 그대로 따르기보다 순서나 구성을 바꿔보는 것을 좋아해요.",
+      "supporting_trait_ids": [
+        "change_adaptation"
+      ]
+    },
+    {
+      "text": "아이디어에 머무르기보다 도구로 직접 시험해보려는 경향이 있어요.",
+      "supporting_trait_ids": [
+        "immediate_execution"
+      ]
+    },
+    {
+      "text": "여러 선택지를 비교한 뒤 납득할 수 있는 기준으로 결정하는 편이에요.",
+      "supporting_trait_ids": [
+        "information_comparison"
+      ]
+    },
+    {
+      "text": "협업 방식은 아직 Evidence가 적어 추가 탐색이 필요해요.",
+      "supporting_trait_ids": [
+        "collaboration_preference"
+      ]
+    }
+  ],
+  "hashtags": [
+    "#구조화",
+    "#사용자관점",
+    "#패턴탐색",
+    "#콘텐츠기획",
+    "#직접실행"
+  ],
+  "disclaimer": "현재 답변을 바탕으로 만든 요약이며 새로운 경험과 답변에 따라 달라질 수 있습니다.",
+  "detailed_evidence_by_dimension": {
+    "분석과 구조화": [
+      {
+        "context_id": "media",
+        "description": "장면 순서를 바꿔 이해하기 쉽게 만드는 활동 선택"
+      },
+      {
+        "context_id": "game",
+        "description": "여러 전략을 조건별로 비교하는 방식 선택"
+      }
+    ]
+  },
+  "generated_at": "2026-08-20T23:58:57.575251"
+}
