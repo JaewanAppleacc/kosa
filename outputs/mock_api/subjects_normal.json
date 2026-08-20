@@ -1,0 +1,20 @@
+{
+  "session_id": "sess_18d5d5cecc8c4d47aede7d1c997d2881",
+  "source": "PRE_SURVEY",
+  "recommendations": [
+    {
+      "subject_id": "subj_mock0000000000000001",
+      "category": "core",
+      "is_actually_offered": true,
+      "reason": "정보 비교·탐색, 패턴 탐색 Trait와 관련도가 높음"
+    }
+  ],
+  "unresolved_candidates": [
+    {
+      "raw_text": "데이터과학탐구",
+      "matched_subject_id": null,
+      "confidence": "low",
+      "requires_user_confirmation": true
+    }
+  ]
+}

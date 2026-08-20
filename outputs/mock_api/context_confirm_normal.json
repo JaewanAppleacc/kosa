@@ -1,0 +1,13 @@
+{
+  "session_id": "sess_18d5d5cecc8c4d47aede7d1c997d2881",
+  "final_context_ids": [
+    "game",
+    "media",
+    "school_life"
+  ],
+  "processing_order": [
+    "game",
+    "media",
+    "school_life"
+  ]
+}
