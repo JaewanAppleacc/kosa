@@ -199,6 +199,20 @@ python3 -m venv .venv
 - 시스템 기본 `python3`(예: conda base)를 쓰지 않는다 — 사람마다 설치된 패키지가 달라 "내 컴퓨터에서는 됨" 문제가 생긴다. 항상 `.venv`의 인터프리터를 명시적으로 쓴다.
 - 테스트 명령은 위 `unittest discover` 한 줄로 통일한다. pytest 등 다른 러너를 임의로 추가하지 않는다.
 
+API 서버 실행(B가 로컬에서 Mock API에 붙일 때):
+
+```bash
+./.venv/bin/uvicorn src.api.main:app --reload
+# http://127.0.0.1:8000/docs 에서 OpenAPI 문서 확인
+```
+
+Mock JSON·OpenAPI 스펙 재생성(Schema를 바꾼 뒤 실행):
+
+```bash
+PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
+```
+결과는 `outputs/mock_api/`에 저장된다.
+
 ## 필수 테스트
 
 다음 테스트를 구현하고 변경 후 실행한다.
