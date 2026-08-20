@@ -1,0 +1,11 @@
+{
+  "session_id": "sess_209568c58146403aada75ddb7f18917a",
+  "parsed_candidates": [
+    {
+      "raw_text": "데이터과학탐구",
+      "matched_subject_id": null,
+      "confidence": "low",
+      "requires_user_confirmation": true
+    }
+  ]
+}

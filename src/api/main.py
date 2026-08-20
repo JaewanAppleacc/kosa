@@ -11,7 +11,7 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
 from src.api import mock_data
 from src.ids import generate_session_id
@@ -178,10 +178,34 @@ def get_subjects(session_id: str) -> SubjectsResponse:
     return mock_data.mock_course_profile(session_id)
 
 
+_ALLOWED_COURSE_UPLOAD_CONTENT_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
+    "application/vnd.ms-excel",  # .xls
+}
+
+
 @app.post("/course/upload", response_model=CourseUploadResponse)
-def upload_course_document(session_id: str) -> CourseUploadResponse:
+async def upload_course_document(
+    session_id: str = Form(...), file: UploadFile = File(...)
+) -> CourseUploadResponse:
+    """2026-08-21 리뷰 반영: 이전에는 session_id만 받고 실제 파일을 받지 않았다 —
+    B README가 약속한 "PDF·Excel 업로드"와 실제 계약이 어긋나 있었다. 지금은
+    multipart/form-data로 진짜 파일을 받는다. 파싱 자체(course_document_parser.py)는
+    여전히 C 소유·미구현이라 형식만 검증하고 Mock 후보를 반환한다.
+    """
+
     _get_state_or_404(session_id)
-    # 실제 파싱(course_document_parser.py)은 C 소유, 미구현 — Mock 후보 반환
+
+    if file.content_type not in _ALLOWED_COURSE_UPLOAD_CONTENT_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=f"PDF 또는 Excel 파일만 허용합니다. 받은 형식: {file.content_type}",
+            ).model_dump(),
+        )
+
     from src.schemas.course import ParsedSubjectCandidate
 
     return CourseUploadResponse(

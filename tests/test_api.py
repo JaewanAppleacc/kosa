@@ -80,6 +80,15 @@ class SessionLifecycleTest(unittest.TestCase):
         r = client.get("/departments/media_communication")
         self.assertEqual(r.status_code, 200)
 
+        # 7-1. 과목 문서 업로드 (실제 multipart 파일 전송)
+        r = client.post(
+            "/course/upload",
+            data={"session_id": session_id},
+            files={"file": ("curriculum.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(r.json()["parsed_candidates"])
+
         # 8. Session 복원
         r = client.get(f"/session/{session_id}")
         self.assertEqual(r.status_code, 200)
@@ -92,6 +101,27 @@ class SessionLifecycleTest(unittest.TestCase):
         r = client.post("/assessment/session", params={"user_id": "someone_else"})
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["user_id"], "demo_user_01")
+
+    def test_course_upload_rejects_non_pdf_excel_file(self) -> None:
+        """2026-08-21 리뷰 반영: /course/upload는 이제 실제 multipart 파일을 받고,
+        허용 안 된 형식은 명시적으로 거부해야 한다."""
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+
+        r = client.post(
+            "/course/upload",
+            data={"session_id": session_id},
+            files={"file": ("notes.txt", b"hello", "text/plain")},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_course_upload_without_file_is_rejected(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        r = client.post("/course/upload", data={"session_id": session_id})
+        self.assertEqual(r.status_code, 422)
 
     def test_unknown_session_returns_404_with_structured_error(self) -> None:
         r = client.get("/profile/sess_does_not_exist")

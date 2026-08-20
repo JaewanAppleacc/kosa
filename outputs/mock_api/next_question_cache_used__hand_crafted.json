@@ -1,0 +1,58 @@
+{
+  "session_id": "sess_209568c58146403aada75ddb7f18917a",
+  "status": "CACHE_USED",
+  "question": {
+    "question_id": "game_tail_01",
+    "context": "game",
+    "target_traits": [
+      "causal_analysis"
+    ],
+    "frame_id": "unexpected_result",
+    "question_text": "만든 콘텐츠 반응이 예상과 다르면 가장 먼저 무엇을 하나요?",
+    "options": [
+      {
+        "option_id": "game_tail_01_o1",
+        "role_id": "cause_analysis",
+        "text": "왜 이런 반응이 나왔는지부터 분석한다",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        }
+      },
+      {
+        "option_id": "game_tail_01_o2",
+        "role_id": "strategy_change",
+        "text": "다른 방식으로 바꿔서 다시 시도한다",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        }
+      },
+      {
+        "option_id": "game_tail_01_o3",
+        "role_id": "direct_trial",
+        "text": "일단 조금 수정해서 바로 올려본다",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        }
+      },
+      {
+        "option_id": "game_tail_01_o4",
+        "role_id": "external_research",
+        "text": "비슷한 사례를 더 찾아본다",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        }
+      },
+      {
+        "option_id": "game_tail_01_o5",
+        "role_id": "ask_others",
+        "text": "주변 사람들에게 의견을 물어본다",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        }
+      }
+    ]
+  },
+  "current_context_id": "media",
+  "questions_asked_in_current_context": 2,
+  "assessment_complete": false
+}

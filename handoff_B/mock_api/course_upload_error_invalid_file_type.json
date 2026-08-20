@@ -1,0 +1,4 @@
+{
+  "error_code": "VALIDATION_ERROR",
+  "message": "PDF 또는 Excel 파일만 허용합니다. 받은 형식: text/plain"
+}
