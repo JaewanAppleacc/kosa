@@ -86,6 +86,10 @@ generate_subject_id(curriculum_code, canonical_subject_name)     # 정규화된 
 
 Schema에 없는 필드가 필요하면 직접 추가하지 말고 A에게 변경 요청하세요. A가 소유한 `src/schemas/`, LangGraph 관련 파일은 직접 수정하지 마세요.
 
+## 9. 저장소 전체를 clone하기 싫으면
+
+`handoff_C/` 폴더(또는 `handoff_C.zip`)만 받아도 독립 실행됩니다 — 작업 지시서·전용 CLAUDE.md·Context/Trait 초안·Mock 예시·requirements.txt까지 다 들어있습니다. 다만 이후 계약 변경사항은 못 받으니, 팀 전체가 GitHub 저장소를 clone해서 각자 branch(`worker-c`)로 작업하는 쪽을 더 권장합니다.
+
 ## 참고 문서
 
 - `outputs/work_assignments/작업자_C_개발_지시서.md` — 원래 담당 범위 전체

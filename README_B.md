@@ -39,7 +39,7 @@ python3 -m venv .venv
 | GET | `/majors/{session_id}` | 전공 관련도 목록 |
 | GET | `/departments/{major_id}` | 실제 학과 목록 |
 | GET | `/subjects/{session_id}` | 과목 추천 결과 |
-| POST | `/course/upload` | 학교 PDF·Excel 업로드 |
+| POST | `/course/upload` | 학교 PDF·Excel 업로드 — `multipart/form-data`, `session_id`(Form) + `file`(File). PDF/Excel 외 형식은 422 `VALIDATION_ERROR` |
 | POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 |
 | GET | `/subgraph/{session_id}` | 관계 그래프 (Trait–전공–학과–과목) |
 | GET | `/session/{session_id}` | Session 복원 |
@@ -83,6 +83,10 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 ## 8. 문제 발견 시
 
 데이터 표현이 이상하면 A의 파일을 직접 고치지 말고, 재현 가능한 API 요청/응답과 함께 전달해주세요.
+
+## 9. 저장소 전체를 clone하기 싫으면
+
+`handoff_B/` 폴더(또는 `handoff_B.zip`)만 받아도 독립 실행됩니다 — 작업 지시서·전용 CLAUDE.md·Mock JSON·requirements.txt까지 다 들어있습니다. 다만 이후 계약 변경사항은 못 받으니, 팀 전체가 GitHub 저장소를 clone해서 각자 branch(`worker-b`)로 작업하는 쪽을 더 권장합니다.
 
 ## 참고 문서
 
