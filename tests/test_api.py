@@ -18,7 +18,7 @@ client = TestClient(app)
 class SessionLifecycleTest(unittest.TestCase):
     def test_full_vertical_slice_flow_does_not_break(self) -> None:
         # 1. 세션 생성
-        r = client.post("/assessment/session", params={"user_id": "demo_user_01"})
+        r = client.post("/assessment/session")
         self.assertEqual(r.status_code, 200)
         session_id = r.json()["session_id"]
         self.assertTrue(session_id.startswith("sess_"))
@@ -85,13 +85,21 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["user_id"], "demo_user_01")
 
+    def test_create_session_ignores_client_supplied_user_id(self) -> None:
+        """2026-08-20 보안 리뷰 회귀 테스트: 클라이언트가 user_id를 임의로 지정해도
+        서버가 무시하고 항상 demo_user_01로 고정해야 한다(Identity Spoofing 방지)."""
+
+        r = client.post("/assessment/session", params={"user_id": "someone_else"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["user_id"], "demo_user_01")
+
     def test_unknown_session_returns_404_with_structured_error(self) -> None:
         r = client.get("/profile/sess_does_not_exist")
         self.assertEqual(r.status_code, 404)
         self.assertEqual(r.json()["detail"]["error_code"], "SESSION_NOT_FOUND")
 
     def test_career_profile_highlight_count_is_five_to_eight_even_via_api(self) -> None:
-        r = client.post("/assessment/session", params={"user_id": "demo_user_01"})
+        r = client.post("/assessment/session")
         session_id = r.json()["session_id"]
         r = client.get(f"/profile/{session_id}")
         highlights = r.json()["highlights"]

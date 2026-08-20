@@ -29,7 +29,7 @@ def main() -> None:
     client = TestClient(app)
 
     # --- 정상 흐름 ---
-    r = client.post("/assessment/session", params={"user_id": "demo_user_01"})
+    r = client.post("/assessment/session")
     _write("session_create_normal", r.json())
     session_id = r.json()["session_id"]
 

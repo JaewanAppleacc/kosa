@@ -53,6 +53,18 @@ app = FastAPI(
 
 _store = InMemorySessionStore()
 
+# 설계안 §1: 공모전 프로토타입은 로그인 없이 demo_user_01 단일 사용자만 지원한다.
+# 2026-08-20 보안 리뷰 반영: 이전에는 create_session이 클라이언트가 보낸 user_id를
+# 그대로 받아 저장했다 — 인증 없이 아무 문자열이나 자기 자신이라고 주장할 수 있는
+# Identity Spoofing이었다. 지금은 서버가 유일하게 지원하는 사용자로 고정해서 막는다.
+#
+# 이것과 별개로, session_id만 알면 그 세션의 Profile·전공·과목·Subgraph를 전부 조회할 수
+# 있다는 Broken Access Control 문제는 여전히 구조적으로 남아 있다. 지금은 사용자가
+# demo_user_01 하나뿐이라 "다른 사람 데이터 유출"이 실제로 발생하진 않지만, §1 후속 확장
+# (회원가입과 실제 다중 사용자 운영)을 구현할 때는 모든 session_id 기반 Endpoint에
+# "인증된 호출자가 이 세션의 소유자인가"를 검사하는 로직을 반드시 추가해야 한다.
+DEMO_USER_ID = "demo_user_01"
+
 
 def _get_state_or_404(session_id: str) -> AssessmentState:
     state = _store.load(session_id)
@@ -68,10 +80,10 @@ def _get_state_or_404(session_id: str) -> AssessmentState:
 
 
 @app.post("/assessment/session", response_model=CreateSessionResponse)
-def create_session(user_id: str = "demo_user_01") -> CreateSessionResponse:
+def create_session() -> CreateSessionResponse:
     session_id = generate_session_id()
-    _store.save(AssessmentState(session_id=session_id, user_id=user_id))
-    return CreateSessionResponse(session_id=session_id, user_id=user_id)
+    _store.save(AssessmentState(session_id=session_id, user_id=DEMO_USER_ID))
+    return CreateSessionResponse(session_id=session_id, user_id=DEMO_USER_ID)
 
 
 @app.post("/assessment/interest-rating", response_model=InterestRatingResponse)
