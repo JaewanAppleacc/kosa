@@ -1,0 +1,11 @@
+[project]
+name = "ai-career-agent"
+version = "0.1.0"
+description = "AI 진로·학업설계 Agent — Vertical Slice 단계 (작업자 A 백엔드)"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "pydantic==2.13.4",
+]
+
+[tool.setuptools]
+packages = ["src"]
