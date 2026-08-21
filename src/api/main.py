@@ -22,9 +22,15 @@ from src.agents.assessment.profile_generator import generate_career_profile
 from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
+from src.engines.matching_engine import (
+    compute_major_match,
+    compute_student_trait_states,
+    rank_major_relevance,
+)
 from src.ids import generate_question_id, generate_session_id
 from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
@@ -329,7 +335,22 @@ def get_profile(session_id: str) -> ProfileResponse:
 
 @app.get("/majors/{session_id}", response_model=MajorsResponse)
 def get_majors(session_id: str) -> MajorsResponse:
-    _get_state_or_404(session_id)
+    state = _get_state_or_404(session_id)
+    if state.trait_summaries:
+        # §16은 LLM을 쓰지 않는 순수 계산이라 LLM 연동 여부와 무관하게 항상 실제 경로를 쓴다.
+        student_states = compute_student_trait_states(
+            state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=set()
+        )
+        results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
+        labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}
+        relevant, explore_together, insufficient_message = rank_major_relevance(results, labels_by_major_id)
+        return MajorsResponse(
+            session_id=session_id,
+            relevant_majors=relevant,
+            explore_together_majors=explore_together,
+            insufficient_evidence_message=insufficient_message,
+        )
+    # LLM 여부와 무관하게, 아직 답변이 없으면(trait_summaries 비어있음) 기존 Mock 경로.
     relevant, explore_together = mock_data.mock_majors_relevance()
     return MajorsResponse(
         session_id=session_id, relevant_majors=relevant, explore_together_majors=explore_together
