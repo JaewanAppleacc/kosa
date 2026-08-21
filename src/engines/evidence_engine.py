@@ -103,3 +103,47 @@ def judge_trait_state(
 
     # support_count >= 2 이지만 context 다양성 또는 frame 다양성(§13, 2026-08-20 결정) 부족
     return TraitStateJudgment(state=TraitState.LIMITED)
+
+
+def has_coverage_gap(trait_summaries: dict[str, TraitEvidenceSummary], all_trait_ids: set[str]) -> bool:
+    """§5-3 "추가 확인이 필요한 핵심 Primary Trait가 없음"의 반대 조건. Target Planner의
+    위치 5-6 Gap 판정(§8)과 같은 기준(opportunity=0 또는 support<2)을 재사용한다 — 같은
+    "이 Trait는 아직 부족하다"는 판단을 Stop 여부와 다음 질문 목표 선정 양쪽에서 일관되게
+    쓰기 위함이다."""
+
+    for trait_id in all_trait_ids:
+        summary = trait_summaries.get(trait_id)
+        if summary is None or summary.opportunity_count == 0 or summary.support_count < 2:
+            return True
+    return False
+
+
+def decide_stop_or_continue(
+    tail_questions_asked_in_current_context: int,
+    trait_summaries: dict[str, TraitEvidenceSummary],
+    all_trait_ids: set[str],
+    unresolved_conflict_trait_ids: set[str],
+) -> str:
+    """§5-3 Adaptive Stop Condition을 그대로 코드로 옮긴다.
+
+    꼬리질문 "위치 1~4가 필수 역할(§7-2 DEEPEN/BEHAVIOR/CROSS_CONTEXT/ALTERNATIVE)을 전부
+    충족했는지"는 별도로 검사하지 않는다 — Target Planner(§8)가 위치 1~4에서 항상 그 테마의
+    Frame만 쓰도록 구조적으로 강제하므로, 정확히 4개가 끝난 시점에는 4개 역할이 이미 전부
+    충족돼 있다는 게 설계로 보장된다.
+
+    반환값은 "CONTINUE" 또는 "STOP" 문자열이다(§13 TraitState와 겹치지 않게 별도 타입을
+    쓰지 않고 단순 리터럴로 둔다 — 이 결정을 저장하는 별도 Enum이 아직 필요하지 않다).
+    """
+
+    if tail_questions_asked_in_current_context < 4:
+        return "CONTINUE"
+
+    if tail_questions_asked_in_current_context >= 6:
+        return "STOP"  # 6개 완료 시 강제 STOP
+
+    # 4~5개 사이: 조건부 — Conflict도 없고 Coverage Gap도 없어야 STOP 가능
+    if unresolved_conflict_trait_ids:
+        return "CONTINUE"
+    if has_coverage_gap(trait_summaries, all_trait_ids):
+        return "CONTINUE"
+    return "STOP"

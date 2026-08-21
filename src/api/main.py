@@ -13,8 +13,10 @@ from __future__ import annotations
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
+from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
 from src.api import mock_data
-from src.ids import generate_session_id
+from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
+from src.ids import generate_question_id, generate_session_id
 from src.memory.session_store import InMemorySessionStore
 from src.schemas.api import (
     AnswerRequest,
@@ -127,12 +129,34 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
 @app.post("/assessment/next-question", response_model=NextQuestionResponse)
 def next_question(session_id: str) -> NextQuestionResponse:
     state = _get_state_or_404(session_id)
-    current_context = state.current_context_id or "media"
-    # Context의 첫 질문(Seed)은 실제 확정 콘텐츠를 반환한다(§7-1). 이후 꼬리질문은
-    # 실제 Adaptive 질문 생성(§10)이 아직 없어 Mock 고정 질문을 반환한다.
-    question = mock_data.next_mock_question(
-        current_context, state.questions_asked_in_current_context
-    )
+    current_context = state.current_context_id
+    if current_context is None:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message="Context가 아직 확정되지 않았습니다. /assessment/context-confirm을 먼저 호출하세요.",
+            ).model_dump(),
+        )
+
+    if state.questions_asked_in_current_context == 0:
+        # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
+        question = mock_data.next_mock_question(current_context, 0)
+    else:
+        # 꼬리질문: Target Planner(§8)가 직전 답변 처리에서 정한 목표 Trait·Frame을 실제로
+        # 반영한다. 선택지 문장 자체는 아직 LLM 연동(§10) 전이라 Mock이다.
+        question_id = generate_question_id(
+            current_context, "tail", state.questions_asked_in_current_context
+        )
+        question = mock_data.tail_question_from_planner_decision(
+            question_id,
+            current_context,
+            state.pending_target_traits,
+            state.pending_question_frame or "problem_check",
+        )
+
+    state.current_question = question
+    _store.save(state)
     return NextQuestionResponse(
         session_id=session_id,
         status=QuestionDeliveryStatus.GENERATED,
@@ -145,11 +169,56 @@ def next_question(session_id: str) -> NextQuestionResponse:
 
 @app.post("/assessment/answer", response_model=AnswerResponse)
 def submit_answer(payload: AnswerRequest) -> AnswerResponse:
+    """실제 답변 처리 파이프라인(§5-2): Option 검증 → EvidenceRecord → Trait Summary →
+    Stop/Continue(§5-3) → (CONTINUE면) Target Planner(§8). LLM 질문 생성만 아직 Mock이다."""
+
     state = _get_state_or_404(payload.session_id)
-    state.questions_asked_in_current_context += 1
+
+    if state.current_question is None or state.current_question.question_id != payload.question_id:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message="현재 세션에 제시된 질문과 question_id가 다릅니다. 먼저 /assessment/next-question을 호출하세요.",
+            ).model_dump(),
+        )
+
+    is_first_context_in_session = state.current_context_index == 0
+    result = process_answer_submission(
+        state,
+        state.current_question,
+        payload.selected_option_id,
+        VERTICAL_SLICE_TRAIT_IDS,
+        is_first_context_in_session,
+    )
+
+    if not result.accepted:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=result.rejection_reason or "답변이 거부됐습니다.",
+            ).model_dump(),
+        )
+
+    if result.stop_decision == "STOP":
+        if state.current_context_index + 1 < len(state.context_processing_order):
+            state.current_context_index += 1
+            state.questions_asked_in_current_context = 0
+            state.used_frame_ids_in_current_context = []
+            state.pending_target_traits = []
+            state.pending_question_frame = None
+            next_action = "CONTEXT_COMPLETE"
+        else:
+            state.phase = AssessmentPhase.PROFILE_GENERATION
+            next_action = "ASSESSMENT_COMPLETE"
+    else:
+        decision = result.next_planner_decision
+        state.pending_target_traits = decision.target_traits if decision else []
+        state.pending_question_frame = decision.question_frame if decision else None
+        next_action = "NEXT_QUESTION"
+
     _store.save(state)
-    # 실제 Stop/Continue 판단(§5-3)은 미구현 — 5개까지는 계속 진행하는 걸로 Mock 처리
-    next_action = "NEXT_QUESTION" if state.questions_asked_in_current_context < 5 else "CONTEXT_COMPLETE"
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
 
