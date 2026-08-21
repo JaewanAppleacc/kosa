@@ -1,5 +1,5 @@
 {
-  "session_id": "sess_2abcb37e7f5941d4bae13df3341c33f6",
+  "session_id": "sess_fc3a456cf3164f16ba90ee8636181b78",
   "relevant_majors": [
     {
       "major_id": "media_communication",
@@ -7,22 +7,23 @@
       "relevance_label": "관련성 높음",
       "evidence_sufficiency": "충분",
       "repeated_context_count": 3
-    },
-    {
-      "major_id": "hci_ux",
-      "label": "HCI·UX",
-      "relevance_label": "관련성 높음",
-      "evidence_sufficiency": "보통",
-      "repeated_context_count": 2
     }
   ],
   "explore_together_majors": [
     {
+      "major_id": "hci_ux",
+      "label": "HCI·UX",
+      "relevance_label": "함께 탐색해볼 분야",
+      "evidence_sufficiency": "충분",
+      "repeated_context_count": 3
+    },
+    {
       "major_id": "industrial_engineering",
       "label": "산업공학",
-      "relevance_label": "함께 탐색해볼 분야",
+      "relevance_label": "비교해볼 만한 분야",
       "evidence_sufficiency": "보통",
-      "repeated_context_count": 1
+      "repeated_context_count": 3
     }
-  ]
+  ],
+  "insufficient_evidence_message": null
 }

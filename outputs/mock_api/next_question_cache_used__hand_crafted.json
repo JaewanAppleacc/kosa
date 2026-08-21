@@ -1,5 +1,5 @@
 {
-  "session_id": "sess_2abcb37e7f5941d4bae13df3341c33f6",
+  "session_id": "sess_fc3a456cf3164f16ba90ee8636181b78",
   "status": "CACHE_USED",
   "question": {
     "question_id": "game_seed_01",
@@ -14,7 +14,8 @@
         "text": "왜 이 전략이 통하는지 원리를 파악하는 것",
         "primary_trait_delta": {
           "causal_analysis": 1
-        }
+        },
+        "next_probe": "원인 분석을 더 깊이 파고드는 경향인지 확인"
       },
       {
         "option_id": "game_seed_01_o2",
@@ -22,7 +23,8 @@
         "text": "일단 해보면서 방법을 찾아가는 것",
         "primary_trait_delta": {
           "immediate_execution": 1
-        }
+        },
+        "next_probe": "즉시 실행 성향이 새로운 상황에서도 이어지는지 확인"
       },
       {
         "option_id": "game_seed_01_o3",
@@ -30,7 +32,8 @@
         "text": "같이 하는 사람들과 역할을 맞춰가는 것",
         "primary_trait_delta": {
           "collaboration_preference": 1
-        }
+        },
+        "next_probe": "협업 상황에서 역할 분담 방식을 더 확인"
       },
       {
         "option_id": "game_seed_01_o4",
@@ -38,7 +41,8 @@
         "text": "여러 상황이나 상대의 행동에서 반복되는 패턴을 찾아내는 것",
         "primary_trait_delta": {
           "pattern_finding": 1
-        }
+        },
+        "next_probe": "패턴 탐색이 다른 상황에서도 이어지는지 확인"
       },
       {
         "option_id": "game_seed_01_o5",
@@ -46,7 +50,8 @@
         "text": "아이템이나 장비를 직접 다루고 활용하는 것",
         "primary_trait_delta": {
           "tool_utilization": 1
-        }
+        },
+        "next_probe": "도구·장비 활용이 다른 상황에서도 나타나는지 확인"
       }
     ]
   },

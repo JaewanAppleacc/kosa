@@ -69,6 +69,36 @@ def main() -> None:
     )
     _write("answer_normal", r.json())
 
+    # profile_normal·majors_normal은 답변 1개만으로는 Evidence가 거의 없어 항상 빈
+    # 결과가 나온다(§16 minimum_usable_traits 미달) — B가 "실제로 다 채워진 화면"을
+    # 참고할 수 있도록, 세션을 끝까지(3개 Context) 완주시킨 뒤에 이 두 Mock을 뽑는다.
+    # LLM Key 없이도(ENABLE_LLM_QUESTION_GENERATION 미설정) Mock 질문 경로로 Evidence
+    # 계산 자체는 실제로 이뤄지므로 B 환경에서 그대로 재현 가능하다.
+    #
+    # 매번 같은 선택지(항상 options[0])만 고르면 Evidence가 2~3개 Trait에만 몰려서
+    # §16 minimum_traits_per_vector_group(그룹당 최소 2개)를 못 채우는 그룹이 많아지고
+    # majors_normal도 결국 insufficient로 끝난다 — 여러 선택지를 골고루 골라야
+    # "실제로 순위가 매겨진" 예시가 나온다.
+    for turn in range(30):
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        body = r.json()
+        if body["status"] == "CONTEXT_EARLY_TERMINATED":
+            if body["assessment_complete"]:
+                break
+            continue
+        q = body["question"]
+        option = q["options"][(turn * 2) % 5]
+        ar = client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": q["question_id"],
+                "selected_option_id": option["option_id"],
+            },
+        )
+        if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+            break
+
     _write("profile_normal", client.get(f"/profile/{session_id}").json())
     _write("majors_normal", client.get(f"/majors/{session_id}").json())
     _write("departments_normal", client.get("/departments/media_communication").json())
@@ -169,7 +199,7 @@ def _write_hand_crafted_states(session_id: str, sample_question: dict) -> None:
         CareerProfile(
             session_id=session_id,
             user_id="demo_user_01",
-            title="아직 탐색 중인 학생",
+            title="아직 답변이 많지 않아 전체적인 경향은 더 확인이 필요해요",
             highlights=[
                 CareerProfileHighlight(
                     text="지금까지 답변에서는 원인을 분석하는 경향이 반복 관찰돼요.",
@@ -180,7 +210,7 @@ def _write_hand_crafted_states(session_id: str, sample_question: dict) -> None:
                     supporting_trait_ids=[],
                 ),
                 CareerProfileHighlight(
-                    text="협업 방식은 Evidence가 부족해 추가 탐색이 필요해요.",
+                    text="이번 답변에서는 협업 방식이 충분히 확인되지 않았어요.",
                     supporting_trait_ids=["collaboration_preference"],
                 ),
                 CareerProfileHighlight(
