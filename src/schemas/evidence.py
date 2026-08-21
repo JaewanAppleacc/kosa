@@ -21,6 +21,7 @@ class EvidenceRecord(BaseModel):
     question_id: str
     question_frame_id: str
     option_role_id: str
+    option_text: str
     applied_primary_trait_delta: dict[str, int]
     evidence_origin: EvidenceOrigin
     secondary_hypotheses: list[str] = []

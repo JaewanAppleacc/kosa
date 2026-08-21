@@ -19,10 +19,16 @@ from src.ids import generate_option_id
 
 
 class OptionRole(BaseModel):
-    """설계안 §9 Option Blueprint의 개별 role. MVP 규칙: 모든 trait_delta 값은 1이다."""
+    """설계안 §9 Option Blueprint의 개별 role. MVP 규칙: 모든 trait_delta 값은 1이다.
+
+    `next_probe`는 §7-3/§8과 동일한 개념이다 — "이 Option을 고른 학생에게 이어질 다음
+    질문이 자연스럽게 이어지도록 잇는 재료"이며, Target Trait 자체를 바꾸지 않는다(§8:
+    "직전 답변에서 강하게 나타난 관심은 우선순위 조건이 아니라... 문구를 자연스럽게
+    잇는 재료로만 사용한다"). 기존 Fixture 호환을 위해 Optional로 둔다."""
 
     role_id: str
     primary_trait_delta: dict[str, int]
+    next_probe: str | None = None
 
     @field_validator("primary_trait_delta")
     @classmethod
@@ -130,12 +136,16 @@ class QuestionGenerationResult(BaseModel):
 
 
 class FinalizedOption(BaseModel):
-    """서버가 option_id를 부여하고 Blueprint의 trait_delta를 결합한 최종 Option."""
+    """서버가 option_id를 부여하고 Blueprint의 trait_delta를 결합한 최종 Option.
+
+    `next_probe`는 이 Option이 선택됐을 때 다음 질문 문구를 자연스럽게 잇기 위한 재료다
+    (§7-3, §8). Mock·Backup 경로는 채우지 않을 수 있어 Optional이다."""
 
     option_id: str
     role_id: str
     text: str
     primary_trait_delta: dict[str, int]
+    next_probe: str | None = None
 
 
 class FinalizedQuestion(BaseModel):
@@ -258,6 +268,7 @@ def finalize_question(
                 role_id=option.role_id,
                 text=option.text,
                 primary_trait_delta=role.primary_trait_delta,
+                next_probe=role.next_probe,
             )
         )
 

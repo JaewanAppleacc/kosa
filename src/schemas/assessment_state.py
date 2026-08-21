@@ -54,6 +54,22 @@ class AssessmentState(BaseModel):
     # §12/§13 Evidence·Trait 상태
     evidence_ledger: list[EvidenceRecord] = []
     trait_summaries: dict[str, TraitEvidenceSummary] = {}
+    # summarize_trait_evidence()의 opportunity_count 계산 입력. 질문 하나가 제시한 5개
+    # Option(=5개 Trait)을 question_id별로 기록해둔다 — 나중에 "이 Trait가 몇 번 제시됐는지"를
+    # 다시 계산하려면 어떤 질문이 어떤 Trait를 다뤘는지가 남아있어야 한다.
+    offered_trait_ids_by_question: dict[str, list[str]] = {}
+    # 최근 목표 Trait 이력(오래된 것 → 최신). Planner의 자기확증 방지 규칙(§8, 연속 3회 금지)
+    # 입력으로 쓴다.
+    recent_target_trait_ids: list[str] = []
+    used_frame_ids_in_current_context: list[str] = []
+    # §10 생성 원칙("앞선 질문을 표현만 바꿔 반복하지 않는다") 검사용 — Context가 바뀌면
+    # 초기화한다. §11 Fallback에서 같은 세션 안에 Backup Question을 재사용하지 않기 위한
+    # 목록은 Context가 바뀌어도 유지한다(question_id 자체가 Context를 포함해 유일하다).
+    generated_question_texts_in_current_context: list[str] = []
+    used_backup_question_ids: list[str] = []
+    # §7-2 DEEPEN 테마 Blueprint 제한용 — 이 Context의 Seed에서 학생이 실제로 선택한 Trait.
+    # Context가 바뀌면 그 Context의 새 Seed 선택으로 다시 채워진다(2026-08-21 리뷰).
+    current_context_seed_trait_id: str | None = None
 
     # §24 LLM 호출 예산
     llm_call_count: int = 0
@@ -61,6 +77,23 @@ class AssessmentState(BaseModel):
 
     # §5-3 Stop Condition
     stop_reason: str | None = None
+
+    # 직전 답변 처리에서 Target Planner가 정한 다음 질문 목표. schemas/는 agents/를 import하지
+    # 않는 게 계층 원칙이라 PlannerDecision 객체 대신 필드만 그대로 옮겨 담는다.
+    pending_target_traits: list[str] = []
+    pending_question_frame: str | None = None
+    pending_purpose: str | None = None
+    # §7-3/§8: 방금 선택된 Option의 next_probe. 목표 Trait 자체는 바꾸지 않고(§8 "우선순위
+    # 조건이 아니라") 다음 질문 "문구"를 자연스럽게 잇는 재료로만 쓴다.
+    pending_next_probe: str | None = None
+    # 2026-08-21 리뷰: LLM 프롬프트에 next_probe 메모 한 줄만 주지 않고, 직전 질문 전문과
+    # 학생이 실제로 고른 선택지 문장도 함께 준다(문장 자체에 노출은 안 하고 참고 재료로만).
+    pending_previous_question_text: str | None = None
+    pending_previous_answer_text: str | None = None
+    # §8 원본 출력 스키마의 option_blueprint_id. Question Generator가 target_trait만으로
+    # Blueprint를 다시 찾을 때 생기는 모호함(같은 Trait가 여러 Blueprint에 걸칠 수 있음)을
+    # 없애기 위해 Planner가 고른 Blueprint를 그대로 넘긴다.
+    pending_option_blueprint_id: str | None = None
 
     @property
     def current_context_id(self) -> str | None:

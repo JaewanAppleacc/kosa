@@ -196,5 +196,140 @@ class PositionFiveSixTest(unittest.TestCase):
         self.assertEqual(decision.purpose, "Evidence가 부족한 핵심 Trait 보완")
 
 
+class DeepenBlueprintRestrictionTest(unittest.TestCase):
+    """2026-08-21 리뷰: 위치 1(DEEPEN)은 Seed에서 선택된 Trait이 속한 Blueprint 안의
+    형제 Trait로만 후보를 제한해야 한다(§7-2 관심 지점 심화 + §8 자기확증 방지 동시 만족)."""
+
+    ALL_TWELVE = {
+        "causal_analysis",
+        "change_adaptation",
+        "immediate_execution",
+        "information_comparison",
+        "collaboration_preference",
+        "visual_expression",
+        "emotional_interpretation",
+        "audience_response_prediction",
+        "opinion_mediation",
+        "pattern_finding",
+        "planning",
+        "tool_utilization",
+    }
+
+    def test_deepen_candidate_restricted_to_anchor_blueprint(self) -> None:
+        """causal_analysis(problem_response_v1)로 앵커링하면, 이 Blueprint 밖의
+        audience_response_prediction 같은 Trait는 후보에서 아예 제외돼야 한다."""
+
+        decision = decide_next_target(
+            context_id="game",
+            position=1,
+            all_trait_ids=self.ALL_TWELVE,
+            trait_summaries={},  # 전부 관찰 이력 없음 → 전부 교차확인 필요(동률)
+            unresolved_conflict_trait_ids=set(),
+            recent_target_trait_ids=[],
+            used_frame_ids_in_context=set(),
+            is_first_context_in_session=False,
+            deepen_anchor_trait_id="causal_analysis",
+        )
+        # problem_response_v1 = {causal_analysis, change_adaptation, immediate_execution,
+        # information_comparison, collaboration_preference} — 알파벳 순 1등은 causal_analysis
+        # 자신이 아니라 collaboration_preference(하지만 여전히 같은 Blueprint 안).
+        problem_response_traits = {
+            "causal_analysis",
+            "change_adaptation",
+            "immediate_execution",
+            "information_comparison",
+            "collaboration_preference",
+        }
+        self.assertIn(decision.target_traits[0], problem_response_traits)
+        self.assertEqual(decision.option_blueprint_id, "problem_response_v1")
+
+    def test_deepen_without_anchor_is_unrestricted(self) -> None:
+        """anchor가 없으면(예: Seed 답변 정보가 없는 경우) 이전처럼 전체 12개가 후보다."""
+
+        decision = decide_next_target(
+            context_id="game",
+            position=1,
+            all_trait_ids=self.ALL_TWELVE,
+            trait_summaries={},
+            unresolved_conflict_trait_ids=set(),
+            recent_target_trait_ids=[],
+            used_frame_ids_in_context=set(),
+            is_first_context_in_session=False,
+        )
+        self.assertEqual(decision.target_traits, ["audience_response_prediction"])  # 알파벳 1등
+
+    def test_resolved_blueprint_matches_anchor_even_when_trait_spans_multiple_blueprints(self) -> None:
+        """pattern_finding은 expression_and_audience_v1과 planning_and_execution_v1 둘 다에
+        속한다. planning으로 앵커링했을 때 Planner가 pattern_finding을 고르면,
+        blueprint_for_target_trait()가 아니라 앵커한 Blueprint(planning_and_execution_v1)를
+        그대로 써야 한다 — 그래야 실제 생성될 5개 선택지가 앵커 Blueprint와 일치한다."""
+
+        summaries = {
+            # planning 그룹 안에서 pattern_finding만 이미 충분히 관찰돼 교차확인이 필요없다고
+            # 만들면, 반대로 다른 후보가 우선되므로 여기서는 전부 미관찰 상태로 동률을 만든다.
+        }
+        decision = decide_next_target(
+            context_id="game",
+            position=1,
+            all_trait_ids=self.ALL_TWELVE,
+            trait_summaries=summaries,
+            unresolved_conflict_trait_ids=set(),
+            recent_target_trait_ids=[],
+            used_frame_ids_in_context=set(),
+            is_first_context_in_session=False,
+            deepen_anchor_trait_id="planning",
+        )
+        planning_group_traits = {
+            "planning",
+            "tool_utilization",
+            "collaboration_preference",
+            "causal_analysis",
+            "pattern_finding",
+        }
+        self.assertIn(decision.target_traits[0], planning_group_traits)
+        self.assertEqual(decision.option_blueprint_id, "planning_and_execution_v1")
+
+
+class FrequencyTieBreakTest(unittest.TestCase):
+    def test_less_frequently_targeted_trait_wins_tie(self) -> None:
+        """둘 다 교차확인이 필요한 동률 상태에서, pattern_finding이 이미 2번 목표로
+        나왔고 causal_analysis는 한 번도 안 나왔다면 causal_analysis가 이겨야 한다
+        (순수 알파벳 tie-break였다면 causal_analysis가 이겼겠지만, 반대로 pattern_finding이
+        여러 번 나온 상황을 만들어 빈도가 알파벳보다 우선한다는 걸 확인한다)."""
+
+        decision = decide_next_target(
+            context_id="media",
+            position=2,
+            all_trait_ids={"causal_analysis", "pattern_finding"},
+            trait_summaries={},
+            unresolved_conflict_trait_ids=set(),
+            recent_target_trait_ids=["pattern_finding", "causal_analysis", "pattern_finding"],
+            used_frame_ids_in_context=set(),
+            is_first_context_in_session=False,
+        )
+        self.assertEqual(decision.target_traits, ["causal_analysis"])
+
+
+class GapFillingRepetitionGuardTest(unittest.TestCase):
+    def test_position_five_excludes_recently_repeated_trait(self) -> None:
+        """2026-08-21 리뷰: 위치 5~6 Gap 보완에도 연속 3회 금지가 적용돼야 한다.
+        planning이 opportunity=0(명백한 Gap)이지만 최근 2연속 목표였다면 제외돼야 한다."""
+
+        summaries = {
+            "planning": _summary("planning", context_count=0, opportunity=0, support=0),
+        }
+        decision = decide_next_target(
+            context_id="media",
+            position=5,
+            all_trait_ids=ALL_TRAITS,
+            trait_summaries=summaries,
+            unresolved_conflict_trait_ids=set(),
+            recent_target_trait_ids=["planning", "planning"],
+            used_frame_ids_in_context=set(),
+            is_first_context_in_session=False,
+        )
+        self.assertNotEqual(decision.target_traits, ["planning"])
+
+
 if __name__ == "__main__":
     unittest.main()

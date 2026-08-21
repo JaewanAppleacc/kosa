@@ -130,6 +130,9 @@ class MajorsResponse(BaseModel):
     session_id: str
     relevant_majors: list[MajorRelevance]
     explore_together_majors: list[MajorRelevance]
+    # §16 matching_policy 미충족 시("minimum_usable_traits"/"minimum_usable_vector_groups"
+    # 못 채움) 순위를 만들지 않고 이 메시지만 채운다. 정상 계산됐으면 None.
+    insufficient_evidence_message: str | None = None
 
 
 # --- GET /departments/{major_id} ---

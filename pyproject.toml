@@ -9,6 +9,8 @@ dependencies = [
     "uvicorn[standard]==0.38.0",
     "httpx",
     "python-multipart",
+    "openai",
+    "python-dotenv",
 ]
 
 [tool.setuptools]

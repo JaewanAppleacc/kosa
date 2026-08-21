@@ -8,7 +8,10 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from src.data.contexts.context_definitions import VERTICAL_SLICE_CONTEXT_IDS
+from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
+from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
+from src.ids import generate_option_id
 from src.schemas.course import CourseProfile, CourseRecommendationItem, ParsedSubjectCandidate
 from src.schemas.graph import SubgraphEdge, SubgraphNode
 from src.schemas.major import AdmissionReference, Department, MajorRelevance
@@ -33,8 +36,43 @@ def seed_question_as_finalized(seed: SeedQuestion) -> FinalizedQuestion:
                 role_id=o.role_id,
                 text=o.text,
                 primary_trait_delta=o.primary_trait_delta,
+                next_probe=o.next_probe,
             )
             for o in seed.options
+        ],
+    )
+
+
+def tail_question_from_planner_decision(
+    question_id: str,
+    context_id: str,
+    target_traits: list[str],
+    question_frame: str,
+) -> FinalizedQuestion:
+    """Target Planner(§8)가 정한 목표 Trait·Frame을 실제로 반영한 꼬리질문을 만든다.
+    목표 Trait와 Frame 문구는 진짜지만, 아직 LLM 연동(§10)이 없어서 선택지 문장은
+    Mock이다 — "구조는 실제, 문구는 가짜"인 중간 단계라는 걸 alt(선택지 텍스트)에
+    그대로 드러낸다."""
+
+    target_trait = target_traits[0] if target_traits else "causal_analysis"
+    other_traits = [t for t in sorted(VERTICAL_SLICE_TRAIT_IDS) if t != target_trait][:4]
+    all_traits = [target_trait, *other_traits]
+    frame_text = QUESTION_FRAME_TEXT.get(question_frame, "다음 상황에서 어떻게 하나요?")
+
+    return FinalizedQuestion(
+        question_id=question_id,
+        context=context_id,
+        target_traits=[target_trait],
+        frame_id=question_frame,
+        question_text=frame_text,
+        options=[
+            FinalizedOption(
+                option_id=generate_option_id(question_id, i),
+                role_id=f"role_{trait}",
+                text=f"[Mock] {trait} 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자",
+                primary_trait_delta={trait: 1},
+            )
+            for i, trait in enumerate(all_traits, start=1)
         ],
     )
 

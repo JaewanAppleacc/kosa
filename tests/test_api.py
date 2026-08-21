@@ -7,15 +7,26 @@ CLAUDE.md 필수 테스트 "고정 Persona End-to-End 완주"의 API 레벨 버�
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from src.api import main as main_module
 from src.api.main import app
 
 client = TestClient(app)
 
 
 class SessionLifecycleTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # main._llm_client는 개발자 로컬 .env(ENABLE_LLM_QUESTION_GENERATION)에 따라
+        # 실제 LLM Client일 수도 있다. 이 테스트는 "API 배선이 안 끊기는지"만 확인하는
+        # 계약 테스트라 실제 네트워크 호출 여부와 무관하게 항상 Mock 경로로 고정한다
+        # (아니면 개발자 로컬 설정에 따라 unittest discover가 느려지거나 비용이 든다).
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_full_vertical_slice_flow_does_not_break(self) -> None:
         # 1. 세션 생성
         r = client.post("/assessment/session")
@@ -134,6 +145,47 @@ class SessionLifecycleTest(unittest.TestCase):
         r = client.get(f"/profile/{session_id}")
         highlights = r.json()["highlights"]
         self.assertTrue(5 <= len(highlights) <= 8)
+
+    def test_majors_response_never_exposes_raw_score_or_float(self) -> None:
+        """2026-08-21 리뷰: 내부 Matching Score(§16)가 API 응답 JSON 어디에도 소수점
+        숫자로 새어나가면 안 된다 — Pydantic 스키마 레벨(MajorRelevance)뿐 아니라 실제
+        JSON 응답까지 확인한다."""
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        # 실제 파이프라인(Evidence·Trait Summary)을 몇 턴 돌려 trait_summaries를 채운다.
+        # LLM은 setUp에서 None으로 고정했으니 질문 문구만 Mock이고 계산 로직은 진짜다.
+        for _ in range(6):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            question = r.json()["question"]
+            option_id = question["options"][0]["option_id"]
+            client.post(
+                "/assessment/answer",
+                json={
+                    "session_id": session_id,
+                    "question_id": question["question_id"],
+                    "selected_option_id": option_id,
+                },
+            )
+
+        r = client.get(f"/majors/{session_id}")
+        self.assertEqual(r.status_code, 200)
+
+        def _assert_no_float(node, path: str) -> None:
+            if isinstance(node, float):
+                self.fail(f"{path}에 float 값이 노출됨: {node}")
+            elif isinstance(node, dict):
+                for key, value in node.items():
+                    _assert_no_float(value, f"{path}.{key}")
+            elif isinstance(node, list):
+                for i, value in enumerate(node):
+                    _assert_no_float(value, f"{path}[{i}]")
+
+        _assert_no_float(r.json(), "majors_response")
 
     def test_openapi_schema_is_generated(self) -> None:
         r = client.get("/openapi.json")

@@ -28,6 +28,7 @@ def _record(
         question_id=f"q_{evidence_id}",
         question_frame_id=frame,
         option_role_id="some_role",
+        option_text="테스트 선택지 문장",
         applied_primary_trait_delta={trait: 1},
         evidence_origin=origin,
         context=context,

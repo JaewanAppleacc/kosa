@@ -1,6 +1,12 @@
-# B 작업자 핸드오프 — 2026-08-21
+# B 작업자 핸드오프 — 2026-08-21 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-21 갱신 내용**: 질문 생성(§10)·Career Profile(§14)·전공 Matching(§16)이 전부
+> Mock에서 실제 계산으로 바뀌었습니다. 아래 2번 표와 4번 상태값 목록이 크게 달라졌으니
+> 이전에 이 문서를 보신 적 있어도 다시 한번 읽어주세요. Response의 필드 이름·타입은
+> 기존과 호환되고(`insufficient_evidence_message` 필드 하나만 새로 추가됨), 값의 내용만
+> Mock에서 실제 계산 결과로 바뀌었습니다.
 
 ## 1. 빠른 시작
 
@@ -20,10 +26,16 @@ python3 -m venv .venv
 | 단계 | 실제 동작 여부 |
 |---|---|
 | 세션 생성 / 관심도 평가 / Context 선택·확정 | ✅ 실제 상태 저장·조회 (단, In-Memory — 서버 재시작하면 날아감, DB 아님) |
-| 다음 질문 받기 / 답변 제출 | ⚠️ 응답 형태는 최종본이지만 내용은 고정 Mock (LLM 질문 생성 미구현) |
-| Profile / Majors / Departments / Subjects / Subgraph 조회 | ⚠️ 전부 고정 Mock (Evidence 집계·Matching Engine 미구현) |
+| Seed 질문(각 Context의 첫 질문) | ✅ 실제 고정 문항(§7-1) |
+| 꼬리질문(2번째 질문부터) 생성 | ✅ 실제 LLM 생성(§10) — **단, `.env`에 `ENABLE_LLM_QUESTION_GENERATION=true` + API Key가 있을 때만.** 안 켜져 있으면 자동으로 이전과 같은 Mock 문구로 동작합니다(서버가 알아서 판단 — B가 신경 쓸 필요 없음). |
+| 답변 제출 → Evidence·Trait 판정 | ✅ 실제 계산(§12/§13). LLM 연동 여부와 무관하게 항상 실제로 동작합니다. |
+| Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM 켜져 있으면 실제 문장, 꺼져 있으면 Mock 문장. `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
+| Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
+| Departments / Subjects / Subgraph 조회 | ⚠️ 아직 고정 Mock (C의 데이터 구축·A의 Subject Planning 미완료) |
 
-**즉 지금은 "화면과 상태 흐름을 만들 수 있는 단계"지, "진짜 계산 결과를 보여줄 단계"는 아닙니다.** Mock을 실제 값으로 바꿔도 응답 Schema(필드 이름·타입)는 안 바뀌도록 설계했으니, 화면 코드는 지금 만들어도 나중에 크게 안 깨집니다.
+**질문 생성과 Profile 문장 생성만 로컬 LLM 설정에 따라 달라지고, 그 외 계산(Evidence·Trait·Matching)은 전부 실제로 동작합니다.** 화면에서 "LLM 켜짐/꺼짐"을 구분할 필요는 없습니다 — 응답 Schema(필드 이름·타입)가 동일해서 화면 코드는 그대로 씁니다.
+
+**실제 생성된 질문·선택지가 어떤 톤인지 미리 보고 싶으면**: https://claude.ai/code/artifact/f9a0df5f-8bcf-4ea5-b904-62b8e855f6b5 (A가 LLM 검수용으로 만든 페이지 — 게임/미디어/학교생활 3개 Context 실제 생성 결과 전량). 비공개 링크라 안 보이면 A에게 공유 요청하세요. 정식 검수 기록은 `outputs/evaluation/question_generator_live_review.md`에도 있습니다.
 
 ## 3. Endpoint 목록
 
@@ -58,6 +70,14 @@ python3 -m venv .venv
 **Evidence 충분성** (`MajorRelevance.evidence_sufficiency`):
 `"충분"` / `"보통"` / `"제한적"`
 
+**전공 목록이 아예 빈 경우** (`MajorsResponse.insufficient_evidence_message`, 신규 필드):
+답변이 아직 충분하지 않아 전공 순위를 계산할 수 없을 때 `relevant_majors`·`explore_together_majors`가
+둘 다 빈 배열로 오고, 이 필드에 "아직 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이
+필요합니다." 문구가 채워집니다. 정상 계산됐으면 이 필드는 `null`입니다 — **화면에서 반드시
+이 필드를 먼저 확인하고, `null`이 아니면 목록 UI 대신 이 안내 문구를 보여주세요.**
+(`outputs/mock_api/majors_normal.json`이 채워진 예시, 이 필드가 비게 되는 경우는 세션을
+얼마 안 진행했을 때 재현됩니다.)
+
 ## 5. Mock JSON (서버 안 띄워도 되는 정적 파일)
 
 `outputs/mock_api/`에 정상·오류·빈 결과 예시와 `openapi.json`이 있습니다. Schema가 바뀌면 아래 명령으로 재생성됩니다(재생성됐는지 커밋 로그로 확인하세요):
@@ -79,6 +99,10 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 - Session은 In-Memory라 서버 재시작하면 다 날아갑니다. 새로고침 후 복원 UI는 만들어도 되지만, 서버 재시작까지 버티는 지속성은 아직 없습니다.
 - `/assessment/session`은 `user_id`를 받지 않습니다(보안상 서버가 고정) — 화면에서 이 값을 사용자가 입력하게 만들지 마세요.
 - 화면에 내부 점수(예: 84%, 0.67 같은 숫자)를 노출하는 API는 애초에 없습니다. 정성 Label만 옵니다.
+- `CareerProfile.title`은 "~형", "~유형", "~타입", "꼼꼼한 탐색자" 같은 성격 유형 검사식 고정
+  라벨이 나오지 않도록 서버에서 강제합니다(기획 원칙 "학생을 유형으로 규정하지 않는다"). 항상
+  "~보여요", "~나타났어요" 같은 관찰 서술 문장으로 옵니다 — 화면에 "유형 카드"나 "타입 뱃지"
+  같은 고정 라벨 UI를 전제로 디자인하지 마세요.
 
 ## 8. 문제 발견 시
 

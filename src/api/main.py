@@ -11,10 +11,30 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 
 from __future__ import annotations
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 
+# 로컬 개발 편의용 — 이미 설정된 실제 배포 환경변수는 덮어쓰지 않는다(override=False가 기본값).
+load_dotenv()
+
+from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
+from src.agents.assessment.profile_generator import generate_career_profile
+from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
-from src.ids import generate_session_id
+from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
+from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
+from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
+from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
+from src.engines.matching_engine import (
+    compute_major_match,
+    compute_student_trait_states,
+    rank_major_relevance,
+)
+from src.ids import generate_question_id, generate_session_id
+from src.llm.openai_client import OpenAIChatClient
+from src.llm.protocols import ChatLLMClient
+from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
 from src.memory.session_store import InMemorySessionStore
 from src.schemas.api import (
     AnswerRequest,
@@ -64,6 +84,43 @@ _store = InMemorySessionStore()
 # (회원가입과 실제 다중 사용자 운영)을 구현할 때는 모든 session_id 기반 Endpoint에
 # "인증된 호출자가 이 세션의 소유자인가"를 검사하는 로직을 반드시 추가해야 한다.
 DEMO_USER_ID = "demo_user_01"
+
+TRAIT_DEFINITIONS_BY_ID = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
+ALL_TRAIT_LABELS = {tid: t.label for tid, t in TRAIT_DEFINITIONS_BY_ID.items()}
+CONTEXT_DEFINITIONS_BY_ID = {c.context_id: c for c in CONTEXT_DEFINITIONS}
+
+# §10/§11 실시간 LLM 질문 생성 — 명시적으로 켜져 있고(.env ENABLE_LLM_QUESTION_GENERATION)
+# 설정이 완전할 때만 활성화한다. 꺼져 있거나 Key가 없으면 조용히 Mock 경로로 돌아간다
+# (CLAUDE.md "외부 API 실패를 성공 응답으로 위장하지 않는다" — 이건 실패 위장이 아니라
+# 애초에 기능이 꺼진 상태이므로 문제 없다).
+_llm_client: ChatLLMClient | None = None
+if llm_generation_enabled():
+    try:
+        _llm_client = OpenAIChatClient(load_chat_llm_settings())
+    except LLMSettingsError as exc:
+        print(f"[warn] ENABLE_LLM_QUESTION_GENERATION=true이지만 설정이 불완전합니다: {exc}")
+
+
+def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
+    """§11 Fallback: Backup Question까지 소진되면 해당 Context를 조기 종료한다.
+    다음 Context가 있으면 이동 후 True, 없으면 세션을 완료 처리하고 False를 반환한다."""
+
+    if state.current_context_index + 1 < len(state.context_processing_order):
+        state.current_context_index += 1
+        state.questions_asked_in_current_context = 0
+        state.used_frame_ids_in_current_context = []
+        state.generated_question_texts_in_current_context = []
+        state.pending_target_traits = []
+        state.pending_question_frame = None
+        state.pending_purpose = None
+        state.pending_next_probe = None
+        state.pending_previous_question_text = None
+        state.pending_previous_answer_text = None
+        state.pending_option_blueprint_id = None
+        state.current_context_seed_trait_id = None
+        return True
+    state.phase = AssessmentPhase.PROFILE_GENERATION
+    return False
 
 
 def _get_state_or_404(session_id: str) -> AssessmentState:
@@ -127,15 +184,82 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
 @app.post("/assessment/next-question", response_model=NextQuestionResponse)
 def next_question(session_id: str) -> NextQuestionResponse:
     state = _get_state_or_404(session_id)
-    current_context = state.current_context_id or "media"
-    # Context의 첫 질문(Seed)은 실제 확정 콘텐츠를 반환한다(§7-1). 이후 꼬리질문은
-    # 실제 Adaptive 질문 생성(§10)이 아직 없어 Mock 고정 질문을 반환한다.
-    question = mock_data.next_mock_question(
-        current_context, state.questions_asked_in_current_context
-    )
+    current_context = state.current_context_id
+    if current_context is None:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message="Context가 아직 확정되지 않았습니다. /assessment/context-confirm을 먼저 호출하세요.",
+            ).model_dump(),
+        )
+
+    status = QuestionDeliveryStatus.GENERATED
+
+    if state.questions_asked_in_current_context == 0:
+        # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
+        question = mock_data.next_mock_question(current_context, 0)
+    elif _llm_client is not None and state.pending_target_traits and state.pending_option_blueprint_id:
+        question_id = generate_question_id(
+            current_context, "tail", state.questions_asked_in_current_context
+        )
+        frame_id = state.pending_question_frame or "problem_check"
+        outcome = generate_tail_question(
+            question_id=question_id,
+            context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
+            trait_definition=TRAIT_DEFINITIONS_BY_ID[state.pending_target_traits[0]],
+            all_trait_labels=ALL_TRAIT_LABELS,
+            option_blueprint_id=state.pending_option_blueprint_id,
+            frame_id=frame_id,
+            frame_text=QUESTION_FRAME_TEXT.get(frame_id, "다음 상황에서 어떻게 하나요?"),
+            llm_client=_llm_client,
+            purpose=state.pending_purpose,
+            previous_question_texts=state.generated_question_texts_in_current_context,
+            previous_answer_text=state.pending_previous_answer_text,
+            previous_next_probe=state.pending_next_probe,
+            backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
+            used_backup_question_ids=set(state.used_backup_question_ids),
+        )
+        if outcome.question is None:
+            # §11 Fallback 소진 — Context 조기 종료. 남은 재생성·Backup 경로를 다 썼다는
+            # 뜻이라 조용히 넘기지 않고 상태를 남긴다.
+            has_next_context = _advance_to_next_context_or_complete(state)
+            state.current_question = None
+            _store.save(state)
+            return NextQuestionResponse(
+                session_id=session_id,
+                status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED,
+                question=None,
+                current_context_id=state.current_context_id,
+                questions_asked_in_current_context=state.questions_asked_in_current_context,
+                assessment_complete=not has_next_context,
+            )
+        question = outcome.question
+        state.generated_question_texts_in_current_context.append(question.question_text)
+        if outcome.source == "backup":
+            state.used_backup_question_ids.append(question.question_id)
+            status = QuestionDeliveryStatus.BACKUP_USED
+        elif outcome.source == "cache":
+            status = QuestionDeliveryStatus.CACHE_USED
+        else:
+            status = QuestionDeliveryStatus.GENERATED
+    else:
+        # LLM 미연동(.env ENABLE_LLM_QUESTION_GENERATION 미설정) 상태의 기존 Mock 경로.
+        question_id = generate_question_id(
+            current_context, "tail", state.questions_asked_in_current_context
+        )
+        question = mock_data.tail_question_from_planner_decision(
+            question_id,
+            current_context,
+            state.pending_target_traits,
+            state.pending_question_frame or "problem_check",
+        )
+
+    state.current_question = question
+    _store.save(state)
     return NextQuestionResponse(
         session_id=session_id,
-        status=QuestionDeliveryStatus.GENERATED,
+        status=status,
         question=question,
         current_context_id=current_context,
         questions_asked_in_current_context=state.questions_asked_in_current_context,
@@ -145,23 +269,88 @@ def next_question(session_id: str) -> NextQuestionResponse:
 
 @app.post("/assessment/answer", response_model=AnswerResponse)
 def submit_answer(payload: AnswerRequest) -> AnswerResponse:
+    """실제 답변 처리 파이프라인(§5-2): Option 검증 → EvidenceRecord → Trait Summary →
+    Stop/Continue(§5-3) → (CONTINUE면) Target Planner(§8). LLM 질문 생성만 아직 Mock이다."""
+
     state = _get_state_or_404(payload.session_id)
-    state.questions_asked_in_current_context += 1
+
+    if state.current_question is None or state.current_question.question_id != payload.question_id:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message="현재 세션에 제시된 질문과 question_id가 다릅니다. 먼저 /assessment/next-question을 호출하세요.",
+            ).model_dump(),
+        )
+
+    is_first_context_in_session = state.current_context_index == 0
+    result = process_answer_submission(
+        state,
+        state.current_question,
+        payload.selected_option_id,
+        VERTICAL_SLICE_TRAIT_IDS,
+        is_first_context_in_session,
+    )
+
+    if not result.accepted:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=result.rejection_reason or "답변이 거부됐습니다.",
+            ).model_dump(),
+        )
+
+    if result.stop_decision == "STOP":
+        has_next_context = _advance_to_next_context_or_complete(state)
+        next_action = "CONTEXT_COMPLETE" if has_next_context else "ASSESSMENT_COMPLETE"
+    else:
+        decision = result.next_planner_decision
+        state.pending_target_traits = decision.target_traits if decision else []
+        state.pending_question_frame = decision.question_frame if decision else None
+        state.pending_purpose = decision.purpose if decision else None
+        state.pending_option_blueprint_id = decision.option_blueprint_id if decision else None
+        next_action = "NEXT_QUESTION"
+
     _store.save(state)
-    # 실제 Stop/Continue 판단(§5-3)은 미구현 — 5개까지는 계속 진행하는 걸로 Mock 처리
-    next_action = "NEXT_QUESTION" if state.questions_asked_in_current_context < 5 else "CONTEXT_COMPLETE"
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
 
 @app.get("/profile/{session_id}", response_model=ProfileResponse)
 def get_profile(session_id: str) -> ProfileResponse:
-    _get_state_or_404(session_id)
+    state = _get_state_or_404(session_id)
+    if _llm_client is not None and state.trait_summaries:
+        return generate_career_profile(
+            session_id=state.session_id,
+            user_id=state.user_id,
+            trait_summaries=state.trait_summaries,
+            all_trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+            evidence_ledger=state.evidence_ledger,
+            unresolved_conflict_trait_ids=set(),  # Explicit Conflict 판정 미구현 — 항상 빈 값
+            llm_client=_llm_client,
+        )
+    # LLM 미연동 상태의 기존 Mock 경로.
     return mock_data.mock_career_profile(session_id)
 
 
 @app.get("/majors/{session_id}", response_model=MajorsResponse)
 def get_majors(session_id: str) -> MajorsResponse:
-    _get_state_or_404(session_id)
+    state = _get_state_or_404(session_id)
+    if state.trait_summaries:
+        # §16은 LLM을 쓰지 않는 순수 계산이라 LLM 연동 여부와 무관하게 항상 실제 경로를 쓴다.
+        student_states = compute_student_trait_states(
+            state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=set()
+        )
+        results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
+        labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}
+        relevant, explore_together, insufficient_message = rank_major_relevance(results, labels_by_major_id)
+        return MajorsResponse(
+            session_id=session_id,
+            relevant_majors=relevant,
+            explore_together_majors=explore_together,
+            insufficient_evidence_message=insufficient_message,
+        )
+    # LLM 여부와 무관하게, 아직 답변이 없으면(trait_summaries 비어있음) 기존 Mock 경로.
     relevant, explore_together = mock_data.mock_majors_relevance()
     return MajorsResponse(
         session_id=session_id, relevant_majors=relevant, explore_together_majors=explore_together
