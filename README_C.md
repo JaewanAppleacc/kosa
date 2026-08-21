@@ -42,8 +42,8 @@ data/drafts/subject_trait_mappings/
 
 - 비핵심 Context의 Seed Question·Option Blueprint는 `data/drafts/question_blueprints/`에 둡니다.
 - Context·Trait Definition에 대한 수정 제안은 `data/drafts/context_trait_reviews/`에 둡니다.
-- 각 Mapping 초안에는 `source_url`, `as_of_date`, `author_id`, `review_status="draft"`를 기록합니다.
-- A가 검토·승인한 뒤에만 `src/data/`의 확정 데이터 또는 실제 Repository 데이터로 승격합니다.
+- 각 초안의 메타데이터는 `src/schemas/review.py`의 `DraftEntry`(`review_stage`: DRAFT→STAGED→PUBLISHED)를 따릅니다. `MappingReview.agreement_status`(AGREED/REVIEW_REQUIRED/REJECTED)와는 다른 개념이니 섞어 쓰지 마세요.
+- A가 검토·승인(`PUBLISHED`)한 뒤에만 `src/data/`의 확정 데이터 또는 실제 Repository 데이터로 승격합니다.
 
 ## 3. 지켜야 할 계약 (Schema·Protocol 위치)
 
@@ -55,6 +55,7 @@ data/drafts/subject_trait_mappings/
 | `src/mcp/education_server.py` | `src/schemas/mcp_contracts.py`에 8개 Tool의 Input/Output이 전부 정의돼 있음. `MCPToolResult`로 감싸서 `ok`/`empty`/`error`/`source_missing` 상태를 명시적으로 구분할 것 |
 | `course_document_parser.py` | PDF(`application/pdf`)와 Excel(`.xlsx`, `.xls`)만 입력받고 `src/schemas/course.py`의 `ParsedSubjectCandidate`를 반환. Agent 판단·최종 추천은 여기서 하지 않음 |
 | `canonical_mapper.py` | `src/schemas/major.py`의 `CanonicalMappingResult` 반환. 확신 낮으면 `mapping_status="REVIEW_REQUIRED"`로, 자동 확정하지 말 것 |
+| `src/rag/ingest.py` | 문서 하나의 처리 이력은 `src/schemas/retrieval.py`의 `DocumentManifestEntry`(`status`: LISTED→TEXT_AVAILABLE 또는 TEXT_EMPTY→RAG_INDEXED)로 기록 |
 
 ## 4. ID 규칙 (반드시 `src/ids.py` 함수를 그대로 쓰세요, 직접 만들지 마세요)
 
