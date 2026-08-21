@@ -2,7 +2,7 @@
 
 ## 1. 기준 문서
 
-- 설계안: `/Users/jaewan/Downloads/AI_진로_학업설계_Agent_수정_최종설계안.md`
+- 설계안: `outputs/AI_진로_학업설계_Agent_수정_최종설계안.md`
 - 발표 및 PPT 제작은 이 지시서의 범위에 포함하지 않는다.
 - LangGraph 내부 State나 PostgreSQL에 직접 접근하지 않고 A가 제공하는 API JSON만 사용한다.
 - 백엔드 완성을 기다리지 않고 A의 Mock JSON으로 먼저 구현한다.

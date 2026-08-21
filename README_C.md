@@ -29,6 +29,22 @@ data/, datasets/, sources/, data/eval_fixtures/
 
 이 파일들을 만들 때 아래 계약(Schema·Protocol)만 만족하면 됩니다 — A가 소유한 파일은 직접 수정하지 마세요.
 
+### Context·Trait·Mapping 초안 작성 위치
+
+C가 작성하는 초안은 A의 확정 데이터인 `src/data/`를 직접 수정하지 않고 다음 경로에 저장합니다.
+
+```text
+data/drafts/context_trait_reviews/
+data/drafts/question_blueprints/
+data/drafts/major_trait_mappings/
+data/drafts/subject_trait_mappings/
+```
+
+- 비핵심 Context의 Seed Question·Option Blueprint는 `data/drafts/question_blueprints/`에 둡니다.
+- Context·Trait Definition에 대한 수정 제안은 `data/drafts/context_trait_reviews/`에 둡니다.
+- 각 Mapping 초안에는 `source_url`, `as_of_date`, `author_id`, `review_status="draft"`를 기록합니다.
+- A가 검토·승인한 뒤에만 `src/data/`의 확정 데이터 또는 실제 Repository 데이터로 승격합니다.
+
 ## 3. 지켜야 할 계약 (Schema·Protocol 위치)
 
 | 만들 것 | 따라야 할 Protocol/Schema |
@@ -85,6 +101,13 @@ generate_subject_id(curriculum_code, canonical_subject_name)     # 정규화된 
 ## 8. 문제 발견 시
 
 Schema에 없는 필드가 필요하면 직접 추가하지 말고 A에게 변경 요청하세요. A가 소유한 `src/schemas/`, LangGraph 관련 파일은 직접 수정하지 마세요.
+
+## 브랜치 전용 `CLAUDE.md` 처리
+
+`worker-c`의 루트 `CLAUDE.md`는 C 작업 중에만 사용하는 브랜치 전용 파일입니다. `main` PR에는 포함하지 않습니다.
+
+- PR을 만들기 직전에 `worker-c`에서 루트 `CLAUDE.md`를 삭제하는 마무리 커밋을 추가하거나, A가 구현 커밋만 선택적으로 Cherry-pick합니다.
+- PR 전 `python scripts/check_no_worker_claude.py`를 실행해 루트 `CLAUDE.md`가 최종 변경에 남지 않았는지 확인합니다.
 
 ## 참고 문서
 

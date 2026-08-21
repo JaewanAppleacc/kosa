@@ -1,6 +1,6 @@
 # Trait Ontology — Vertical Slice 초안 (DRAFT, 2인 교차검토 전)
 
-기준 문서: `/Users/jaewan/Downloads/AI_진로_학업설계_Agent_수정_최종설계안.md` §6-1·§6-3·§6-4·§6-6
+기준 문서: `outputs/AI_진로_학업설계_Agent_수정_최종설계안.md` §6-1·§6-3·§6-4·§6-6
 전제: Context Definition Table v2 확정(게임·미디어·학교생활·창업비즈니스·만들기, Vertical Slice=게임·미디어·학교생활)
 
 총 12개(설계안 §2 "Trait 10~12개" 상한). §6-4 권장 비율(Shared 70~80% / Domain-specific 20~30%)에 맞춰 Shared 9개(75%) + Domain-specific 3개(25%)로 구성했습니다.
