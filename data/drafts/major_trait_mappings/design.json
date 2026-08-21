@@ -1,0 +1,60 @@
+{
+  "draft_entry": {
+    "draft_id": "major_trait_mapping_design_v0.1",
+    "draft_type": "major_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do",
+    "as_of_date": "2026-08-21",
+    "notes": "커리어넷 학과정보(대분류·중분류 학과 설명)의 교육목표·주요 교과목 서술을 근거로 C가 등급을 매긴 초안이다. 등급 자체는 공식 수치가 아니라 팀 판단이며 A 검토 대상이다."
+  },
+  "major_id": "design",
+  "label": "디자인",
+  "trait_grades": {
+    "causal_analysis": 1,
+    "pattern_finding": 2,
+    "planning": 2,
+    "immediate_execution": 2,
+    "change_adaptation": 2,
+    "collaboration_preference": 2,
+    "opinion_mediation": 1,
+    "emotional_interpretation": 2,
+    "audience_response_prediction": 3,
+    "visual_expression": 3,
+    "information_comparison": 1,
+    "tool_utilization": 2
+  },
+  "grade_scale": "0~3 (0=변별 축 아님, 3=전공 정체성 수준)",
+  "rationale": "시각적 표현이 전공 정체성 자체라 3. 사용자 반응 예측(사용자 조사·UX)도 3. 정보 비교는 상대적으로 비중이 낮아 1.",
+  "derived_profile": {
+    "major_id": "design",
+    "label": "디자인",
+    "interest_vector": {
+      "visual_expression": 1.0
+    },
+    "cognitive_vector": {
+      "causal_analysis": 0.33,
+      "pattern_finding": 0.67,
+      "emotional_interpretation": 0.67,
+      "audience_response_prediction": 1.0,
+      "information_comparison": 0.33
+    },
+    "work_style_vector": {
+      "planning": 0.67,
+      "immediate_execution": 0.67,
+      "change_adaptation": 0.67,
+      "collaboration_preference": 0.67,
+      "opinion_mediation": 0.33
+    },
+    "environment_vector": {
+      "tool_utilization": 0.67
+    },
+    "source_ids": [
+      "https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do"
+    ],
+    "extraction_method": "manual",
+    "review_status": "draft",
+    "profile_version": "major_profile_v0.1",
+    "updated_at": "2026-08-21T00:00:00Z"
+  }
+}

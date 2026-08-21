@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_travel_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "travel",
+  "context_label": "여행·문화탐방",
+  "seed_question": {
+    "question_id": "travel_seed_01",
+    "context": "travel",
+    "question_text": "여행이나 답사를 준비할 때, 어떤 부분에 가장 공을 들이나요?",
+    "options": [
+      {
+        "option_id": "travel_seed_01_o1",
+        "text": "동선과 일정을 미리 촘촘히 짜 두는 것",
+        "role_id": "route_planning",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": "일정이 어긋났을 때의 대응 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "travel_seed_01_o2",
+        "text": "여러 후보지를 찾아 비교해 고르는 것",
+        "role_id": "comparing_options",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": "정보가 엇갈릴 때의 판단 기준 확인",
+        "preferred_frames": [
+          "conflicting_opinions",
+          "limited_time_priority"
+        ]
+      },
+      {
+        "option_id": "travel_seed_01_o3",
+        "text": "계획이 틀어져도 그 자리에서 바꿔 가는 것",
+        "role_id": "rolling_with_it",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": "예상 밖 상황에서의 행동 확인",
+        "preferred_frames": [
+          "unexpected_result",
+          "new_tool"
+        ]
+      },
+      {
+        "option_id": "travel_seed_01_o4",
+        "text": "현지 사람들의 생활과 분위기를 느껴 보는 것",
+        "role_id": "meeting_people",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": "낯선 사람과의 상호작용 방식 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "team_role"
+        ]
+      },
+      {
+        "option_id": "travel_seed_01_o5",
+        "text": "많이 알아보지 않고 일단 가서 부딪히는 것",
+        "role_id": "just_go",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": "준비 없이 시작할 때 먼저 하는 일 확인",
+        "preferred_frames": [
+          "first_action",
+          "problem_check"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "travel_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "route_planning",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "comparing_options",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "rolling_with_it",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "meeting_people",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "just_go",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "route_planning": {
+      "trait_id": "planning",
+      "why": "동선과 일정을 미리 촘촘히 짜 두는 것"
+    },
+    "comparing_options": {
+      "trait_id": "information_comparison",
+      "why": "여러 후보지를 찾아 비교해 고르는 것"
+    },
+    "rolling_with_it": {
+      "trait_id": "change_adaptation",
+      "why": "계획이 틀어져도 그 자리에서 바꿔 가는 것"
+    },
+    "meeting_people": {
+      "trait_id": "emotional_interpretation",
+      "why": "현지 사람들의 생활과 분위기를 느껴 보는 것"
+    },
+    "just_go": {
+      "trait_id": "immediate_execution",
+      "why": "많이 알아보지 않고 일단 가서 부딪히는 것"
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "generated_on": "2026-08-21",
+  "summary": {
+    "ERROR": 0,
+    "WARN": 1,
+    "INFO": 12
+  },
+  "findings": [
+    {
+      "severity": "INFO",
+      "check": "schl_id_placeholder",
+      "subject": "data/raw/departments.raw.jsonl",
+      "message": "30개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다"
+    },
+    {
+      "severity": "INFO",
+      "check": "review_required_present",
+      "subject": "data/master/canonical_mapping_review_required.jsonl",
+      "message": "1건이 REVIEW_REQUIRED로 남아 있다 — A 검토 대상"
+    },
+    {
+      "severity": "INFO",
+      "check": "admission_cut_pending",
+      "subject": "data/admissions/admission_references.jsonl",
+      "message": "39행의 컷 점수가 비어 있다 — 출처 미확정 상태에서 숫자를 채우지 않는다"
+    },
+    {
+      "severity": "WARN",
+      "check": "admission_draft_only",
+      "subject": "data/admissions/admission_references.jsonl",
+      "message": "39행이 draft다 — 화면 비교에 쓰려면 verified 승격이 필요하다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "computer_science",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "media_communication",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "design",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "business_administration",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "psychology",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "mechanical_engineering",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "education",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "life_science",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "rag_sample_documents",
+      "subject": "data/rag/sources.jsonl",
+      "message": "5건이 공식 자료가 아니라 파이프라인 검증용 샘플이다 (source_url이 sample://로 시작해 공식 출처와 섞이지 않는다)"
+    }
+  ]
+}

@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_fashion_beauty_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "fashion_beauty",
+  "context_label": "패션·뷰티",
+  "seed_question": {
+    "question_id": "fashion_beauty_seed_01",
+    "context": "fashion_beauty",
+    "question_text": "옷차림이나 스타일을 정할 때, 어떤 쪽에 더 신경이 쓰이나요?",
+    "options": [
+      {
+        "option_id": "fashion_beauty_seed_01_o1",
+        "text": "색과 형태를 조합해 보이는 결과를 만드는 것",
+        "role_id": "styling_myself",
+        "primary_trait_delta": {
+          "visual_expression": 1
+        },
+        "next_probe": "조합을 정할 때 먼저 보는 기준 확인",
+        "preferred_frames": [
+          "first_action",
+          "longest_focus"
+        ]
+      },
+      {
+        "option_id": "fashion_beauty_seed_01_o2",
+        "text": "다른 사람 눈에 어떻게 비칠지 가늠하는 것",
+        "role_id": "how_others_see",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": "반응이 갈릴 때의 행동 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "fashion_beauty_seed_01_o3",
+        "text": "여러 스타일을 찾아보고 견줘 보는 것",
+        "role_id": "trend_checking",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": "정보가 많을 때 고르는 기준 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "fashion_beauty_seed_01_o4",
+        "text": "상황이나 계절이 바뀌면 방식을 바꾸는 것",
+        "role_id": "switching_style",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": "조건이 달라졌을 때의 대응 확인",
+        "preferred_frames": [
+          "unexpected_result",
+          "new_tool"
+        ]
+      },
+      {
+        "option_id": "fashion_beauty_seed_01_o5",
+        "text": "친구와 서로 봐 주며 같이 정하는 것",
+        "role_id": "styling_with_friends",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": "같이 정할 때 맡는 역할 확인",
+        "preferred_frames": [
+          "team_role",
+          "conflicting_opinions"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "fashion_beauty_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "styling_myself",
+        "primary_trait_delta": {
+          "visual_expression": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "how_others_see",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "trend_checking",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "switching_style",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "styling_with_friends",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "styling_myself": {
+      "trait_id": "visual_expression",
+      "why": "색과 형태를 조합해 보이는 결과를 만드는 것"
+    },
+    "how_others_see": {
+      "trait_id": "audience_response_prediction",
+      "why": "다른 사람 눈에 어떻게 비칠지 가늠하는 것"
+    },
+    "trend_checking": {
+      "trait_id": "information_comparison",
+      "why": "여러 스타일을 찾아보고 견줘 보는 것"
+    },
+    "switching_style": {
+      "trait_id": "change_adaptation",
+      "why": "상황이나 계절이 바뀌면 방식을 바꾸는 것"
+    },
+    "styling_with_friends": {
+      "trait_id": "collaboration_preference",
+      "why": "친구와 서로 봐 주며 같이 정하는 것"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_a7b6aafe84325271f94fc237",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_a7b6aafe84325271f94fc237",
+  "label": "인간과 심리",
+  "subject_group": "사회",
+  "subject_category": "융합선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "emotional_interpretation": 3,
+    "causal_analysis": 2,
+    "audience_response_prediction": 2
+  },
+  "rationale": "행동과 정서를 해석하는 과목이라 감정 해석 3.",
+  "related_major_ids": [
+    "psychology",
+    "education"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_a7b6aafe84325271f94fc237",
+    "label": "인간과 심리",
+    "trait_vector": {
+      "emotional_interpretation": 1.0,
+      "causal_analysis": 0.67,
+      "audience_response_prediction": 0.67
+    },
+    "related_major_ids": [
+      "psychology",
+      "education"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}
