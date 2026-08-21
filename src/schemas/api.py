@@ -34,6 +34,10 @@ class APIErrorCode(str, Enum):
     LLM_UNAVAILABLE = "LLM_UNAVAILABLE"
     LANGSMITH_UNAVAILABLE = "LANGSMITH_UNAVAILABLE"  # fail-open이라 세션은 안 막힘, 참고용 코드
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    # 2026-08-21 리뷰: 답변이 아직 하나도 없어 Profile을 만들 Evidence 자체가 없는 상태.
+    # CareerProfile.highlights는 5~8개를 강제하는 Schema라 "빈 Profile"을 표현할 방법이
+    # 없다 — Majors처럼 200 + 빈 목록이 아니라 이 오류 코드로 명시적으로 알린다.
+    EVIDENCE_NOT_READY = "EVIDENCE_NOT_READY"
 
 
 class APIError(BaseModel):

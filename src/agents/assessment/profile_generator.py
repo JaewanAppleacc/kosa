@@ -122,14 +122,25 @@ def generate_career_profile(
     all_trait_definitions: dict[str, TraitDefinition],
     evidence_ledger: list[EvidenceRecord],
     unresolved_conflict_trait_ids: set[str],
-    llm_client: ChatLLMClient,
+    llm_client: ChatLLMClient | None,
     max_regenerations: int = 1,
 ) -> CareerProfile:
+    """2026-08-21 리뷰 반영: `llm_client`가 None이어도(서버에 API Key가 아예 없는 경우)
+    이 함수는 항상 "이 학생의 실제 Trait Evidence" 기반 결과를 반환한다 — 이전에는
+    호출하는 쪽(main.py)이 llm_client가 None이면 이 함수를 아예 안 부르고 무관한
+    Mock Profile로 대체했는데, 그러면 실제로 쌓인 Evidence가 있어도 다른 학생 것처럼
+    보이는 고정 문구를 보여주는 꼴이었다. LLM이 없으면 문장만 덜 다듬어진
+    `_fallback_profile()`로 즉시 넘어가고, Trait 선정·근거 구조는 항상 동일하게 실제
+    계산을 거친다."""
+
     candidates = select_profile_highlight_traits(
         trait_summaries, all_trait_definitions, unresolved_conflict_trait_ids
     )
     detailed_evidence = build_detailed_evidence_by_dimension(candidates, evidence_ledger)
     requested_trait_ids = [c.trait_definition.trait_id for c in candidates]
+
+    if llm_client is None:
+        return _fallback_profile(session_id, user_id, candidates, detailed_evidence)
 
     user_prompt = _build_user_prompt(candidates)
 

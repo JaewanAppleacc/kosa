@@ -79,6 +79,26 @@ class GenerateCareerProfileTest(unittest.TestCase):
             llm_client=client,
         )
 
+    def test_none_llm_client_uses_deterministic_fallback_with_real_evidence(self) -> None:
+        """2026-08-21 리뷰: llm_client가 None이어도(API Key 자체가 없는 서버) 이 세션의
+        실제 Trait Evidence 기반 결과가 나와야 한다 — 호출하는 쪽(main.py)이 이 함수를
+        건너뛰고 무관한 Mock Profile로 대체하던 문제의 근본 수정."""
+
+        profile = generate_career_profile(
+            session_id="sess_test",
+            user_id="demo_user_01",
+            trait_summaries=self.summaries,
+            all_trait_definitions=self.definitions,
+            evidence_ledger=self.ledger,
+            unresolved_conflict_trait_ids=set(),
+            llm_client=None,
+        )
+        self.assertEqual(len(profile.highlights), 5)
+        supporting = {tid for h in profile.highlights for tid in h.supporting_trait_ids}
+        self.assertEqual(supporting, set(self.trait_ids))
+        # 예전 고정 Mock Profile의 제목이 아니어야 한다.
+        self.assertNotEqual(profile.title, "구조를 읽고 사람의 반응까지 생각하는 탐색형 설계자")
+
     def test_happy_path_uses_llm_generated_content(self) -> None:
         result = GeneratedCareerProfile(
             title="구조를 읽고 이유를 탐색하는 모습이 보여요",
