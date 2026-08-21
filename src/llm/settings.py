@@ -42,3 +42,12 @@ def load_chat_llm_settings(env: dict[str, str] | None = None) -> ChatLLMSettings
         base_url=source["OPENAI_CHAT_BASE_URL"],
         model=source["OPENAI_CHAT_MODEL"],
     )
+
+
+def llm_generation_enabled(env: dict[str, str] | None = None) -> bool:
+    """명시적 opt-in 플래그. `.env`에 Key가 있어도 이 값이 꺼져 있으면 실시간 LLM 호출을
+    하지 않는다 — `unittest discover`가 개발자 로컬 `.env`의 실제 키를 우연히 읽어서
+    테스트 중 진짜 네트워크 호출을 하는 사고를 막기 위함이다."""
+
+    source = env if env is not None else os.environ
+    return source.get("ENABLE_LLM_QUESTION_GENERATION", "").strip().lower() in {"1", "true", "yes"}

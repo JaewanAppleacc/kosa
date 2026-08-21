@@ -18,9 +18,16 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 load_dotenv()
 
 from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
+from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
-from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
+from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
+from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
+from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
 from src.ids import generate_question_id, generate_session_id
+from src.llm.openai_client import OpenAIChatClient
+from src.llm.protocols import ChatLLMClient
+from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
 from src.memory.session_store import InMemorySessionStore
 from src.schemas.api import (
     AnswerRequest,
@@ -70,6 +77,36 @@ _store = InMemorySessionStore()
 # (회원가입과 실제 다중 사용자 운영)을 구현할 때는 모든 session_id 기반 Endpoint에
 # "인증된 호출자가 이 세션의 소유자인가"를 검사하는 로직을 반드시 추가해야 한다.
 DEMO_USER_ID = "demo_user_01"
+
+TRAIT_DEFINITIONS_BY_ID = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
+CONTEXT_DEFINITIONS_BY_ID = {c.context_id: c for c in CONTEXT_DEFINITIONS}
+
+# §10/§11 실시간 LLM 질문 생성 — 명시적으로 켜져 있고(.env ENABLE_LLM_QUESTION_GENERATION)
+# 설정이 완전할 때만 활성화한다. 꺼져 있거나 Key가 없으면 조용히 Mock 경로로 돌아간다
+# (CLAUDE.md "외부 API 실패를 성공 응답으로 위장하지 않는다" — 이건 실패 위장이 아니라
+# 애초에 기능이 꺼진 상태이므로 문제 없다).
+_llm_client: ChatLLMClient | None = None
+if llm_generation_enabled():
+    try:
+        _llm_client = OpenAIChatClient(load_chat_llm_settings())
+    except LLMSettingsError as exc:
+        print(f"[warn] ENABLE_LLM_QUESTION_GENERATION=true이지만 설정이 불완전합니다: {exc}")
+
+
+def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
+    """§11 Fallback: Backup Question까지 소진되면 해당 Context를 조기 종료한다.
+    다음 Context가 있으면 이동 후 True, 없으면 세션을 완료 처리하고 False를 반환한다."""
+
+    if state.current_context_index + 1 < len(state.context_processing_order):
+        state.current_context_index += 1
+        state.questions_asked_in_current_context = 0
+        state.used_frame_ids_in_current_context = []
+        state.generated_question_texts_in_current_context = []
+        state.pending_target_traits = []
+        state.pending_question_frame = None
+        return True
+    state.phase = AssessmentPhase.PROFILE_GENERATION
+    return False
 
 
 def _get_state_or_404(session_id: str) -> AssessmentState:
@@ -143,12 +180,52 @@ def next_question(session_id: str) -> NextQuestionResponse:
             ).model_dump(),
         )
 
+    status = QuestionDeliveryStatus.GENERATED
+
     if state.questions_asked_in_current_context == 0:
         # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
         question = mock_data.next_mock_question(current_context, 0)
+    elif _llm_client is not None and state.pending_target_traits:
+        question_id = generate_question_id(
+            current_context, "tail", state.questions_asked_in_current_context
+        )
+        frame_id = state.pending_question_frame or "problem_check"
+        outcome = generate_tail_question(
+            question_id=question_id,
+            context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
+            trait_definition=TRAIT_DEFINITIONS_BY_ID[state.pending_target_traits[0]],
+            frame_id=frame_id,
+            frame_text=QUESTION_FRAME_TEXT.get(frame_id, "다음 상황에서 어떻게 하나요?"),
+            llm_client=_llm_client,
+            previous_question_texts=state.generated_question_texts_in_current_context,
+            backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
+            used_backup_question_ids=set(state.used_backup_question_ids),
+        )
+        if outcome.question is None:
+            # §11 Fallback 소진 — Context 조기 종료. 남은 재생성·Backup 경로를 다 썼다는
+            # 뜻이라 조용히 넘기지 않고 상태를 남긴다.
+            has_next_context = _advance_to_next_context_or_complete(state)
+            state.current_question = None
+            _store.save(state)
+            return NextQuestionResponse(
+                session_id=session_id,
+                status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED,
+                question=None,
+                current_context_id=state.current_context_id,
+                questions_asked_in_current_context=state.questions_asked_in_current_context,
+                assessment_complete=not has_next_context,
+            )
+        question = outcome.question
+        state.generated_question_texts_in_current_context.append(question.question_text)
+        if outcome.source == "backup":
+            state.used_backup_question_ids.append(question.question_id)
+            status = QuestionDeliveryStatus.BACKUP_USED
+        elif outcome.source == "cache":
+            status = QuestionDeliveryStatus.CACHE_USED
+        else:
+            status = QuestionDeliveryStatus.GENERATED
     else:
-        # 꼬리질문: Target Planner(§8)가 직전 답변 처리에서 정한 목표 Trait·Frame을 실제로
-        # 반영한다. 선택지 문장 자체는 아직 LLM 연동(§10) 전이라 Mock이다.
+        # LLM 미연동(.env ENABLE_LLM_QUESTION_GENERATION 미설정) 상태의 기존 Mock 경로.
         question_id = generate_question_id(
             current_context, "tail", state.questions_asked_in_current_context
         )
@@ -163,7 +240,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
     _store.save(state)
     return NextQuestionResponse(
         session_id=session_id,
-        status=QuestionDeliveryStatus.GENERATED,
+        status=status,
         question=question,
         current_context_id=current_context,
         questions_asked_in_current_context=state.questions_asked_in_current_context,
@@ -206,16 +283,8 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         )
 
     if result.stop_decision == "STOP":
-        if state.current_context_index + 1 < len(state.context_processing_order):
-            state.current_context_index += 1
-            state.questions_asked_in_current_context = 0
-            state.used_frame_ids_in_current_context = []
-            state.pending_target_traits = []
-            state.pending_question_frame = None
-            next_action = "CONTEXT_COMPLETE"
-        else:
-            state.phase = AssessmentPhase.PROFILE_GENERATION
-            next_action = "ASSESSMENT_COMPLETE"
+        has_next_context = _advance_to_next_context_or_complete(state)
+        next_action = "CONTEXT_COMPLETE" if has_next_context else "ASSESSMENT_COMPLETE"
     else:
         decision = result.next_planner_decision
         state.pending_target_traits = decision.target_traits if decision else []

@@ -62,6 +62,11 @@ class AssessmentState(BaseModel):
     # 입력으로 쓴다.
     recent_target_trait_ids: list[str] = []
     used_frame_ids_in_current_context: list[str] = []
+    # §10 생성 원칙("앞선 질문을 표현만 바꿔 반복하지 않는다") 검사용 — Context가 바뀌면
+    # 초기화한다. §11 Fallback에서 같은 세션 안에 Backup Question을 재사용하지 않기 위한
+    # 목록은 Context가 바뀌어도 유지한다(question_id 자체가 Context를 포함해 유일하다).
+    generated_question_texts_in_current_context: list[str] = []
+    used_backup_question_ids: list[str] = []
 
     # §24 LLM 호출 예산
     llm_call_count: int = 0
