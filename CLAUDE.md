@@ -10,7 +10,7 @@ Agent의 호출 여부, 다음 질문, Stop Condition, 최종 추천 판단은 �
 
 1. 작업자 C 개발 지시서: `outputs/work_assignments/작업자_C_개발_지시서.md`
 2. Schema·Protocol 계약: `src/schemas/`, `src/repositories/protocols.py`
-3. `outputs/context_definition_table_draft.md`, `outputs/trait_ontology_draft.md` — Context 15개·Trait 12개 확정본(팀 검토 진행 중)
+3. `outputs/context_definition_table_draft.md`, `outputs/trait_ontology_draft.md` — A가 제공한 현재 기준안. C의 수정 제안은 `data/drafts/`에 작성하고 A 승인 전 확정 데이터로 취급하지 않는다.
 4. 사용법 요약: `README_C.md` (repo root)
 5. `main` 브랜치가 계약의 최신 상태다. `main`이 바뀌면 이 브랜치로 `git merge main` 또는 `git rebase main`해서 따라간다.
 
@@ -26,6 +26,17 @@ src/engines/canonical_mapper.py
 src/engines/admission_filter.py
 data/, datasets/, sources/, data/eval_fixtures/
 ```
+
+Context·Trait 검토안과 Mapping 초안은 A의 확정 데이터인 `src/data/`를 수정하지 않고 다음 경로에 작성한다.
+
+```text
+data/drafts/context_trait_reviews/
+data/drafts/question_blueprints/
+data/drafts/major_trait_mappings/
+data/drafts/subject_trait_mappings/
+```
+
+각 초안에는 `source_url`, `as_of_date`, `author_id`, `review_status="draft"`를 기록하고, A가 승인한 뒤에만 확정 데이터로 승격한다.
 
 ## C가 소유하지 않는 영역 (읽고 참고하되 수정하지 않는다)
 
@@ -76,6 +87,8 @@ assert result.passed, result.mismatches
 
 - 이 브랜치(`worker-c`)에서 커밋한다. `main`에 직접 push하지 않는다.
 - "C가 실제로 구현할 파일" 목록이 어느 정도 쌓이면 `main`으로 PR을 올리거나 A에게 병합을 요청한다. 참고용으로 받은 A 소유 파일은 수정했더라도 diff에 포함시키지 않는다.
+- 이 루트 `CLAUDE.md`는 작업 브랜치 전용이다. PR 직전에 삭제 커밋을 추가하거나 A가 구현 커밋만 Cherry-pick하며, 어떤 경우에도 `main`에 병합하지 않는다.
+- PR 전 `python scripts/check_no_worker_claude.py`를 실행한다. 이 브랜치에서는 삭제 전까지 실패하는 것이 정상이며, 최종 PR 상태에서는 통과해야 한다.
 - `main`의 계약(Schema/API)이 바뀌면 A가 알려준다. 그 전까지 이 브랜치가 최신이라고 가정하지 않는다 — 작업 시작 전 `git fetch origin && git log main..origin/main`으로 뒤처지지 않았는지 확인한다.
 - Major–Trait·Subject–Trait Mapping 근거는 반드시 공식 출처 URL·기준일과 함께 기록한다.
 
