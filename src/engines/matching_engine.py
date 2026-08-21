@@ -7,7 +7,6 @@ CLAUDE.md: "Assessment 단계에서 전공 추천 결과나 성적을 Planner �
 
 from __future__ import annotations
 
-import math
 from typing import Literal
 
 from pydantic import BaseModel
@@ -30,21 +29,12 @@ VECTOR_GROUP_WEIGHTS: dict[str, float] = {
 MINIMUM_USABLE_TRAITS = 3
 MINIMUM_USABLE_VECTOR_GROUPS = 2
 
-# 2026-08-21 리뷰로 실제 발견한 문제: cosine similarity는 1차원(Trait 1개)에서는 항상
-# 1.0이다 — 두 양수 사이의 "각도"라는 개념 자체가 1차원에는 없어서, 크기 차이를 전혀
-# 반영하지 못한다(cos([1.0],[0.33]) == 1.0). Vertical Slice Trait Ontology는 interest·
-# environment 그룹에 Trait가 1개뿐이라 이 축퇴가 실제로 발생했다(학생 답변이 적을 때
-# 모든 전공이 1.0으로 동점 처리됨). 그래서 한 Vector 그룹은 확정 Trait가 최소 2개는
-# 있어야 유사도 계산에 포함시킨다 — MINIMUM_USABLE_TRAITS/VECTOR_GROUPS 정책 임계값과는
-# 별개로, 수학적으로 의미 없는 계산을 막기 위한 것이다.
-MINIMUM_TRAITS_PER_VECTOR_GROUP = 2
-
 INSUFFICIENT_EVIDENCE_MESSAGE = "아직 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이 필요합니다."
 
 # 2026-08-21 리뷰: 순수 상대 순위만 쓰면 후보가 1개뿐일 때 그 점수가 아무리 낮아도 무조건
-# 1등이라 "관련성 높음"이 돼버린다. cosine similarity는 입력이 전부 0 이상이라 [0, 1]
-# 범위이므로, 상대 순위 상위 구간이어도 이 절대 하한을 넘지 못하면 "관련성 높음"을 주지
-# 않는다 — §16처럼 "검증된 임계값이 아니라 MVP 초기 휴리스틱"이다.
+# 1등이라 "관련성 높음"이 돼버린다. 가중 Trait 충족도는 값이 전부 [0, 1] 범위이므로,
+# 상대 순위 상위 구간이어도 이 절대 하한을 넘지 못하면 "관련성 높음"을 주지 않는다 —
+# §16처럼 "검증된 임계값이 아니라 MVP 초기 휴리스틱"이다.
 MINIMUM_SCORE_FOR_HIGH_RELEVANCE = 0.6
 
 
@@ -83,13 +73,24 @@ def compute_student_trait_states(
     return result
 
 
-def _cosine_similarity(student_values: list[float], major_weights: list[float]) -> float | None:
-    dot = sum(s * m for s, m in zip(student_values, major_weights))
-    norm_s = math.sqrt(sum(s * s for s in student_values))
-    norm_m = math.sqrt(sum(m * m for m in major_weights))
-    if norm_s == 0 or norm_m == 0:
+def _weighted_trait_coverage(student_values: list[float], major_weights: list[float]) -> float | None:
+    """2026-08-21 리뷰로 cosine similarity를 교체한 공식.
+
+    cosine similarity는 크기(magnitude)를 무시하고 방향(비율)만 본다 — 학생이 [0.33, 0.33]
+    (LIMITED)이든 [1.00, 1.00](STRONG)이든 전공 [1.00, 1.00]과의 cosine은 둘 다 1.0으로
+    같았다. 실제로는 LIMITED 학생이 STRONG 학생과 같은 정도로 그 전공에 맞는다고 볼 수
+    없으므로, "전공이 중요하게 보는 Trait를 학생이 얼마나 충족하는가"를 그대로 재는 가중
+    평균(충족도)으로 바꾼다: Σ(전공 가중치 × 학생 정규화 값) ÷ Σ(전공 가중치).
+
+    이 공식은 항목이 1개뿐이어도(1차원) 의미가 있다 — 결과가 그 학생의 정규화 값 자체가
+    되므로(가중치로 나눠도 비율은 그대로), cosine처럼 "1개면 무조건 1.0" 축퇴가 없다.
+    그래서 예전의 MINIMUM_TRAITS_PER_VECTOR_GROUP(그룹당 최소 2개 Trait) 제약은 더 이상
+    필요 없어 제거했다."""
+
+    total_weight = sum(major_weights)
+    if total_weight == 0:
         return None
-    return dot / (norm_s * norm_m)
+    return sum(s * w for s, w in zip(student_values, major_weights)) / total_weight
 
 
 class MajorMatchResult(BaseModel):
@@ -105,9 +106,10 @@ class MajorMatchResult(BaseModel):
 def compute_major_match(
     student_states: dict[str, StudentTraitState], major: MajorProfile
 ) -> MajorMatchResult:
-    """§16: Vector 그룹별 cosine similarity를 가중합한다. 확정(non-Mask)된 Trait만 분모에
-    넣고, 특정 Vector에 확정 Trait가 MINIMUM_TRAITS_PER_VECTOR_GROUP개 미만이면 그
-    Vector를 제외하고 남은 가중치를 비례 재분배한다."""
+    """§16: Vector 그룹별 가중 Trait 충족도(_weighted_trait_coverage)를 다시 가중합한다.
+    전공 벡터에서 가중치가 0보다 큰 항목만, 그리고 학생 쪽에서 확정(non-Mask)된 Trait만
+    분자·분모 양쪽에 넣는다. 그룹당 최소 개수 제약은 없다 — 가중 충족도는 Trait 1개뿐인
+    그룹(Vertical Slice의 interest·environment)에서도 크기를 반영해 의미 있게 계산된다."""
 
     vector_by_group = {
         "interest": major.interest_vector,
@@ -116,27 +118,27 @@ def compute_major_match(
         "environment": major.environment_vector,
     }
 
-    group_similarities: dict[str, float] = {}
+    group_coverages: dict[str, float] = {}
     usable_trait_ids: set[str] = set()
 
     for group, major_vector in vector_by_group.items():
         shared_trait_ids = sorted(
-            t for t in major_vector
-            if t in student_states and student_states[t].normalized_value is not None
+            t for t, weight in major_vector.items()
+            if weight > 0
+            and t in student_states
+            and student_states[t].normalized_value is not None
         )
-        if len(shared_trait_ids) < MINIMUM_TRAITS_PER_VECTOR_GROUP:
-            # §16: 확정 Trait가 없는 Vector는 제외. 1개뿐이어도 제외한다 — 1차원 cosine
-            # similarity는 항상 1.0이라 크기 차이를 반영하지 못하는 수학적 축퇴 상태다.
+        if not shared_trait_ids:
             continue
         student_values = [student_states[t].normalized_value for t in shared_trait_ids]  # type: ignore[misc]
         major_weights = [major_vector[t] for t in shared_trait_ids]
-        similarity = _cosine_similarity(student_values, major_weights)
-        if similarity is None:
+        coverage = _weighted_trait_coverage(student_values, major_weights)
+        if coverage is None:
             continue
-        group_similarities[group] = similarity
+        group_coverages[group] = coverage
         usable_trait_ids.update(shared_trait_ids)
 
-    usable_vector_group_count = len(group_similarities)
+    usable_vector_group_count = len(group_coverages)
     usable_trait_count = len(usable_trait_ids)
 
     # "이 전공이 중요하게 보는 Trait"(가중치 0.67 이상, §15 "자주 활용" 이상) 중 학생이
@@ -154,8 +156,8 @@ def compute_major_match(
     if usable_trait_count < MINIMUM_USABLE_TRAITS or usable_vector_group_count < MINIMUM_USABLE_VECTOR_GROUPS:
         return MajorMatchResult(major_id=major.major_id, status="insufficient", usable_trait_count=usable_trait_count)
 
-    total_weight = sum(VECTOR_GROUP_WEIGHTS[g] for g in group_similarities)
-    score = sum(VECTOR_GROUP_WEIGHTS[g] * sim for g, sim in group_similarities.items()) / total_weight
+    total_weight = sum(VECTOR_GROUP_WEIGHTS[g] for g in group_coverages)
+    score = sum(VECTOR_GROUP_WEIGHTS[g] * cov for g, cov in group_coverages.items()) / total_weight
 
     return MajorMatchResult(
         major_id=major.major_id,

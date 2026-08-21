@@ -7,6 +7,7 @@ from datetime import datetime
 
 from src.engines.matching_engine import (
     INSUFFICIENT_EVIDENCE_MESSAGE,
+    _weighted_trait_coverage,
     compute_major_match,
     compute_student_trait_states,
     rank_major_relevance,
@@ -46,7 +47,7 @@ DEFS = {
     "b": _trait("b", "cognitive"),
     "c": _trait("c", "work_style"),
     "d": _trait("d", "work_style"),  # "확정 안 됨"/"전공과 무관한 추가 Trait" 용도로 남겨둠
-    "e": _trait("e", "work_style"),  # work_style 그룹을 2개 이상으로 채우는 두 번째 확정 Trait
+    "e": _trait("e", "work_style"),  # work_style 그룹의 두 번째 확정 Trait(다중 Trait 그룹 검증용)
 }
 
 
@@ -180,6 +181,140 @@ class ComputeMajorMatchTest(unittest.TestCase):
         self.assertAlmostEqual(result.score, 1.0)
 
 
+class WeightedTraitCoverageMathTest(unittest.TestCase):
+    """2026-08-21 2단계: cosine similarity를 대체한 가중 Trait 충족도 공식을 직접
+    검증한다. 사용자가 제시한 손계산 예시(LIMITED [0.33,0.33] vs 전공 [1.00,1.00] → 0.33,
+    STRONG [1.00,1.00] vs 같은 전공 → 1.00)를 그대로 옮긴다."""
+
+    def test_limited_student_yields_033_coverage(self) -> None:
+        coverage = _weighted_trait_coverage([0.33, 0.33], [1.00, 1.00])
+        self.assertAlmostEqual(coverage, 0.33)
+
+    def test_strong_student_yields_100_coverage(self) -> None:
+        coverage = _weighted_trait_coverage([1.00, 1.00], [1.00, 1.00])
+        self.assertAlmostEqual(coverage, 1.00)
+
+    def test_single_trait_preserves_magnitude_not_degenerate_one(self) -> None:
+        """cosine similarity였다면 1차원에서 항상 1.0이었다(버그의 원인). 가중 충족도는
+        1개짜리 벡터에서도 학생의 실제 정규화 값을 그대로 돌려줘야 한다."""
+
+        self.assertAlmostEqual(_weighted_trait_coverage([0.67], [1.00]), 0.67)
+        self.assertNotAlmostEqual(_weighted_trait_coverage([0.33], [1.00]), 1.00)
+
+    def test_zero_total_weight_returns_none(self) -> None:
+        self.assertIsNone(_weighted_trait_coverage([1.00], [0.0]))
+
+
+class MagnitudeSensitivityTest(unittest.TestCase):
+    """cosine similarity의 원래 버그: 방향(비율)만 보고 크기를 무시해서 LIMITED 학생과
+    STRONG 학생이 같은 전공에 대해 동일 점수를 받았다. 가중 충족도로 바꾼 뒤에는 두 학생의
+    점수가 달라야 한다."""
+
+    def _summary(self, trait_id: str, *, support: int, context: int, frame: int) -> TraitEvidenceSummary:
+        return TraitEvidenceSummary(
+            trait_id=trait_id, support_count=support, opportunity_count=support, context_count=context,
+            distinct_frame_count=frame,
+        )
+
+    def test_limited_and_strong_students_get_different_scores_against_same_major(self) -> None:
+        major = MajorProfile(
+            major_id="m1", label="테스트전공",
+            cognitive_vector={"a": 1.00, "b": 1.00}, work_style_vector={"c": 1.00, "e": 1.00},
+            extraction_method="manual", review_status="draft", profile_version="v1",
+            updated_at=datetime(2026, 1, 1),
+        )
+
+        strong_summaries = {
+            tid: self._summary(tid, support=3, context=2, frame=2) for tid in ["a", "b", "c", "e"]
+        }
+        # LIMITED: support_count=2지만 context_count=1(최소 2 미달)이라 §13 기준상 LIMITED.
+        limited_summaries = {
+            tid: self._summary(tid, support=2, context=1, frame=1) for tid in ["a", "b", "c", "e"]
+        }
+
+        strong_states = compute_student_trait_states(strong_summaries, DEFS, set())
+        limited_states = compute_student_trait_states(limited_summaries, DEFS, set())
+        self.assertEqual(limited_states["a"].state.value, "LIMITED")
+
+        strong_result = compute_major_match(strong_states, major)
+        limited_result = compute_major_match(limited_states, major)
+
+        self.assertAlmostEqual(strong_result.score, 1.0)
+        self.assertAlmostEqual(limited_result.score, 0.33)
+        self.assertNotAlmostEqual(strong_result.score, limited_result.score)
+
+
+class SingleTraitVectorGroupTest(unittest.TestCase):
+    """예전 MINIMUM_TRAITS_PER_VECTOR_GROUP(그룹당 최소 2개)이 없어졌으므로, Trait 1개뿐인
+    그룹(Vertical Slice의 interest·environment 실제 상황)도 매칭 점수에 비례해서 반영돼야
+    한다 — 통째로 제외되면 안 된다."""
+
+    def setUp(self) -> None:
+        self.defs = {**DEFS, "f": _trait("f", "interest")}
+
+    def _states(self, f_summary: TraitEvidenceSummary):
+        summaries = {"a": _strong("a"), "b": _strong("b"), "f": f_summary}
+        return compute_student_trait_states(summaries, self.defs, set())
+
+    def test_single_trait_group_included_and_changes_score(self) -> None:
+        major = MajorProfile(
+            major_id="m1", label="테스트전공",
+            interest_vector={"f": 1.00}, cognitive_vector={"a": 1.00, "b": 1.00},
+            extraction_method="manual", review_status="draft", profile_version="v1",
+            updated_at=datetime(2026, 1, 1),
+        )
+
+        strong_states = self._states(_strong("f"))
+        weak_states = self._states(
+            TraitEvidenceSummary(trait_id="f", support_count=2, opportunity_count=2, context_count=1, distinct_frame_count=1)
+        )
+
+        strong_result = compute_major_match(strong_states, major)
+        weak_result = compute_major_match(weak_states, major)
+
+        self.assertEqual(strong_result.status, "computed")
+        self.assertEqual(weak_result.status, "computed")
+        self.assertEqual(strong_result.usable_trait_count, 3)  # a, b, f 전부 포함(예전엔 f 제외됐음)
+        # f 하나만 값이 달라졌는데 interest 그룹 가중치(0.35)만큼 전체 점수가 달라져야 한다
+        # — f가 통째로 제외됐다면(예전 동작) 두 점수가 똑같이 1.0(cognitive만)이었을 것이다.
+        self.assertNotAlmostEqual(strong_result.score, weak_result.score)
+        self.assertAlmostEqual(strong_result.score, 1.0)
+
+
+class MaskExclusionFromCoverageTest(unittest.TestCase):
+    """Mask(CONFLICTING/INSUFFICIENT)된 Trait는 분자뿐 아니라 분모(전공 가중치 합)에서도
+    빠져야 한다 — 분모에만 남아있으면 실제로 확인되지 않은 Trait 때문에 점수가 부당하게
+    깎인다."""
+
+    def test_masked_trait_weight_excluded_from_denominator_not_just_numerator(self) -> None:
+        summaries = {
+            "a": _strong("a"), "b": _strong("b"), "c": _strong("c"), "e": _strong("e"),
+        }
+        states_with_conflict = compute_student_trait_states(summaries, DEFS, unresolved_conflict_trait_ids={"e"})
+
+        # e가 벡터에 있지만 Mask됨 — e의 가중치(0.50)가 분모에 남아있으면 c만으로는
+        # coverage가 1.00*1.00/(1.00+0.50)=0.667이 돼야 하고, 분모에서도 제외됐다면 1.00이어야 한다.
+        major_with_masked_e = MajorProfile(
+            major_id="m1", label="테스트전공",
+            cognitive_vector={"a": 1.00, "b": 1.00}, work_style_vector={"c": 1.00, "e": 0.50},
+            extraction_method="manual", review_status="draft", profile_version="v1",
+            updated_at=datetime(2026, 1, 1),
+        )
+        # e가 벡터에 아예 없는 대조군 — 분모 제외가 맞다면 위와 점수가 같아야 한다.
+        major_without_e = MajorProfile(
+            major_id="m1", label="테스트전공",
+            cognitive_vector={"a": 1.00, "b": 1.00}, work_style_vector={"c": 1.00},
+            extraction_method="manual", review_status="draft", profile_version="v1",
+            updated_at=datetime(2026, 1, 1),
+        )
+
+        result_with_masked_e = compute_major_match(states_with_conflict, major_with_masked_e)
+        result_without_e = compute_major_match(states_with_conflict, major_without_e)
+
+        self.assertAlmostEqual(result_with_masked_e.score, 1.0)
+        self.assertAlmostEqual(result_with_masked_e.score, result_without_e.score)
+
+
 class RankMajorRelevanceTest(unittest.TestCase):
     def test_all_insufficient_returns_message(self) -> None:
         from src.engines.matching_engine import MajorMatchResult
@@ -268,27 +403,29 @@ class FixedPersonaVerticalSliceMatchingTest(unittest.TestCase):
         self.trait_defs = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
         self.labels = {m.major_id: m.label for m in self.majors}
 
-    def test_analytical_persona_ranks_industrial_engineering_or_hci_above_media(self) -> None:
-        """손계산: 원인 분석·패턴 탐색·정보 비교(전부 산업공학이 1.00으로 가중치를 둔
-        Trait)를 STRONG으로, 감정 해석·의견 조정(미디어커뮤니케이션이 높게 보는 Trait)은
-        INSUFFICIENT로 설계한 Persona → 산업공학 점수가 미디어커뮤니케이션보다 높아야
-        한다. 정확한 점수가 아니라 순위만 검증한다(§6-6 Fixture 원칙과 동일)."""
+    def test_analytical_persona_ranks_industrial_engineering_above_media_and_hci(self) -> None:
+        """가중 충족도 공식(2026-08-21 2단계) 하에서는, 모든 확정 Trait가 동일하게 STRONG이면
+        전공별 가중치 분포가 달라도 coverage가 똑같이 1.0이 나온다(가중평균의 성질상 값이
+        전부 같으면 가중치 분포는 결과에 영향을 못 준다) — 그래서 전공 간 실제 차별화를
+        검증하려면 Persona의 Trait 강도 자체가 달라야 한다.
 
-        # work_style은 최소 2개가 확정돼야 그 그룹이 유사도 계산에 포함된다(1차원 cosine은
-        # 항상 1.0이라 무의미하다 — MINIMUM_TRAITS_PER_VECTOR_GROUP). planning 혼자면
-        # work_style 그룹이 제외돼서 cognitive 그룹 하나만 남아 usable_vector_group_count=1
-        # (2 미만)이 돼버리므로 opinion_mediation도 함께 STRONG으로 만든다 — 산업공학·
-        # 미디어커뮤니케이션 둘 다 planning·opinion_mediation에서 산업공학 쪽 가중치가
-        # 더 높아(1.00/0.67 vs 0.67/0.33) 방향(cosine)도 산업공학이 더 잘 맞는다.
-        strong_traits = {
-            "causal_analysis", "pattern_finding", "information_comparison",
-            "planning", "opinion_mediation",
-        }
+        원인 분석·패턴 탐색·정보 비교·계획(산업공학이 1.00으로 가중치를 둔 Trait)은 STRONG,
+        감정 해석·수용자 반응 예측(미디어·HCI가 1.00 근처로 가중치를 둔 Trait)은 LIMITED로
+        설계한다 — 산업공학은 학생이 강한 영역을 중요하게 보고, 미디어/HCI는 학생이 약한
+        영역을 중요하게 보므로 산업공학 점수가 가장 높아야 한다."""
+
+        strong_traits = {"causal_analysis", "pattern_finding", "information_comparison", "planning"}
+        limited_traits = {"emotional_interpretation", "audience_response_prediction"}
         summaries = {}
         for trait_id in self.trait_defs:
             if trait_id in strong_traits:
                 summaries[trait_id] = TraitEvidenceSummary(
                     trait_id=trait_id, support_count=3, opportunity_count=3, context_count=2, distinct_frame_count=2
+                )
+            elif trait_id in limited_traits:
+                # LIMITED: support_count=2지만 context_count=1(최소 미달)이라 §13 기준상 LIMITED.
+                summaries[trait_id] = TraitEvidenceSummary(
+                    trait_id=trait_id, support_count=2, opportunity_count=2, context_count=1, distinct_frame_count=1
                 )
             else:
                 summaries[trait_id] = TraitEvidenceSummary(trait_id=trait_id, support_count=0, opportunity_count=0)
@@ -298,16 +435,15 @@ class FixedPersonaVerticalSliceMatchingTest(unittest.TestCase):
 
         self.assertEqual(results["industrial_engineering"].status, "computed")
         self.assertEqual(results["media_communication"].status, "computed")
-        self.assertGreater(results["industrial_engineering"].score, results["media_communication"].score)
+        self.assertEqual(results["hci_ux"].status, "computed")
+        self.assertGreater(results["industrial_engineering"].score, results["hci_ux"].score)
+        self.assertGreater(results["hci_ux"].score, results["media_communication"].score)
 
     def test_ranking_result_contains_no_raw_float(self) -> None:
         """MajorRelevance로 변환된 최종 결과에는 score 필드 자체가 없으므로, 학과 3개를
         전부 넣어도 사용자 노출용 목록 어디에도 float이 안 남는다."""
 
-        strong_traits = {
-            "causal_analysis", "pattern_finding", "information_comparison",
-            "planning", "opinion_mediation",
-        }
+        strong_traits = {"causal_analysis", "pattern_finding", "information_comparison", "planning"}
         summaries = {
             trait_id: (
                 TraitEvidenceSummary(trait_id=trait_id, support_count=3, opportunity_count=3, context_count=2, distinct_frame_count=2)
