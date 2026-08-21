@@ -76,4 +76,15 @@ def run_quality_gate(
     if question.question_text.strip() in {t.strip() for t in previous_question_texts}:
         failures.append("이전 질문과 문구가 동일함(반복 금지, §10 생성 원칙)")
 
+    # 선택지가 질문 문장을 그대로 반복하는 사고를 코드로 잡는다 — 실제로 LLM이 5개
+    # 선택지를 전부 "~하는 편인가요?" 식 완결된 의문문으로 써서 질문과 한 선택지가
+    # 완전히 같은 문장이 된 사례가 있었다(2026-08-21 리뷰 피드백).
+    question_text_stripped = question.question_text.strip()
+    for option in question.options:
+        option_text_stripped = option.text.strip()
+        if option_text_stripped == question_text_stripped:
+            failures.append(f"선택지({option.role_id})가 질문 문장과 완전히 동일함")
+        if option_text_stripped.endswith("?"):
+            failures.append(f"선택지({option.role_id})가 의문문 형태임 — 행동 서술형으로 써야 함")
+
     return QuestionQualityGateResult(passed=not failures, failures=failures)

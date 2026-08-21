@@ -66,6 +66,34 @@ class QuestionQualityGateTest(unittest.TestCase):
         result = run_quality_gate(question)
         self.assertFalse(result.passed)
 
+    def test_rejects_option_identical_to_question_text(self) -> None:
+        """2026-08-21 리뷰 피드백: 실제로 선택지가 질문 문장과 완전히 같은 문장으로
+        생성된 적이 있었다 — 5개 선택지를 전부 완결된 의문문으로 써서 발생."""
+
+        text = "문제가 생겼을 때, 게임의 시각적 요소가 제대로 표현되고 있는지 먼저 살펴보는 편인가요?"
+        question = _make_question(
+            text,
+            [text, "감정 반응을 확인한다", "친구에게 묻는다", "패턴을 찾는다", "도구를 써본다"],
+        )
+        result = run_quality_gate(question)
+        self.assertFalse(result.passed)
+        self.assertTrue(any("완전히 동일" in f for f in result.failures))
+
+    def test_rejects_option_phrased_as_question(self) -> None:
+        question = _make_question(
+            "문제가 생기면 무엇부터 확인하나요?",
+            [
+                "원인을 분석하는 편인가요?",
+                "계획을 세운다",
+                "친구에게 묻는다",
+                "패턴을 찾는다",
+                "도구를 써본다",
+            ],
+        )
+        result = run_quality_gate(question)
+        self.assertFalse(result.passed)
+        self.assertTrue(any("의문문 형태" in f for f in result.failures))
+
     def test_rejects_exact_repeat_of_previous_question(self) -> None:
         question = _make_question(
             "문제가 생기면 무엇부터 하나요?",
