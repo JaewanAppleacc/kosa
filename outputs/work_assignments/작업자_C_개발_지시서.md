@@ -2,7 +2,7 @@
 
 ## 1. 기준 문서
 
-- 설계안: `/Users/jaewan/Downloads/AI_진로_학업설계_Agent_수정_최종설계안.md`
+- 설계안: `outputs/AI_진로_학업설계_Agent_수정_최종설계안.md`
 - 발표 및 PPT 제작은 이 지시서의 범위에 포함하지 않는다.
 - A가 확정한 Schema와 함수 Signature를 기준으로 데이터를 제공한다.
 - Agent의 호출 여부, 다음 질문, Stop Condition, 최종 추천 판단은 구현하지 않는다.
@@ -55,6 +55,17 @@ Vertical Slice가 통과하기 전에는 전국 데이터의 세부 정제나 RA
 - A가 담당하는 핵심 Context 5개를 제외한 나머지 Context의 Seed Question과 Option Blueprint 초안을 작성한다.
 - Question–Trait Mapping에 근거와 작성자를 기록한다.
 - A의 최종 검증과 B의 가독성 검토 결과를 반영한다.
+- C의 초안은 `src/data/`를 직접 수정하지 않고 다음 경로에 작성한다.
+
+```text
+data/drafts/context_trait_reviews/
+data/drafts/question_blueprints/
+data/drafts/major_trait_mappings/
+data/drafts/subject_trait_mappings/
+```
+
+- 각 초안에는 `source_url`, `as_of_date`, `author_id`, `review_status="draft"`를 기록한다.
+- A가 검토·승인한 결과만 `src/data/` 확정 데이터 또는 실제 Repository 데이터로 승격한다.
 
 ### 대학·학과 Master 데이터
 
@@ -175,6 +186,10 @@ src/repositories/admission_repository.py
 data/
 datasets/
 sources/
+data/drafts/context_trait_reviews/
+data/drafts/question_blueprints/
+data/drafts/major_trait_mappings/
+data/drafts/subject_trait_mappings/
 src/rag/
 src/mcp/
 src/repositories/department_repository.py

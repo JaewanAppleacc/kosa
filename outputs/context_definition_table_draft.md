@@ -1,6 +1,6 @@
 # Context Definition Table — 1차 초안 (DRAFT, 2인 교차검토 전)
 
-기준 문서: `/Users/jaewan/Downloads/AI_진로_학업설계_Agent_수정_최종설계안.md` §6-6
+기준 문서: `outputs/AI_진로_학업설계_Agent_수정_최종설계안.md` §6-6
 작성: A (초안) → 검토자 미지정 → `AGREED` 확정 시 이 헤더 갱신
 
 이 표가 확정돼야 Coverage Matrix(§6-5), Seed Question(§7-1), Contrast Context 거리 계산(§6-5)을 시작할 수 있습니다.

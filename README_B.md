@@ -84,6 +84,13 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 
 데이터 표현이 이상하면 A의 파일을 직접 고치지 말고, 재현 가능한 API 요청/응답과 함께 전달해주세요.
 
+## 브랜치 전용 `CLAUDE.md` 처리
+
+`worker-b`의 루트 `CLAUDE.md`는 B 작업 중에만 사용하는 브랜치 전용 파일입니다. `main` PR에는 포함하지 않습니다.
+
+- PR을 만들기 직전에 `worker-b`에서 루트 `CLAUDE.md`를 삭제하는 마무리 커밋을 추가하거나, A가 구현 커밋만 선택적으로 Cherry-pick합니다.
+- PR 전 `python scripts/check_no_worker_claude.py`를 실행해 루트 `CLAUDE.md`가 최종 변경에 남지 않았는지 확인합니다.
+
 ## 참고 문서
 
 - `outputs/work_assignments/작업자_B_개발_지시서.md` — 원래 담당 범위 전체
