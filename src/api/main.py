@@ -79,6 +79,7 @@ _store = InMemorySessionStore()
 DEMO_USER_ID = "demo_user_01"
 
 TRAIT_DEFINITIONS_BY_ID = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
+ALL_TRAIT_LABELS = {tid: t.label for tid, t in TRAIT_DEFINITIONS_BY_ID.items()}
 CONTEXT_DEFINITIONS_BY_ID = {c.context_id: c for c in CONTEXT_DEFINITIONS}
 
 # §10/§11 실시간 LLM 질문 생성 — 명시적으로 켜져 있고(.env ENABLE_LLM_QUESTION_GENERATION)
@@ -195,6 +196,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             question_id=question_id,
             context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
             trait_definition=TRAIT_DEFINITIONS_BY_ID[state.pending_target_traits[0]],
+            all_trait_labels=ALL_TRAIT_LABELS,
             frame_id=frame_id,
             frame_text=QUESTION_FRAME_TEXT.get(frame_id, "다음 상황에서 어떻게 하나요?"),
             llm_client=_llm_client,

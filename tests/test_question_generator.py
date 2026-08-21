@@ -56,6 +56,7 @@ class GenerateTailQuestionTest(unittest.TestCase):
             question_id="game_tail_02",
             context_definition=self.context_definition,
             trait_definition=self.trait_definition,
+            all_trait_labels={tid: t.label for tid, t in TRAIT_DEFINITIONS_BY_ID.items()},
             frame_id="problem_check",
             frame_text="문제가 생기면 무엇부터 확인하는가?",
             llm_client=client,

@@ -42,6 +42,11 @@ SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문의 질문 생성�
   안 어울리면 힌트 문구를 그대로 베끼지 말고, 그 Trait에 자연스럽게 맞는 구체적 상황으로
   바꿔서 씁니다 — 억지로 끼워 맞춘 듯한 질문보다, 고등학생이 실제로 마주칠 법한 자연스러운
   상황을 우선합니다.
+- 질문의 상황 설정은 아래 [Option Role] 목록에 있는 Trait 5개 전부가 그 상황에서 자연스러운
+  답이 될 수 있을 만큼 넓게 잡습니다. 예를 들어 "전략을 세울 때"처럼 특정 Trait(원인 분석,
+  계획 등)에만 맞고 다른 Trait(시각적 표현, 감정 해석 등)에는 억지스러운 좁은 상황을
+  만들지 않습니다. 5개 Trait를 모두 훑어본 뒤, 다섯 답이 전부 말이 되는 더 일반적인
+  질문으로 잡으세요.
 - target_traits와 frame_id는 입력으로 주어진 값을 그대로 반환합니다.
 - 질문은 그 자체로 자연스럽게 읽히는 완결된 한 문장이어야 합니다. "~을 이어서",
   "~하는 성향을 이어", "~인지 확인하기 위해", "~에 이어" 같이 이전 질문·답변을
@@ -59,10 +64,13 @@ def _build_user_prompt(
     trait_definition: TraitDefinition,
     frame_id: str,
     frame_text: str,
-    blueprint_roles: list[str],
+    blueprint_role_trait_labels: list[tuple[str, str]],
     previous_next_probe: str | None = None,
 ) -> str:
-    role_list = "\n".join(f"- {role_id}" for role_id in blueprint_roles)
+    role_list = "\n".join(
+        f"- {role_id} (측정 대상: {trait_label})"
+        for role_id, trait_label in blueprint_role_trait_labels
+    )
     continuity_block = ""
     if previous_next_probe:
         continuity_block = f"""
@@ -83,7 +91,8 @@ definition: {trait_definition.definition}
 frame_id: {frame_id}
 문구 힌트: {frame_text}
 {continuity_block}
-[Option Role — 이 role_id 순서 그대로, 각각 하나의 선택지 문장을 만들 것]
+[Option Role — 이 role_id 순서 그대로, 각각 하나의 선택지 문장을 만들 것. 괄호 안은 이
+Role이 실제로 측정하는 Trait이니 질문 상황을 잡을 때 5개 전부를 참고할 것]
 {role_list}
 
 context 필드에는 "{context_definition.context_id}"를, target_traits 필드에는
@@ -102,6 +111,7 @@ def generate_tail_question(
     question_id: str,
     context_definition: ContextDefinition,
     trait_definition: TraitDefinition,
+    all_trait_labels: dict[str, str],
     frame_id: str,
     frame_text: str,
     llm_client: ChatLLMClient,
@@ -126,13 +136,16 @@ def generate_tail_question(
         # 캐시된 질문도 Guardrail은 통과해야 한다 — 실패하면 조용히 넘기지 않고 실시간 생성으로 이어간다.
 
     blueprint = blueprint_for_target_trait(trait_definition.trait_id)
-    role_ids = [role.role_id for role in blueprint.roles]
+    role_trait_labels: list[tuple[str, str]] = []
+    for role in blueprint.roles:
+        role_trait_id = next(iter(role.primary_trait_delta))
+        role_trait_labels.append((role.role_id, all_trait_labels.get(role_trait_id, role_trait_id)))
     user_prompt = _build_user_prompt(
         context_definition=context_definition,
         trait_definition=trait_definition,
         frame_id=frame_id,
         frame_text=frame_text,
-        blueprint_roles=role_ids,
+        blueprint_role_trait_labels=role_trait_labels,
         previous_next_probe=previous_next_probe,
     )
 
