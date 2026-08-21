@@ -36,6 +36,7 @@ def seed_question_as_finalized(seed: SeedQuestion) -> FinalizedQuestion:
                 role_id=o.role_id,
                 text=o.text,
                 primary_trait_delta=o.primary_trait_delta,
+                next_probe=o.next_probe,
             )
             for o in seed.options
         ],

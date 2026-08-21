@@ -80,6 +80,9 @@ class AssessmentState(BaseModel):
     pending_target_traits: list[str] = []
     pending_question_frame: str | None = None
     pending_purpose: str | None = None
+    # §7-3/§8: 방금 선택된 Option의 next_probe. 목표 Trait 자체는 바꾸지 않고(§8 "우선순위
+    # 조건이 아니라") 다음 질문 "문구"를 자연스럽게 잇는 재료로만 쓴다.
+    pending_next_probe: str | None = None
 
     @property
     def current_context_id(self) -> str | None:

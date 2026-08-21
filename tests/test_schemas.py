@@ -27,7 +27,11 @@ def _make_blueprint(blueprint_id: str = "problem_response_v1") -> OptionBlueprin
     return OptionBlueprint(
         blueprint_id=blueprint_id,
         roles=[
-            OptionRole(role_id="cause_analysis", primary_trait_delta={"causal_analysis": 1}),
+            OptionRole(
+                role_id="cause_analysis",
+                primary_trait_delta={"causal_analysis": 1},
+                next_probe="원인 분석 경향이 다른 상황에서도 이어지는지 확인",
+            ),
             OptionRole(role_id="strategy_change", primary_trait_delta={"change_adaptation": 1}),
             OptionRole(role_id="direct_trial", primary_trait_delta={"immediate_execution": 1}),
             OptionRole(role_id="external_research", primary_trait_delta={"information_comparison": 1}),
@@ -136,6 +140,11 @@ class ServerGeneratedIdTest(unittest.TestCase):
         )
         # Blueprint의 trait_delta가 정확히 결합됐는지
         self.assertEqual(finalized.options[0].primary_trait_delta, {"causal_analysis": 1})
+        # Blueprint Role의 next_probe도 함께 결합돼야 한다(§7-3/§8 문구 연속성 재료).
+        self.assertEqual(
+            finalized.options[0].next_probe, "원인 분석 경향이 다른 상황에서도 이어지는지 확인"
+        )
+        self.assertIsNone(finalized.options[1].next_probe)  # 이 Fixture는 다른 role에 next_probe를 안 줌
 
     def test_finalize_question_rejects_role_id_not_in_blueprint(self) -> None:
         blueprint = _make_blueprint()

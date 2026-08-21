@@ -34,8 +34,10 @@ class _ScriptedFakeLLMClient:
     def __init__(self, scripted_results: list[object]) -> None:
         self._scripted_results = scripted_results
         self.call_count = 0
+        self.captured_user_prompts: list[str] = []
 
     def complete_structured(self, *, system_prompt, user_prompt, response_model):
+        self.captured_user_prompts.append(user_prompt)
         result = self._scripted_results[self.call_count]
         self.call_count += 1
         if isinstance(result, Exception):
@@ -72,6 +74,30 @@ class GenerateTailQuestionTest(unittest.TestCase):
         self.assertEqual(outcome.question.question_id, "game_tail_02")
         self.assertEqual(len(outcome.question.options), 5)
         self.assertEqual(client.call_count, 1)
+
+    def test_previous_next_probe_is_threaded_into_prompt_not_into_target(self) -> None:
+        """§7-3/§8: next_probe는 프롬프트의 "말투" 재료로만 들어가야 하고, target_trait이나
+        Blueprint Role 구성 자체는 바뀌면 안 된다."""
+
+        client = _ScriptedFakeLLMClient(
+            [QuestionGenerationResult(question=_valid_generated_question())]
+        )
+        outcome = self._generate(
+            client, previous_next_probe="원인 분석을 더 깊이 파고드는 경향인지 확인"
+        )
+        self.assertEqual(outcome.source, "llm")
+        self.assertEqual(len(client.captured_user_prompts), 1)
+        self.assertIn("원인 분석을 더 깊이 파고드는 경향인지 확인", client.captured_user_prompts[0])
+        # 목표 Trait은 여전히 causal_analysis(problem_response_v1)이어야 한다 — next_probe가
+        # 다른 Trait/Blueprint로 목표를 바꾸지 않는다.
+        self.assertEqual(outcome.question.target_traits, ["causal_analysis"])
+
+    def test_no_previous_next_probe_omits_continuity_block(self) -> None:
+        client = _ScriptedFakeLLMClient(
+            [QuestionGenerationResult(question=_valid_generated_question())]
+        )
+        self._generate(client, previous_next_probe=None)
+        self.assertNotIn("직전 답변의 관심 신호", client.captured_user_prompts[0])
 
     def test_llm_call_error_falls_back_to_backup_after_one_regeneration(self) -> None:
         client = _ScriptedFakeLLMClient([LLMCallError("네트워크 실패"), LLMCallError("네트워크 실패")])

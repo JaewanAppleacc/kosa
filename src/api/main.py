@@ -104,6 +104,7 @@ def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
         state.generated_question_texts_in_current_context = []
         state.pending_target_traits = []
         state.pending_question_frame = None
+        state.pending_next_probe = None
         return True
     state.phase = AssessmentPhase.PROFILE_GENERATION
     return False
@@ -198,6 +199,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             frame_text=QUESTION_FRAME_TEXT.get(frame_id, "다음 상황에서 어떻게 하나요?"),
             llm_client=_llm_client,
             previous_question_texts=state.generated_question_texts_in_current_context,
+            previous_next_probe=state.pending_next_probe,
             backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
             used_backup_question_ids=set(state.used_backup_question_ids),
         )

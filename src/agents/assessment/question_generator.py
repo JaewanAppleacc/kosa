@@ -33,7 +33,15 @@ SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문의 질문 생성�
 - 선택지 5개의 길이와 구체성을 비슷하게 맞춥니다.
 - 주어진 Role마다 정확히 하나의 자연스러운 한국어 선택지 문장을 만듭니다. Role의 순서와
   role_id는 그대로 유지하고, 새 role_id를 만들지 않습니다.
-- target_traits와 frame_id는 입력으로 주어진 값을 그대로 반환합니다."""
+- target_traits와 frame_id는 입력으로 주어진 값을 그대로 반환합니다.
+- 질문은 그 자체로 자연스럽게 읽히는 완결된 한 문장이어야 합니다. "~을 이어서",
+  "~하는 성향을 이어", "~인지 확인하기 위해", "~에 이어" 같이 이전 질문·답변을
+  요약하거나 언급하는 표현은 절대 쓰지 않습니다 — 설문지가 아니라 자연스러운 대화처럼
+  읽혀야 합니다.
+- "참고용 배경 정보"가 주어지면, 그 내용을 문장에 직접 언급하거나 요약하지 않습니다.
+  이 학생이 방금 어떤 것에 흥미를 보였는지 알려주는 힌트일 뿐이며, 상황이나 소재를
+  고를 때 은근히만 참고합니다. 무엇을 측정할지(목표 Trait, Option Role 구성)는
+  이 정보와 무관하게 그대로 유지합니다."""
 
 
 def _build_user_prompt(
@@ -43,8 +51,15 @@ def _build_user_prompt(
     frame_id: str,
     frame_text: str,
     blueprint_roles: list[str],
+    previous_next_probe: str | None = None,
 ) -> str:
     role_list = "\n".join(f"- {role_id}" for role_id in blueprint_roles)
+    continuity_block = ""
+    if previous_next_probe:
+        continuity_block = f"""
+[참고용 배경 정보 — 질문 문장에 직접 언급·요약하지 말 것. 소재 선택에만 은근히 참고]
+{previous_next_probe}
+"""
     return f"""[Context]
 label: {context_definition.label}
 description: {context_definition.description}
@@ -58,7 +73,7 @@ definition: {trait_definition.definition}
 [질문 Frame — 어떤 상황/말투로 물을지]
 frame_id: {frame_id}
 문구 힌트: {frame_text}
-
+{continuity_block}
 [Option Role — 이 role_id 순서 그대로, 각각 하나의 선택지 문장을 만들 것]
 {role_list}
 
@@ -82,6 +97,7 @@ def generate_tail_question(
     frame_text: str,
     llm_client: ChatLLMClient,
     previous_question_texts: list[str] | None = None,
+    previous_next_probe: str | None = None,
     backup_questions: list[FinalizedQuestion] | None = None,
     used_backup_question_ids: set[str] | None = None,
     question_cache: dict[str, FinalizedQuestion] | None = None,
@@ -108,6 +124,7 @@ def generate_tail_question(
         frame_id=frame_id,
         frame_text=frame_text,
         blueprint_roles=role_ids,
+        previous_next_probe=previous_next_probe,
     )
 
     last_failure: str | None = None

@@ -119,6 +119,18 @@ class SubmitAnswerTest(unittest.TestCase):
         # game_seed_01에 없는 Trait(예: planning)는 opportunity도 0이어야 한다
         self.assertEqual(state.trait_summaries["planning"].opportunity_count, 0)
 
+    def test_selected_option_next_probe_is_carried_into_state(self) -> None:
+        """§7-3/§8: 선택된 Option의 next_probe는 목표 Trait을 바꾸지 않고 다음 질문
+        "문구"를 잇는 재료로만 state.pending_next_probe에 남아야 한다."""
+
+        state = self._fresh_state()
+        selected = GAME_SEED_01_FINALIZED.options[0]
+        self.assertIsNotNone(selected.next_probe)  # Fixture 전제 확인
+        submit_answer(
+            state, GAME_SEED_01_FINALIZED, selected.option_id, VERTICAL_SLICE_TRAIT_IDS, True
+        )
+        self.assertEqual(state.pending_next_probe, selected.next_probe)
+
     def test_context_continues_while_coverage_gap_remains(self) -> None:
         """손계산: Seed 1개 + 꼬리질문 4개를 넣어도, 이 5개 질문이 game_seed_01의 5개
         Trait(causal_analysis/immediate_execution/collaboration_preference/pattern_finding/

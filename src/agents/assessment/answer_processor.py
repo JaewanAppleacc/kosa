@@ -67,6 +67,9 @@ def submit_answer(
         quality_gate_status="passed",
     )
     state.evidence_ledger.append(evidence)
+    # §7-3/§8: 이 Option의 next_probe를 다음 질문 "문구"를 자연스럽게 잇는 재료로 남긴다
+    # (목표 Trait 자체는 이 값과 무관하게 Target Planner의 우선순위로 정해진다).
+    state.pending_next_probe = selected_option.next_probe
     state.answers.append(
         AnsweredQuestion(
             question_id=question.question_id,
