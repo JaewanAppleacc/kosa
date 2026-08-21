@@ -128,9 +128,10 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
 def next_question(session_id: str) -> NextQuestionResponse:
     state = _get_state_or_404(session_id)
     current_context = state.current_context_id or "media"
-    # 실제 Seed/Adaptive 질문 생성(§7, §10)은 미구현 — Mock 고정 질문 반환
-    question = mock_data.mock_finalized_question(
-        current_context, state.questions_asked_in_current_context + 1
+    # Context의 첫 질문(Seed)은 실제 확정 콘텐츠를 반환한다(§7-1). 이후 꼬리질문은
+    # 실제 Adaptive 질문 생성(§10)이 아직 없어 Mock 고정 질문을 반환한다.
+    question = mock_data.next_mock_question(
+        current_context, state.questions_asked_in_current_context
     )
     return NextQuestionResponse(
         session_id=session_id,
