@@ -42,11 +42,17 @@ SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문의 질문 생성�
   안 어울리면 힌트 문구를 그대로 베끼지 말고, 그 Trait에 자연스럽게 맞는 구체적 상황으로
   바꿔서 씁니다 — 억지로 끼워 맞춘 듯한 질문보다, 고등학생이 실제로 마주칠 법한 자연스러운
   상황을 우선합니다.
-- 질문의 상황 설정은 아래 [Option Role] 목록에 있는 Trait 5개 전부가 그 상황에서 자연스러운
-  답이 될 수 있을 만큼 넓게 잡습니다. 예를 들어 "전략을 세울 때"처럼 특정 Trait(원인 분석,
-  계획 등)에만 맞고 다른 Trait(시각적 표현, 감정 해석 등)에는 억지스러운 좁은 상황을
-  만들지 않습니다. 5개 Trait를 모두 훑어본 뒤, 다섯 답이 전부 말이 되는 더 일반적인
-  질문으로 잡으세요.
+- 질문의 상황 설정은 [Option Role] 목록에 있는 Trait 5개 전부가 그 상황에서 자연스러운
+  답이 될 수 있을 만큼 넓게 잡습니다. [Context]의 "예시 활동"은 참고용일 뿐, 5개 Trait
+  중 일부와 안 맞으면 억지로 쓰지 않습니다.
+  나쁜 예: "게임 전략을 세울 때 어디에 집중하나요?" — "전략"은 승부를 위한 활동이라
+  원인 분석·계획 같은 Trait에는 맞지만, 시각적 표현("화면 디자인을 살펴본다")이나
+  감정 해석 같은 Trait는 전략과 아예 무관한 별개의 활동이라 억지스럽습니다.
+  좋은 예: "게임을 할 때 어디에 가장 오래 집중하나요?"처럼 Context 자체를 아우르는
+  넓은 활동으로 잡으면, 전략 분석·화면 감상·감정 이입·패턴 분석이 전부 자연스러운
+  답이 됩니다. 이 예시처럼, 목표 Trait만 보고 좁은 활동(전략/승부/경쟁 등)을 먼저
+  떠올리지 말고, 반드시 5개 Trait를 모두 훑어본 뒤 그중 가장 안 맞는 Trait 기준으로
+  상황을 넓히세요.
 - target_traits와 frame_id는 입력으로 주어진 값을 그대로 반환합니다.
 - 질문은 그 자체로 자연스럽게 읽히는 완결된 한 문장이어야 합니다. "~을 이어서",
   "~하는 성향을 이어", "~인지 확인하기 위해", "~에 이어" 같이 이전 질문·답변을
@@ -80,19 +86,22 @@ def _build_user_prompt(
     return f"""[Context]
 label: {context_definition.label}
 description: {context_definition.description}
-예시 활동: {', '.join(context_definition.example_activities)}
+예시 활동(참고용 — 아래 5개 Trait와 안 맞으면 무시할 것): {', '.join(context_definition.example_activities)}
 
-[목표 Trait — 이 질문이 확인하려는 것]
+[이번 질문이 다뤄야 할 Trait 5개 — 질문 상황을 잡기 전에 반드시 전부 확인할 것]
+{role_list}
+
+[목표 Trait — 이 중 실제로 Evidence로 기록되는 것]
 label: {trait_definition.label}
 definition: {trait_definition.definition}
 긍정 지표: {', '.join(trait_definition.positive_indicators)}
 
-[질문 Frame — 어떤 상황/말투로 물을지]
+[질문 Frame — 어떤 상황/말투로 물을지. 위 5개 Trait와 안 맞으면 아래 힌트보다
+5개 Trait에 맞는 넓은 상황을 우선할 것]
 frame_id: {frame_id}
 문구 힌트: {frame_text}
 {continuity_block}
-[Option Role — 이 role_id 순서 그대로, 각각 하나의 선택지 문장을 만들 것. 괄호 안은 이
-Role이 실제로 측정하는 Trait이니 질문 상황을 잡을 때 5개 전부를 참고할 것]
+[Option Role — 위와 같은 role_id 순서 그대로, 각각 하나의 선택지 문장을 만들 것]
 {role_list}
 
 context 필드에는 "{context_definition.context_id}"를, target_traits 필드에는
