@@ -62,7 +62,14 @@ python3 -m venv .venv
 `GENERATED` / `REGENERATING` / `CACHE_USED` / `BACKUP_USED` / `CONTEXT_EARLY_TERMINATED`
 
 **오류 코드** (`APIError.error_code`, 404 등에서 `detail`에 담겨 옴):
-`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR`
+`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY`(신규)
+
+> ⚠️ **`/profile/{session_id}` 하위 호환 아닌 변경**: 답변을 하나도 제출하지 않은 세션에서
+> `/profile`을 호출하면 이제 200 대신 **422 + `EVIDENCE_NOT_READY`**를 반환합니다(예전엔
+> 무관한 고정 Mock Profile을 200으로 줬습니다 — 실제 계산이 가능해진 뒤로는 그게 다른
+> 학생 결과를 보여주는 셈이라 없앴습니다). 화면에서 "적어도 질문 1개는 답한 뒤에 Profile
+> 탭을 활성화"하는 흐름이면 원래 안 마주칠 상황이지만, 혹시 세션 생성 직후 Profile을
+> 미리 호출하는 코드가 있다면 이 오류를 처리해야 합니다. 예시: `outputs/mock_api/error_evidence_not_ready__hand_crafted.json`
 
 **전공 관련도 정성 Label** (`MajorRelevance.relevance_label` — 절대 숫자 아님, 숫자 필드 자체가 없음):
 `"관련성 높음"` / `"함께 탐색해볼 분야"` / `"비교해볼 만한 분야"`
