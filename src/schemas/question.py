@@ -154,6 +154,84 @@ class FinalizedQuestion(BaseModel):
         return value
 
 
+class SeedOption(BaseModel):
+    """§7-3 Seed Option. Seed는 LLM이 생성하지 않고 전부 손으로 작성하므로, Adaptive
+    흐름(GeneratedOption→Blueprint 결합)과 달리 role_id·text·primary_trait_delta를
+    한 객체에 바로 담는다. `next_probe`는 이 Option을 고른 학생에게 다음 질문이
+    무엇을 확인해야 하는지 알려주는 메모이고(§7-3: "선택한 Option의 next_probe만
+    LLM에 전달"), `preferred_frames`는 그 다음 질문에 어울리는 Frame 후보다."""
+
+    option_id: str
+    text: str
+    role_id: str
+    primary_trait_delta: dict[str, int]
+    next_probe: str
+    preferred_frames: list[str] = []
+
+    @field_validator("text", "next_probe")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("빈 값은 허용하지 않는다")
+        return value
+
+    @field_validator("primary_trait_delta")
+    @classmethod
+    def _trait_delta_is_one(cls, value: dict[str, int]) -> dict[str, int]:
+        if not value:
+            raise ValueError("primary_trait_delta must not be empty")
+        if any(v != 1 for v in value.values()):
+            raise ValueError("MVP에서 모든 primary_trait_delta 값은 1로 고정한다")
+        return value
+
+
+class SeedQuestion(BaseModel):
+    """§7-1 고정 Seed Question. Context당 1개, 선택지 정확히 5개."""
+
+    question_id: str
+    context: str
+    question_text: str
+    options: list[SeedOption]
+
+    @field_validator("question_text")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("빈 값은 허용하지 않는다")
+        return value
+
+    @model_validator(mode="after")
+    def _lint(self) -> "SeedQuestion":
+        if len(self.options) != 5:
+            raise ValueError(f"선택지는 정확히 5개여야 한다, got {len(self.options)}: {self.question_id}")
+        role_ids = [o.role_id for o in self.options]
+        if len(set(role_ids)) != len(role_ids):
+            raise ValueError(f"모든 Role ID가 서로 달라야 한다: {self.question_id}")
+        seen_traits: set[str] = set()
+        for option in self.options:
+            for trait_id in option.primary_trait_delta:
+                if trait_id in seen_traits:
+                    raise ValueError(
+                        f"한 질문의 여러 Option에 동일 Trait가 중복 배정될 수 없다: "
+                        f"{self.question_id} / {trait_id}"
+                    )
+                seen_traits.add(trait_id)
+        return self
+
+
+def seed_question_to_blueprint(seed: SeedQuestion) -> OptionBlueprint:
+    """Persona/Fixture 검증 도구(eval/trait_eval.py)가 Seed도 Adaptive와 같은 인터페이스로
+    다룰 수 있도록, Seed의 Role→Trait 대응을 OptionBlueprint 형태로 파생시킨다."""
+
+    return OptionBlueprint(
+        blueprint_id=f"{seed.question_id}_blueprint",
+        roles=[
+            OptionRole(role_id=o.role_id, primary_trait_delta=o.primary_trait_delta)
+            for o in seed.options
+        ],
+    )
+
+
 def finalize_question(
     question_id: str,
     generated: GeneratedQuestion,
