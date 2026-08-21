@@ -195,6 +195,17 @@ def _write_hand_crafted_states(session_id: str, sample_question: dict) -> None:
         ).model_dump(mode="json"),
     )
     _write(
+        # 2026-08-21 리뷰: /profile은 답변이 하나도 없으면 이 오류를 반환한다(422).
+        # 실제 HTTP 응답이지만 "hand_crafted" 접미사를 붙여 다른 정상 흐름 예시와 구분한다.
+        "error_evidence_not_ready__hand_crafted",
+        APIError(
+            error_code=APIErrorCode.EVIDENCE_NOT_READY,
+            message="아직 답변이 없어 Profile을 생성할 Evidence가 없습니다. 먼저 "
+            "/assessment/next-question과 /assessment/answer로 최소 1개 이상 답변한 뒤 "
+            "다시 호출하세요.",
+        ).model_dump(mode="json"),
+    )
+    _write(
         "profile_partial__hand_crafted",
         CareerProfile(
             session_id=session_id,

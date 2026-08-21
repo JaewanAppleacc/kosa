@@ -142,9 +142,95 @@ class SessionLifecycleTest(unittest.TestCase):
     def test_career_profile_highlight_count_is_five_to_eight_even_via_api(self) -> None:
         r = client.post("/assessment/session")
         session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        # 2026-08-21 리뷰 반영: 답변이 아예 없으면 /profile은 이제 EVIDENCE_NOT_READY를
+        # 반환한다(아래 별도 테스트) — highlights 5~8개 검증은 최소 1개 답변 이후로 옮긴다.
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        question = r.json()["question"]
+        client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question["question_id"],
+                "selected_option_id": question["options"][0]["option_id"],
+            },
+        )
         r = client.get(f"/profile/{session_id}")
+        self.assertEqual(r.status_code, 200)
         highlights = r.json()["highlights"]
         self.assertTrue(5 <= len(highlights) <= 8)
+
+    def test_profile_without_any_answer_returns_evidence_not_ready(self) -> None:
+        """2026-08-21 리뷰: 답변이 하나도 없는 세션에 /profile을 물으면 무관한 Mock
+        Profile로 얼버무리지 않고 EVIDENCE_NOT_READY를 반환해야 한다."""
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        r = client.get(f"/profile/{session_id}")
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "EVIDENCE_NOT_READY")
+
+    def test_majors_without_any_answer_returns_empty_with_insufficient_message(self) -> None:
+        """2026-08-21 리뷰: 답변이 없는 세션은 전공 추천 목록이 비어 있고
+        insufficient_evidence_message가 채워져야 한다 — Mock 전공을 실제처럼 보여주지 않는다."""
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        r = client.get(f"/majors/{session_id}")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["relevant_majors"], [])
+        self.assertEqual(body["explore_together_majors"], [])
+        self.assertIsNotNone(body["insufficient_evidence_message"])
+
+    def test_profile_and_majors_reflect_this_sessions_actual_answers_without_llm(self) -> None:
+        """2026-08-21 리뷰 핵심 요구사항: _llm_client가 없어도(이 테스트는 setUp에서 항상
+        None으로 고정) 실제 Evidence 기반 결과가 나와야 하고, 고정 Mock 문구가 아니어야
+        한다."""
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        for _ in range(6):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            body = r.json()
+            if body["status"] == "CONTEXT_EARLY_TERMINATED":
+                if body["assessment_complete"]:
+                    break
+                continue
+            q = body["question"]
+            ar = client.post(
+                "/assessment/answer",
+                json={
+                    "session_id": session_id,
+                    "question_id": q["question_id"],
+                    "selected_option_id": q["options"][0]["option_id"],
+                },
+            )
+            if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+                break
+
+        profile = client.get(f"/profile/{session_id}").json()
+        # 예전 고정 Mock Profile의 제목·해시태그와 달라야 한다(다른 학생 결과가 아님).
+        self.assertNotEqual(profile["title"], "구조를 읽고 사람의 반응까지 생각하는 탐색형 설계자")
+        self.assertNotIn("#구조화", profile["hashtags"])
+        supporting_trait_ids = {tid for h in profile["highlights"] for tid in h["supporting_trait_ids"]}
+        self.assertTrue(supporting_trait_ids)  # 실제 Trait 근거가 있어야 함
+
+        majors = client.get(f"/majors/{session_id}").json()
+        # 예전 고정 Mock 전공 목록(media_communication이 항상 1등)과 결과가 달라도 되고
+        # 같아도 되지만, 최소한 이 세션의 실제 Evidence로 계산된 결과여야 한다 — 여기서는
+        # "에러 없이 응답이 오고 관련도 Label이 실제 enum 값 중 하나인지"만 구조적으로 확인.
+        for item in majors["relevant_majors"] + majors["explore_together_majors"]:
+            self.assertIn(
+                item["relevance_label"], ["관련성 높음", "함께 탐색해볼 분야", "비교해볼 만한 분야"]
+            )
 
     def test_majors_response_never_exposes_raw_score_or_float(self) -> None:
         """2026-08-21 리뷰: 내부 Matching Score(§16)가 API 응답 JSON 어디에도 소수점

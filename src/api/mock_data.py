@@ -14,8 +14,7 @@ from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_I
 from src.ids import generate_option_id
 from src.schemas.course import CourseProfile, CourseRecommendationItem, ParsedSubjectCandidate
 from src.schemas.graph import SubgraphEdge, SubgraphNode
-from src.schemas.major import AdmissionReference, Department, MajorRelevance
-from src.schemas.profile import CareerProfile, CareerProfileHighlight, DimensionEvidenceItem
+from src.schemas.major import AdmissionReference, Department
 from src.schemas.question import FinalizedOption, FinalizedQuestion, SeedQuestion
 from src.schemas.retrieval import RetrievedDocument
 
@@ -123,64 +122,11 @@ def mock_finalized_question(context_id: str = "media", index: int = 4) -> Finali
     )
 
 
-def mock_career_profile(session_id: str, user_id: str = "demo_user_01") -> CareerProfile:
-    return CareerProfile(
-        session_id=session_id,
-        user_id=user_id,
-        title="구조를 읽고 사람의 반응까지 생각하는 탐색형 설계자",
-        highlights=[
-            CareerProfileHighlight(text=t, supporting_trait_ids=[tid])
-            for t, tid in [
-                ("복잡한 내용에서 핵심과 흐름을 찾아 정리하는 데 흥미를 느껴요.", "pattern_finding"),
-                ("단순히 감상하기보다 왜 이런 구조가 되었는지 생각하는 편이에요.", "causal_analysis"),
-                (
-                    "결과물을 만들 때 보는 사람이 어떻게 받아들일지도 중요하게 생각해요.",
-                    "audience_response_prediction",
-                ),
-                ("기존 방식을 그대로 따르기보다 순서나 구성을 바꿔보는 것을 좋아해요.", "change_adaptation"),
-                ("아이디어에 머무르기보다 도구로 직접 시험해보려는 경향이 있어요.", "immediate_execution"),
-                ("여러 선택지를 비교한 뒤 납득할 수 있는 기준으로 결정하는 편이에요.", "information_comparison"),
-                ("협업 방식은 아직 Evidence가 적어 추가 탐색이 필요해요.", "collaboration_preference"),
-            ]
-        ],
-        hashtags=["#구조화", "#사용자관점", "#패턴탐색", "#콘텐츠기획", "#직접실행"],
-        detailed_evidence_by_dimension={
-            "분석과 구조화": [
-                DimensionEvidenceItem(context_id="media", description="장면 순서를 바꿔 이해하기 쉽게 만드는 활동 선택"),
-                DimensionEvidenceItem(context_id="game", description="여러 전략을 조건별로 비교하는 방식 선택"),
-            ],
-        },
-        generated_at=datetime.now(),
-    )
-
-
-def mock_majors_relevance() -> tuple[list[MajorRelevance], list[MajorRelevance]]:
-    relevant = [
-        MajorRelevance(
-            major_id="media_communication",
-            label="미디어커뮤니케이션",
-            relevance_label="관련성 높음",
-            evidence_sufficiency="충분",
-            repeated_context_count=3,
-        ),
-        MajorRelevance(
-            major_id="hci_ux",
-            label="HCI·UX",
-            relevance_label="관련성 높음",
-            evidence_sufficiency="보통",
-            repeated_context_count=2,
-        ),
-    ]
-    explore_together = [
-        MajorRelevance(
-            major_id="industrial_engineering",
-            label="산업공학",
-            relevance_label="함께 탐색해볼 분야",
-            evidence_sufficiency="보통",
-            repeated_context_count=1,
-        ),
-    ]
-    return relevant, explore_together
+# 2026-08-21 리뷰: mock_career_profile()/mock_majors_relevance()는 여기서 삭제했다.
+# /profile, /majors 둘 다 이제 항상 실제 계산 경로를 타서(LLM 없으면 profile_generator의
+# 결정론적 Fallback, 답변 없으면 EVIDENCE_NOT_READY/insufficient_evidence_message) 이
+# 함수들을 부르는 곳이 하나도 안 남았다 — 무관한 학생의 고정 Profile·전공을 보여주는
+# 경로 자체를 코드에서 없앴다.
 
 
 def mock_departments(major_id: str = "media_communication") -> list[Department]:

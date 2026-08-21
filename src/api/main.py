@@ -1,9 +1,12 @@
 """FastAPI 앱 — B에게 줄 API 계약의 실행 가능한 형태.
 
-Session 생성·Context 선택·확정은 실제 AssessmentState를 저장·조회한다(InMemorySessionStore —
-DB 아님, 재시작하면 날아감). next-question 이후 단계(질문 생성, Evidence 계산, Profile,
-Matching)는 아직 실제 로직이 없어 고정 Mock을 반환한다 — A 지시서 §3 "B가 실제 구현을
-기다리지 않고 작업할 수 있도록 Mock 응답을 먼저 제공한다"에 따른 의도적 설계다.
+2026-08-21 리뷰 이후 상태(오래된 설명 갱신): Session 생성부터 Context 확정, Evidence·Trait
+계산, Career Profile(§14), 전공 Matching(§16)까지 전부 실제 계산 경로다. 질문 생성(§10)만
+`.env`의 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에 따라 실제 LLM 또는 Mock 문구로
+갈리고, 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로 동작한다 — Evidence가 전혀 없는
+세션에서 Profile을 물으면 Mock으로 얼버무리지 않고 `EVIDENCE_NOT_READY`를 반환한다. Postgres
+Profile Store·LangGraph·LangSmith·Explicit Conflict·Contrast Context Selector·C 소유
+데이터(학과 Repository·RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수 docstring에 개별 표시).
 
 실행: ./.venv/bin/uvicorn src.api.main:app --reload
 OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 그 자체)
@@ -66,8 +69,9 @@ app = FastAPI(
     title="AI 진로·학업설계 Agent API",
     version="0.1.0-vertical-slice",
     description=(
-        "단계 0 계약 확정용 API. next-question 이후 응답은 고정 Mock이며, "
-        "실제 LangGraph/LLM/Matching 로직이 붙기 전까지는 화면 데이터 구조 검증 용도로만 쓴다."
+        "Vertical Slice API. Evidence·Trait 판정·Career Profile·전공 Matching은 실제 계산 "
+        "경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). LangGraph·LangSmith·"
+        "Explicit Conflict 판정은 아직 없다."
     ),
 )
 
@@ -318,42 +322,55 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
 
 @app.get("/profile/{session_id}", response_model=ProfileResponse)
 def get_profile(session_id: str) -> ProfileResponse:
+    """2026-08-21 리뷰 반영: 예전엔 `_llm_client is None`이면 실제 Evidence가 있어도
+    무관한 고정 Mock Profile을 반환했다 — 다른 학생 결과를 보여주는 꼴이라 제거했다.
+    Trait Evidence가 하나라도 있으면(=Seed 이상 답변) LLM 연동 여부와 무관하게 항상
+    이 세션의 실제 계산 결과를 반환한다(LLM 없으면 `_fallback_profile()`류 결정론적
+    문장으로 자동 전환 — generate_career_profile 내부에서 처리). 답변이 전혀 없으면
+    Profile을 꾸며내지 않고 EVIDENCE_NOT_READY를 반환한다."""
+
     state = _get_state_or_404(session_id)
-    if _llm_client is not None and state.trait_summaries:
-        return generate_career_profile(
-            session_id=state.session_id,
-            user_id=state.user_id,
-            trait_summaries=state.trait_summaries,
-            all_trait_definitions=TRAIT_DEFINITIONS_BY_ID,
-            evidence_ledger=state.evidence_ledger,
-            unresolved_conflict_trait_ids=set(),  # Explicit Conflict 판정 미구현 — 항상 빈 값
-            llm_client=_llm_client,
+    if not state.trait_summaries:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.EVIDENCE_NOT_READY,
+                message="아직 답변이 없어 Profile을 생성할 Evidence가 없습니다. "
+                "먼저 /assessment/next-question과 /assessment/answer로 최소 1개 이상 "
+                "답변한 뒤 다시 호출하세요.",
+            ).model_dump(),
         )
-    # LLM 미연동 상태의 기존 Mock 경로.
-    return mock_data.mock_career_profile(session_id)
+    return generate_career_profile(
+        session_id=state.session_id,
+        user_id=state.user_id,
+        trait_summaries=state.trait_summaries,
+        all_trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+        evidence_ledger=state.evidence_ledger,
+        unresolved_conflict_trait_ids=set(),  # Explicit Conflict 판정 미구현 — 항상 빈 값
+        llm_client=_llm_client,  # None이어도 generate_career_profile이 알아서 Fallback으로 처리
+    )
 
 
 @app.get("/majors/{session_id}", response_model=MajorsResponse)
 def get_majors(session_id: str) -> MajorsResponse:
+    """§16은 LLM을 전혀 쓰지 않는 순수 계산이라 예전부터 LLM 연동 여부와 무관하게 항상
+    실제 경로를 썼다. 2026-08-21 리뷰 반영: `state.trait_summaries`가 비어 있을 때도
+    Mock 전공 목록으로 대체하지 않는다 — compute_major_match()가 Evidence 부족을 이미
+    "insufficient" 상태로 정확히 처리하므로, 빈 trait_summaries를 넣어도 자연스럽게
+    빈 목록 + insufficient_evidence_message가 나온다. 그래서 별도 분기가 필요 없다."""
+
     state = _get_state_or_404(session_id)
-    if state.trait_summaries:
-        # §16은 LLM을 쓰지 않는 순수 계산이라 LLM 연동 여부와 무관하게 항상 실제 경로를 쓴다.
-        student_states = compute_student_trait_states(
-            state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=set()
-        )
-        results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
-        labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}
-        relevant, explore_together, insufficient_message = rank_major_relevance(results, labels_by_major_id)
-        return MajorsResponse(
-            session_id=session_id,
-            relevant_majors=relevant,
-            explore_together_majors=explore_together,
-            insufficient_evidence_message=insufficient_message,
-        )
-    # LLM 여부와 무관하게, 아직 답변이 없으면(trait_summaries 비어있음) 기존 Mock 경로.
-    relevant, explore_together = mock_data.mock_majors_relevance()
+    student_states = compute_student_trait_states(
+        state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=set()
+    )
+    results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
+    labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}
+    relevant, explore_together, insufficient_message = rank_major_relevance(results, labels_by_major_id)
     return MajorsResponse(
-        session_id=session_id, relevant_majors=relevant, explore_together_majors=explore_together
+        session_id=session_id,
+        relevant_majors=relevant,
+        explore_together_majors=explore_together,
+        insufficient_evidence_message=insufficient_message,
     )
 
 
