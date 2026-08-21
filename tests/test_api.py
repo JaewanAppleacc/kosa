@@ -7,15 +7,26 @@ CLAUDE.md 필수 테스트 "고정 Persona End-to-End 완주"의 API 레벨 버�
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from src.api import main as main_module
 from src.api.main import app
 
 client = TestClient(app)
 
 
 class SessionLifecycleTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # main._llm_client는 개발자 로컬 .env(ENABLE_LLM_QUESTION_GENERATION)에 따라
+        # 실제 LLM Client일 수도 있다. 이 테스트는 "API 배선이 안 끊기는지"만 확인하는
+        # 계약 테스트라 실제 네트워크 호출 여부와 무관하게 항상 Mock 경로로 고정한다
+        # (아니면 개발자 로컬 설정에 따라 unittest discover가 느려지거나 비용이 든다).
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_full_vertical_slice_flow_does_not_break(self) -> None:
         # 1. 세션 생성
         r = client.post("/assessment/session")

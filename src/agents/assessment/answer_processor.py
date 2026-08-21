@@ -59,6 +59,7 @@ def submit_answer(
         question_id=question.question_id,
         question_frame_id=question.frame_id,
         option_role_id=selected_option.role_id,
+        option_text=selected_option.text,
         applied_primary_trait_delta=selected_option.primary_trait_delta,
         evidence_origin=EvidenceOrigin.PRIMARY_BLUEPRINT,
         context=question.context,

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 
 class CareerProfileHighlight(BaseModel):
@@ -37,3 +37,41 @@ class CareerProfile(BaseModel):
         if not (5 <= len(value) <= 8):
             raise ValueError(f"highlights는 5~8줄이어야 한다 (§14), got {len(value)}")
         return value
+
+
+class GeneratedProfileHighlight(BaseModel):
+    """LLM Structured Output 일부 — 어떤 Trait를 문장으로 표현했는지는 trait_id로 서버가
+    검증한다(§10과 동일 원칙: LLM이 반환한 식별자를 그대로 신뢰하지 않는다)."""
+
+    trait_id: str
+    text: str
+
+    @field_validator("text")
+    @classmethod
+    def _not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("빈 highlight 문장은 허용하지 않는다")
+        return value
+
+
+class GeneratedCareerProfile(BaseModel):
+    """§14 Career Profile의 LLM Structured Output. session_id·user_id·generated_at·
+    detailed_evidence_by_dimension은 서버가 채운다(engines/profile_engine.py가 이미
+    결정론적으로 계산한 값이다)."""
+
+    title: str
+    highlights: list[GeneratedProfileHighlight]
+    hashtags: list[str]
+
+    @field_validator("title")
+    @classmethod
+    def _title_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("빈 title은 허용하지 않는다")
+        return value
+
+    @model_validator(mode="after")
+    def _hashtags_not_empty(self) -> "GeneratedCareerProfile":
+        if not self.hashtags:
+            raise ValueError("hashtags는 최소 1개 이상이어야 한다")
+        return self

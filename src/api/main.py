@@ -18,6 +18,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 load_dotenv()
 
 from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
+from src.agents.assessment.profile_generator import generate_career_profile
 from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
@@ -311,7 +312,18 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
 
 @app.get("/profile/{session_id}", response_model=ProfileResponse)
 def get_profile(session_id: str) -> ProfileResponse:
-    _get_state_or_404(session_id)
+    state = _get_state_or_404(session_id)
+    if _llm_client is not None and state.trait_summaries:
+        return generate_career_profile(
+            session_id=state.session_id,
+            user_id=state.user_id,
+            trait_summaries=state.trait_summaries,
+            all_trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+            evidence_ledger=state.evidence_ledger,
+            unresolved_conflict_trait_ids=set(),  # Explicit Conflict 판정 미구현 — 항상 빈 값
+            llm_client=_llm_client,
+        )
+    # LLM 미연동 상태의 기존 Mock 경로.
     return mock_data.mock_career_profile(session_id)
 
 
