@@ -3,7 +3,7 @@
 Schema가 바뀌면 이 스크립트를 다시 돌려서 Mock JSON을 갱신한다(A 지시서 §3: "Schema 변경이
 필요하면 B와 C에게 변경 내용과 새로운 Mock JSON을 동시에 제공한다").
 
-실행: ./.venv/bin/python scripts/generate_mock_json.py
+실행: PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 """
 
 from __future__ import annotations
@@ -27,6 +27,10 @@ def _write(name: str, payload: dict) -> None:
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     client = TestClient(app)
+
+    # 프론트엔드가 실제 API와 같은 계약을 기준으로 개발할 수 있도록
+    # Mock 응답과 함께 현재 FastAPI 앱의 OpenAPI 명세도 항상 갱신한다.
+    _write("openapi", app.openapi())
 
     # --- 정상 흐름 ---
     r = client.post("/assessment/session")

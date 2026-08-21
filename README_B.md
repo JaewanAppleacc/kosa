@@ -1,6 +1,6 @@
 # B 작업자 핸드오프 — 2026-08-21
 
-이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. 여기 적힌 것만 보고 시작하시면 됩니다.
+이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
 
 ## 1. 빠른 시작
 
@@ -60,7 +60,7 @@ python3 -m venv .venv
 
 ## 5. Mock JSON (서버 안 띄워도 되는 정적 파일)
 
-`outputs/mock_api/`에 14개 정상/오류/빈 결과 예시 + `openapi.json`이 있습니다. Schema가 바뀌면 아래 명령으로 재생성됩니다(재생성됐는지 커밋 로그로 확인하세요):
+`outputs/mock_api/`에 정상·오류·빈 결과 예시와 `openapi.json`이 있습니다. Schema가 바뀌면 아래 명령으로 재생성됩니다(재생성됐는지 커밋 로그로 확인하세요):
 
 ```bash
 PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
@@ -84,12 +84,7 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 
 데이터 표현이 이상하면 A의 파일을 직접 고치지 말고, 재현 가능한 API 요청/응답과 함께 전달해주세요.
 
-## 9. 저장소 전체를 clone하기 싫으면
-
-`handoff_B/` 폴더(또는 `handoff_B.zip`)만 받아도 독립 실행됩니다 — 작업 지시서·전용 CLAUDE.md·Mock JSON·requirements.txt까지 다 들어있습니다. 다만 이후 계약 변경사항은 못 받으니, 팀 전체가 GitHub 저장소를 clone해서 각자 branch(`worker-b`)로 작업하는 쪽을 더 권장합니다.
-
 ## 참고 문서
 
 - `outputs/work_assignments/작업자_B_개발_지시서.md` — 원래 담당 범위 전체
-- `CLAUDE.md` — A의 구현 원칙과 개발 환경
 - `outputs/context_definition_table_draft.md`, `outputs/trait_ontology_draft.md` — Context 15개·Trait 12개 정의 (아직 검토 확정 전 초안 상태)

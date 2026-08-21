@@ -1,6 +1,0 @@
-{
-  "detail": {
-    "error_code": "SESSION_NOT_FOUND",
-    "message": "session_id 'sess_does_not_exist'를 찾을 수 없습니다."
-  }
-}

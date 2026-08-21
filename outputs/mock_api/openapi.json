@@ -10,18 +10,6 @@
       "post": {
         "summary": "Create Session",
         "operationId": "create_session_assessment_session_post",
-        "parameters": [
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "demo_user_01",
-              "title": "User Id"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -29,16 +17,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CreateSessionResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -396,18 +374,18 @@
     "/course/upload": {
       "post": {
         "summary": "Upload Course Document",
+        "description": "2026-08-21 리뷰 반영: 이전에는 session_id만 받고 실제 파일을 받지 않았다 —\nB README가 약속한 \"PDF·Excel 업로드\"와 실제 계약이 어긋나 있었다. 지금은\nmultipart/form-data로 진짜 파일을 받는다. 파싱 자체(course_document_parser.py)는\n여전히 C 소유·미구현이라 형식만 검증하고 Mock 후보를 반환한다.",
         "operationId": "upload_course_document_course_upload_post",
-        "parameters": [
-          {
-            "name": "session_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Session Id"
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_course_document_course_upload_post"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -601,6 +579,25 @@
           "next_action"
         ],
         "title": "AnswerResponse"
+      },
+      "Body_upload_course_document_course_upload_post": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "file"
+        ],
+        "title": "Body_upload_course_document_course_upload_post"
       },
       "CareerProfile": {
         "properties": {

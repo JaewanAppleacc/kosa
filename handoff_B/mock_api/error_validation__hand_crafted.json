@@ -1,4 +1,0 @@
-{
-  "error_code": "VALIDATION_ERROR",
-  "message": "selected_option_id가 현재 질문의 선택지 목록에 없습니다."
-}

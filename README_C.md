@@ -1,6 +1,6 @@
 # C 작업자 핸드오프 — 2026-08-21
 
-이 저장소(`kosa`)를 clone하면 바로 데이터 작업을 시작할 수 있습니다. 여기 적힌 것만 보고 시작하시면 됩니다.
+이 저장소(`kosa`)를 clone하면 바로 데이터 작업을 시작할 수 있습니다. C 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 계약 파일과 예시는 아래 경로에서 확인할 수 있습니다.
 
 ## 1. 빠른 시작
 
@@ -12,9 +12,9 @@ python3 -m venv .venv
 ./.venv/bin/python -m unittest discover -s tests -v
 ```
 
-74개 테스트가 전부 통과해야 정상입니다.
+전체 테스트가 통과해야 정상입니다.
 
-## 2. C가 실제로 구현할 파일 (아직 하나도 안 만들어져 있음 — 전부 C 소유)
+## 2. C가 실제로 생성·수정할 파일
 
 ```
 src/repositories/department_repository.py
@@ -37,7 +37,7 @@ data/, datasets/, sources/, data/eval_fixtures/
 | `admission_repository.py` | `DepartmentRepository` 옆의 `AdmissionRepository` — `find_comparable()`이 `AdmissionReference` 리스트 반환. **같은 `data_comparability_group`끼리만 묶어서 반환** (서로 다른 학년도·전형·지표 섞지 않기) |
 | `src/rag/retrieve.py` | `DocumentRetriever` Protocol — `search()`이 `src/schemas/retrieval.py`의 `RetrievedDocument` 반환 |
 | `src/mcp/education_server.py` | `src/schemas/mcp_contracts.py`에 8개 Tool의 Input/Output이 전부 정의돼 있음. `MCPToolResult`로 감싸서 `ok`/`empty`/`error`/`source_missing` 상태를 명시적으로 구분할 것 |
-| `course_document_parser.py` | `src/schemas/course.py`의 `ParsedSubjectCandidate` 반환. Agent 판단·최종 추천은 여기서 하지 않음 |
+| `course_document_parser.py` | PDF(`application/pdf`)와 Excel(`.xlsx`, `.xls`)만 입력받고 `src/schemas/course.py`의 `ParsedSubjectCandidate`를 반환. Agent 판단·최종 추천은 여기서 하지 않음 |
 | `canonical_mapper.py` | `src/schemas/major.py`의 `CanonicalMappingResult` 반환. 확신 낮으면 `mapping_status="REVIEW_REQUIRED"`로, 자동 확정하지 말 것 |
 
 ## 4. ID 규칙 (반드시 `src/ids.py` 함수를 그대로 쓰세요, 직접 만들지 마세요)
@@ -86,12 +86,7 @@ generate_subject_id(curriculum_code, canonical_subject_name)     # 정규화된 
 
 Schema에 없는 필드가 필요하면 직접 추가하지 말고 A에게 변경 요청하세요. A가 소유한 `src/schemas/`, LangGraph 관련 파일은 직접 수정하지 마세요.
 
-## 9. 저장소 전체를 clone하기 싫으면
-
-`handoff_C/` 폴더(또는 `handoff_C.zip`)만 받아도 독립 실행됩니다 — 작업 지시서·전용 CLAUDE.md·Context/Trait 초안·Mock 예시·requirements.txt까지 다 들어있습니다. 다만 이후 계약 변경사항은 못 받으니, 팀 전체가 GitHub 저장소를 clone해서 각자 branch(`worker-c`)로 작업하는 쪽을 더 권장합니다.
-
 ## 참고 문서
 
 - `outputs/work_assignments/작업자_C_개발_지시서.md` — 원래 담당 범위 전체
-- `CLAUDE.md` — A의 구현 원칙과 개발 환경
 - `outputs/presentation_qna_defense.md` — Trait Ontology 근거(O*NET/Holland 그라운딩 결과) 관련 발표 대비 자료, 데이터 근거를 물어보는 질문 대비에 참고

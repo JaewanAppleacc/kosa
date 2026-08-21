@@ -1,4 +1,0 @@
-{
-  "error_code": "LLM_UNAVAILABLE",
-  "message": "LLM 호출이 실패했습니다. Cache 또는 Backup으로 전환합니다."
-}
