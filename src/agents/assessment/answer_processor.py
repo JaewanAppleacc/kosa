@@ -13,10 +13,11 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from src.agents.assessment.target_planner import PlannerDecision, decide_next_target
+from src.engines.conflict_engine import detect_explicit_conflicts
 from src.engines.evidence_engine import decide_stop_or_continue, summarize_trait_evidence
 from src.ids import generate_evidence_id
 from src.schemas.assessment_state import AnsweredQuestion, AssessmentState
-from src.schemas.evidence import EvidenceOrigin, EvidenceRecord
+from src.schemas.evidence import ContrastDefinition, EvidenceOrigin, EvidenceRecord
 from src.schemas.question import FinalizedQuestion
 
 
@@ -33,11 +34,17 @@ def submit_answer(
     selected_option_id: str,
     all_trait_ids: set[str],
     is_first_context_in_session: bool,
-    unresolved_conflict_trait_ids: set[str] | None = None,
+    contrast_definitions: list[ContrastDefinition] | None = None,
 ) -> AnswerSubmissionResult:
-    """`state`를 직접 갱신한다(제자리 mutate) — 호출자가 저장소에 다시 save하면 된다."""
+    """`state`를 직접 갱신한다(제자리 mutate) — 호출자가 저장소에 다시 save하면 된다.
 
-    unresolved_conflict_trait_ids = unresolved_conflict_trait_ids or set()
+    2026-08-21 3단계: 예전에는 unresolved_conflict_trait_ids를 호출자가 직접 계산해서
+    넘겼는데(항상 빈 값으로 넘어와 사실상 미구현), 이제는 이 함수가 evidence_ledger로부터
+    매번 직접 판정한다(conflict_engine.detect_explicit_conflicts) — 호출자는 Contrast
+    Pair 정의(Vertical Slice에서는 VERTICAL_SLICE_CONTRAST_DEFINITIONS)만 넘기면 된다.
+    """
+
+    contrast_definitions = contrast_definitions or []
 
     # 1. Option 검증 — 학생이 실제로 이 질문에 제시된 선택지를 골랐는지 확인한다.
     selected_option = next(
@@ -105,16 +112,29 @@ def submit_answer(
             trait_id, state.evidence_ledger, all_offered_sets
         )
 
+    # 3-1. §12-1 Explicit Conflict/Context Dependency 판정 — evidence_ledger 전체를 기준으로
+    # 매번 새로 계산한다(누적 상태를 따로 두지 않아 "해결됐는데 플래그만 안 지워짐" 부류의
+    # 불일치가 생길 수 없다).
+    conflict_result = detect_explicit_conflicts(state.evidence_ledger, contrast_definitions)
+    state.unresolved_conflict_trait_ids = conflict_result.unresolved_conflict_trait_ids
+    for trait_id, summary in state.trait_summaries.items():
+        state.trait_summaries[trait_id] = summary.model_copy(
+            update={
+                "explicit_conflict_count": conflict_result.explicit_conflict_count_by_trait.get(trait_id, 0),
+                "context_dependency_flag": conflict_result.context_dependency_flag_by_trait.get(trait_id, False),
+            }
+        )
+
     # 4. Stop/Continue 판단(§5-3). Seed는 꼬리질문이 아니므로 세지 않는다.
     tail_questions_asked = state.questions_asked_in_current_context - 1
     stop_decision = decide_stop_or_continue(
-        tail_questions_asked, state.trait_summaries, all_trait_ids, unresolved_conflict_trait_ids
+        tail_questions_asked, state.trait_summaries, all_trait_ids, state.unresolved_conflict_trait_ids
     )
 
     if stop_decision == "STOP":
         state.stop_reason = (
             f"tail_questions_asked={tail_questions_asked}, "
-            f"unresolved_conflicts={sorted(unresolved_conflict_trait_ids)}"
+            f"unresolved_conflicts={sorted(state.unresolved_conflict_trait_ids)}"
         )
         return AnswerSubmissionResult(accepted=True, stop_decision="STOP")
 
@@ -125,7 +145,7 @@ def submit_answer(
         position=next_position,
         all_trait_ids=all_trait_ids,
         trait_summaries=state.trait_summaries,
-        unresolved_conflict_trait_ids=unresolved_conflict_trait_ids,
+        unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
         recent_target_trait_ids=state.recent_target_trait_ids,
         used_frame_ids_in_context=set(state.used_frame_ids_in_current_context),
         is_first_context_in_session=is_first_context_in_session,

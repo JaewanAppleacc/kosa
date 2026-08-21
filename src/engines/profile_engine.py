@@ -64,8 +64,14 @@ def select_profile_highlight_traits(
     moderate = sorted(
         (c for c in judged if c.judgment.state == TraitState.MODERATE), key=strength_key
     )
+    # 2026-08-21 3단계: CONFLICTING은 backfill 후보에서도 제외한다 — "부족한 걸 솔직히
+    # 보여준다"와 "명시적으로 상충되는 Trait를 결과에 노출한다"는 다르다(CLAUDE.md
+    # "Missing, Insufficient, Conflicting 상태를 정상 점수처럼 취급하지 않는다"). 게다가
+    # CONFLICTING인 Trait는 대개 support_count가 이미 쌓여 있어(그래서 상충이 드러난
+    # 것이므로) strength_key 정렬에서 진짜 미확인 Trait보다 앞자리를 차지해버리는 부작용도
+    # 있었다.
     remaining = sorted(
-        (c for c in judged if c.judgment.state not in (TraitState.STRONG, TraitState.MODERATE)),
+        (c for c in judged if c.judgment.state in (TraitState.LIMITED, TraitState.INSUFFICIENT)),
         key=strength_key,
     )
 

@@ -54,6 +54,10 @@ class AssessmentState(BaseModel):
     # §12/§13 Evidence·Trait 상태
     evidence_ledger: list[EvidenceRecord] = []
     trait_summaries: dict[str, TraitEvidenceSummary] = {}
+    # §12-1: 매 답변마다 evidence_ledger 전체로 다시 판정한다(conflict_engine.
+    # detect_explicit_conflicts) — 해결(추가 Evidence로 한쪽이 더 이상 조건을 못 채우게
+    # 되는 것)되면 다음 답변 처리에서 자동으로 빠진다. 별도의 "해결 처리" 절차가 없다.
+    unresolved_conflict_trait_ids: set[str] = set()
     # summarize_trait_evidence()의 opportunity_count 계산 입력. 질문 하나가 제시한 5개
     # Option(=5개 Trait)을 question_id별로 기록해둔다 — 나중에 "이 Trait가 몇 번 제시됐는지"를
     # 다시 계산하려면 어떤 질문이 어떤 Trait를 다뤘는지가 남아있어야 한다.

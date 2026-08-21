@@ -45,6 +45,34 @@ class ContrastDefinition(BaseModel):
     description: str
 
 
+ContrastPairStatus = Literal["explicit_conflict", "context_dependent", "insufficient_evidence"]
+
+
+class ContrastPairResult(BaseModel):
+    """§12-1 한 ContrastDefinition에 대한 판정 결과.
+
+    - explicit_conflict: 양쪽 모두 comparable_frame_ids 안에서 minimum_evidence_each_side
+      이상 확보 — 두 Trait 모두 Mask 대상이다.
+    - context_dependent: 양쪽 다 Evidence는 있지만 비교 가능한 Frame 조건을 못 채움 —
+      "상황 차이로 설명 가능"하므로 Mask하지 않는다.
+    - insufficient_evidence: 한쪽이라도 Evidence가 아예 없어 판정 자체가 불가능.
+    """
+
+    contrast_id: str
+    status: ContrastPairStatus
+    trait_ids: set[str]  # 이 판정에 관련된 Trait id(들) — explicit_conflict일 때만 Mask 대상
+
+
+class ConflictDetectionResult(BaseModel):
+    """detect_explicit_conflicts()의 반환값 — AssessmentState.unresolved_conflict_trait_ids와
+    TraitEvidenceSummary.explicit_conflict_count/context_dependency_flag를 채우는 데 쓴다."""
+
+    pair_results: list[ContrastPairResult]
+    unresolved_conflict_trait_ids: set[str]
+    explicit_conflict_count_by_trait: dict[str, int]
+    context_dependency_flag_by_trait: dict[str, bool]
+
+
 class TraitState(str, Enum):
     STRONG = "STRONG"
     MODERATE = "MODERATE"
@@ -66,6 +94,10 @@ class TraitEvidenceSummary(BaseModel):
     distinct_frame_count: int = 0
     cross_context_repeat_count: int = 0
     explicit_conflict_count: int = 0
+    # 2026-08-21 3단계: §12-1 "상황 차이로 설명 가능한 반대 Evidence → context_dependency_flag
+    # = true"의 실제 구현. explicit_conflict_count와 달리 이건 CONFLICTING으로 Mask하지
+    # 않는다 — "이 Trait는 Context에 따라 다르게 나타날 수 있다"는 참고 정보일 뿐이다.
+    context_dependency_flag: bool = False
 
     @property
     def support_ratio(self) -> float | None:

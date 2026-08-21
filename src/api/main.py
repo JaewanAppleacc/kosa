@@ -1,12 +1,13 @@
 """FastAPI 앱 — B에게 줄 API 계약의 실행 가능한 형태.
 
 2026-08-21 리뷰 이후 상태(오래된 설명 갱신): Session 생성부터 Context 확정, Evidence·Trait
-계산, Career Profile(§14), 전공 Matching(§16)까지 전부 실제 계산 경로다. 질문 생성(§10)만
-`.env`의 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에 따라 실제 LLM 또는 Mock 문구로
-갈리고, 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로 동작한다 — Evidence가 전혀 없는
-세션에서 Profile을 물으면 Mock으로 얼버무리지 않고 `EVIDENCE_NOT_READY`를 반환한다. Postgres
-Profile Store·LangGraph·LangSmith·Explicit Conflict·Contrast Context Selector·C 소유
-데이터(학과 Repository·RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수 docstring에 개별 표시).
+계산, Explicit Conflict 판정(§12-1), Career Profile(§14), 전공 Matching(§16)까지 전부 실제
+계산 경로다. 질문 생성(§10)만 `.env`의 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에
+따라 실제 LLM 또는 Mock 문구로 갈리고, 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로
+동작한다 — Evidence가 전혀 없는 세션에서 Profile을 물으면 Mock으로 얼버무리지 않고
+`EVIDENCE_NOT_READY`를 반환한다. Postgres Profile Store·LangGraph·LangSmith·Contrast
+Context Selector·C 소유 데이터(학과 Repository·RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수
+docstring에 개별 표시).
 
 실행: ./.venv/bin/uvicorn src.api.main:app --reload
 OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 그 자체)
@@ -24,6 +25,7 @@ from src.agents.assessment.answer_processor import submit_answer as process_answ
 from src.agents.assessment.profile_generator import generate_career_profile
 from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
+from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
@@ -294,6 +296,7 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         payload.selected_option_id,
         VERTICAL_SLICE_TRAIT_IDS,
         is_first_context_in_session,
+        VERTICAL_SLICE_CONTRAST_DEFINITIONS,
     )
 
     if not result.accepted:
@@ -346,7 +349,10 @@ def get_profile(session_id: str) -> ProfileResponse:
         trait_summaries=state.trait_summaries,
         all_trait_definitions=TRAIT_DEFINITIONS_BY_ID,
         evidence_ledger=state.evidence_ledger,
-        unresolved_conflict_trait_ids=set(),  # Explicit Conflict 판정 미구현 — 항상 빈 값
+        # 2026-08-21 3단계: /assessment/answer가 매 답변마다 evidence_ledger 전체로 다시
+        # 판정해서 저장해둔 값을 그대로 쓴다(이 GET 시점에 다시 계산하지 않음 — evidence_ledger는
+        # 이후 안 바뀌므로 같은 결과가 나온다).
+        unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
         llm_client=_llm_client,  # None이어도 generate_career_profile이 알아서 Fallback으로 처리
     )
 
@@ -361,7 +367,7 @@ def get_majors(session_id: str) -> MajorsResponse:
 
     state = _get_state_or_404(session_id)
     student_states = compute_student_trait_states(
-        state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=set()
+        state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids
     )
     results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
     labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}

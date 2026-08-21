@@ -6,6 +6,7 @@ import unittest
 
 from src.agents.assessment.answer_processor import submit_answer
 from src.api.mock_data import seed_question_as_finalized
+from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
 from src.data.questions.vertical_slice_seed_questions import GAME_SEED_01
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
 from src.engines.evidence_engine import decide_stop_or_continue
@@ -183,6 +184,89 @@ class SubmitAnswerTest(unittest.TestCase):
         self.assertEqual(result.stop_decision, "CONTINUE")  # Gap이 남아 STOP 못 함
         # 한 번도 제시 안 된 Trait는 여전히 opportunity=0이어야 한다.
         self.assertEqual(state.trait_summaries["visual_expression"].opportunity_count, 0)
+
+
+class ExplicitConflictIntegrationTest(unittest.TestCase):
+    """§12-1 3단계: 실제 VERTICAL_SLICE_CONTRAST_DEFINITIONS(planning_vs_execution)를
+    submit_answer에 넘겨 evidence_ledger만으로 Conflict가 실제로 잡히는지 확인한다."""
+
+    def _fresh_state(self) -> AssessmentState:
+        return AssessmentState(session_id="sess_test", user_id="demo_user_01")
+
+    def _tail(self, question_id: str, role_id: str, trait_id: str, frame_id: str):
+        target_option = GAME_SEED_01_FINALIZED.options[0].model_copy(
+            update={"option_id": f"{question_id}_o1", "role_id": role_id, "primary_trait_delta": {trait_id: 1}}
+        )
+        filler_options = [
+            o.model_copy(update={"option_id": f"{question_id}_o{i}"})
+            for i, o in enumerate(GAME_SEED_01_FINALIZED.options[1:], start=2)
+        ]
+        return GAME_SEED_01_FINALIZED.model_copy(
+            update={
+                "question_id": question_id,
+                "frame_id": frame_id,
+                "target_traits": [trait_id],
+                "options": [target_option] + filler_options,
+            }
+        )
+
+    def test_explicit_conflict_masks_both_traits_and_blocks_stop(self) -> None:
+        state = self._fresh_state()
+        submit_answer(
+            state, GAME_SEED_01_FINALIZED, "game_seed_01_o1", VERTICAL_SLICE_TRAIT_IDS, True,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS,
+        )
+
+        result = None
+        for i, (role_id, trait_id) in enumerate(
+            [
+                ("advance_planning", "planning"),
+                ("quick_execution", "immediate_execution"),
+                ("advance_planning", "planning"),
+                ("quick_execution", "immediate_execution"),
+            ],
+            start=2,
+        ):
+            question = self._tail(f"game_tail_{i:02d}", role_id, trait_id, "new_tool")
+            result = submit_answer(
+                state, question, f"game_tail_{i:02d}_o1", VERTICAL_SLICE_TRAIT_IDS, False,
+                VERTICAL_SLICE_CONTRAST_DEFINITIONS,
+            )
+
+        self.assertEqual(state.unresolved_conflict_trait_ids, {"planning", "immediate_execution"})
+        self.assertEqual(state.trait_summaries["planning"].explicit_conflict_count, 1)
+        self.assertEqual(state.trait_summaries["immediate_execution"].explicit_conflict_count, 1)
+        # §5-3: 4개 완료 시점이어도 Conflict가 남아있으면 STOP할 수 없다.
+        self.assertEqual(result.stop_decision, "CONTINUE")
+        # §8 위치 5~6: Conflict가 Coverage Gap보다 먼저 우선순위를 가진다(conflict 해소 질문).
+        self.assertIn(result.next_planner_decision.target_traits[0], {"planning", "immediate_execution"})
+        self.assertEqual(result.next_planner_decision.purpose, "해결되지 않은 Explicit Conflict 보완")
+
+    def test_evidence_outside_comparable_frame_does_not_mask_traits(self) -> None:
+        """같은 두 Trait라도 "new_tool" Frame 밖(예: 시간 제약 상황)에서만 반대로
+        나오면 Explicit Conflict가 아니다 — Mask되지 않고 정상적으로 STRONG까지 갈 수 있다."""
+
+        state = self._fresh_state()
+        submit_answer(
+            state, GAME_SEED_01_FINALIZED, "game_seed_01_o1", VERTICAL_SLICE_TRAIT_IDS, True,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS,
+        )
+        for i, (role_id, trait_id) in enumerate(
+            [
+                ("advance_planning", "planning"),
+                ("quick_execution", "immediate_execution"),
+            ],
+            start=2,
+        ):
+            question = self._tail(f"game_tail_{i:02d}", role_id, trait_id, "limited_time_priority")
+            submit_answer(
+                state, question, f"game_tail_{i:02d}_o1", VERTICAL_SLICE_TRAIT_IDS, False,
+                VERTICAL_SLICE_CONTRAST_DEFINITIONS,
+            )
+
+        self.assertEqual(state.unresolved_conflict_trait_ids, set())
+        self.assertTrue(state.trait_summaries["planning"].context_dependency_flag)
+        self.assertTrue(state.trait_summaries["immediate_execution"].context_dependency_flag)
 
 
 if __name__ == "__main__":

@@ -95,10 +95,38 @@ class SelectProfileHighlightTraitsTest(unittest.TestCase):
         self.assertEqual(selected[0].judgment.state, TraitState.STRONG)
 
     def test_unresolved_conflict_forces_conflicting_state(self) -> None:
-        definitions = {"a": _trait("a")}
-        summaries = {"a": _strong_summary("a")}
-        selected = select_profile_highlight_traits(summaries, definitions, {"a"})
-        self.assertEqual(selected[0].judgment.state, TraitState.CONFLICTING)
+        """judge_trait_state 자체가 CONFLICTING을 정확히 반환하는지는 evidence_engine
+        쪽에서 이미 검증한다 — 여기서는 그 judgment가 실제로 candidate 목록에 남는지만
+        본다(아래 test_conflicting_traits_are_never_selected_as_highlights와 짝을 이룬다:
+        judgment은 계산되지만 최종 selected에는 포함되면 안 된다)."""
+
+        trait_ids = [f"trait_{i:02d}" for i in range(6)]
+        definitions = {tid: _trait(tid) for tid in trait_ids}
+        summaries = {tid: _strong_summary(tid) for tid in trait_ids}
+        selected = select_profile_highlight_traits(summaries, definitions, {"trait_00"})
+        self.assertNotIn("trait_00", {c.trait_definition.trait_id for c in selected})
+
+    def test_conflicting_traits_are_never_selected_as_highlights(self) -> None:
+        """2026-08-21 3단계 버그 수정: CONFLICTING은 STRONG/MODERATE가 모자라도 backfill
+        후보(LIMITED/INSUFFICIENT 자리)로도 쓰이면 안 된다 — 실제로 support_count가 쌓여
+        있어(그래서 상충이 드러난 것) strength_key 정렬상 진짜 미확인 Trait보다 앞에 서는
+        부작용까지 있었다. 전공 Matching(§16)은 이미 normalized_value=None으로 별도
+        경로에서 Mask되므로 이 테스트의 대상이 아니다."""
+
+        trait_ids = [f"trait_{i:02d}" for i in range(4)]
+        definitions = {tid: _trait(tid) for tid in trait_ids}
+        # trait_00만 STRONG+Conflict, 나머지 3개는 아예 미확인(INSUFFICIENT) — 5개를
+        # 채우려면 trait_00이 아니라 진짜 미확인 Trait만으로 backfill돼야 한다.
+        summaries = {
+            "trait_00": _strong_summary("trait_00"),
+            "trait_01": _insufficient_summary("trait_01"),
+            "trait_02": _insufficient_summary("trait_02"),
+            "trait_03": _insufficient_summary("trait_03"),
+        }
+        selected = select_profile_highlight_traits(summaries, definitions, {"trait_00"})
+        selected_ids = {c.trait_definition.trait_id for c in selected}
+        self.assertNotIn("trait_00", selected_ids)
+        self.assertEqual(selected_ids, {"trait_01", "trait_02", "trait_03"})
 
 
 class BuildDetailedEvidenceByDimensionTest(unittest.TestCase):
