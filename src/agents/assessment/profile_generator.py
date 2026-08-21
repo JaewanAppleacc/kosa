@@ -27,11 +27,18 @@ SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 결과를 요약하는 �
 - 숫자·점수·퍼센트를 문장에 넣지 않습니다(예: "84%", "3회 확인됨" 같은 표현 금지).
 - 주어진 Trait의 definition과 positive_indicators를 참고해 그 Trait이 실제로 어떻게
   나타났는지 구체적으로 씁니다 — "분석적이에요" 같은 추상적 라벨만 반복하지 않습니다.
-- state가 INSUFFICIENT나 LIMITED인 Trait는 "아직 답변이 부족해서 확실하지 않다"는 걸
-  솔직하게 드러내는 문장으로 씁니다(예: "~는 아직 Evidence가 적어 추가 탐색이 필요해요").
-  이런 Trait를 마치 확정된 강점처럼 쓰지 않습니다.
-- title은 이 학생 전체를 한 문장으로 요약하는 짧은 별명입니다("~하는 OO형" 같은 형태).
-  성격 유형 검사처럼 고정된 유형으로 단정하는 어투는 피합니다.
+- state가 INSUFFICIENT나 LIMITED인 Trait는 "학생에게 그 능력·경험이 없다"는 뜻이 아니라
+  "이번 검사가 그 부분을 충분히 관찰하지 못했다"는 뜻입니다. 관찰 부족은 시스템 쪽 한계이지
+  학생의 결핍이 아니므로, "경험이 부족", "능력이 부족", "약하다", "소질이 없다",
+  "잘하지 못한다" 같은 표현을 절대 쓰지 않습니다. 이런 Trait를 마치 확정된 강점처럼 쓰지도
+  않습니다.
+  나쁜 예: "계획을 세우는 데는 아직 경험이 부족해요"
+  좋은 예: "이번 답변에서는 계획을 세우는 방식이 충분히 확인되지 않았어요"
+- title은 이 학생 전체를 짧게 요약하는 한 문장입니다. "~형", "~유형", "~타입"처럼 성격
+  유형 검사 결과 같은 고정 라벨을 절대 쓰지 않습니다 — 학생을 하나의 유형으로 규정하지
+  않습니다.
+  나쁜 예: "생각을 시각적으로 풀어내고 이유를 파헤치는 탐구자형"
+  좋은 예: "생각을 시각적으로 풀어내고 이유를 탐색하는 모습이 보여요"
 - hashtags는 3~6개, 각각 "#"으로 시작하는 짧은 명사구입니다.
 - highlights 배열은 주어진 Trait 목록과 정확히 같은 개수·같은 trait_id 순서로 반환합니다.
   각 항목의 trait_id는 입력값을 그대로 씁니다."""
@@ -41,9 +48,12 @@ def _describe_state(judgment_state: str) -> str:
     return {
         "STRONG": "여러 Context에서 반복 확인됨 — 뚜렷한 강점으로 서술할 것",
         "MODERATE": "확인됐지만 STRONG만큼 반복되진 않음 — 강점으로 서술하되 과장하지 말 것",
-        "LIMITED": "Evidence가 있지만 다양성이 부족함 — 아직 확실치 않다는 뉘앙스로 서술할 것",
+        "LIMITED": "Evidence가 있지만 다양성이 부족함 — '이번 답변에서는 ~가 충분히 확인되지 "
+        "않았어요'처럼 관찰이 부족했다는 뜻으로 서술할 것(학생의 결핍으로 서술하지 말 것)",
         "CONFLICTING": "서로 다른 상황에서 상반된 선택이 나옴 — 한쪽으로 단정하지 말고 두 면이 다 있다는 식으로 서술할 것",
-        "INSUFFICIENT": "이번 검사에서 확인할 기회가 부족했음 — 강점이 아니라 '아직 모름·추가 탐색 필요'로 솔직하게 서술할 것",
+        "INSUFFICIENT": "이번 검사에서 확인할 기회가 부족했음 — '이번 답변에서는 ~가 충분히 "
+        "확인되지 않았어요'처럼 시스템이 아직 관찰하지 못했다는 뜻으로 서술할 것(학생의 결핍으로 "
+        "서술하지 말 것)",
     }.get(judgment_state, "")
 
 
@@ -79,7 +89,7 @@ def _fallback_profile(
     highlights = []
     for c in candidates:
         if c.judgment.state.value in ("INSUFFICIENT", "CONFLICTING", "LIMITED"):
-            text = f"{c.trait_definition.label}은(는) 아직 Evidence가 적어 추가 탐색이 필요해요."
+            text = f"이번 답변에서는 {c.trait_definition.label}이(가) 충분히 확인되지 않았어요."
         else:
             text = f"{c.trait_definition.definition}"
         highlights.append(CareerProfileHighlight(text=text, supporting_trait_ids=[c.trait_definition.trait_id]))

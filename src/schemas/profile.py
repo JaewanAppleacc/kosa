@@ -6,6 +6,40 @@ from datetime import datetime
 
 from pydantic import BaseModel, field_validator, model_validator
 
+# 2026-08-21 리뷰: 기획 원칙 "학생을 유형으로 규정하지 않는다"와 "Evidence 부족을 학생의
+# 결핍처럼 표현하지 않는다"를 Prompt 지시만으로 두지 않고 기계적으로도 막는다(§11 Quality
+# Gate에서도 같은 이유로 프롬프트 지시 + Code Check를 이중으로 뒀다).
+_BANNED_TITLE_TYPE_MARKERS = ("유형", "타입")
+_BANNED_DEFICIENCY_PHRASES = (
+    "경험이 부족",
+    "경험 부족",
+    "능력이 부족",
+    "능력 부족",
+    "약하다",
+    "소질이 없",
+    "잘하지 못",
+)
+
+
+def _reject_fixed_type_label(title: str) -> None:
+    stripped = title.strip()
+    if stripped.endswith("형"):
+        raise ValueError(
+            f"title이 '~형'으로 끝나면 안 된다(고정 유형 라벨처럼 읽힘): {title!r}"
+        )
+    for marker in _BANNED_TITLE_TYPE_MARKERS:
+        if marker in stripped:
+            raise ValueError(f"title에 고정 유형 표현({marker!r})을 쓰면 안 된다: {title!r}")
+
+
+def _reject_deficiency_phrasing(text: str) -> None:
+    for phrase in _BANNED_DEFICIENCY_PHRASES:
+        if phrase in text:
+            raise ValueError(
+                f"결핍 표현({phrase!r})은 금지한다 — Evidence 부족은 시스템이 관찰하지 "
+                f"못했다는 뜻이지 학생의 능력·경험 부족이 아니다: {text!r}"
+            )
+
 
 class CareerProfileHighlight(BaseModel):
     text: str  # "복잡한 내용에서 핵심과 흐름을 찾아 정리하는 데 흥미를 느껴요." 같은 한 줄
@@ -51,6 +85,7 @@ class GeneratedProfileHighlight(BaseModel):
     def _not_blank(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("빈 highlight 문장은 허용하지 않는다")
+        _reject_deficiency_phrasing(value)
         return value
 
 
@@ -68,6 +103,7 @@ class GeneratedCareerProfile(BaseModel):
     def _title_not_blank(cls, value: str) -> str:
         if not value.strip():
             raise ValueError("빈 title은 허용하지 않는다")
+        _reject_fixed_type_label(value)
         return value
 
     @model_validator(mode="after")

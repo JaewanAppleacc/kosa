@@ -81,13 +81,13 @@ class GenerateCareerProfileTest(unittest.TestCase):
 
     def test_happy_path_uses_llm_generated_content(self) -> None:
         result = GeneratedCareerProfile(
-            title="구조를 읽는 탐색형",
+            title="구조를 읽고 이유를 탐색하는 모습이 보여요",
             highlights=[GeneratedProfileHighlight(trait_id=tid, text=f"{tid} 문장") for tid in self.trait_ids],
             hashtags=["#구조화", "#탐색"],
         )
         client = _ScriptedFakeLLMClient([result])
         profile = self._generate(client)
-        self.assertEqual(profile.title, "구조를 읽는 탐색형")
+        self.assertEqual(profile.title, "구조를 읽고 이유를 탐색하는 모습이 보여요")
         self.assertEqual(len(profile.highlights), 5)
         self.assertEqual(profile.highlights[0].supporting_trait_ids, ["trait_00"])
         self.assertEqual(client.call_count, 1)
@@ -135,7 +135,47 @@ class GenerateCareerProfileTest(unittest.TestCase):
             unresolved_conflict_trait_ids=set(),
             llm_client=client,
         )
-        self.assertTrue(all("추가 탐색이 필요해요" in h.text for h in profile.highlights))
+        self.assertTrue(all("충분히 확인되지 않았어요" in h.text for h in profile.highlights))
+        self.assertTrue(all("경험이 부족" not in h.text for h in profile.highlights))
+
+
+class GeneratedCareerProfileGuardTest(unittest.TestCase):
+    """2026-08-21 리뷰: "학생을 유형으로 규정하지 않는다"와 "Evidence 부족을 학생의
+    결핍처럼 표현하지 않는다"를 기계적으로도 막는지 확인한다."""
+
+    def test_rejects_title_ending_with_type_suffix(self) -> None:
+        with self.assertRaises(ValueError):
+            GeneratedCareerProfile(
+                title="생각을 시각적으로 풀어내고 이유를 파헤치는 탐구자형",
+                highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
+                hashtags=["#태그"],
+            )
+
+    def test_rejects_title_containing_유형_or_타입(self) -> None:
+        with self.assertRaises(ValueError):
+            GeneratedCareerProfile(
+                title="탐구 유형에 가까운 학생",
+                highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
+                hashtags=["#태그"],
+            )
+
+    def test_accepts_non_typed_title(self) -> None:
+        profile = GeneratedCareerProfile(
+            title="생각을 시각적으로 풀어내고 이유를 탐색하는 모습이 보여요",
+            highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
+            hashtags=["#태그"],
+        )
+        self.assertTrue(profile.title.endswith("보여요"))
+
+    def test_rejects_deficiency_phrasing_in_highlight(self) -> None:
+        with self.assertRaises(ValueError):
+            GeneratedProfileHighlight(trait_id="planning", text="계획을 세우는 데는 아직 경험이 부족해요")
+
+    def test_accepts_observation_gap_phrasing_in_highlight(self) -> None:
+        highlight = GeneratedProfileHighlight(
+            trait_id="planning", text="이번 답변에서는 계획을 세우는 방식이 충분히 확인되지 않았어요"
+        )
+        self.assertIn("충분히 확인되지 않았어요", highlight.text)
 
 
 if __name__ == "__main__":
