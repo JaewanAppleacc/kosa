@@ -30,7 +30,22 @@ VECTOR_GROUP_WEIGHTS: dict[str, float] = {
 MINIMUM_USABLE_TRAITS = 3
 MINIMUM_USABLE_VECTOR_GROUPS = 2
 
+# 2026-08-21 리뷰로 실제 발견한 문제: cosine similarity는 1차원(Trait 1개)에서는 항상
+# 1.0이다 — 두 양수 사이의 "각도"라는 개념 자체가 1차원에는 없어서, 크기 차이를 전혀
+# 반영하지 못한다(cos([1.0],[0.33]) == 1.0). Vertical Slice Trait Ontology는 interest·
+# environment 그룹에 Trait가 1개뿐이라 이 축퇴가 실제로 발생했다(학생 답변이 적을 때
+# 모든 전공이 1.0으로 동점 처리됨). 그래서 한 Vector 그룹은 확정 Trait가 최소 2개는
+# 있어야 유사도 계산에 포함시킨다 — MINIMUM_USABLE_TRAITS/VECTOR_GROUPS 정책 임계값과는
+# 별개로, 수학적으로 의미 없는 계산을 막기 위한 것이다.
+MINIMUM_TRAITS_PER_VECTOR_GROUP = 2
+
 INSUFFICIENT_EVIDENCE_MESSAGE = "아직 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이 필요합니다."
+
+# 2026-08-21 리뷰: 순수 상대 순위만 쓰면 후보가 1개뿐일 때 그 점수가 아무리 낮아도 무조건
+# 1등이라 "관련성 높음"이 돼버린다. cosine similarity는 입력이 전부 0 이상이라 [0, 1]
+# 범위이므로, 상대 순위 상위 구간이어도 이 절대 하한을 넘지 못하면 "관련성 높음"을 주지
+# 않는다 — §16처럼 "검증된 임계값이 아니라 MVP 초기 휴리스틱"이다.
+MINIMUM_SCORE_FOR_HIGH_RELEVANCE = 0.6
 
 
 class StudentTraitState(BaseModel):
@@ -91,8 +106,8 @@ def compute_major_match(
     student_states: dict[str, StudentTraitState], major: MajorProfile
 ) -> MajorMatchResult:
     """§16: Vector 그룹별 cosine similarity를 가중합한다. 확정(non-Mask)된 Trait만 분모에
-    넣고, 특정 Vector에 확정 Trait가 하나도 없으면 그 Vector를 제외하고 남은 가중치를
-    비례 재분배한다."""
+    넣고, 특정 Vector에 확정 Trait가 MINIMUM_TRAITS_PER_VECTOR_GROUP개 미만이면 그
+    Vector를 제외하고 남은 가중치를 비례 재분배한다."""
 
     vector_by_group = {
         "interest": major.interest_vector,
@@ -109,8 +124,10 @@ def compute_major_match(
             t for t in major_vector
             if t in student_states and student_states[t].normalized_value is not None
         )
-        if not shared_trait_ids:
-            continue  # §16: 확정 Trait가 없는 Vector는 제외
+        if len(shared_trait_ids) < MINIMUM_TRAITS_PER_VECTOR_GROUP:
+            # §16: 확정 Trait가 없는 Vector는 제외. 1개뿐이어도 제외한다 — 1차원 cosine
+            # similarity는 항상 1.0이라 크기 차이를 반영하지 못하는 수학적 축퇴 상태다.
+            continue
         student_values = [student_states[t].normalized_value for t in shared_trait_ids]  # type: ignore[misc]
         major_weights = [major_vector[t] for t in shared_trait_ids]
         similarity = _cosine_similarity(student_values, major_weights)
@@ -164,8 +181,13 @@ def rank_major_relevance(
     results: list[MajorMatchResult], labels_by_major_id: dict[str, str]
 ) -> tuple[list[MajorRelevance], list[MajorRelevance], str | None]:
     """§16 "내부에서는 후보군 내 분포... 기준으로 상대 순위를 계산한다"를 구현한다.
-    절대 점수 임계값이 아니라 후보군 안에서의 순위로 등급을 매긴다 — 후보가 3개면
-    1등/2등/3등이 각각 관련성 높음/함께 탐색해볼 분야/비교해볼 만한 분야가 된다.
+
+    2026-08-21 리뷰로 두 가지를 고쳤다:
+    1. 등수(rank, 0/1/2/...)가 아니라 "고유한 점수 값의 순서"로 구간을 나눈다. 등수 기준이면
+       점수가 완전히 같은 두 전공도 앞뒤로 갈려서 서로 다른 등급을 받을 수 있었다(임의의
+       우열) — 점수가 같으면 항상 같은 구간에 들어가게 했다.
+    2. 절대 점수 하한(MINIMUM_SCORE_FOR_HIGH_RELEVANCE)을 추가로 요구한다. 안 그러면 후보가
+       1개뿐이거나 전부 낮은 점수여도 상위 구간은 무조건 "관련성 높음"이 돼버린다.
 
     반환값: (관련성 높음 목록, 나머지 목록, 전체가 insufficient일 때의 안내 메시지)."""
 
@@ -173,18 +195,26 @@ def rank_major_relevance(
     if not computed:
         return [], [], INSUFFICIENT_EVIDENCE_MESSAGE
 
-    computed.sort(key=lambda r: (-r.score, r.major_id))  # type: ignore[arg-type]
+    computed.sort(key=lambda r: (-r.score, r.major_id))  # type: ignore[arg-type]  # major_id는 표시 순서만 결정, 등급에는 안 씀
 
-    def relevance_label_for_rank(rank: int, total: int) -> RelevanceLabel:
-        # 상위 1/3 → 관련성 높음, 중간 1/3 → 함께 탐색해볼 분야, 하위 1/3 → 비교해볼 만한 분야.
-        tier = (rank * 3) // total
-        return ["관련성 높음", "함께 탐색해볼 분야", "비교해볼 만한 분야"][min(tier, 2)]
+    unique_scores_desc = sorted({r.score for r in computed}, reverse=True)  # type: ignore[arg-type]
+
+    def relevance_label_for_score(score: float) -> RelevanceLabel:
+        # 점수가 같은 후보는 항상 같은 구간(고유 점수 목록에서의 위치로 구간 결정).
+        score_rank = unique_scores_desc.index(score)
+        tier = (score_rank * 3) // len(unique_scores_desc)
+        label = ["관련성 높음", "함께 탐색해볼 분야", "비교해볼 만한 분야"][min(tier, 2)]
+        if label == "관련성 높음" and score < MINIMUM_SCORE_FOR_HIGH_RELEVANCE:
+            # 상대 순위는 1등이어도 절대 유사도가 낮으면 "관련성 높음"을 주지 않는다
+            # (후보가 1개뿐이거나 전부 낮은 점수인 경우의 방어).
+            label = "함께 탐색해볼 분야"
+        return label
 
     relevant: list[MajorRelevance] = []
     explore_together: list[MajorRelevance] = []
 
-    for rank, result in enumerate(computed):
-        relevance = relevance_label_for_rank(rank, len(computed))
+    for result in computed:
+        relevance = relevance_label_for_score(result.score)  # type: ignore[arg-type]
         item = MajorRelevance(
             major_id=result.major_id,
             label=labels_by_major_id.get(result.major_id, result.major_id),

@@ -94,7 +94,7 @@ class GenerateCareerProfileTest(unittest.TestCase):
 
     def test_detailed_evidence_included_regardless_of_llm_outcome(self) -> None:
         result = GeneratedCareerProfile(
-            title="제목",
+            title="여러 관점을 비교하려는 경향이 확인됐어요",
             highlights=[GeneratedProfileHighlight(trait_id=tid, text=f"{tid} 문장") for tid in self.trait_ids],
             hashtags=["#태그"],
         )
@@ -105,7 +105,7 @@ class GenerateCareerProfileTest(unittest.TestCase):
 
     def test_mismatched_trait_ids_fall_back_after_retry(self) -> None:
         bad = GeneratedCareerProfile(
-            title="제목",
+            title="여러 관점을 비교하려는 경향이 확인됐어요",
             highlights=[GeneratedProfileHighlight(trait_id="wrong_trait", text="x")] * 1
             + [GeneratedProfileHighlight(trait_id=tid, text=f"{tid} 문장") for tid in self.trait_ids[1:]],
             hashtags=["#태그"],
@@ -158,6 +158,44 @@ class GeneratedCareerProfileGuardTest(unittest.TestCase):
                 highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
                 hashtags=["#태그"],
             )
+
+    def test_rejects_role_noun_titles_without_type_suffix(self) -> None:
+        """2026-08-21 재리뷰: "~형"이 없어도 "꼼꼼한 탐색자"처럼 사람을 가리키는 명사로
+        끝나면 정체성 명명이다 — 기획자가 준 금지 예시 4개를 그대로 검증한다."""
+
+        for bad_title in ["꼼꼼한 탐색자", "논리적인 분석가", "창의적인 설계자", "세심한 관찰자"]:
+            with self.assertRaises(ValueError, msg=bad_title):
+                GeneratedCareerProfile(
+                    title=bad_title,
+                    highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
+                    hashtags=["#태그"],
+                )
+
+    def test_rejects_copula_ending_even_though_it_ends_with_요(self) -> None:
+        """"~예요/~이에요"는 "요"로 끝나지만 "당신은 OO다"라는 계사 서술이라 여전히
+        정체성 명명이다 — 단순히 "요로 끝나는지"만 보면 이 경우를 놓친다."""
+
+        with self.assertRaises(ValueError):
+            GeneratedCareerProfile(
+                title="논리적인 탐색가예요",
+                highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
+                hashtags=["#태그"],
+            )
+
+    def test_accepts_all_four_recommended_example_titles(self) -> None:
+        recommended = [
+            "원인을 깊이 파악하려는 모습이 보여요",
+            "시각적으로 표현하려는 경향이 두드러졌어요",
+            "답변에서 계획적으로 접근하는 모습이 나타났어요",
+            "여러 관점을 비교하려는 경향이 확인됐어요",
+        ]
+        for title in recommended:
+            profile = GeneratedCareerProfile(
+                title=title,
+                highlights=[GeneratedProfileHighlight(trait_id="a", text="문장")],
+                hashtags=["#태그"],
+            )
+            self.assertEqual(profile.title, title)
 
     def test_accepts_non_typed_title(self) -> None:
         profile = GeneratedCareerProfile(
