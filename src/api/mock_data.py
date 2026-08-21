@@ -8,12 +8,44 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from src.data.contexts.context_definitions import VERTICAL_SLICE_CONTEXT_IDS
+from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
 from src.schemas.course import CourseProfile, CourseRecommendationItem, ParsedSubjectCandidate
 from src.schemas.graph import SubgraphEdge, SubgraphNode
 from src.schemas.major import AdmissionReference, Department, MajorRelevance
 from src.schemas.profile import CareerProfile, CareerProfileHighlight, DimensionEvidenceItem
-from src.schemas.question import FinalizedOption, FinalizedQuestion
+from src.schemas.question import FinalizedOption, FinalizedQuestion, SeedQuestion
 from src.schemas.retrieval import RetrievedDocument
+
+
+def seed_question_as_finalized(seed: SeedQuestion) -> FinalizedQuestion:
+    """실제 확정된 Seed Question(§7-1)을 B가 받는 FinalizedQuestion 모양으로 바꾼다.
+    target_traits/frame_id는 Seed에 없는 개념이라(Adaptive 전용) 빈 값·"seed_frame"으로 채운다."""
+
+    return FinalizedQuestion(
+        question_id=seed.question_id,
+        context=seed.context,
+        target_traits=[],
+        frame_id="seed_frame",
+        question_text=seed.question_text,
+        options=[
+            FinalizedOption(
+                option_id=o.option_id,
+                role_id=o.role_id,
+                text=o.text,
+                primary_trait_delta=o.primary_trait_delta,
+            )
+            for o in seed.options
+        ],
+    )
+
+
+def next_mock_question(context_id: str, questions_asked_in_current_context: int) -> FinalizedQuestion:
+    """이 Context에서 첫 질문(0개 답변)이면 실제 Seed를, 그 이후엔 여전히 Mock 꼬리질문을
+    반환한다 — 실제 Adaptive 질문 생성(§10)은 아직 없다."""
+
+    if questions_asked_in_current_context == 0 and context_id in VERTICAL_SLICE_SEED_QUESTIONS:
+        return seed_question_as_finalized(VERTICAL_SLICE_SEED_QUESTIONS[context_id])
+    return mock_finalized_question(context_id, questions_asked_in_current_context)
 
 
 def mock_finalized_question(context_id: str = "media", index: int = 4) -> FinalizedQuestion:

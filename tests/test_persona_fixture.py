@@ -26,9 +26,10 @@ class DemoPersonaFixtureTest(unittest.TestCase):
 
     def test_persona_produces_expected_evidence_record_count(self) -> None:
         records, offered = build_evidence_records(DEMO_USER_01_PERSONA, BLUEPRINT_BY_QUESTION_ID)
-        self.assertEqual(len(records), 8)
-        self.assertEqual(len(offered), 8)
-        # 8개 질문 전부 같은 Blueprint를 썼으므로 매 질문 5개 Trait가 제시된다.
+        # Seed 3개 + 꼬리질문 6개 = 9개 답변(2026-08-21, 실제 Seed 적용 후 갱신).
+        self.assertEqual(len(records), 9)
+        self.assertEqual(len(offered), 9)
+        # Seed·꼬리질문 전부 5개 선택지 = 5개 Trait를 제시한다.
         for offered_set in offered:
             self.assertEqual(len(offered_set), 5)
 
