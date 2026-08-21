@@ -11,7 +11,11 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 
 from __future__ import annotations
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+
+# 로컬 개발 편의용 — 이미 설정된 실제 배포 환경변수는 덮어쓰지 않는다(override=False가 기본값).
+load_dotenv()
 
 from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
 from src.api import mock_data
