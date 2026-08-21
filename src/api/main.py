@@ -105,7 +105,12 @@ def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
         state.generated_question_texts_in_current_context = []
         state.pending_target_traits = []
         state.pending_question_frame = None
+        state.pending_purpose = None
         state.pending_next_probe = None
+        state.pending_previous_question_text = None
+        state.pending_previous_answer_text = None
+        state.pending_option_blueprint_id = None
+        state.current_context_seed_trait_id = None
         return True
     state.phase = AssessmentPhase.PROFILE_GENERATION
     return False
@@ -187,7 +192,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
     if state.questions_asked_in_current_context == 0:
         # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
         question = mock_data.next_mock_question(current_context, 0)
-    elif _llm_client is not None and state.pending_target_traits:
+    elif _llm_client is not None and state.pending_target_traits and state.pending_option_blueprint_id:
         question_id = generate_question_id(
             current_context, "tail", state.questions_asked_in_current_context
         )
@@ -197,10 +202,13 @@ def next_question(session_id: str) -> NextQuestionResponse:
             context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
             trait_definition=TRAIT_DEFINITIONS_BY_ID[state.pending_target_traits[0]],
             all_trait_labels=ALL_TRAIT_LABELS,
+            option_blueprint_id=state.pending_option_blueprint_id,
             frame_id=frame_id,
             frame_text=QUESTION_FRAME_TEXT.get(frame_id, "다음 상황에서 어떻게 하나요?"),
             llm_client=_llm_client,
+            purpose=state.pending_purpose,
             previous_question_texts=state.generated_question_texts_in_current_context,
+            previous_answer_text=state.pending_previous_answer_text,
             previous_next_probe=state.pending_next_probe,
             backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
             used_backup_question_ids=set(state.used_backup_question_ids),
@@ -293,6 +301,8 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         decision = result.next_planner_decision
         state.pending_target_traits = decision.target_traits if decision else []
         state.pending_question_frame = decision.question_frame if decision else None
+        state.pending_purpose = decision.purpose if decision else None
+        state.pending_option_blueprint_id = decision.option_blueprint_id if decision else None
         next_action = "NEXT_QUESTION"
 
     _store.save(state)

@@ -70,6 +70,8 @@ def submit_answer(
     # §7-3/§8: 이 Option의 next_probe를 다음 질문 "문구"를 자연스럽게 잇는 재료로 남긴다
     # (목표 Trait 자체는 이 값과 무관하게 Target Planner의 우선순위로 정해진다).
     state.pending_next_probe = selected_option.next_probe
+    state.pending_previous_question_text = question.question_text
+    state.pending_previous_answer_text = selected_option.text
     state.answers.append(
         AnsweredQuestion(
             question_id=question.question_id,
@@ -88,6 +90,11 @@ def submit_answer(
     state.used_frame_ids_in_current_context.append(question.frame_id)
 
     state.questions_asked_in_current_context += 1
+
+    # §7-2: 이번이 이 Context의 Seed 답변이면(꼬리질문 0개 → 1개), 이후 DEEPEN 테마가
+    # 형제 Trait 후보를 고를 기준으로 삼을 수 있게 선택된 Trait을 남긴다.
+    if state.questions_asked_in_current_context == 1:
+        state.current_context_seed_trait_id = sorted(selected_option.primary_trait_delta)[0]
 
     # 3. Trait Summary 갱신 — 이번 한 Trait만이 아니라 전체를 다시 계산한다. opportunity_count가
     # 이 질문이 제시한 다른 4개 Trait에도 영향을 주기 때문이다.
@@ -121,6 +128,7 @@ def submit_answer(
         recent_target_trait_ids=state.recent_target_trait_ids,
         used_frame_ids_in_context=set(state.used_frame_ids_in_current_context),
         is_first_context_in_session=is_first_context_in_session,
+        deepen_anchor_trait_id=state.current_context_seed_trait_id,
     )
     return AnswerSubmissionResult(
         accepted=True, stop_decision="CONTINUE", next_planner_decision=next_decision

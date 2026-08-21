@@ -67,6 +67,9 @@ class AssessmentState(BaseModel):
     # 목록은 Context가 바뀌어도 유지한다(question_id 자체가 Context를 포함해 유일하다).
     generated_question_texts_in_current_context: list[str] = []
     used_backup_question_ids: list[str] = []
+    # §7-2 DEEPEN 테마 Blueprint 제한용 — 이 Context의 Seed에서 학생이 실제로 선택한 Trait.
+    # Context가 바뀌면 그 Context의 새 Seed 선택으로 다시 채워진다(2026-08-21 리뷰).
+    current_context_seed_trait_id: str | None = None
 
     # §24 LLM 호출 예산
     llm_call_count: int = 0
@@ -83,6 +86,14 @@ class AssessmentState(BaseModel):
     # §7-3/§8: 방금 선택된 Option의 next_probe. 목표 Trait 자체는 바꾸지 않고(§8 "우선순위
     # 조건이 아니라") 다음 질문 "문구"를 자연스럽게 잇는 재료로만 쓴다.
     pending_next_probe: str | None = None
+    # 2026-08-21 리뷰: LLM 프롬프트에 next_probe 메모 한 줄만 주지 않고, 직전 질문 전문과
+    # 학생이 실제로 고른 선택지 문장도 함께 준다(문장 자체에 노출은 안 하고 참고 재료로만).
+    pending_previous_question_text: str | None = None
+    pending_previous_answer_text: str | None = None
+    # §8 원본 출력 스키마의 option_blueprint_id. Question Generator가 target_trait만으로
+    # Blueprint를 다시 찾을 때 생기는 모호함(같은 Trait가 여러 Blueprint에 걸칠 수 있음)을
+    # 없애기 위해 Planner가 고른 Blueprint를 그대로 넘긴다.
+    pending_option_blueprint_id: str | None = None
 
     @property
     def current_context_id(self) -> str | None:

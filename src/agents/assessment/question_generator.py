@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from src.data.questions.tail_option_blueprints import blueprint_for_target_trait
+from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS_BY_ID
 from src.engines.question_quality_gate import run_quality_gate
 from src.llm.protocols import ChatLLMClient, LLMCallError
 from src.schemas.context import ContextDefinition
@@ -26,7 +26,10 @@ from src.schemas.question import (
 from src.schemas.trait import TraitDefinition
 
 SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문의 질문 생성기입니다. 다음 규칙을 반드시 지키세요.
-- 학생이 선택한 Context(관심 영역) 안에서 질문합니다.
+- 학생이 선택한 Context(관심 영역) 안에서만 질문합니다. 예를 들어 Context가 "게임"이면
+  질문의 행동 무대는 항상 게임이어야 합니다 — "새로운 작품을 만들 때"처럼 다른 활동(제작,
+  미디어 편집 등)으로 슬쩍 옮겨가지 않습니다. 5개 Trait에 맞게 상황을 넓힐 때도 이 Context
+  범위 밖으로 나가면 안 됩니다.
 - 행동 선호를 묻습니다. "잘하나요/능력이 있나요" 같은 자기평가를 요구하지 않습니다.
 - 직업명이나 학과명을 직접 언급하지 않습니다.
 - 특정 선택지가 다른 선택지보다 도덕적으로나 사회적으로 더 좋아 보이게 쓰지 않습니다.
@@ -64,10 +67,13 @@ SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문의 질문 생성�
   "~하는 성향을 이어", "~인지 확인하기 위해", "~에 이어" 같이 이전 질문·답변을
   요약하거나 언급하는 표현은 절대 쓰지 않습니다 — 설문지가 아니라 자연스러운 대화처럼
   읽혀야 합니다.
-- "참고용 배경 정보"가 주어지면, 그 내용을 문장에 직접 언급하거나 요약하지 않습니다.
-  이 학생이 방금 어떤 것에 흥미를 보였는지 알려주는 힌트일 뿐이며, 상황이나 소재를
-  고를 때 은근히만 참고합니다. 무엇을 측정할지(목표 Trait, Option Role 구성)는
-  이 정보와 무관하게 그대로 유지합니다."""
+- "직전 질문·답변"과 "참고용 배경 정보"가 주어지면, 그 내용을 문장에 직접 언급·요약·인용
+  하지 않습니다. 직전에 이 학생이 무엇을 물어봤고 무엇을 선택했는지 아는 상태에서, 자연스럽게
+  이어지는 다음 상황을 고르는 데만 참고합니다(예: 같은 소재를 다른 각도에서 다루기, 방금
+  나온 소재를 반복하지 않기). 무엇을 측정할지(목표 Trait, Option Role 구성)는 이 정보와
+  무관하게 입력값 그대로 유지합니다.
+- "이번 질문의 목적"이 주어지면 내부 참고용입니다 — 그 표현(예: "심화 확인", "교차 확인"
+  같은 평가 용어)을 질문 문장에 그대로 쓰지 않습니다."""
 
 
 def _build_user_prompt(
@@ -77,22 +83,38 @@ def _build_user_prompt(
     frame_id: str,
     frame_text: str,
     blueprint_role_trait_labels: list[tuple[str, str]],
+    purpose: str | None = None,
+    previous_question_text: str | None = None,
+    previous_answer_text: str | None = None,
     previous_next_probe: str | None = None,
 ) -> str:
     role_list = "\n".join(
         f"- {role_id} (측정 대상: {trait_label})"
         for role_id, trait_label in blueprint_role_trait_labels
     )
-    continuity_block = ""
+    continuity_lines: list[str] = []
+    if previous_question_text:
+        continuity_lines.append(f"직전 질문: {previous_question_text}")
+    if previous_answer_text:
+        continuity_lines.append(f"학생이 고른 답: {previous_answer_text}")
     if previous_next_probe:
-        continuity_block = f"""
-[참고용 배경 정보 — 질문 문장에 직접 언급·요약하지 말 것. 소재 선택에만 은근히 참고]
-{previous_next_probe}
-"""
-    return f"""[Context]
+        continuity_lines.append(f"그 답이 보여준 성향(참고용 메모): {previous_next_probe}")
+    continuity_block = ""
+    if continuity_lines:
+        continuity_block = (
+            "\n[직전 질문·답변 — 문장에 직접 언급·인용하지 말 것. 자연스러운 흐름 참고용]\n"
+            + "\n".join(continuity_lines)
+            + "\n"
+        )
+
+    purpose_block = ""
+    if purpose:
+        purpose_block = f"\n[이번 질문의 목적 — 내부 참고용, 문장에 노출하지 말 것]\n{purpose}\n"
+
+    return f"""[Context — 질문의 행동 무대는 항상 이 안에 있어야 함]
 label: {context_definition.label}
 description: {context_definition.description}
-예시 활동(참고용 — 아래 5개 Trait와 안 맞으면 무시할 것): {', '.join(context_definition.example_activities)}
+예시 활동(참고용 — 아래 5개 Trait와 안 맞으면 무시해도 되지만, Context 자체를 벗어나면 안 됨): {', '.join(context_definition.example_activities)}
 
 [이번 질문이 다뤄야 할 Trait 5개 — 질문 상황을 잡기 전에 반드시 전부 확인할 것]
 {role_list}
@@ -106,7 +128,7 @@ definition: {trait_definition.definition}
 5개 Trait에 맞는 넓은 상황을 우선할 것]
 frame_id: {frame_id}
 문구 힌트: {frame_text}
-{continuity_block}
+{purpose_block}{continuity_block}
 [Option Role — 위와 같은 role_id 순서 그대로, 각각 하나의 선택지 문장을 만들 것]
 {role_list}
 
@@ -127,16 +149,23 @@ def generate_tail_question(
     context_definition: ContextDefinition,
     trait_definition: TraitDefinition,
     all_trait_labels: dict[str, str],
+    option_blueprint_id: str,
     frame_id: str,
     frame_text: str,
     llm_client: ChatLLMClient,
+    purpose: str | None = None,
     previous_question_texts: list[str] | None = None,
+    previous_answer_text: str | None = None,
     previous_next_probe: str | None = None,
     backup_questions: list[FinalizedQuestion] | None = None,
     used_backup_question_ids: set[str] | None = None,
     question_cache: dict[str, FinalizedQuestion] | None = None,
     max_regenerations: int = 1,
 ) -> QuestionGenerationOutcome:
+    """`option_blueprint_id`는 Target Planner(§8)가 이미 확정한 값을 그대로 받는다 —
+    여기서 target_trait만으로 Blueprint를 다시 찾지 않는다(같은 Trait가 여러 Blueprint에
+    걸쳐 있을 수 있어 재조회하면 Planner가 고른 것과 다른 Blueprint가 나올 수 있었다)."""
+
     previous_question_texts = previous_question_texts or []
     backup_questions = backup_questions or []
     used_backup_question_ids = used_backup_question_ids or set()
@@ -150,17 +179,21 @@ def generate_tail_question(
             return QuestionGenerationOutcome(question=cached, source="cache")
         # 캐시된 질문도 Guardrail은 통과해야 한다 — 실패하면 조용히 넘기지 않고 실시간 생성으로 이어간다.
 
-    blueprint = blueprint_for_target_trait(trait_definition.trait_id)
+    blueprint = TAIL_OPTION_BLUEPRINTS_BY_ID[option_blueprint_id]
     role_trait_labels: list[tuple[str, str]] = []
     for role in blueprint.roles:
         role_trait_id = next(iter(role.primary_trait_delta))
         role_trait_labels.append((role.role_id, all_trait_labels.get(role_trait_id, role_trait_id)))
+    previous_question_text = previous_question_texts[-1] if previous_question_texts else None
     user_prompt = _build_user_prompt(
         context_definition=context_definition,
         trait_definition=trait_definition,
         frame_id=frame_id,
         frame_text=frame_text,
         blueprint_role_trait_labels=role_trait_labels,
+        purpose=purpose,
+        previous_question_text=previous_question_text,
+        previous_answer_text=previous_answer_text,
         previous_next_probe=previous_next_probe,
     )
 
@@ -181,6 +214,12 @@ def generate_tail_question(
         except ValueError as exc:
             last_failure = f"Role ID 불일치로 거부: {exc}"
             continue
+
+        # target_traits는 LLM이 그대로 반환한 값을 신뢰하지 않는다 — 실제로 LLM이 요청한
+        # trait_id를 오타(예: causal_analysis → cause_analysis)로 돌려준 사례가 있었다.
+        # 무엇을 목표할지는 서버(Target Planner)가 이미 정한 값이므로 여기서 강제로
+        # 덮어쓴다(CLAUDE.md: "다음 질문 목표... 를 LLM에게 맡기지 않는다").
+        finalized = finalized.model_copy(update={"target_traits": [trait_definition.trait_id]})
 
         gate = run_quality_gate(finalized, previous_question_texts)
         if not gate.passed:

@@ -57,6 +57,7 @@ class GenerateTailQuestionTest(unittest.TestCase):
             context_definition=self.context_definition,
             trait_definition=self.trait_definition,
             all_trait_labels={tid: t.label for tid, t in TRAIT_DEFINITIONS_BY_ID.items()},
+            option_blueprint_id="problem_response_v1",
             frame_id="problem_check",
             frame_text="문제가 생기면 무엇부터 확인하는가?",
             llm_client=client,
@@ -99,6 +100,63 @@ class GenerateTailQuestionTest(unittest.TestCase):
         )
         self._generate(client, previous_next_probe=None)
         self.assertNotIn("직전 답변의 관심 신호", client.captured_user_prompts[0])
+
+    def test_explicit_blueprint_id_is_used_even_when_trait_spans_multiple_blueprints(self) -> None:
+        """2026-08-21 리뷰: causal_analysis는 problem_response_v1과 planning_and_execution_v1
+        둘 다에 속한다. Planner가 planning_and_execution_v1을 골랐다면, target_trait만으로
+        재조회(blueprint_for_target_trait)하지 않고 그 Blueprint의 Role 구성을 그대로
+        써야 한다 — 재조회하면 항상 problem_response_v1(리스트 앞쪽)이 나와버려서
+        Planner가 앵커링한 의미가 사라진다."""
+
+        planning_group_roles = [
+            "advance_planning",
+            "tool_first",
+            "team_coordination",
+            "root_cause_check",
+            "pattern_reference",
+        ]
+        generated = GeneratedQuestion(
+            context="game",
+            target_traits=["causal_analysis"],
+            frame_id="problem_check",
+            question_text="게임을 할 때 무엇을 가장 먼저 하나요?",
+            options=[GeneratedOption(role_id=r, text=f"{r} 선택지 문장") for r in planning_group_roles],
+        )
+        client = _ScriptedFakeLLMClient([QuestionGenerationResult(question=generated)])
+        outcome = self._generate(client, option_blueprint_id="planning_and_execution_v1")
+        self.assertEqual(outcome.source, "llm")
+        self.assertEqual(
+            [o.role_id for o in outcome.question.options], planning_group_roles
+        )
+        self.assertEqual(
+            outcome.question.options[0].primary_trait_delta, {"planning": 1}
+        )  # problem_response_v1이었다면 causal_analysis가 나왔을 자리
+
+    def test_purpose_and_previous_answer_text_threaded_into_prompt(self) -> None:
+        client = _ScriptedFakeLLMClient(
+            [QuestionGenerationResult(question=_valid_generated_question())]
+        )
+        self._generate(
+            client,
+            purpose="관심 지점 심화 확인",
+            previous_question_texts=["게임을 할 때 가장 흥미를 느끼는 부분은 무엇인가요?"],
+            previous_answer_text="왜 이 전략이 통하는지 원리를 파악하는 것",
+        )
+        prompt = client.captured_user_prompts[0]
+        self.assertIn("관심 지점 심화 확인", prompt)
+        self.assertIn("게임을 할 때 가장 흥미를 느끼는 부분은 무엇인가요?", prompt)
+        self.assertIn("왜 이 전략이 통하는지 원리를 파악하는 것", prompt)
+
+    def test_target_traits_are_forced_from_planner_not_llm_echo(self) -> None:
+        """실제로 LLM이 target_traits를 "causal_analysis" 대신 "cause_analysis"(오타,
+        role_id와 헷갈림)로 돌려준 사례가 있었다. 서버가 요청한 trait_id로 강제해야 한다."""
+
+        typo_question = _valid_generated_question().model_copy(
+            update={"target_traits": ["cause_analysis"]}  # 오타 — 실제 role_id 중 하나와 동일
+        )
+        client = _ScriptedFakeLLMClient([QuestionGenerationResult(question=typo_question)])
+        outcome = self._generate(client)
+        self.assertEqual(outcome.question.target_traits, ["causal_analysis"])
 
     def test_llm_call_error_falls_back_to_backup_after_one_regeneration(self) -> None:
         client = _ScriptedFakeLLMClient([LLMCallError("네트워크 실패"), LLMCallError("네트워크 실패")])

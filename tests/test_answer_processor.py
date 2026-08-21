@@ -119,6 +119,27 @@ class SubmitAnswerTest(unittest.TestCase):
         # game_seed_01에 없는 Trait(예: planning)는 opportunity도 0이어야 한다
         self.assertEqual(state.trait_summaries["planning"].opportunity_count, 0)
 
+    def test_seed_answer_sets_context_seed_trait_and_restricts_deepen_blueprint(self) -> None:
+        """2026-08-21 리뷰: Seed에서 causal_analysis(problem_response_v1)를 선택하면,
+        state.current_context_seed_trait_id가 그 Trait로 채워지고, 위치 1(DEEPEN)의
+        option_blueprint_id도 problem_response_v1로 제한돼야 한다."""
+
+        state = self._fresh_state()
+        result = submit_answer(
+            state, GAME_SEED_01_FINALIZED, "game_seed_01_o1", VERTICAL_SLICE_TRAIT_IDS, True
+        )
+        self.assertEqual(state.current_context_seed_trait_id, "causal_analysis")
+        self.assertEqual(result.next_planner_decision.option_blueprint_id, "problem_response_v1")
+
+    def test_previous_question_and_answer_text_are_carried_into_state(self) -> None:
+        state = self._fresh_state()
+        selected = GAME_SEED_01_FINALIZED.options[0]
+        submit_answer(
+            state, GAME_SEED_01_FINALIZED, selected.option_id, VERTICAL_SLICE_TRAIT_IDS, True
+        )
+        self.assertEqual(state.pending_previous_question_text, GAME_SEED_01_FINALIZED.question_text)
+        self.assertEqual(state.pending_previous_answer_text, selected.text)
+
     def test_selected_option_next_probe_is_carried_into_state(self) -> None:
         """§7-3/§8: 선택된 Option의 next_probe는 목표 Trait을 바꾸지 않고 다음 질문
         "문구"를 잇는 재료로만 state.pending_next_probe에 남아야 한다."""
