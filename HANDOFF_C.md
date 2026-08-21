@@ -146,10 +146,17 @@ A·B 판단이 필요하다.
 
 ---
 
-## 6. 브랜치 정리
+## 6. 브랜치 정리 — PR 전에 할 일
 
-`README_C.md`가 요구한 대로 이 브랜치에는 루트 `CLAUDE.md`가 없다.
+이 브랜치에는 브랜치 전용 `CLAUDE.md`가 있다(기존 `worker-c`를 머지하면서 딸려왔다).
+`README_C.md`가 요구한 대로 **`main` PR에는 포함하면 안 된다.**
 
 ```bash
-python scripts/check_no_worker_claude.py
+python scripts/check_no_worker_claude.py   # PR 직전 확인 — 지금은 실패한다
 ```
+
+둘 중 하나로 처리한다.
+
+1. PR 직전에 `worker-c`에서 루트 `CLAUDE.md`를 지우는 마무리 커밋을 추가한다.
+2. A가 구현 커밋만 골라 Cherry-pick 한다 — 구현은 `feat(worker-c): C 담당 모듈 전체 구현`
+   커밋 하나에 모여 있다.
