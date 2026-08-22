@@ -45,8 +45,13 @@ def generate_session_id() -> str:
 def generate_trace_id() -> str:
     """§24 LangSmith Observability: "PostgreSQL의 session_id와 LangSmith의 trace_id를
     매핑하되, LangSmith에는 익명화된 식별자만 전달한다" — session_id와 별개의 무작위
-    식별자를 만들어, LangSmith 쪽에는 이 값만 보내고 session_id 원문은 보내지 않는다."""
-    return f"trace_{uuid.uuid4().hex}"
+    식별자를 만들어, LangSmith 쪽에는 이 값만 보내고 session_id 원문은 보내지 않는다.
+
+    2026-08-22 리뷰 반영: 예전엔 "trace_" 접두사를 붙인 문자열이었는데, 설치된 LangSmith
+    SDK의 Run.trace_id는 UUID 타입이다 — 접두사가 붙으면 `uuid.UUID(trace_id)` 파싱이
+    실패해 실제 LangSmith 서버에서 거부될 수 있었다(fail-open이라 서비스는 멀쩡해 보이지만
+    Trace는 하나도 안 쌓이는 조용한 실패). 순수 UUID 문자열로 바꾼다."""
+    return str(uuid.uuid4())
 
 
 def generate_evidence_id() -> str:

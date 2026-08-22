@@ -1,46 +1,46 @@
 {
-  "session_id": "sess_571f5d6b123d47748a592570cb36d00b",
+  "session_id": "sess_4008753d0d7a49e1ba6c4f7fb5c93aa8",
   "user_id": "demo_user_01",
-  "title": "함께 아이디어를 시각적으로 풀어내는 모습을 보여요",
+  "title": "함께 시각적 아이디어를 세심하게 조율하는 모습이 보여요",
   "highlights": [
     {
-      "text": "팀에서 각자의 역할을 나누고 함께 의견을 모으는 활동에 즐겁게 참여하는 편이에요.",
+      "text": "저는 여러 사람과 역할을 나누고 함께 의논하면서 일을 진행하는 것을 좋아해요.",
       "supporting_trait_ids": [
         "collaboration_preference"
       ]
     },
     {
-      "text": "생각이나 감정을 이미지와 영상 같은 시각적 방법으로 표현하는 것을 자주 선택해요.",
+      "text": "생각과 느낌을 이미지나 영상으로 표현하는 데 관심이 많고, 편집이나 구성을 즐겨 선택해요.",
       "supporting_trait_ids": [
         "visual_expression"
       ]
     },
     {
-      "text": "내가 만든 결과물을 보는 사람들이 어떻게 느낄지 미리 생각하며 완성도를 높이려는 모습을 보여요.",
+      "text": "결과물을 만들 때 사람들이 어떻게 느낄지 미리 생각해서 그에 맞춰 선택하는 편이에요.",
       "supporting_trait_ids": [
         "audience_response_prediction"
       ]
     },
     {
-      "text": "예상과 다른 상황이 생기면 새로운 방법을 시도하면서 적응하는 태도를 보여줘요.",
+      "text": "예상과 달라지는 상황이 생기면 새로운 방법을 시도하며 유연하게 대응하려고 해요.",
       "supporting_trait_ids": [
         "change_adaptation"
       ]
     },
     {
-      "text": "결정할 때 여러 자료와 예시를 찾아보며 꼼꼼히 비교하는 경향이 확인됐어요.",
+      "text": "결정하기 전에 여러 자료나 사례를 찾아보고 비교해 보는 과정을 중요하게 생각해요.",
       "supporting_trait_ids": [
         "information_comparison"
       ]
     },
     {
-      "text": "의견이 충돌할 때는 기준을 세워 공평하게 조율하려는 노력이 관찰돼요.",
+      "text": "여러 의견이 충돌할 때는 기준을 세워 조율하면서 모두가 납득할 수 있는 방향으로 맞추고 싶어요.",
       "supporting_trait_ids": [
         "opinion_mediation"
       ]
     },
     {
-      "text": "여러 사례에서 공통점을 찾아내고 흐름을 정리하는 데 관심을 가지는 편이에요.",
+      "text": "다양한 사례를 살펴보면서 공통점이나 규칙을 찾아내어 정리하는 걸 좋아해요.",
       "supporting_trait_ids": [
         "pattern_finding"
       ]
@@ -49,9 +49,9 @@
   "hashtags": [
     "#협업중시",
     "#시각적표현",
-    "#사용자중심",
-    "#유연한적응",
-    "#자료비교",
+    "#관점배려",
+    "#유연한대응",
+    "#정보탐색",
     "#의견조율"
   ],
   "disclaimer": "현재 답변을 바탕으로 만든 요약이며 새로운 경험과 답변에 따라 달라질 수 있습니다.",
@@ -59,7 +59,7 @@
     "사용자·타인 관점": [
       {
         "context_id": "game",
-        "description": "다른 플레이어들이 내 행동이나 결과를 어떻게 받아들일지 생각해본다"
+        "description": "다른 사람들이 어떻게 반응할지 생각한다"
       },
       {
         "context_id": "media",
@@ -69,15 +69,15 @@
     "협업과 조정": [
       {
         "context_id": "game",
-        "description": "친구나 다른 사람들의 의견을 물어본다"
+        "description": "다른 사람들과 의견을 주고받으며 계획을 세운다"
       },
       {
         "context_id": "game",
-        "description": "내 생각과 남의 의견 중에서 균형을 맞춘다"
+        "description": "친구나 커뮤니티의 의견을 먼저 참고한다"
       },
       {
         "context_id": "media",
-        "description": "팀원들과 함께 사용 방법을 알아본다"
+        "description": "친구나 팀원과 상의해 함께 활용 방법을 모색한다"
       },
       {
         "context_id": "school_life",
@@ -85,57 +85,57 @@
       },
       {
         "context_id": "school_life",
-        "description": "먼저 의견을 조율하기 위해 모두와 대화를 나눈다"
+        "description": "다 함께 모여 역할 분담을 정한다"
       },
       {
         "context_id": "school_life",
-        "description": "서로 다른 의견이 잘 조율되는지 관심을 가진다"
+        "description": "친구들의 의견을 듣고 도구 활용 방안을 함께 조율한다"
       }
     ],
     "계획과 실행": [
       {
         "context_id": "game",
-        "description": "다른 공략 방법으로 전략을 바꿔본다."
+        "description": "새로운 방법을 시도해 전략을 바꾼다"
       },
       {
         "context_id": "media",
-        "description": "최근 트렌드 변화를 반영해 기획 방향을 조정한다"
+        "description": "새로운 상황에 맞게 계획을 바꿔본다"
       }
     ],
     "창의적 표현": [
       {
         "context_id": "game",
-        "description": "도구가 게임 화면에서 어떻게 보일지 살펴본다"
+        "description": "도구로 만들어낼 수 있는 그래픽을 먼저 확인한다"
       },
       {
         "context_id": "media",
-        "description": "화면 구성이나 장면 연출을 다시 살펴본다"
+        "description": "시각적 요소나 디자인이 어떻게 영향을 미쳤는지 살펴본다"
       },
       {
         "context_id": "school_life",
-        "description": "그룹 구성원들이 작성한 자료의 시각 자료들을 자세히 본다"
+        "description": "관련 자료나 정보의 그림이나 도표를 살펴본다"
       }
     ],
     "분석과 구조화": [
       {
         "context_id": "media",
-        "description": "내용이나 장면에서 반복되는 흐름과 특징을 찾아본다"
+        "description": "자주 반복되는 주제나 스타일을 찾아본다"
       },
       {
         "context_id": "school_life",
-        "description": "비슷한 상황에서 했던 방식을 참고한다"
+        "description": "이전 경험에서 유사한 상황을 찾아 해결법을 적용한다"
       }
     ],
     "정보 탐색과 비교": [
       {
         "context_id": "media",
-        "description": "다양한 자료나 사례를 찾아서 비교해 본다"
+        "description": "다양한 출처의 정보를 찾아서 비교한다"
       },
       {
         "context_id": "school_life",
-        "description": "관련 자료나 정보를 찾아서 비교해본다"
+        "description": "비슷한 사례나 정보를 찾아본다"
       }
     ]
   },
-  "generated_at": "2026-08-22T10:42:56.445474"
+  "generated_at": "2026-08-22T10:46:08.225762"
 }

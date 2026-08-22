@@ -5,11 +5,16 @@ TraceClient Protocol을 만족시켜서 Tracer의 fail-open·Sanitizer 적용을
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
+from uuid import UUID
 
+from src.ids import generate_trace_id
 from src.tracing.protocols import TraceError
 from src.tracing.sanitizer import ALLOWED_TRACE_ATTRIBUTE_KEYS, sanitize_trace_attributes
-from src.tracing.settings import TracingSettingsError, load_tracing_settings, tracing_enabled
+from src.tracing.settings import TracingSettings, TracingSettingsError, load_tracing_settings, tracing_enabled
 from src.tracing.tracer import Tracer
+
+_FAKE_TRACE_ID = "9f8b6b0a-9f1a-4b3a-8e77-4b8c2b6a1234"
 
 
 class LoadTracingSettingsTest(unittest.TestCase):
@@ -110,13 +115,13 @@ class TracerTest(unittest.TestCase):
     def test_none_client_is_a_safe_no_op(self) -> None:
         tracer = Tracer(client=None)
         # 예외 없이 조용히 넘어가야 한다 — assertRaises가 아니라 "호출해도 안 터짐"이 검증 대상.
-        tracer.record_stage(trace_id="trace_1", stage_name="Target Planner", attributes={"stop_reason": "CONTINUE"})
+        tracer.record_stage(trace_id=_FAKE_TRACE_ID, stage_name="Target Planner", attributes={"stop_reason": "CONTINUE"})
 
     def test_records_run_with_sanitized_attributes(self) -> None:
         fake = _FakeTraceClient()
         tracer = Tracer(client=fake)
         tracer.record_stage(
-            trace_id="trace_1",
+            trace_id=_FAKE_TRACE_ID,
             stage_name="Evidence Update",
             attributes={"context_id": "game", "free_text_answer": "학생이 실제로 쓴 문장"},
         )
@@ -131,9 +136,62 @@ class TracerTest(unittest.TestCase):
         fake = _FakeTraceClient(should_fail=True)
         tracer = Tracer(client=fake)
         try:
-            tracer.record_stage(trace_id="trace_1", stage_name="Question Generator", attributes={})
+            tracer.record_stage(trace_id=_FAKE_TRACE_ID, stage_name="Question Generator", attributes={})
         except Exception as exc:  # pragma: no cover - 실패하면 바로 테스트 실패로 보고
             self.fail(f"Tracer가 Client 예외를 삼키지 않고 전파함(fail-open 위반): {exc}")
+
+
+class GenerateTraceIdIsAParsableUuidTest(unittest.TestCase):
+    """2026-08-22 리뷰: 예전엔 "trace_<hex>" 접두사 문자열이라 LangSmith SDK의 UUID
+    타입 Run.trace_id 검증에 걸릴 수 있었다 — 이제 순수 UUID여야 한다."""
+
+    def test_generated_trace_id_parses_as_uuid(self) -> None:
+        trace_id = generate_trace_id()
+        parsed = UUID(trace_id)  # 파싱 실패하면 ValueError로 테스트가 바로 실패한다
+        self.assertEqual(str(parsed), trace_id)
+
+    def test_generated_trace_id_has_no_prefix(self) -> None:
+        trace_id = generate_trace_id()
+        self.assertFalse(trace_id.startswith("trace_"))
+
+    def test_two_calls_produce_different_ids(self) -> None:
+        self.assertNotEqual(generate_trace_id(), generate_trace_id())
+
+
+class LangSmithAdapterSendsUuidTraceIdTest(unittest.TestCase):
+    """실제 네트워크 호출 없이(langsmith.Client.create_run을 Mock으로 가로채서) Adapter가
+    실제로 UUID 형식 trace_id와 Sanitizer를 거친 attributes만 보내는지 확인한다."""
+
+    def test_create_run_receives_uuid_trace_id_and_sanitized_inputs_only(self) -> None:
+        from src.tracing.langsmith_client import LangSmithTraceClient
+
+        settings = TracingSettings(api_key="ls-fake-key-for-test", project="career-agent-test")
+        with patch("langsmith.Client.create_run") as mock_create_run:
+            client = LangSmithTraceClient(settings)
+            trace_id = generate_trace_id()
+            sanitized_attributes = sanitize_trace_attributes(
+                {"context_id": "game", "free_text_answer": "학생이 실제로 쓴 문장(반드시 걸러졌어야 함)"}
+            )
+            client.record_run(
+                trace_id=trace_id, name="Evidence Update", run_type="chain", attributes=sanitized_attributes
+            )
+
+        mock_create_run.assert_called_once()
+        kwargs = mock_create_run.call_args.kwargs
+        self.assertIsInstance(kwargs["trace_id"], UUID)
+        self.assertEqual(str(kwargs["trace_id"]), trace_id)
+        self.assertEqual(kwargs["inputs"], {"context_id": "game"})
+        self.assertNotIn("free_text_answer", str(kwargs["inputs"]))
+
+    def test_invalid_trace_id_raises_trace_error_instead_of_silently_failing(self) -> None:
+        from src.tracing.langsmith_client import LangSmithTraceClient
+
+        settings = TracingSettings(api_key="ls-fake-key-for-test", project="career-agent-test")
+        client = LangSmithTraceClient(settings)
+        with self.assertRaises(TraceError):
+            client.record_run(
+                trace_id="not-a-uuid", name="Evidence Update", run_type="chain", attributes={}
+            )
 
 
 if __name__ == "__main__":

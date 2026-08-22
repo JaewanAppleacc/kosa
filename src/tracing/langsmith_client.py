@@ -5,7 +5,7 @@ Adapter이므로 얇게 유지한다(src/llm/openai_client.py와 동일한 원�
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from langsmith import Client
 
@@ -27,10 +27,15 @@ class LangSmithTraceClient:
         attributes: dict[str, object],
     ) -> None:
         try:
+            # 2026-08-22 리뷰: LangSmith SDK의 Run.trace_id는 UUID 타입이다 — 문자열을
+            # 그대로 넘기면 서버가 조용히 거부할 수 있다(fail-open이라 서비스는 안 끊기지만
+            # Trace가 하나도 안 쌓이는 소리 없는 실패). 여기서 명시적으로 파싱해서, 형식이
+            # 잘못된 trace_id는 TraceError로 바로 드러나게 한다.
+            trace_uuid = UUID(trace_id)
             now = datetime.now(timezone.utc)
             self._client.create_run(
                 id=uuid4(),
-                trace_id=trace_id,
+                trace_id=trace_uuid,
                 name=name,
                 run_type=run_type,
                 project_name=self._project,
