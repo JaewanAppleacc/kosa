@@ -468,6 +468,7 @@
     "/subgraph/{session_id}": {
       "get": {
         "summary": "Get Subgraph",
+        "description": "2026-08-28 19차 리뷰: 더 이상 `mock_data.mock_subgraph()`의 고정 5개 Node가 아니다.\n`KnowledgeSubgraphService`가 이 세션의 실제 Trait·대표 전공·학과·(확정됐다면) 추천\n과목으로 Node·Edge를 계산한다 — 이 Handler는 세션 조회·Service 호출·응답 변환·오류\n코드 매핑만 한다. 성공하면 §10의 Sanitizer를 거친 LangSmith Trace를 남긴다(node_count\n등 개수 요약만 — session_id·학생 답변 원문은 Allowlist에 아예 없어 샐 수 없다).",
         "operationId": "get_subgraph_subgraph__session_id__get",
         "parameters": [
           {

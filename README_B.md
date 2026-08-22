@@ -1,6 +1,29 @@
-# B 작업자 핸드오프 — 2026-08-28 (갱신)
+# B 작업자 핸드오프 — 2026-08-29 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-29 갱신 내용 — `GET /subgraph/{session_id}` 실제 계산으로 교체 (19차, API Request/Response Schema 변경 없음)**:
+> 1. **더 이상 고정 5개 Node짜리 Mock이 아닙니다.** 이 세션의 실제 답변→Trait→대표
+>    전공→실제 학과·대학, (확정했다면) →추천 과목까지 실제 근거로 계산한 그래프를
+>    돌려줍니다. `SubgraphNode`/`SubgraphEdge` 필드 자체는 그대로입니다 — 값만
+>    Mock에서 실제 계산으로 바뀌었습니다.
+> 2. **아직 답변이 하나도 없으면 200 대신 422 `EVIDENCE_NOT_READY`입니다**(`/profile`과
+>    동일한 기준). 답변은 있지만 아직 학교 개설과목을 확정하지 않았으면 200과 함께
+>    Trait·전공·학과까지만 있는 **부분 그래프**를 정상 반환합니다(과목 Node가 없는 게
+>    정상입니다 — 오류가 아닙니다).
+> 3. **`POST /course/confirm`까지 마친 뒤에만 과목 Node(`HighSchoolSubject`)가
+>    포함됩니다.** 그 전에는 아무리 다시 조회해도 과목 Node가 나오지 않습니다.
+> 4. **`relation_type="RELATED_TO"`는 여전히 "추론된 연관성"입니다.** 학과·대학·과목
+>    연결(`HAS_DEPARTMENT`/`BELONGS_TO`/`RECOMMENDS`)은 확정된 구조적 관계지만,
+>    Trait↔전공·Trait↔과목을 잇는 `RELATED_TO`는 공식 근거 기반이어도 여전히
+>    "확정 관찰"이 아니라 "연관성"이라 화면에서는 점선으로 표현해주세요(기존 Schema
+>    문서 그대로).
+> 5. **`relevance_level`(1~3)을 학생에게 숫자로 보여주지 마세요.** 화면 문구에는 절대
+>    쓰지 말고, 선 굵기·투명도처럼 시각적 강조 정도로만 써주세요 — 다른 API의 정성
+>    Label 원칙(§7)과 같은 이유입니다.
+> 6. **B는 Node·Edge를 계산하지 않습니다.** `KnowledgeSubgraphService`(서버)가 전부
+>    계산해서 내려줍니다 — 화면은 받은 그래프를 그대로 렌더링만 하면 됩니다. Obsidian
+>    Export는 이번 라운드에서 건드리지 않았습니다(B 소유, 그대로).
 
 > **2026-08-28 갱신 내용 — 편제표 열 제목 잡음 제거 (18차, API Request/Response Schema 변경 없음)**:
 > 1. **`"교과(군)"` 같은 편제표 열 제목이 더 이상 `unmatched` 후보로 노출되지 않습니다.**
@@ -194,7 +217,7 @@ python3 -m venv .venv
 | Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
 | Subjects 조회 (`/subjects/{session_id}`) | ✅ 실제 PRE_SURVEY + POST_OFFERING 추천(§20) — `selected_major_id` Query Parameter 필수. `/course/confirm`을 마쳤으면 자동으로 POST_OFFERING 결과가 나옵니다(응답의 `source` 필드로 구분). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
 | 과목 업로드·확정 (`/course/upload`, `/course/confirm`) | ✅ 실제 Parser 연결 + 실제 확정 검증(§20). PDF/XLSX만 지원(XLS 제외). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
-| Subgraph 조회 | ⚠️ 아직 고정 Mock |
+| Subgraph 조회 (`/subgraph/{session_id}`) | ✅ 실제 계산(§23) — 답변이 하나도 없으면 `EVIDENCE_NOT_READY`, 과목 미확정이면 Trait·전공·학과까지만(부분 그래프), `/course/confirm` 완료 후에는 과목 Node까지 포함한 전체 그래프. 위 2026-08-29 갱신 내용을 꼭 읽어주세요. |
 | 전국 학과 Master, 입결 필터·정렬 | ⚠️ 아직 미완성 (`schl_id`/`department_id` 일부가 대학알리미 API Key 발급 전 임시값 — 장기 저장 대상 아님) |
 
 **질문 생성과 Profile 문장 생성만 로컬 LLM 설정에 따라 달라지고, 그 외 계산(Evidence·Trait·Matching)은 전부 실제로 동작합니다.** 화면에서 "LLM 켜짐/꺼짐"을 구분할 필요는 없습니다 — 응답 Schema(필드 이름·타입)가 동일해서 화면 코드는 그대로 씁니다.
@@ -217,7 +240,7 @@ python3 -m venv .venv
 | GET | `/subjects/{session_id}?selected_major_id={major_id}` | PRE_SURVEY 또는 POST_OFFERING(확정 여부에 따라 자동 분기) 과목 추천 결과. `selected_major_id` 필수 |
 | POST | `/course/upload` | 학교 PDF·XLSX 업로드 — `multipart/form-data`, `session_id`(Form) + `selected_major_id`(Form) + `file`(File). PDF/XLSX 외 형식(XLS 포함)은 422 `VALIDATION_ERROR`, 문서를 못 읽으면 422 `PARSE_FAILED` |
 | POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 — 성공하면 POST_OFFERING `course_profile`을 함께 반환 |
-| GET | `/subgraph/{session_id}` | 관계 그래프 (Trait–전공–학과–과목) |
+| GET | `/subgraph/{session_id}` | 실제 근거 그래프 (학생–Trait–전공–학과·대학–과목). 답변 없으면 422 `EVIDENCE_NOT_READY`, 과목 미확정이면 부분 그래프(아래 4-2 참고) |
 | GET | `/session/{session_id}` | Session 복원 |
 
 ## 4. 화면에서 써야 하는 상태값 (하드코딩하지 말고 이 목록을 그대로 쓰세요)
@@ -226,7 +249,7 @@ python3 -m venv .venv
 `GENERATED` / `REGENERATING` / `CACHE_USED` / `BACKUP_USED` / `CONTEXT_EARLY_TERMINATED`
 
 **오류 코드** (`APIError.error_code`, 404 등에서 `detail`에 담겨 옴):
-`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY` / `MAJOR_NOT_SELECTABLE`(`GET /subjects`·`POST /course/upload` 공통) / `PARSE_FAILED`(신규, `POST /course/upload` 전용 — 문서를 읽지 못함) / `COURSE_UPLOAD_NOT_FOUND`(신규, `POST /course/confirm` 전용, 404 — 이 세션이 아직 업로드를 안 거쳤음)
+`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY`(`GET /profile`·`GET /subjects`·`POST /course/upload`·`GET /subgraph` 공통 — 2026-08-29: `/subgraph`도 답변이 하나도 없으면 이 코드를 반환합니다, 새 코드가 아니라 기존 코드를 재사용) / `MAJOR_NOT_SELECTABLE`(`GET /subjects`·`POST /course/upload` 공통) / `PARSE_FAILED`(`POST /course/upload` 전용 — 문서를 읽지 못함) / `COURSE_UPLOAD_NOT_FOUND`(`POST /course/confirm` 전용, 404 — 이 세션이 아직 업로드를 안 거쳤음)
 
 > ⚠️ **`/profile/{session_id}` 하위 호환 아닌 변경**: 답변을 하나도 제출하지 않은 세션에서
 > `/profile`을 호출하면 이제 200 대신 **422 + `EVIDENCE_NOT_READY`**를 반환합니다(예전엔
@@ -344,6 +367,58 @@ POST /course/confirm
 > 어디에도 나타나지 않습니다 — 화면에서 이런 값을 별도로 필터링할 필요는 없습니다.
 > 반대로 `unmatched`는 사용자가 직접 확인해야 하는 값이라는 뜻이고, 현재는 이 값을
 > 수동으로 canonical `subject_id`에 연결하는 API가 아직 없습니다(위 문단의 "향후 과제").
+
+## 4-2. Subgraph 조회 흐름 (실제 예시, 2026-08-29)
+
+```
+GET /subgraph/{session_id}
+```
+
+`outputs/mock_api/subgraph_normal.json`이 실제 예시입니다(과목 확정까지 마친 세션 기준
+— 전체 그래프). 응답 형태는 기존 `SubgraphResponse` 그대로입니다:
+
+```json
+{
+  "session_id": "sess_...",
+  "nodes": [
+    {"node_id": "student_1", "node_type": "Student", "label": "학생"},
+    {"node_id": "trait_causal_analysis", "node_type": "Trait", "label": "원인 분석"},
+    {"node_id": "major_industrial_engineering", "node_type": "CanonicalMajor", "label": "산업공학"},
+    {"node_id": "dept_...", "node_type": "Department", "label": "산업경영공학과"},
+    {"node_id": "univ_...", "node_type": "University", "label": "경희대학교"},
+    {"node_id": "subj_...", "node_type": "HighSchoolSubject", "label": "정보"}
+  ],
+  "edges": [
+    {"source_node_id": "student_1", "target_node_id": "trait_causal_analysis", "relation_type": "HAS_TRAIT", "relevance_level": 3, "evidence_ids": ["ev_..."], "source_ids": [], "mapping_version": "v1", "created_at": "..."},
+    {"source_node_id": "trait_causal_analysis", "target_node_id": "major_industrial_engineering", "relation_type": "RELATED_TO", "relevance_level": 3, "evidence_ids": ["major_trait:..."], "source_ids": ["https://..."], "mapping_version": "major_trait_mapping_v1", "created_at": "..."},
+    {"source_node_id": "major_industrial_engineering", "target_node_id": "dept_...", "relation_type": "HAS_DEPARTMENT", "relevance_level": 3, "mapping_version": "v1", "created_at": "..."},
+    {"source_node_id": "dept_...", "target_node_id": "univ_...", "relation_type": "BELONGS_TO", "relevance_level": 3, "mapping_version": "v1", "created_at": "..."},
+    {"source_node_id": "major_industrial_engineering", "target_node_id": "subj_...", "relation_type": "RECOMMENDS", "relevance_level": 3, "mapping_version": "v1", "created_at": "..."}
+  ]
+}
+```
+
+읽는 법:
+
+- **호출 시점에 따라 그래프 범위가 다릅니다.** 답변이 하나도 없으면 이 API 자체가 422
+  `EVIDENCE_NOT_READY`입니다. 답변은 있지만 아직 `/course/confirm`을 안 거쳤으면
+  `HighSchoolSubject` Node·`RECOMMENDS` Edge가 아예 없는 부분 그래프가 200으로 옵니다
+  — 이건 오류가 아니라 "아직 과목 단계까지 안 왔다"는 정상 상태입니다. 화면에서
+  과목 영역을 빈 상태(또는 "학교 편제표를 업로드하면 과목까지 표시됩니다" 안내)로
+  보여주세요.
+- **`relation_type`으로 실선/점선을 구분해주세요.** `HAS_TRAIT`/`HAS_DEPARTMENT`/
+  `BELONGS_TO`/`RECOMMENDS`는 확정된 구조적 관계(실선). `RELATED_TO`(Trait↔전공,
+  Trait↔과목)는 공식 근거가 있어도 여전히 "추론된 연관성"이라 점선으로 표현해주세요
+  (기존 `src/schemas/graph.py` docstring 그대로, 이번에 안 바뀜).
+- **`relevance_level`(1~3)은 학생에게 숫자로 보여주지 마세요.** 선 굵기·투명도 같은
+  시각적 강조에만 쓰세요 — 다른 API의 정성 Label 원칙과 같습니다.
+- **`evidence_ids`/`source_ids`는 내부 추적용 값입니다.** `evidence_ids`는
+  `HAS_TRAIT`에서는 실제 Evidence 식별자, `RELATED_TO`에서는 Mapping 식별 문자열이고,
+  `source_ids`는 공식 근거 URL입니다 — 화면에 그대로 노출해도 되지만("근거 보기" 같은
+  보조 UI에 적합) 학생용 핵심 문구로 가공해서 보여줄 필요는 없습니다.
+- **B는 이 Node·Edge를 다시 계산하지 않습니다.** 서버(`KnowledgeSubgraphService`)가
+  전부 계산해서 내려주므로, 화면은 받은 그래프를 그대로 그리기만 하면 됩니다. Obsidian
+  Export 변환은 B 소유 그대로이고 이번 라운드에서 A가 건드리지 않았습니다.
 
 ## 5. Mock JSON (서버 안 띄워도 되는 정적 파일)
 

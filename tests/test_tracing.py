@@ -150,6 +150,44 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
         attributes = {"context_id": "game", "frame_id": "new_tool", "role_id": "advance_planning"}
         self.assertEqual(sanitize_trace_attributes(attributes), attributes)
 
+    def test_knowledge_subgraph_extractor_counts_are_preserved(self) -> None:
+        """2026-08-28 19차 리뷰 §10: Knowledge Subgraph Extractor Stage가 남기는 개수
+        요약 메타데이터만 허용한다."""
+
+        attributes = {
+            "node_count": 12, "edge_count": 20, "trait_node_count": 4, "major_node_count": 2,
+            "department_node_count": 3, "subject_node_count": 2, "has_confirmed_course_profile": True,
+        }
+        self.assertEqual(sanitize_trace_attributes(attributes), attributes)
+
+    def test_knowledge_subgraph_extractor_counts_reject_negative_or_non_int(self) -> None:
+        self.assertEqual(sanitize_trace_attributes({"node_count": -1}), {})
+        self.assertEqual(sanitize_trace_attributes({"node_count": 1.5}), {})
+        self.assertEqual(sanitize_trace_attributes({"node_count": "12"}), {})
+
+    def test_has_confirmed_course_profile_only_accepts_bool(self) -> None:
+        self.assertEqual(
+            sanitize_trace_attributes({"has_confirmed_course_profile": False}),
+            {"has_confirmed_course_profile": False},
+        )
+        self.assertEqual(sanitize_trace_attributes({"has_confirmed_course_profile": "true"}), {})
+
+    def test_session_id_and_raw_answer_text_have_no_allowlisted_key(self) -> None:
+        """session_id/학생 답변 원문/질문 원문은 Key 자체가 Allowlist에 없어 어떤 값을
+        보내도 구조적으로 샐 수 없다."""
+
+        self.assertEqual(
+            sanitize_trace_attributes(
+                {
+                    "session_id": "sess_00000000000000000000000000000000",
+                    "user_id": "demo_user_01",
+                    "student_answer_text": "학생이 실제로 고른 선택지 문장",
+                    "question_text": "질문 원문",
+                }
+            ),
+            {},
+        )
+
 
 class _FakeTraceClient:
     """TraceClient Protocol을 만족하는 테스트용 대역 — 실제 LangSmith 호출 없음."""

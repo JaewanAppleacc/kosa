@@ -15,6 +15,7 @@ LLM·LangSmith 네트워크 호출을 절대 하지 않는다(실행할 때마�
 
 from __future__ import annotations
 
+import itertools
 import json
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +23,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import src.agents.assessment.graph.answer_graph as answer_graph_module
 import src.agents.assessment.profile_generator as profile_generator_module
 import src.api.main as main_module
 import src.api.mock_data as mock_data_module
@@ -42,6 +44,22 @@ def _write(name: str, payload: dict) -> None:
     print(f"wrote {path.relative_to(OUT_DIR.parent.parent)}")
 
 
+def _deterministic_evidence_id_generator():
+    """2026-08-28 19차 리뷰: `GET /subgraph`가 `SubgraphEdge.evidence_ids`에 실제
+    `EvidenceRecord.evidence_id`(`generate_evidence_id()` = `uuid.uuid4()` 기반)를 그대로
+    노출하게 되면서, 이 값이 재실행마다 달라져 Mock JSON diff가 의미 없이 생겼다 —
+    `generate_session_id`를 고정하는 것과 같은 이유로, 이 스크립트 실행 동안만 순번
+    기반 결정론적 값으로 바꾼다(매 `main()` 호출마다 새 Generator라 두 번 실행해도 항상
+    같은 순서로 같은 값이 나온다). 실제 서버는 계속 `uuid.uuid4()`를 쓴다."""
+
+    counter = itertools.count(1)
+
+    def _generate() -> str:
+        return f"ev_{next(counter):032x}"
+
+    return _generate
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -50,8 +68,14 @@ def main() -> None:
         patch.object(main_module, "_llm_client", None),
         patch.object(main_module, "_tracer", Tracer(client=None)),
         patch.object(main_module, "generate_session_id", lambda: _FIXED_SESSION_ID),
+        patch.object(answer_graph_module, "generate_evidence_id", _deterministic_evidence_id_generator()),
         patch.object(profile_generator_module, "datetime") as mock_datetime,
         patch.object(mock_data_module, "datetime") as mock_data_datetime,
+        # 2026-08-28 19차 리뷰: GET /subgraph는 더 이상 mock_data.mock_subgraph()를 쓰지
+        # 않는다 — KnowledgeSubgraphService가 SubgraphEdge.created_at을 생성자 Clock으로
+        # 만든다(§8 "created_at은 Clock을 주입해 테스트에서 고정할 수 있게" 그대로). 이
+        # 스크립트도 같은 이유로 고정 Clock을 주입해야 재실행해도 diff가 안 생긴다.
+        patch.object(main_module._knowledge_subgraph_service, "_clock", lambda: _FIXED_GENERATED_AT),
     ):
         mock_datetime.now.return_value = _FIXED_GENERATED_AT
         mock_data_datetime.now.return_value = _FIXED_GENERATED_AT

@@ -13,7 +13,6 @@ from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
 from src.ids import generate_option_id
 from src.schemas.course import CourseProfile, CourseRecommendationItem, ParsedSubjectCandidate
-from src.schemas.graph import SubgraphEdge, SubgraphNode
 from src.schemas.major import AdmissionReference, Department
 from src.schemas.question import FinalizedOption, FinalizedQuestion, SeedQuestion
 from src.schemas.retrieval import RetrievedDocument
@@ -198,50 +197,10 @@ def mock_course_profile(session_id: str) -> CourseProfile:
     )
 
 
-def mock_subgraph(session_id: str) -> tuple[list[SubgraphNode], list[SubgraphEdge]]:
-    nodes = [
-        SubgraphNode(node_id="student_1", node_type="Student", label="학생"),
-        SubgraphNode(node_id="trait_causal_analysis", node_type="Trait", label="원인 분석"),
-        SubgraphNode(node_id="dim_analysis", node_type="CareerDimension", label="분석과 구조화"),
-        SubgraphNode(node_id="major_media_communication", node_type="CanonicalMajor", label="미디어커뮤니케이션"),
-        SubgraphNode(node_id="dept_mock0000000000000001", node_type="Department", label="예시대학교 미디어커뮤니케이션학과"),
-    ]
-    edges = [
-        SubgraphEdge(
-            source_node_id="student_1",
-            target_node_id="trait_causal_analysis",
-            relation_type="HAS_TRAIT",
-            relevance_level=3,
-            evidence_ids=["ev_1", "ev_2", "ev_3"],
-            mapping_version="v1",
-            created_at=datetime.now(),
-        ),
-        SubgraphEdge(
-            source_node_id="trait_causal_analysis",
-            target_node_id="dim_analysis",
-            relation_type="GROUPED_AS",
-            relevance_level=3,
-            mapping_version="v1",
-            created_at=datetime.now(),
-        ),
-        SubgraphEdge(
-            source_node_id="trait_causal_analysis",
-            target_node_id="major_media_communication",
-            relation_type="RELATED_TO",
-            relevance_level=2,
-            mapping_version="v1",
-            created_at=datetime.now(),
-        ),
-        SubgraphEdge(
-            source_node_id="major_media_communication",
-            target_node_id="dept_mock0000000000000001",
-            relation_type="HAS_DEPARTMENT",
-            relevance_level=3,
-            mapping_version="v1",
-            created_at=datetime.now(),
-        ),
-    ]
-    return nodes, edges
+# 2026-08-28 19차 리뷰: mock_subgraph()는 삭제했다 — GET /subgraph/{session_id}가
+# KnowledgeSubgraphService(src/services/knowledge_subgraph_service.py)의 실제 계산으로
+# 완전히 교체돼 더 이상 이 함수를 호출하는 곳이 없다(테스트·Mock JSON 생성 스크립트
+# 포함, 삭제 전 전부 확인함).
 
 
 VERTICAL_SLICE_PROCESSING_ORDER: list[str] = list(VERTICAL_SLICE_CONTEXT_IDS)

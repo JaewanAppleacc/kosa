@@ -89,7 +89,13 @@ from src.services.course_planning_service import (
     MajorNotSelectableError,
 )
 from src.services.department_recommendation_scope import JsonlDepartmentRecommendationScopePolicy
+from src.services.knowledge_subgraph_service import (
+    KnowledgeSubgraphService,
+    SubgraphEvidenceNotReadyError,
+)
 from src.services.major_exploration_service import MajorExplorationService
+from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
+from src.services.subject_trait_mapping_evidence import load_subject_trait_mapping_evidence
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
 from src.tracing.settings import TracingSettingsError, load_tracing_settings, tracing_enabled
@@ -245,6 +251,21 @@ _course_document_parsing_service = CourseDocumentParsingService(
     _subject_repository,
     _course_planning_service,
     _course_planning_store,
+)
+
+# 2026-08-28 19차 리뷰: GET /subgraph/{session_id} — 실제 Knowledge Subgraph. Major/
+# Subject-Trait Mapping Evidence도 학과·과목 Repository와 같은 패턴으로 앱 시작 시 한 번만
+# 읽는다(파일이 없으면 빈 리스트 — build 스크립트가 아니라 런타임이므로 여기선 경고만
+# 남기지 않는다, MajorProfile Vector 자체가 이미 이 파일로 만들어졌으므로 있는 게 정상).
+_knowledge_subgraph_service = KnowledgeSubgraphService(
+    major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
+    trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+    major_trait_records=load_major_trait_mapping_evidence(),
+    subject_trait_records=load_subject_trait_mapping_evidence(),
+    major_exploration_service=_major_exploration_service,
+    course_planning_service=_course_planning_service,
+    course_planning_store=_course_planning_store,
+    subject_repository=_subject_repository,
 )
 
 
@@ -839,8 +860,35 @@ def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResp
 
 @app.get("/subgraph/{session_id}", response_model=SubgraphResponse)
 def get_subgraph(session_id: str) -> SubgraphResponse:
-    _get_state_or_404(session_id)
-    nodes, edges = mock_data.mock_subgraph(session_id)
+    """2026-08-28 19차 리뷰: 더 이상 `mock_data.mock_subgraph()`의 고정 5개 Node가 아니다.
+    `KnowledgeSubgraphService`가 이 세션의 실제 Trait·대표 전공·학과·(확정됐다면) 추천
+    과목으로 Node·Edge를 계산한다 — 이 Handler는 세션 조회·Service 호출·응답 변환·오류
+    코드 매핑만 한다. 성공하면 §10의 Sanitizer를 거친 LangSmith Trace를 남긴다(node_count
+    등 개수 요약만 — session_id·학생 답변 원문은 Allowlist에 아예 없어 샐 수 없다)."""
+
+    state = _get_state_or_404(session_id)
+    try:
+        nodes, edges = _knowledge_subgraph_service.build(state)
+    except SubgraphEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Knowledge Subgraph Extractor",
+        attributes={
+            "graph_node": "knowledge_subgraph_extractor",
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "trait_node_count": sum(1 for n in nodes if n.node_type == "Trait"),
+            "major_node_count": sum(1 for n in nodes if n.node_type == "CanonicalMajor"),
+            "department_node_count": sum(1 for n in nodes if n.node_type == "Department"),
+            "subject_node_count": sum(1 for n in nodes if n.node_type == "HighSchoolSubject"),
+            "has_confirmed_course_profile": any(n.node_type == "HighSchoolSubject" for n in nodes),
+        },
+    )
     return SubgraphResponse(session_id=session_id, nodes=nodes, edges=edges)
 
 

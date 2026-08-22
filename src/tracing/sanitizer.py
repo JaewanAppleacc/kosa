@@ -125,6 +125,16 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "quality_gate_result": _allow_none(lambda v: v in _ALLOWED_GATE_RESULTS),
     "prompt_version": _allow_none(_is_short_token),
     "model": _allow_none(_is_short_token),
+    # 2026-08-28 19차 리뷰: Knowledge Subgraph Extractor Stage(§10) — Node·Edge 개수
+    # 요약만 허용한다. session_id/user_id/학생 답변 원문/질문 원문/과목 문서 원문·추천
+    # 이유 전문은 애초에 이 Allowlist에 Key 자체가 없으므로 구조적으로 샐 수 없다.
+    "node_count": _is_nonneg_int,
+    "edge_count": _is_nonneg_int,
+    "trait_node_count": _is_nonneg_int,
+    "major_node_count": _is_nonneg_int,
+    "department_node_count": _is_nonneg_int,
+    "subject_node_count": _is_nonneg_int,
+    "has_confirmed_course_profile": _is_bool,
 }
 
 ALLOWED_TRACE_ATTRIBUTE_KEYS: frozenset[str] = frozenset(_VALUE_VALIDATORS.keys())
