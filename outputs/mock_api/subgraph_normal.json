@@ -1,5 +1,5 @@
 {
-  "session_id": "sess_fc116e7c44ae44ef88f25eaa5946372f",
+  "session_id": "sess_0c539bc99b2f4003a6b27c0655476eac",
   "nodes": [
     {
       "node_id": "student_1",
@@ -40,7 +40,7 @@
       ],
       "source_ids": [],
       "mapping_version": "v1",
-      "created_at": "2026-08-22T09:48:47.483003"
+      "created_at": "2026-08-22T09:57:25.585494"
     },
     {
       "source_node_id": "trait_causal_analysis",
@@ -50,7 +50,7 @@
       "evidence_ids": [],
       "source_ids": [],
       "mapping_version": "v1",
-      "created_at": "2026-08-22T09:48:47.483035"
+      "created_at": "2026-08-22T09:57:25.585523"
     },
     {
       "source_node_id": "trait_causal_analysis",
@@ -60,7 +60,7 @@
       "evidence_ids": [],
       "source_ids": [],
       "mapping_version": "v1",
-      "created_at": "2026-08-22T09:48:47.483042"
+      "created_at": "2026-08-22T09:57:25.585527"
     },
     {
       "source_node_id": "major_media_communication",
@@ -70,7 +70,7 @@
       "evidence_ids": [],
       "source_ids": [],
       "mapping_version": "v1",
-      "created_at": "2026-08-22T09:48:47.483048"
+      "created_at": "2026-08-22T09:57:25.585529"
     }
   ]
 }

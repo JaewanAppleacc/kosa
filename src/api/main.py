@@ -26,11 +26,14 @@ from src.agents.assessment.profile_generator import generate_career_profile
 from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
 from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
-from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_IDS
+from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
+from src.data.contexts.context_vectors import CONTEXT_VECTORS
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
+from src.engines.contrast_context_selector import select_contrast_context
 from src.engines.matching_engine import (
     compute_major_match,
     compute_student_trait_states,
@@ -179,17 +182,26 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
     state.selected_preferred_contexts = payload.selected_preferred_context_ids
     state.phase = AssessmentPhase.CONTRAST_PROPOSAL
     _store.save(state)
-    # Contrast Context 계산(§6-5)은 아직 미구현 — Mock으로 고정 응답
-    contrast_context_id = "business"
+    # §5-1/§6-5: 실제 계산 — 관심도 평가와 사전 정의된 Context Vector·Coverage Matrix만
+    # 사용한다(학생의 Trait 점수나 전공 순위는 절대 참조하지 않는다, CLAUDE.md).
+    selection = select_contrast_context(
+        preferred_context_ids=state.selected_preferred_contexts,
+        interest_ratings=state.interest_ratings,
+        all_context_ids=CONTEXT_IDS,
+        context_vectors=CONTEXT_VECTORS,
+        coverage_matrix=CONTEXT_TRAIT_COVERAGE,
+        all_trait_ids=VERTICAL_SLICE_TRAIT_IDS,
+        trait_labels=ALL_TRAIT_LABELS,
+    )
     _tracer.record_stage(
         trace_id=state.trace_id,
         stage_name="Context Selector",
-        attributes={"graph_node": "context_selector", "context_id": contrast_context_id},
+        attributes={"graph_node": "context_selector", "context_id": selection.contrast_context_id},
     )
     return ContextSelectResponse(
         session_id=state.session_id,
-        contrast_context_id=contrast_context_id,
-        contrast_reason="선택한 4개와 활동 방식 거리가 멀고, 부족한 Shared Trait를 보완합니다(Mock).",
+        contrast_context_id=selection.contrast_context_id,
+        contrast_reason=selection.contrast_reason,
         coverage_replacement_offered=[],
     )
 
