@@ -71,6 +71,16 @@ python3 -m venv .venv
 > 탭을 활성화"하는 흐름이면 원래 안 마주칠 상황이지만, 혹시 세션 생성 직후 Profile을
 > 미리 호출하는 코드가 있다면 이 오류를 처리해야 합니다. 예시: `outputs/mock_api/error_evidence_not_ready__hand_crafted.json`
 
+> ⚠️ **`/assessment/context-select`·`/assessment/context-confirm` 검증 강화(2026-08-22)**:
+> 필드 이름·타입은 그대로지만, 이제 서버가 입력을 실제로 검증합니다.
+> - `context-select`의 `selected_preferred_context_ids`가 비어 있거나, 중복이 있거나,
+>   알 수 없는 Context id를 포함하면 422 `VALIDATION_ERROR`.
+> - `context-confirm`의 `final_context_ids`도 동일하게 검증하고, 추가로 **아직 실제
+>   질문 흐름을 지원하는 Context가 game/media/school_life 3개뿐이라** 그 외 Context id는
+>   거부합니다(알려진 Context라도). 제안받은 Contrast 후보를 그대로 안 써도 되고, 학생이
+>   다른 유효한 조합으로 자유롭게 바꿔서 확정할 수 있습니다 — "제안한 것만 가능"으로
+>   강제하지 않습니다.
+
 **전공 관련도 정성 Label** (`MajorRelevance.relevance_label` — 절대 숫자 아님, 숫자 필드 자체가 없음):
 `"관련성 높음"` / `"함께 탐색해볼 분야"` / `"비교해볼 만한 분야"`
 

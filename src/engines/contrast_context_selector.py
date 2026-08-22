@@ -18,6 +18,44 @@ from src.schemas.context import ContextVector
 DISTANCE_WEIGHT = 0.6
 COVERAGE_WEIGHT = 0.4
 
+# 2026-08-22 리뷰: §5-1 FROZEN 설계는 "선호 Context 4개"를 요구하지만, Vertical Slice는
+# Context 자체가 3~15개 규모로 다르고 지금 실제로 쓰이는 흐름은 2~3개다. 지금 당장 4개를
+# 강제하면 기존 Vertical Slice 세션 흐름이 전부 깨진다 — "설정값 또는 실행 모드로
+# 분리"하라는 지시대로 최소 개수를 모드별 상수로 나눠두고, 지금은 Vertical Slice 값을
+# 쓴다. Full Mode 전환 시 이 상수만 바꾸면 된다(§5-1 자체 재구현은 이번 범위 밖).
+MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE = 2
+MINIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE = 4
+
+
+class ContextSelectionError(ValueError):
+    """Context 선택·확정 입력이 유효하지 않을 때(중복, 미지의 ID, 빈 목록, 개수 미달)."""
+
+
+def validate_context_id_list(
+    context_ids: list[str],
+    all_context_ids: set[str],
+    *,
+    minimum_count: int,
+    label: str,
+) -> None:
+    """§5-1 "학생이 선호 Context를 직접 선택한다"/"최종 Context 확정"에 공통으로 적용하는
+    구조적 검증 — 빈 목록·중복·미지의 Context id·개수 미달을 거부한다. "제안한 Contrast
+    후보만 허용"처럼 내용을 강제하지는 않는다(학생이 다른 Context로 교체할 수 있어야
+    하므로, §5-1 "학생은 유지·수용·다른 Context 선택 중 하나를 고른다")."""
+
+    if not context_ids:
+        raise ContextSelectionError(f"{label} 목록이 비어 있습니다.")
+    if len(set(context_ids)) != len(context_ids):
+        duplicates = sorted({c for c in context_ids if context_ids.count(c) > 1})
+        raise ContextSelectionError(f"{label}에 중복된 Context id가 있습니다: {duplicates}")
+    unknown = sorted(set(context_ids) - all_context_ids)
+    if unknown:
+        raise ContextSelectionError(f"{label}에 알 수 없는 Context id가 있습니다: {unknown}")
+    if len(context_ids) < minimum_count:
+        raise ContextSelectionError(
+            f"{label}는 최소 {minimum_count}개 이상이어야 합니다 (현재 {len(context_ids)}개)."
+        )
+
 # §5-1: 후보군 선정에 쓰는 관심도 등급 우선순위. 2~3점을 원칙으로 하고, 후보가 없을 때만
 # 단계적으로 넓힌다("1점은 학생이 직접 허용한 경우에만"이므로 가장 마지막 단계에만 쓴다).
 CandidatePoolTier = Literal[

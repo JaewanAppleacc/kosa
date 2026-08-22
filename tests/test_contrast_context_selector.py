@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import unittest
 
-from src.engines.contrast_context_selector import select_contrast_context
+from src.engines.contrast_context_selector import (
+    ContextSelectionError,
+    select_contrast_context,
+    validate_context_id_list,
+)
 from src.schemas.context import ContextVector
 
 
@@ -121,6 +125,31 @@ class SelectContrastContextTest(unittest.TestCase):
         self.assertNotIn("trait_summaries", params)
         self.assertNotIn("student_states", params)
         self.assertNotIn("major_relevance", params)
+
+
+class ValidateContextIdListTest(unittest.TestCase):
+    """2026-08-22 6항목: Context 선택·확정 입력 구조 검증."""
+
+    ALL_IDS = {"game", "media", "school_life", "business", "making"}
+
+    def test_empty_list_rejected(self) -> None:
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list([], self.ALL_IDS, minimum_count=1, label="테스트")
+
+    def test_duplicate_context_rejected(self) -> None:
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list(["game", "game"], self.ALL_IDS, minimum_count=1, label="테스트")
+
+    def test_unknown_context_rejected(self) -> None:
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list(["game", "not_a_real_context"], self.ALL_IDS, minimum_count=1, label="테스트")
+
+    def test_below_minimum_count_rejected(self) -> None:
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list(["game"], self.ALL_IDS, minimum_count=2, label="테스트")
+
+    def test_valid_list_passes_without_raising(self) -> None:
+        validate_context_id_list(["game", "media"], self.ALL_IDS, minimum_count=2, label="테스트")  # 예외 없으면 통과
 
 
 if __name__ == "__main__":

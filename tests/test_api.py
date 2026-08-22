@@ -281,6 +281,138 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertIn("NextQuestionResponse", str(spec["components"]["schemas"].keys()))
 
 
+class ContextSelectionValidationTest(unittest.TestCase):
+    """2026-08-22 6항목: Contrast Context State 저장 + Context 선택·확정 입력 검증."""
+
+    def setUp(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _new_session(self) -> str:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        return session_id
+
+    def test_contrast_context_id_is_persisted_and_survives_reload(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        proposed = r.json()["contrast_context_id"]
+
+        state = main_module._store.load(session_id)
+        self.assertEqual(state.contrast_context_id, proposed)
+
+        # "복원" — 저장소에서 다시 읽어도(같은 InMemory 저장소지만 별도 조회) 같은 값이다.
+        reloaded = main_module._store.load(session_id)
+        self.assertEqual(reloaded.contrast_context_id, proposed)
+
+    def test_empty_preferred_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": []},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_duplicate_preferred_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "game"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_unknown_preferred_context_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "not_a_real_context"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_empty_final_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": []},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_duplicate_final_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "game", "media"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_final_context_not_yet_supported_by_vertical_slice_rejected(self) -> None:
+        """알려진(15개 중 하나) Context라도, Vertical Slice가 실제 질문 흐름을 아직
+        지원하지 않는 Context면 나중에 next-question에서 조용히 실패하지 않도록 여기서
+        먼저 막는다."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "business"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_user_can_replace_with_a_context_never_originally_selected(self) -> None:
+        """§5-1: "학생은 기존 선택 유지, 추천 수용, 다른 Context 선택 중 하나를 고른다" —
+        확정 단계가 "선호 4개 ∪ 제안된 Contrast"로만 강제되지 않는다. 처음에 game을
+        선호로 골랐어도, 최종 확정에서는 game을 아예 빼고 다른 조합으로 바꿀 수 있다."""
+
+        session_id = self._new_session()
+        select_response = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(select_response.status_code, 200)
+
+        # 처음에 선호로 고르지 않았던 조합(game 제외, school_life 포함)으로 최종 확정 —
+        # "제안받은 것만 가능"으로 강제하지 않으므로 여전히 허용돼야 한다.
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["media", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["final_context_ids"], ["media", "school_life"])
+
+    def test_interest_rating_one_candidate_is_not_silently_auto_finalized(self) -> None:
+        """관심도 1점 후보가 제안되더라도(마지막 방어선 tier), 학생이 /assessment/
+        context-confirm을 직접 호출하기 전까지는 최종 Context에 절대 포함되지 않는다
+        (HITL 확인을 거쳐야만 최종 반영됨)."""
+
+        session_id = self._new_session()
+        # game/media만 5점, 나머지는 전부 1점(관심도 낮음) → 마지막 방어선 tier로 제안됨.
+        client.post(
+            "/assessment/interest-rating",
+            json={
+                "session_id": session_id,
+                "ratings": {"game": 5, "media": 5, "school_life": 1, "business": 1, "making": 1},
+            },
+        )
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        state = main_module._store.load(session_id)
+        # 제안은 저장됐지만(state.contrast_context_id) 최종 Context에는 아직 전혀 반영 안 됨.
+        self.assertIsNotNone(state.contrast_context_id)
+        self.assertEqual(state.final_contexts, [])
+
+
 class TracingFailOpenIntegrationTest(unittest.TestCase):
     """§24: "LangSmith 장애는 로컬 로그만 남기고 사용자 Session을 중단하지 않는다"를
     API 레벨에서 확인한다 — Trace 기록이 매번 실패해도 전체 흐름이 그대로 끝까지 돈다."""

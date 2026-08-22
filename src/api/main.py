@@ -35,14 +35,19 @@ from src.data.conflicts.vertical_slice_conflict_resolution_questions import (
     VERTICAL_SLICE_RESOLUTION_QUESTION_BUILDERS,
     VERTICAL_SLICE_RESOLUTION_SPECS,
 )
-from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_IDS
+from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_IDS, VERTICAL_SLICE_CONTEXT_IDS
 from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
-from src.engines.contrast_context_selector import select_contrast_context
+from src.engines.contrast_context_selector import (
+    MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+    ContextSelectionError,
+    select_contrast_context,
+    validate_context_id_list,
+)
 from src.engines.matching_engine import (
     compute_major_match,
     compute_student_trait_states,
@@ -193,9 +198,21 @@ def submit_interest_rating(payload: InterestRatingRequest) -> InterestRatingResp
 @app.post("/assessment/context-select", response_model=ContextSelectResponse)
 def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
     state = _get_state_or_404(payload.session_id)
+    try:
+        validate_context_id_list(
+            payload.selected_preferred_context_ids,
+            CONTEXT_IDS,
+            minimum_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            label="선호 Context",
+        )
+    except ContextSelectionError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+
     state.selected_preferred_contexts = payload.selected_preferred_context_ids
     state.phase = AssessmentPhase.CONTRAST_PROPOSAL
-    _store.save(state)
     # §5-1/§6-5: 실제 계산 — 관심도 평가와 사전 정의된 Context Vector·Coverage Matrix만
     # 사용한다(학생의 Trait 점수나 전공 순위는 절대 참조하지 않는다, CLAUDE.md).
     selection = select_contrast_context(
@@ -207,6 +224,10 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
         all_trait_ids=VERTICAL_SLICE_TRAIT_IDS,
         trait_labels=ALL_TRAIT_LABELS,
     )
+    # 2026-08-22 리뷰: 계산 결과를 State에 저장한다 — 이전에는 응답으로만 나가고 저장되지
+    # 않아서, 이후 조회·복원 시 이번에 실제로 뭘 제안했는지 알 수 없었다.
+    state.contrast_context_id = selection.contrast_context_id
+    _store.save(state)
     _tracer.record_stage(
         trace_id=state.trace_id,
         stage_name="Context Selector",
@@ -223,6 +244,27 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
 @app.post("/assessment/context-confirm", response_model=ContextConfirmResponse)
 def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
     state = _get_state_or_404(payload.session_id)
+    try:
+        # 구조적 검증(빈 목록·중복·미지의 Context id) — "제안한 후보만 허용"으로 강제하지
+        # 않는다. 학생이 다른 Context로 교체할 수 있어야 한다(§5-1).
+        validate_context_id_list(
+            payload.final_context_ids, CONTEXT_IDS, minimum_count=1, label="최종 Context"
+        )
+        # Vertical Slice 운영 제약: 실제 질문 흐름(Seed·Option Blueprint)이 아직
+        # game/media/school_life 3개만 지원한다 — 다른 유효한 Context를 확정하면
+        # /assessment/next-question에서야 뒤늦게 실패하므로 여기서 먼저 막는다.
+        unsupported = sorted(set(payload.final_context_ids) - set(VERTICAL_SLICE_CONTEXT_IDS))
+        if unsupported:
+            raise ContextSelectionError(
+                f"Vertical Slice는 아직 다음 Context의 실제 질문 흐름을 지원하지 않습니다: "
+                f"{unsupported} (지원: {VERTICAL_SLICE_CONTEXT_IDS})"
+            )
+    except ContextSelectionError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+
     state.final_contexts = payload.final_context_ids
     state.context_processing_order = payload.final_context_ids
     state.phase = AssessmentPhase.QUESTION_LOOP
