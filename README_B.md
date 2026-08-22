@@ -1,6 +1,9 @@
 # B 작업자 핸드오프 — 2026-08-22 (갱신)
 
-이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+이 저장소의 `worker-b` 브랜치를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. 루트의
+`CLAUDE.md`는 B 브랜치 전용 작업 규칙이며 Claude Code가 자동으로 읽으므로 별도로 전달받을
+필요가 없습니다. 이 README와 `outputs/work_assignments/작업자_B_개발_지시서.md`를 시작점으로
+사용하고, 필요한 API 계약과 Mock 예시는 아래 경로에서 확인하세요.
 
 > **2026-08-22 갱신 내용**: C의 Repository·RAG·MCP·데이터 구현이 병합된 뒤 첫 통합 단계로
 > `GET /departments/{major_id}`가 고정 Mock에서 실제 `JsonlDepartmentRepository` 조회로
@@ -17,8 +20,8 @@
 ## 1. 빠른 시작
 
 ```bash
-git clone https://github.com/JaewanAppleacc/kosa.git
-cd kosa
+git clone --branch worker-b https://github.com/JaewanAppleacc/kosa.git kosa-b
+cd kosa-b
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements-lock.txt
 ./.venv/bin/uvicorn src.api.main:app --reload
@@ -26,6 +29,18 @@ python3 -m venv .venv
 
 - `http://127.0.0.1:8000/docs` — 실제 동작하는 API 문서(Swagger UI). 여기서 바로 요청 날려볼 수 있습니다.
 - 서버 안 띄우고 정적 파일만 보고 싶으면 `outputs/mock_api/`를 참고하세요.
+
+### 프론트엔드 개발 서버 연결
+
+현재 FastAPI에는 개발용 CORS 허용 설정이 없습니다. Vite 등 별도 포트의 브라우저 앱에서
+`http://127.0.0.1:8000`을 직접 호출하지 말고, 프론트엔드 개발 서버의 Proxy를 사용하세요.
+
+```text
+프론트엔드의 /api/*
+→ 앞의 /api를 제거하고 http://127.0.0.1:8000/*
+```
+
+API Base URL은 환경설정 한 곳에서만 관리하고, Component마다 주소를 하드코딩하지 마세요.
 
 ## 2. 지금 뭐가 진짜로 되고, 뭐가 Mock인지
 
@@ -50,10 +65,10 @@ python3 -m venv .venv
 | Method | Path | 용도 |
 |---|---|---|
 | POST | `/assessment/session` | 세션 생성 (user_id는 서버가 자동으로 demo_user_01로 고정, 클라이언트가 지정 못 함) |
-| POST | `/assessment/interest-rating` | 15개 Context 관심도(1~5) 제출 |
-| POST | `/assessment/context-select` | 선호 Context 4개 제출 → Contrast Context 1개 제안받음 |
-| POST | `/assessment/context-confirm` | 최종 Context 확정 (Vertical Slice는 3개: game/media/school_life) |
-| POST | `/assessment/next-question` | 다음 질문 받기 |
+| POST | `/assessment/interest-rating` | 등록된 Context 중 최소 2개의 관심도 정수(1~5) 제출 |
+| POST | `/assessment/context-select` | 선호 Context 최소 2개 제출 → Contrast Context 1개 제안받음 |
+| POST | `/assessment/context-confirm` | 최종 Context 최소 1개 확정. 현재 질문 지원 범위는 game/media/school_life뿐 |
+| POST | `/assessment/next-question?session_id={session_id}` | 다음 질문 받기. JSON Body가 아니라 Query Parameter 사용 |
 | POST | `/assessment/answer` | 답변 제출 |
 | GET | `/profile/{session_id}` | Career Profile 결과 카드 |
 | GET | `/majors/{session_id}` | 전공 관련도 목록 |
@@ -63,6 +78,30 @@ python3 -m venv .venv
 | POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 |
 | GET | `/subgraph/{session_id}` | 관계 그래프 (Trait–전공–학과–과목) |
 | GET | `/session/{session_id}` | Session 복원 |
+
+### 실제 검사 호출 순서
+
+```text
+POST /assessment/session
+→ POST /assessment/interest-rating
+→ POST /assessment/context-select
+→ POST /assessment/context-confirm
+→ POST /assessment/next-question?session_id=...
+→ POST /assessment/answer
+→ AnswerResponse.next_action에 따라 반복 또는 결과 조회
+```
+
+`/assessment/answer` 이후에는 다음처럼 분기하세요.
+
+```text
+NEXT_QUESTION       → /assessment/next-question 다시 호출
+CONTEXT_COMPLETE    → 다음 Context가 준비된 상태이므로 /assessment/next-question 호출
+ASSESSMENT_COMPLETE → /profile/{session_id}, /majors/{session_id} 조회
+```
+
+`NextQuestionResponse.status == CONTEXT_EARLY_TERMINATED`이면 `question`이 `null`일 수 있습니다.
+이때 질문 Component를 렌더링하지 말고 `assessment_complete`를 확인하여 다음 Context 또는 결과
+화면으로 이동하세요.
 
 ## 4. 화면에서 써야 하는 상태값 (하드코딩하지 말고 이 목록을 그대로 쓰세요)
 
@@ -81,13 +120,48 @@ python3 -m venv .venv
 
 > ⚠️ **`/assessment/context-select`·`/assessment/context-confirm` 검증 강화(2026-08-22)**:
 > 필드 이름·타입은 그대로지만, 이제 서버가 입력을 실제로 검증합니다.
-> - `context-select`의 `selected_preferred_context_ids`가 비어 있거나, 중복이 있거나,
+> - `context-select`의 `selected_preferred_context_ids`는 Vertical Slice에서 최소 2개입니다.
+>   비어 있거나, 1개뿐이거나, 중복이 있거나,
 >   알 수 없는 Context id를 포함하면 422 `VALIDATION_ERROR`.
-> - `context-confirm`의 `final_context_ids`도 동일하게 검증하고, 추가로 **아직 실제
+> - `context-confirm`의 `final_context_ids`는 최소 1개이며 동일하게 검증합니다. 추가로 **아직 실제
 >   질문 흐름을 지원하는 Context가 game/media/school_life 3개뿐이라** 그 외 Context id는
 >   거부합니다(알려진 Context라도). 제안받은 Contrast 후보를 그대로 안 써도 되고, 학생이
 >   다른 유효한 조합으로 자유롭게 바꿔서 확정할 수 있습니다 — "제안한 것만 가능"으로
 >   강제하지 않습니다.
+
+> ⚠️ **현재 Context UI 범위**: 관심도 API에는 등록된 Context를 보낼 수 있지만, 실제 질문까지
+> 이어지는 것은 `game`, `media`, `school_life`뿐입니다. Vertical Slice 화면에서는 이 3개만
+> 선택 가능하게 하거나 나머지를 “준비 중”으로 비활성화하세요. 지원하지 않는 Context를 최종
+> 확정하면 422가 발생합니다.
+
+> ⚠️ **`/assessment/interest-rating` 엄격한 입력 검증**: 점수는 JSON 정수 `1`~`5`만
+> 허용합니다. 문자열 `"4"`, 실수 `4.0`, 불리언 `true`/`false`, 범위 밖 점수, 빈 `ratings`,
+> 미등록 Context id는 모두 422 `VALIDATION_ERROR`입니다. HTML 입력값은 흔히 문자열이므로
+> API 호출 전에 정수로 변환하고 범위를 확인하세요.
+
+정상 예시:
+
+```json
+{
+  "session_id": "ses_example",
+  "ratings": {
+    "game": 4,
+    "media": 5,
+    "school_life": 3
+  }
+}
+```
+
+> ℹ️ **`FinalizedQuestion.contrast_id`**: 일반 Seed·꼬리질문에서는 `null`이고 Explicit Conflict
+> 확인 질문에서만 값이 들어옵니다. 현재 질문 Component는 별도 디자인 없이 동일하게 표시해도
+> 정상 동작합니다. 내부 Trait 보정값을 화면에 노출하지 마세요.
+
+> ⚠️ **추천 전공과 실제 학과 데이터의 현재 연결 범위**: `/majors/{session_id}`가 추천하는
+> 대표 전공은 `media_communication`, `hci_ux`, `industrial_engineering` 3개지만, 현재 30개
+> 학과 데이터와 겹치는 것은 `media_communication` 하나뿐입니다. 따라서 `hci_ux` 또는
+> `industrial_engineering`의 `/departments/{major_id}`는 정상적으로 200 + 빈 배열을 반환합니다.
+> 이를 네트워크 오류나 로딩 실패로 처리하지 말고 “현재 시연 데이터에 연결된 학과가 없습니다”
+> Empty State로 표시하세요. 이 불일치는 A·C의 후속 데이터 정합화 대상입니다.
 
 **전공 관련도 정성 Label** (`MajorRelevance.relevance_label` — 절대 숫자 아님, 숫자 필드 자체가 없음):
 `"관련성 높음"` / `"함께 탐색해볼 분야"` / `"비교해볼 만한 분야"`
