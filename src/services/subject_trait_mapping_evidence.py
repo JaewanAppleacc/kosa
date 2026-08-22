@@ -47,6 +47,12 @@ class SubjectTraitMappingRecord(BaseModel):
     mapping_status: MappingStatus
     grade: int | None = None
     curriculum_evidence: list[SubjectTraitCurriculumEvidence] = []
+    # 2026-08-25 15차 리뷰: reason·course_goal_or_standard는 성취기준 원문(긴 인용문)이라
+    # 그대로 학생용 추천 이유에 노출하면 안 된다(§4 "성취기준 원문을 길게 그대로 노출하지
+    # 말 것"). activity_summary는 사람이 직접 짧게 요약한 문구("~하는 활동" 형태로 통일—
+    # 조사 "을/를" 결합을 항상 "활동을"로 고정하기 위해)이고, LLM이 실시간으로 만들지
+    # 않는다. EVIDENCED일 때만 필수다(학생에게 보여줄 구체 활동이 있어야 하므로).
+    activity_summary: str = ""
     author_id: str
     review_status: Literal["draft", "team_reviewed"] = "draft"
     mapping_version: str
@@ -99,6 +105,15 @@ class SubjectTraitMappingRecord(BaseModel):
     def _high_grade_requires_evidence(self) -> "SubjectTraitMappingRecord":
         if self.grade == 3 and not self.curriculum_evidence:
             raise ValueError(f"{self.subject_id}/{self.trait_id}: 근거 없이 grade=3을 매길 수 없다")
+        return self
+
+    @model_validator(mode="after")
+    def _evidenced_requires_activity_summary(self) -> "SubjectTraitMappingRecord":
+        """§4: 추천 이유에 넣을 활동 요약이 없으면 그 Trait는 애초에 EVIDENCED로 확정할
+        수 없다 — "근거가 없으면 활동을 지어내지 말라"를 데이터 계층에서부터 강제한다."""
+
+        if self.mapping_status == "EVIDENCED" and not self.activity_summary.strip():
+            raise ValueError(f"{self.subject_id}/{self.trait_id}: EVIDENCED인데 activity_summary가 비어 있다")
         return self
 
 

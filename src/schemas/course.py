@@ -21,6 +21,12 @@ class SubjectProfile(BaseModel):
     trait_vector: VectorScale = {}
     related_major_ids: list[str] = []
     source_id: str
+    # 2026-08-25 15차 리뷰: 추천 이유(reason)에 넣을, 사람이 직접 짧게 요약한 대표 학습
+    # 활동 한 줄("~하는 활동" 형태). Subject-Trait Evidence의 EVIDENCED 레코드 중 등급이
+    # 가장 높은 것에서 결정론적으로 뽑는다(career_build_subject_profiles.py) — 성취기준
+    # 원문을 그대로 노출하지 않기 위한 짧은 요약이다. 근거 기반으로 옮기지 않은 과목은
+    # 빈 문자열(활동 요약을 지어내지 않는다).
+    activity_summary: str = ""
 
 
 class ParsedSubjectCandidate(BaseModel):
@@ -54,6 +60,10 @@ class CourseRecommendationItem(BaseModel):
     이유가 없다)."""
 
     subject_id: str
+    # 2026-08-25 15차 리뷰: subject_id만으로는 B가 화면에 과목명을 못 띄웠다 — 정본
+    # SubjectProfile.label을 그대로 함께 내려준다(화면 표시용 이름을 별도로 지어내지
+    # 않는다).
+    label: str
     category: Literal["core", "explore", "alternative"]
     is_actually_offered: bool | None
     reason: str

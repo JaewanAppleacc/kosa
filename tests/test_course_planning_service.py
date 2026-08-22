@@ -75,11 +75,26 @@ class CoursePlanningServiceTest(unittest.TestCase):
         with self.assertRaises(MajorNotSelectableError):
             self.service.build_course_profile(state, "design")
 
-    def test_major_not_in_this_sessions_recommendations_raises(self) -> None:
-        # tool_utilization 하나만 강하면 세 전공 모두 usable_trait 미달로 insufficient.
+    def test_all_majors_insufficient_raises_evidence_not_ready_not_major_not_selectable(self) -> None:
+        """2026-08-25 15차 리뷰 §2: tool_utilization 하나만 강하면 세 전공 모두 insufficient
+        (computed가 하나도 없음) — 이건 selected_major_id의 문제가 아니라 Evidence 자체가
+        부족한 상황이라 EVIDENCE_NOT_READY여야 한다(예전엔 MAJOR_NOT_SELECTABLE로 잘못
+        분류됐다)."""
+
         state = _state_with_persona({"tool_utilization"})
-        with self.assertRaises(MajorNotSelectableError):
+        with self.assertRaises(CourseEvidenceNotReadyError):
             self.service.build_course_profile(state, "industrial_engineering")
+
+    def test_some_majors_computed_but_selected_one_is_insufficient_raises_major_not_selectable(self) -> None:
+        """§2: media_communication/industrial_engineering은 computed인데 hci_ux만
+        insufficient인 Persona — 이번엔 진짜로 "이 전공은 이 학생에게 추천되지 않았다"는
+        뜻이라 MAJOR_NOT_SELECTABLE이어야 한다."""
+
+        state = _state_with_persona(
+            {"causal_analysis", "pattern_finding", "information_comparison", "planning"}
+        )
+        with self.assertRaises(MajorNotSelectableError):
+            self.service.build_course_profile(state, "hci_ux")
 
     def test_fake_repository_is_used_for_subject_lookup(self) -> None:
         state = _state_with_persona({"causal_analysis", "pattern_finding", "information_comparison", "planning"})

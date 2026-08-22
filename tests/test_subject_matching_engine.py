@@ -26,10 +26,17 @@ def _state(trait_id: str, value: float | None, group: str = "cognitive") -> Stud
     )
 
 
-def _subject(subject_id: str, trait_vector: dict[str, float], related_major_ids: list[str]) -> SubjectProfile:
+def _subject(
+    subject_id: str,
+    trait_vector: dict[str, float],
+    related_major_ids: list[str],
+    label: str | None = None,
+    activity_summary: str = "테스트 활동을 수행하는 활동",
+) -> SubjectProfile:
     return SubjectProfile(
-        subject_id=subject_id, label=subject_id, trait_vector=trait_vector,
+        subject_id=subject_id, label=label or subject_id, trait_vector=trait_vector,
         related_major_ids=related_major_ids, source_id="https://example.moe.go.kr/",
+        activity_summary=activity_summary,
     )
 
 
@@ -138,6 +145,81 @@ class ReasonAndMappingTest(unittest.TestCase):
         self.assertNotIn("score", items[0].model_dump())
         self.assertIsNone(items[0].is_actually_offered)
         self.assertEqual(items[0].category, "core")
+
+    def test_to_course_recommendation_items_carries_the_subject_label(self) -> None:
+        """2026-08-25 15차 리뷰 §1: subject_id만으로는 B가 과목명을 못 띄웠다 — 정본
+        SubjectProfile.label을 그대로 옮겨야 한다."""
+
+        subjects = [
+            _subject("subj_a", {"causal_analysis": 1.0}, ["industrial_engineering"], label="확률과 통계")
+        ]
+        states = {"causal_analysis": _state("causal_analysis", 1.0)}
+        results = compute_subject_recommendations(states, "industrial_engineering", subjects)
+        items = to_course_recommendation_items(
+            results, "산업공학", {"causal_analysis": _trait_def("causal_analysis", "원인 분석")}
+        )
+        self.assertEqual(items[0].subject_id, "subj_a")
+        self.assertEqual(items[0].label, "확률과 통계")
+
+    def test_reason_does_not_use_banned_overclaiming_phrases(self) -> None:
+        """§3: Mapping이 아직 draft(2인 검토 전)라 "검증된"/"공식적으로 연결된" 같은
+        과장된 확정 표현을 쓰면 안 된다."""
+
+        subjects = [
+            _subject(
+                "subj_a", {"causal_analysis": 1.0}, ["industrial_engineering"],
+                label="확률과 통계", activity_summary="자료를 분석하고 결과를 비교하는 활동",
+            )
+        ]
+        states = {"causal_analysis": _state("causal_analysis", 1.0)}
+        results = compute_subject_recommendations(states, "industrial_engineering", subjects)
+        reason = build_reason(
+            results[0], "산업공학", {"causal_analysis": _trait_def("causal_analysis", "원인 분석")}
+        )
+        banned_phrases = [
+            "검증된 과목", "공식 추천 과목", "반드시 들어야 하는 과목",
+            "이 전공에 필수인 과목", "적합도가 입증된 과목", "공식적으로 연결된 과목",
+        ]
+        for phrase in banned_phrases:
+            self.assertNotIn(phrase, reason, f"금지 표현이 reason에 남아 있다: {phrase!r}")
+
+    def test_reason_includes_selected_major_observed_trait_and_concrete_activity(self) -> None:
+        """§4: reason에 (1) 선택 전공, (2) 학생 답변에서 확인된 Trait, (3) 과목의 공식
+        교육과정 근거에서 뽑은 구체적 활동이 실제로 들어가야 한다."""
+
+        subjects = [
+            _subject(
+                "subj_a", {"causal_analysis": 1.0}, ["industrial_engineering"],
+                label="확률과 통계", activity_summary="자료를 분석하고 결과를 비교하는 활동",
+            )
+        ]
+        states = {"causal_analysis": _state("causal_analysis", 1.0)}
+        results = compute_subject_recommendations(states, "industrial_engineering", subjects)
+        reason = build_reason(
+            results[0], "산업공학", {"causal_analysis": _trait_def("causal_analysis", "원인 분석")}
+        )
+        self.assertIn("산업공학", reason)
+        self.assertIn("원인 분석", reason)
+        self.assertIn("확률과 통계", reason)
+        self.assertIn("자료를 분석하고 결과를 비교하는 활동", reason)
+
+    def test_reason_falls_back_to_limited_wording_when_activity_summary_missing(self) -> None:
+        """§4: "근거가 없으면 활동을 지어내지 말고... 제한적 이유로 표시" — activity_summary
+        가 비어 있으면 구체 활동을 지어내지 않고 제한적 문구로 대체해야 한다."""
+
+        subjects = [
+            _subject(
+                "subj_a", {"causal_analysis": 1.0}, ["industrial_engineering"],
+                label="근거 없는 과목", activity_summary="",
+            )
+        ]
+        states = {"causal_analysis": _state("causal_analysis", 1.0)}
+        results = compute_subject_recommendations(states, "industrial_engineering", subjects)
+        reason = build_reason(
+            results[0], "산업공학", {"causal_analysis": _trait_def("causal_analysis", "원인 분석")}
+        )
+        self.assertIn("아직 정리되지 않았습니다", reason)
+        self.assertNotIn("경험할 수 있으며", reason)  # 활동을 지어내는 문장 구조가 안 쓰였는지
 
 
 if __name__ == "__main__":

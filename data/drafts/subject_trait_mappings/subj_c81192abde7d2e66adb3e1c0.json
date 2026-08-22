@@ -55,6 +55,7 @@
     "related_major_ids": [
       "computer_science"
     ],
-    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+    "activity_summary": "기계학습 유형과 알고리즘을 선정하는 활동"
   }
 }

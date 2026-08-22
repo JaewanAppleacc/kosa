@@ -175,6 +175,25 @@ def build_touched_trait_vectors(
     return dict(by_subject)
 
 
+def build_touched_activity_summaries(
+    trait_records: list[SubjectTraitMappingRecord],
+) -> dict[str, str]:
+    """subject_id -> 대표 학습 활동 한 줄(추천 이유용, §4). EVIDENCED 레코드 중 grade가
+    가장 높은 것을 고르고, 동점이면 trait_id 알파벳순으로 하나를 결정론적으로 고른다 —
+    "여러 활동 중 아무거나"가 아니라 항상 같은 입력에서 같은 결과가 나오게 하기 위함."""
+
+    by_subject: dict[str, list[SubjectTraitMappingRecord]] = defaultdict(list)
+    for record in trait_records:
+        if record.mapping_status == "EVIDENCED":
+            by_subject[record.subject_id].append(record)
+
+    summaries: dict[str, str] = {}
+    for subject_id, records in by_subject.items():
+        best = min(records, key=lambda r: (-r.grade, r.trait_id))
+        summaries[subject_id] = best.activity_summary
+    return summaries
+
+
 def build_touched_related_major_ids(
     link_records: list[SubjectMajorLinkRecord],
 ) -> dict[str, list[str]]:
@@ -203,12 +222,21 @@ def build() -> tuple[list[SubjectProfile], list[dict], list[Path]]:
 
     touched_trait_vectors = build_touched_trait_vectors(trait_records)
     touched_related_majors = build_touched_related_major_ids(link_records)
+    touched_activity_summaries = build_touched_activity_summaries(trait_records)
 
     missing_trait_evidence = set(TOUCHED_SUBJECT_LABELS) - set(touched_trait_vectors)
     if missing_trait_evidence:
         raise SystemExit(
             f"subject_trait_mapping_evidence.jsonl에 근거 레코드가 아예 없는 과목: "
             f"{sorted(missing_trait_evidence)} — UNMAPPED로라도 명시적으로 기록해야 한다"
+        )
+    missing_activity_summary = set(TOUCHED_SUBJECT_LABELS) - set(touched_activity_summaries)
+    if missing_activity_summary:
+        raise SystemExit(
+            f"EVIDENCED Trait가 하나도 없어 대표 학습 활동을 만들 수 없는 과목: "
+            f"{sorted(missing_activity_summary)} — 추천 이유에 넣을 활동을 지어내지 않는다. "
+            "이 과목이 실제로 어느 전공과도 EVIDENCED Trait로 연결되지 않는다면, 이번 라운드의 "
+            "12개 대상 목록(TOUCHED_SUBJECTS)에서 빼는 게 맞는지 다시 검토하세요."
         )
 
     evidence_by_subject: dict[str, list[SubjectTraitMappingRecord]] = defaultdict(list)
@@ -275,6 +303,7 @@ def build() -> tuple[list[SubjectProfile], list[dict], list[Path]]:
         profile = SubjectProfile(
             subject_id=subject_id, label=label, trait_vector=touched_trait_vectors[subject_id],
             related_major_ids=related, source_id=MOE_URL,
+            activity_summary=touched_activity_summaries[subject_id],
         )
         profiles.append(profile)
 

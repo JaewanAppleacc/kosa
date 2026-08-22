@@ -181,6 +181,7 @@ def mock_course_profile(session_id: str) -> CourseProfile:
         recommendations=[
             CourseRecommendationItem(
                 subject_id="subj_mock0000000000000001",
+                label="데이터 과학",
                 category="core",
                 is_actually_offered=True,
                 reason="정보 비교·탐색, 패턴 탐색 Trait와 관련도가 높음",

@@ -64,6 +64,7 @@
       "business_administration",
       "industrial_engineering"
     ],
-    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+    "activity_summary": "데이터가 분석 대상으로 가치 있는지 판단하는 활동"
   }
 }

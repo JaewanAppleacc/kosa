@@ -59,6 +59,7 @@
       "design",
       "hci_ux"
     ],
-    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+    "activity_summary": "프로그램을 시뮬레이션하고 구현·개선하는 활동"
   }
 }

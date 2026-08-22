@@ -69,8 +69,23 @@ class CoursePlanningService:
         self._selectable_major_ids = frozenset(m.major_id for m in major_profiles)
 
     def build_course_profile(self, state: AssessmentState, selected_major_id: str) -> CourseProfile:
-        """§5 검증 순서 그대로: (세션 존재는 호출부의 `_get_state_or_404`가 이미 처리)
-        Evidence 충분성 → 등록된 대표 전공인지 → 이 세션의 실제 추천 결과에 포함되는지."""
+        """2026-08-25 15차 리뷰 §2: 검증 순서를 두 종류의 "안 된다"로 명확히 나눈다.
+
+        (세션 존재는 호출부의 `_get_state_or_404`가 이미 처리했다는 전제)
+        1. Trait Summary 자체가 있는지
+        2. selected_major_id가 Vertical Slice 대표 전공 3개 중 하나인지
+        3. 전공 매칭 결과 중 `status == "computed"`가 하나라도 있는지
+        4. (3이 전부 insufficient라면) → EVIDENCE_NOT_READY — "Evidence가 있긴 하지만
+           어느 전공도 판단하기엔 부족하다"는, selected_major_id의 문제가 아니라
+           **근거 자체가 부족한 상황**이라 예전처럼 MAJOR_NOT_SELECTABLE로 잘못
+           분류하면 안 된다.
+        5. (computed가 하나라도 있다면) selected_major_id가 그 computed 결과 중 실제
+           추천 목록(관련성 높음/함께 탐색해볼 분야)에 있는지 → 없으면 MAJOR_NOT_SELECTABLE
+           — 이번엔 진짜로 "이 전공은 이 학생에게 추천되지 않았다"는 뜻이다.
+
+        정리: "전공을 판단할 Evidence 자체가 부족함" → EVIDENCE_NOT_READY,
+        "Evidence는 충분하지만 이 학생에게 추천되지 않은 전공을 선택함" → MAJOR_NOT_SELECTABLE.
+        오류 메시지에는 학생 답변 원문이나 내부 점수를 절대 담지 않는다."""
 
         if not state.trait_summaries:
             raise CourseEvidenceNotReadyError(
@@ -92,6 +107,13 @@ class CoursePlanningService:
             resolutions=state.contrast_resolutions,
         )
         major_results = [compute_major_match(student_states, m) for m in self._major_profiles]
+
+        if not any(r.status == "computed" for r in major_results):
+            raise CourseEvidenceNotReadyError(
+                "아직 어느 대표 전공도 관련도를 계산할 만큼 답변 근거가 쌓이지 않았습니다. "
+                "질문에 조금 더 답한 뒤 다시 시도하세요."
+            )
+
         labels_by_major_id = {m.major_id: m.label for m in self._major_profiles}
         relevant, explore_together, _message = rank_major_relevance(major_results, labels_by_major_id)
         recommended_major_ids = {r.major_id for r in relevant} | {r.major_id for r in explore_together}

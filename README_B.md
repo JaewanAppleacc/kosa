@@ -1,6 +1,34 @@
-# B 작업자 핸드오프 — 2026-08-24 (갱신)
+# B 작업자 핸드오프 — 2026-08-25 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-25 갱신 내용 — 14차(2026-08-24) PRE_SURVEY 구현의 검수 후속 수정 (`GET /subjects` 응답 필드 추가, 하위 호환)**:
+> 1. **`CourseRecommendationItem`에 `label: str`이 추가됐습니다.** 예전엔 `subject_id`
+>    (예: `subj_fd2661b74f5517b17f5f9d9e`)만 와서 화면에 과목명을 표시할 방법이
+>    없었습니다 — 이제 정본 `SubjectProfile.label`(예: "화법과 언어")을 그대로
+>    함께 내려줍니다. `subject_id`는 여전히 식별자로만 쓰고 화면 표시에는 `label`을
+>    쓰세요. 기존 필드(`category`/`is_actually_offered`/`reason`)는 그대로입니다.
+> 2. **`reason` 문구가 바뀌었습니다.** "선택한 전공과 공식적으로 연결된 과목입니다"라는
+>    표현은 Subject–Major/Subject–Trait 근거가 아직 `review_status="draft"`(2인 검토
+>    전)라는 사실보다 과장돼 있었습니다 — 이제 "공식 교육과정 자료를 바탕으로 {전공명}
+>    탐색과 연결한 시연 과목입니다"처럼 더 정직한 수위로 표현하고, 그 과목의 공식
+>    교육과정 근거에서 뽑은 **구체적인 학습 활동**(예: "확률과 통계에서 자료를 수집·
+>    처리해 합리적으로 의사 결정하는 활동을 경험할 수 있으며...")과 학생 답변에서
+>    확인된 Trait를 함께 문장으로 담습니다. `reason`은 여전히 자유 문자열이라 Schema
+>    타입은 안 바뀌었지만, 화면에 하드코딩된 문구 매칭이 있다면 다시 확인하세요.
+> 3. **오류 코드 분류가 더 정확해졌습니다.** `selected_major_id`가 등록된 대표 전공이긴
+>    하지만 답변 근거상 이 학생에게 전혀 추천되지 않은 상황(`MAJOR_NOT_SELECTABLE`)과,
+>    애초에 어느 대표 전공도 판단할 만큼 Evidence가 안 쌓인 상황(`EVIDENCE_NOT_READY`)
+>    을 이제 정확히 구분합니다 — 오류 코드 자체는 이미 있던 두 값 그대로라 화면 처리
+>    로직을 바꿀 필요는 없지만, 실제로 어느 쪽이 오는지가 이전보다 더 신뢰할 수
+>    있어졌습니다.
+> 4. **UX 흐름 참고**: `/majors/{session_id}`는 여전히 대표 전공명과 정성적 관련도만
+>    반환하고 대학명·실제 학과 목록을 절대 합치지 않습니다. 학과 상세(대학명·학과명·
+>    지역·공식 출처)는 사용자가 "자세히 보기"를 눌렀을 때만 별도로 `/departments/
+>    {major_id}`를 호출하세요. "자세히 보기"와 "이 전공으로 과목 추천받기"는 서로 다른
+>    사용자 행동입니다 — 학생이 과목 추천 버튼을 명시적으로 누른 뒤에만
+>    `selected_major_id`를 `/subjects`에 전달하세요(서버는 화면이 어떤 전공을
+>    "선택 확정"으로 보냈는지 알 방법이 없으므로, 이 구분은 전적으로 화면 책임입니다).
 
 > **2026-08-24 갱신 내용 — `GET /subjects/{session_id}` API 계약 변경 (하위 호환 아님)**:
 > 1. **`selected_major_id` Query Parameter가 필수로 추가됐습니다.** 학생이 전공 추천
@@ -166,7 +194,7 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 - `src/schemas/api.py` — 모든 Endpoint의 Request/Response
 - `src/schemas/profile.py` — CareerProfile
 - `src/schemas/major.py` — MajorProfile, Department, MajorRelevance
-- `src/schemas/course.py` — CourseProfile, CourseRecommendationItem(`is_actually_offered: bool | None`), ParsedSubjectCandidate
+- `src/schemas/course.py` — CourseProfile, CourseRecommendationItem(`label: str`, `is_actually_offered: bool | None`), ParsedSubjectCandidate
 - `src/schemas/graph.py` — SubgraphNode/SubgraphEdge
 
 ## 7. 알아둘 것

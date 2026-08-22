@@ -9,7 +9,12 @@ from pydantic import ValidationError
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS
 from src.engines.trait_normalizer import normalize_grade
 from src.ids import generate_subject_id
-from src.repositories.subject_repository import JsonlSubjectRepository, load_subjects
+from src.repositories.subject_repository import (
+    DuplicateSubjectIdError,
+    JsonlSubjectRepository,
+    load_subjects,
+)
+from src.schemas.course import SubjectProfile
 from src.services.subject_major_link_evidence import (
     SubjectMajorLinkRecord,
     load_subject_major_link_evidence,
@@ -35,7 +40,7 @@ _KNOWN_TRAIT_IDS = {t.trait_id for t in VERTICAL_SLICE_TRAITS}
 
 
 class SubjectTraitEvidenceSchemaTest(unittest.TestCase):
-    def _record(self, status: str, grade, with_evidence: bool) -> dict:
+    def _record(self, status: str, grade, with_evidence: bool, activity_summary: str = "테스트 활동") -> dict:
         payload = {
             "subject_id": "subj_test", "trait_id": "causal_analysis", "mapping_status": status,
             "grade": grade, "author_id": "worker_a", "mapping_version": "test_v1",
@@ -49,6 +54,8 @@ class SubjectTraitEvidenceSchemaTest(unittest.TestCase):
                     "reason": "테스트용",
                 }
             ]
+        if status == "EVIDENCED":
+            payload["activity_summary"] = activity_summary
         return payload
 
     def test_evidenced_requires_grade_1_to_3(self) -> None:
@@ -61,6 +68,23 @@ class SubjectTraitEvidenceSchemaTest(unittest.TestCase):
         SubjectTraitMappingRecord.model_validate(self._record("NO_DIRECT_EVIDENCE", 0, True))
         with self.assertRaises(ValidationError):
             SubjectTraitMappingRecord.model_validate(self._record("NO_DIRECT_EVIDENCE", 1, True))
+
+    def test_evidenced_requires_non_empty_activity_summary(self) -> None:
+        """2026-08-25 15차 리뷰 §4: 추천 이유에 넣을 활동 요약이 없으면 EVIDENCED로 확정할
+        수 없다 — "근거 없이 활동을 지어내지 말라"를 데이터 계층에서 강제한다."""
+
+        payload = self._record("EVIDENCED", 2, True, activity_summary="정상적인 활동 요약")
+        SubjectTraitMappingRecord.model_validate(payload)
+
+        payload_empty = self._record("EVIDENCED", 2, True)
+        payload_empty["activity_summary"] = ""
+        with self.assertRaises(ValidationError):
+            SubjectTraitMappingRecord.model_validate(payload_empty)
+
+        payload_missing = self._record("EVIDENCED", 2, True)
+        del payload_missing["activity_summary"]
+        with self.assertRaises(ValidationError):
+            SubjectTraitMappingRecord.model_validate(payload_missing)
 
     def test_unmapped_and_review_required_forbid_grade(self) -> None:
         for status in ("UNMAPPED", "REVIEW_REQUIRED"):
@@ -176,6 +200,64 @@ class SubjectRepositoryTest(unittest.TestCase):
     def test_get_returns_none_for_unknown_subject(self) -> None:
         repository = JsonlSubjectRepository()
         self.assertIsNone(repository.get("subj_does_not_exist"))
+
+    def test_normal_eighteen_subjects_load_from_shipped_file(self) -> None:
+        """2026-08-25 15차 리뷰 §5: 정상 데이터 18개는 그대로 로드돼야 한다."""
+
+        repository = JsonlSubjectRepository()
+        self.assertEqual(len(repository), 18)
+        self.assertEqual(len({s.subject_id for s in repository.all()}), 18)
+
+    def test_duplicate_subject_id_raises_immediately(self) -> None:
+        """§5: 동일 subject_id가 두 번 있으면 마지막 값으로 조용히 덮어쓰지 않고 즉시
+        예외를 던져야 한다 — 앱이 잘못된 정본으로 조용히 시작하지 않는다."""
+
+        subject_a = SubjectProfile(
+            subject_id="subj_dup", label="첫 번째", trait_vector={}, related_major_ids=[],
+            source_id="https://example.moe.go.kr/",
+        )
+        subject_b = SubjectProfile(
+            subject_id="subj_dup", label="두 번째(중복)", trait_vector={}, related_major_ids=[],
+            source_id="https://example.moe.go.kr/",
+        )
+        with self.assertRaises(DuplicateSubjectIdError) as ctx:
+            JsonlSubjectRepository([subject_a, subject_b])
+        # 오류 메시지에 subject_id만 남고 label 등 데이터 전체를 담지 않는다.
+        self.assertIn("subj_dup", str(ctx.exception))
+        self.assertNotIn("첫 번째", str(ctx.exception))
+        self.assertNotIn("두 번째", str(ctx.exception))
+
+    def test_empty_subject_list_yields_empty_repository(self) -> None:
+        """§5: 빈 파일(빈 목록)은 기존 정책(department_repository와 동일 — 빈 목록으로
+        초기화, 예외 아님)에 맞게 처리한다."""
+
+        repository = JsonlSubjectRepository([])
+        self.assertEqual(len(repository), 0)
+        self.assertEqual(repository.all(), [])
+        self.assertIsNone(repository.get("subj_anything"))
+        self.assertEqual(repository.related_to_major("industrial_engineering"), [])
+
+    def test_get_result_is_consistent_with_all(self) -> None:
+        """§5: get() 결과 정합성 — all()에 있는 모든 과목을 get()으로 그대로 다시 찾을 수
+        있어야 한다."""
+
+        repository = JsonlSubjectRepository()
+        for subject in repository.all():
+            self.assertEqual(repository.get(subject.subject_id), subject)
+
+    def test_related_to_major_order_is_deterministic_regardless_of_file_row_order(self) -> None:
+        """§5: 파일 행 순서가 바뀌어도 조회 결과가 결정적이어야 한다 — 입력 리스트를
+        뒤집어도 related_to_major()가 반환하는 부분집합(순서 포함, 입력 리스트 순서를
+        그대로 따른다는 계약)이 뒤집힌 순서와 일관되게 대응해야 한다."""
+
+        forward = JsonlSubjectRepository()
+        reversed_subjects = list(reversed(load_subjects()))
+        backward = JsonlSubjectRepository(reversed_subjects)
+
+        forward_ids = [s.subject_id for s in forward.related_to_major("industrial_engineering")]
+        backward_ids = [s.subject_id for s in backward.related_to_major("industrial_engineering")]
+        self.assertEqual(set(forward_ids), set(backward_ids))
+        self.assertEqual(backward_ids, list(reversed(forward_ids)))
 
 
 if __name__ == "__main__":

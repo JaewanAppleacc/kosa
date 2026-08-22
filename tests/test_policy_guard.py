@@ -113,8 +113,8 @@ class Rule6bOfferedStatusMatchesCoreCategoryTest(unittest.TestCase):
 
     def _item(self, category: str, is_actually_offered: bool | None) -> CourseRecommendationItem:
         return CourseRecommendationItem(
-            subject_id="subj_a", category=category, is_actually_offered=is_actually_offered,
-            reason="테스트용",
+            subject_id="subj_a", label="테스트 과목", category=category,
+            is_actually_offered=is_actually_offered, reason="테스트용",
         )
 
     def test_pre_survey_core_with_unconfirmed_offering_status_passes(self) -> None:

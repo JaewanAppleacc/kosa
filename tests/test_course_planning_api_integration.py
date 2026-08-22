@@ -1,17 +1,26 @@
-"""GET /subjects/{session_id}?selected_major_id=... 최소 E2E Fixture — 2026-08-24 14차 리뷰 §9.
+"""GET /subjects/{session_id}?selected_major_id=... API Integration Test.
+
+2026-08-25 15차 리뷰 §6: 이 파일은 원래 "E2E Fixture"라고 불렀지만 정확한 표현이
+아니었다 — 여기 테스트는 **`AssessmentState.trait_summaries`를 실제 질문·답변 흐름 없이
+세션에 직접 주입**한다(아래 `_seed_session_with_persona`). 즉 "Assessment 질문 →
+답변 → Evidence 축적" 구간은 건너뛰고, 그 이후(CoursePlanningService·
+SubjectMatchingEngine·JsonlSubjectRepository가 실제 HTTP 계층까지 올바르게 연결돼
+있는지)만 검증하는 **API Integration Test**다. 완전한 Assessment End-to-End(질문
+생성부터 답변까지 전부 실제 흐름)를 원하면 `tests/test_course_planning_full_flow_e2e.py`
+를 보라 — 그 파일은 실제 `/assessment/next-question` → `/assessment/answer` 반복
+흐름으로 Evidence를 쌓는다.
 
 실제 FastAPI TestClient로 세션을 만들고, 고정 Persona의 Trait Evidence를 세션 상태에
 직접 채운 뒤(질문 20턴을 반복하는 대신 결정론적으로 구성 — tests/test_vertical_slice_
 major_department_alignment.py의 FixedPersonaEndToEndTest와 같은 전략), 실제 HTTP
-엔드포인트를 호출해 CoursePlanningService·SubjectMatchingEngine·JsonlSubjectRepository가
-전부 연결돼 동작하는지 확인한다.
+엔드포인트를 호출해 서비스 계층이 전부 연결돼 동작하는지 확인한다.
 
-여기서 쓰는 Persona 3개(analytical/visual_user_facing/media)는 tests/test_matching_
-engine.py::FixedPersonaVerticalSliceMatchingTest, tests/test_vertical_slice_major_
-department_alignment.py::FixedPersonaEndToEndTest, eval/major_matching_persona_
-diagnostics.py에서 이미 각 대표 전공을 1위(또는 관련성 높음)로 만든다고 검증된 조합을
-그대로 재사용한다 — 이 테스트를 위해 새로 만든 조합이 아니다(매칭 결과를 원하는
-순서로 만들려고 임의 조정하지 않는다는 원칙을 그대로 따른다).
+여기서 쓰는 Persona들(analytical/visual_user_facing/media/partial_computed/tool_only)은
+tests/test_matching_engine.py::FixedPersonaVerticalSliceMatchingTest, tests/test_
+vertical_slice_major_department_alignment.py::FixedPersonaEndToEndTest, eval/major_
+matching_persona_diagnostics.py에서 이미 검증된 조합을 그대로 재사용한다 — 이 테스트를
+위해 새로 만든 조합이 아니다(매칭 결과를 원하는 순서로 만들려고 임의 조정하지 않는다는
+원칙을 그대로 따른다).
 """
 
 from __future__ import annotations
@@ -31,6 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 client = TestClient(app)
 
 _ALL_SUBJECT_IDS = {s.subject_id for s in load_subjects()}
+_SUBJECT_LABEL_BY_ID = {s.subject_id: s.label for s in load_subjects()}
 
 
 def _strong(trait_id: str) -> TraitEvidenceSummary:
@@ -66,6 +76,12 @@ _MEDIA_LIMITED = {"tool_utilization"}
 # 12차 리뷰 진단 리포트에서 확인됨). "이 세션은 어떤 전공도 실제로 추천받지 않았다"를
 # 재현하는 데 쓴다.
 _TOOL_ONLY_STRONG = {"tool_utilization"}
+
+# 2026-08-25 15차 리뷰 §2: LIMITED 없이 STRONG만 4개(§13 12차 리뷰 eval 진단의 순수
+# "analytical" Persona) — media_communication/industrial_engineering은 computed지만
+# hci_ux는 usable_trait_count 미달로 insufficient가 된다(§4 진단 리포트에서 확인됨).
+# "일부 전공은 computed지만 선택 전공만 insufficient" 시나리오를 만드는 데 쓴다.
+_PARTIAL_COMPUTED_STRONG = {"causal_analysis", "pattern_finding", "information_comparison", "planning"}
 
 
 def _seed_session_with_persona(strong: set[str], limited: set[str]) -> str:
@@ -104,7 +120,7 @@ def _assert_no_float(node, path: str, test_case: unittest.TestCase) -> None:
             _assert_no_float(value, f"{path}[{i}]", test_case)
 
 
-class CoursePlanningThreePersonaPathTest(unittest.TestCase):
+class CoursePlanningApiIntegrationThreePersonaPathTest(unittest.TestCase):
     """§9 최소 3개 경로: 분석형→industrial_engineering, 시각·사용자 관점형→hci_ux,
     미디어형→media_communication."""
 
@@ -119,11 +135,20 @@ class CoursePlanningThreePersonaPathTest(unittest.TestCase):
         subject_ids_returned = [item["subject_id"] for item in body["recommendations"]]
         # 다른 학생 Mock 과목(예전 mock_data.mock_course_profile()의 고정값)이 섞이지 않는다.
         self.assertNotIn("subj_mock0000000000000001", subject_ids_returned)
+        banned_phrases = [
+            "검증된 과목", "공식 추천 과목", "반드시 들어야 하는 과목",
+            "이 전공에 필수인 과목", "적합도가 입증된 과목", "공식적으로 연결된 과목",
+        ]
         for item in body["recommendations"]:
             self.assertIn(item["subject_id"], _ALL_SUBJECT_IDS, "subjects.jsonl에 없는 subject_id")
             self.assertIn(item["category"], ("core", "explore"))
             self.assertIsNone(item["is_actually_offered"], "PRE_SURVEY는 개설 여부가 아직 미확정이어야 한다")
             self.assertIn(major_label, item["reason"], "reason에 선택한 전공과의 연결 이유가 없다")
+            # §1: label이 정본 SubjectProfile.label과 정확히 같아야 한다.
+            self.assertTrue(item["label"], "label이 비어 있다")
+            self.assertEqual(item["label"], _SUBJECT_LABEL_BY_ID[item["subject_id"]])
+            for phrase in banned_phrases:
+                self.assertNotIn(phrase, item["reason"], f"금지 표현이 reason에 남아 있다: {phrase!r}")
 
         _assert_no_float(body, "subjects_response", self)
         return body
@@ -154,7 +179,7 @@ class CoursePlanningThreePersonaPathTest(unittest.TestCase):
         self.assertEqual(first, second)
 
 
-class CoursePlanningValidationTest(unittest.TestCase):
+class CoursePlanningApiIntegrationValidationTest(unittest.TestCase):
     """§9 추가 검증: Evidence 부족, 존재하지 않는 전공, design 전공 선택 차단."""
 
     def test_insufficient_evidence_is_rejected(self) -> None:
@@ -179,14 +204,25 @@ class CoursePlanningValidationTest(unittest.TestCase):
         self.assertEqual(r.status_code, 422)
         self.assertEqual(r.json()["detail"]["error_code"], "MAJOR_NOT_SELECTABLE")
 
-    def test_major_not_recommended_for_this_session_is_rejected(self) -> None:
-        """selected_major_id 자체는 유효한 대표 전공이어도, 이 세션의 실제 추천 결과에
-        없으면 거부해야 한다 — Trait 1개만 강하게 관찰된 학생은 세 대표 전공 모두
-        usable_trait_count 미달로 insufficient가 되어(§13 12차 리뷰 진단 리포트의
-        'tool_only' Persona) 어떤 전공도 추천 결과에 없다."""
+    def test_all_majors_insufficient_is_evidence_not_ready_not_major_not_selectable(self) -> None:
+        """2026-08-25 15차 리뷰 §2 정정: Trait 1개만 강하게 관찰된 학생은 세 대표 전공
+        모두 usable_trait_count 미달로 insufficient가 된다(§13 12차 리뷰 진단 리포트의
+        'tool_only' Persona) — 이건 selected_major_id의 문제가 아니라 "전공을 판단할
+        Evidence 자체가 부족함"이라 EVIDENCE_NOT_READY여야 한다(예전엔
+        MAJOR_NOT_SELECTABLE로 잘못 분류됐다)."""
 
         session_id = _seed_session_with_persona(_TOOL_ONLY_STRONG, set())
         r = client.get(f"/subjects/{session_id}", params={"selected_major_id": "industrial_engineering"})
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "EVIDENCE_NOT_READY")
+
+    def test_major_computed_for_others_but_insufficient_for_selected_is_major_not_selectable(self) -> None:
+        """§2: media_communication/industrial_engineering은 computed(추천 목록에 있음)인데
+        hci_ux만 insufficient인 Persona로 hci_ux를 선택하면 — 이번엔 진짜로 "이 전공은
+        이 학생에게 추천되지 않았다"는 뜻이라 MAJOR_NOT_SELECTABLE이어야 한다."""
+
+        session_id = _seed_session_with_persona(_PARTIAL_COMPUTED_STRONG, set())
+        r = client.get(f"/subjects/{session_id}", params={"selected_major_id": "hci_ux"})
         self.assertEqual(r.status_code, 422)
         self.assertEqual(r.json()["detail"]["error_code"], "MAJOR_NOT_SELECTABLE")
 

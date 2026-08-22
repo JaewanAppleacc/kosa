@@ -883,6 +883,10 @@
             "type": "string",
             "title": "Subject Id"
           },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
           "category": {
             "type": "string",
             "enum": [
@@ -911,6 +915,7 @@
         "type": "object",
         "required": [
           "subject_id",
+          "label",
           "category",
           "is_actually_offered",
           "reason"
