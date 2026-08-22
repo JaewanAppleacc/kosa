@@ -32,6 +32,16 @@ VISIBLE_DEPARTMENT_STATUSES = frozenset({"EXISTING", "NEW"})
 
 DEFAULT_DEPARTMENT_LIMIT = 30
 
+# 2026-08-22 9차: 사용자가 프로젝트 범위를 확정 — 예체능 계열(음악·미술·회화·조소,
+# 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열,
+# 예술대학·미술대학·디자인대학·체육대학 소속 학과)은 교육과정에 다른 근거(예: UX)가
+# 있어도 추천·탐색 대상에서 제외한다. `design` Canonical Major는 정의상 예체능(디자인)
+# 계열이라 통째로 제외한다 — 관심 Context(미술·디자인 등)는 그대로 유지하고 Shared
+# Trait 추출에는 계속 쓴다(§16 "관심 Context와 추천 학과 범위는 별개다"). 학과명
+# 문자열로 개별 학과를 자동 분류하는 방식은 쓰지 않는다 — major_id 단위의 명시적
+# 제외 집합만 쓴다(Canonical Mapping·Repository 데이터는 그대로 두고 노출만 막는다).
+EXCLUDED_RECOMMENDATION_MAJOR_IDS = frozenset({"design"})
+
 # Repository.search()가 상태 필터를 모르므로, 먼저 이 major_id에 걸리는 후보를 넉넉히
 # 받아온 뒤(현재 시연 데이터는 학과 30개뿐이라 사실상 "전부") 여기서 상태로 거르고 다시
 # limit을 적용한다 — 그래야 "상태 필터링 때문에 결과가 실제보다 적게 나오는" 일이 없다.
@@ -57,9 +67,14 @@ class MajorExplorationService:
 
         `major_id`가 비어 있으면 빈 목록을 반환한다 — 빈 문자열을 Repository에 그대로
         넘기면 "필터 없음"으로 해석돼(criteria.canonical_major_id가 falsy) 아무 전공과도
-        상관없는 학과까지 전부 반환되는 사고를 막는다."""
+        상관없는 학과까지 전부 반환되는 사고를 막는다.
 
-        if not major_id or limit <= 0:
+        2026-08-22 9차: `major_id`가 EXCLUDED_RECOMMENDATION_MAJOR_IDS(예: design)에
+        속하면 기존 "매칭되는 학과 없음"과 동일하게 200 + 빈 목록을 반환한다 — 새로운
+        오류나 API 계약 변경 없이, 이미 있는 "미등록 major_id" 응답 형태를 그대로
+        재사용한다. Repository의 실제 데이터는 그대로 두고 노출만 막는다."""
+
+        if not major_id or limit <= 0 or major_id in EXCLUDED_RECOMMENDATION_MAJOR_IDS:
             return []
 
         criteria = DepartmentSearchCriteria(canonical_major_id=major_id)

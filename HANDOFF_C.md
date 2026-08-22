@@ -232,3 +232,39 @@ C의 구현이 `main`에 병합된 뒤, A가 실제 서비스에 처음 연결�
   "대표 전공"이라는 같은 개념을 가리키지만 서로 연결돼 있지 않다). `/majors/{session_id}`
   는 `major_profiles.jsonl`을 전혀 쓰지 않으므로 이번 정합화 범위 밖이라 판단해 손대지
   않았다 — 이 두 데이터셋을 언젠가 하나로 합칠지는 별도 결정이 필요하다.
+
+---
+
+## 9. 사용자 정책 확정에 따른 후속 교정 — 2026-08-22 (`main` 병합 이후 3단계)
+
+8번(2단계) 직후 사용자가 프로젝트 범위를 최종 확정했다: **"예체능 계열 대학 학과는
+추천·탐색 대상에서 제외한다."** 8번에서 `confirm()`으로 `hci_ux`에 재확정했던 서울여대
+산업디자인학과는 실제 UX 교육과정 근거가 있어도 학과 자체가 예체능(디자인) 계열이라 이
+정책에 위배된다. 이 절은 그 교정 내용을 기록한다 — 8번의 industrial_engineering 관련
+내용은 이 정책과 충돌하지 않아 그대로 유효하다.
+
+- **서울여대 산업디자인학과 확정 취소**: `data/master/canonical_mapping_manual_
+  confirmations.jsonl`에서 이 학과의 `hci_ux` 확정 항목을 제거했다(파일을 통째로 비움).
+  빌드 파이프라인을 재실행하면 원래의 Exact-Alias 결과(`design`)로 자연스럽게
+  되돌아간다 — raw/master 데이터는 삭제하지 않았고, 학과 자체는 여전히 존재한다.
+  취소한 확정의 근거·취소 사유는 새 파일
+  `data/master/canonical_mapping_manual_confirmations_reverted.jsonl`에 감사 기록으로
+  남겼다(삭제가 아니라 "시도했다가 정책 변경으로 취소했다"는 이력 보존).
+- **`design` Canonical Major 자체를 추천 경로에서 제외**: 학과명 문자열로 개별 학과를
+  자동 분류하는 방식 대신, `src/services/major_exploration_service.py`(A 소유)에
+  `EXCLUDED_RECOMMENDATION_MAJOR_IDS = frozenset({"design"})`를 추가해 major_id
+  단위로 명시적으로 막았다. Repository·Canonical Mapping 데이터는 그대로 두고
+  노출만 막는다 — `/departments/design`은 (다른 미등록 major_id와 동일하게) 200 +
+  빈 목록을 반환한다.
+- **이화여대 융합콘텐츠학과는 재검토 후 유지했다**: 소속이 신산업융합대학(예술대학·
+  미술대학·디자인대학·체육대학 아님)이고, 같은 단과대학의 체육과학부와 달리 실기고사
+  전형이 아니며, 공식 자기소개가 "인문학+공학+디자인" 융합이라 순수 예체능이 아니다.
+  이 검토 근거는 새 파일 `data/master/hci_ux_department_review.jsonl`에 학과별로
+  기록해, 앞으로 `hci_ux`에 학과를 추가할 때도 같은 형식으로 근거를 남기게 했다.
+- **결과**: `hci_ux`는 이제 학과 1개(이화여대 융합콘텐츠학과)뿐이다. 공식 근거로
+  검증 가능한 비예체능 HCI/UX 학과를 추가로 찾지 못해 억지로 채우지 않았다 —
+  README_B.md에 "학과 1개"로 정직하게 남겨 뒀다(§4).
+- **관심 Context는 전혀 손대지 않았다**: `src/data/contexts/context_definitions.py`는
+  이번 작업에서 한 줄도 바꾸지 않았다. 미술·디자인/스포츠/미디어/패션·뷰티 Context는
+  그대로 존재하고, Shared Trait 추출에 계속 쓰인다 — "관심 Context 선택"과 "예체능
+  학과 추천"은 완전히 다른 경로다(§16).
