@@ -56,11 +56,16 @@ class MajorExplorationService:
     2026-08-22 10차: `EXCLUDED_RECOMMENDATION_MAJOR_IDS`(major_id 통째로 차단)만으로는
     "다른 major_id로 잘못 Mapping된 예체능 학과"를 못 막는다 — 그래서 `major_id`가
     `fail_closed_major_ids`(실제로 추천 가능한 대표 전공들, 지금은 VERTICAL_SLICE_
-    MAJOR_PROFILES의 3개)에 속하면 학과(department_id) 단위로 `recommendation_scope_
-    policy.is_approved()`가 명시적으로 APPROVED라고 확인해 준 것만 통과시킨다
-    (Fail-Closed — 검토 기록이 없으면 거부). `fail_closed_major_ids` 밖의 major_id
-    (예: computer_science)는 이번 MVP 범위 밖이라 기존 동작(상태·출처 필터만) 그대로
-    유지한다 — 전국 학과 전체 예체능 분류는 후속 확장이다."""
+    MAJOR_PROFILES의 3개)에 속하면 학과(department_id) 단위로
+    `recommendation_scope_policy.is_approved(department_id, canonical_major_id=major_id)`
+    가 명시적으로 APPROVED라고 확인해 준 것만 통과시킨다(Fail-Closed — 검토 기록이
+    없거나 다른 전공으로 검토된 기록이면 거부). 2026-08-22 11차: department_id만으로
+    판정하지 않는다 — 같은 학과가 나중에 다른 major_id로 잘못 Mapping돼도 그 조합이
+    실제로 검토·승인된 적이 있는지까지 확인해야 하기 때문이다(요청 major_id ==
+    Department.canonical_major_id == ScopeRecord.canonical_major_id 세 값이 전부
+    같아야 통과한다). `fail_closed_major_ids` 밖의 major_id(예: computer_science)는
+    이번 MVP 범위 밖이라 기존 동작(상태·출처 필터만) 그대로 유지한다 — 전국 학과 전체
+    예체능 분류는 후속 확장이다."""
 
     def __init__(
         self,
@@ -117,7 +122,11 @@ class MajorExplorationService:
         # 자체가 예체능 학과를 잘못 담고 있을 수 있어 major_id 필터만으로는 못 막는다.
         if major_id in self._fail_closed_major_ids:
             policy = self._recommendation_scope_policy
-            visible = [d for d in visible if policy is not None and policy.is_approved(d.department_id)]
+            visible = [
+                d
+                for d in visible
+                if policy is not None and policy.is_approved(d.department_id, major_id)
+            ]
 
         # 결정론적 정렬 — region → university_name → campus → department_name →
         # department_id. Repository 자체 정렬(university_name 우선)과 다른 이유는, 이건

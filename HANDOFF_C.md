@@ -312,3 +312,41 @@ major_id로 잘못 Mapping된 예체능 학과"까지는 못 막는다. 이 절�
 - **API 계약 무변경**: `GET /departments/{major_id}` 응답에는 여전히 기존
   `DepartmentsResponse`(`Department[]`)만 나간다 — `academic_field`·
   `eligibility_status`·검토자 ID 같은 내부 필드는 어디에도 노출하지 않는다.
+
+---
+
+## 11. 검수 보완 — 전공 교차 승인 방지 + 이화여대 근거 2026학년도 갱신 — 2026-08-22 (5단계)
+
+10번(4단계) 검수에서 두 가지가 더 지적됐다: (1) `is_approved(department_id)`가
+department_id만 보므로, 같은 학과가 나중에 다른 전공으로 잘못 재매핑돼도 department_id가
+같다는 이유로 승인이 그대로 따라올 수 있었다. (2) 이화여대 입학전형 근거가 2024학년도
+자료였다. 이 절은 그 보완이다 — 10번까지의 결정(서울여대 산업디자인학과 hci_ux 취소,
+design 제외, Fail-Closed 정책)은 전부 그대로 유지된다.
+
+- **Policy 판정을 (department_id, canonical_major_id) 쌍으로 바꿨다**:
+  `DepartmentRecommendationScopePolicy.is_approved()` 시그니처에 `canonical_major_id`
+  파라미터를 추가하고, 정책 레코드의 `canonical_major_id`가 요청받은 전공과 정확히
+  같을 때만 승인한다. `MajorExplorationService`도 조회 중인 `major_id`를 그대로
+  넘긴다 — 결과적으로 "요청 major_id == Department.canonical_major_id ==
+  ScopeRecord.canonical_major_id" 세 값이 전부 일치해야 노출된다.
+- **Schema 수준 방어 3종을 `DepartmentRecommendationScopeRecord`에 추가했다**(Pydantic
+  `model_validator`): (1) `eligibility_status`↔`recommendation_eligible` 모순 금지
+  (APPROVED는 반드시 true, 나머지는 반드시 false), (2) APPROVED면 근거·검토자·사유가
+  비어 있으면 안 됨, (3) `hci_ux` APPROVED 레코드는 `hci_ux_curriculum_evidence`가
+  최소 1개 이상이어야 함(다른 전공에는 강제하지 않음). `is_approved()` 자체도 Schema
+  검증을 우회한 레코드(`model_construct`)에 대비해 상태·Boolean을 다시 확인한다.
+- **중복 `department_id`를 조용히 덮어쓰지 않는다**: `load_department_recommendation_
+  scope()`가 같은 department_id를 두 번 만나면 `DuplicateDepartmentScopeRecordError`를
+  즉시 던진다 — 앱 시작 시 `JsonlDepartmentRecommendationScopePolicy()`가 이 예외를
+  그대로 전파하므로, 정책 파일에 중복이 생기면 서버가 조용히 빈 Policy로 도는 대신
+  시작 자체가 실패한다.
+- **이화여대 입학전형 근거를 2026학년도로 교체했다**: 기존 2024학년도 PDF
+  (`20230911092013KBG72F.pdf`)를 제거하고, 2026학년도 정시모집요강 공식 PDF
+  (`https://admission.ewha.ac.kr/upload/GUIDES/20250901114849R2K7DN.pdf`)를 직접
+  원문 확인해 교체했다 — p.9 "학부/학과(전공)별 선발 모집단위" 표와 p.10~11
+  "전형별·모집단위별 모집인원 및 모집군" 표, p.11 각주를 통해 신산업융합대학 소속
+  중 예체능(수능실기전형/실기·실적)으로 취급되는 모집단위는 체육과학부뿐이고
+  융합콘텐츠학과는 일반 계열별통합선발(수능전형)임을 재확인했다.
+- **결과 불변**: `media_communication` 4·`industrial_engineering` 3·`hci_ux` 1·
+  `design` 0 — API 노출 개수는 4단계와 동일하다. B에게 알릴 새로운 결과 변화가 없어
+  README_B.md는 이번엔 수정하지 않았다.
