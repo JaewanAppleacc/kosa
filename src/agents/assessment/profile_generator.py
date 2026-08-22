@@ -16,7 +16,7 @@ from src.engines.profile_engine import (
     select_profile_highlight_traits,
 )
 from src.llm.protocols import ChatLLMClient, LLMCallError
-from src.schemas.evidence import EvidenceRecord, TraitEvidenceSummary
+from src.schemas.evidence import ContrastResolutionRecord, EvidenceRecord, TraitEvidenceSummary
 from src.schemas.profile import CareerProfile, CareerProfileHighlight, GeneratedCareerProfile
 from src.schemas.trait import TraitDefinition
 
@@ -64,15 +64,31 @@ def _describe_state(judgment_state: str) -> str:
     }.get(judgment_state, "")
 
 
+def _describe_resolution(resolution_role: str | None) -> str:
+    """2026-08-22 2차 리뷰: §12-1 확인 질문 답변을 highlight 문장에 정성적으로만 반영한다
+    — 내부 보정값·점수는 절대 언급하지 않는다(LLM SYSTEM_PROMPT의 숫자 금지 규칙과 동일)."""
+
+    return {
+        "preferred": "확인 질문에서 이 성향 쪽을 선택함 — 상대적으로 더 자주 선택하는 경향으로 "
+        "서술할 것(다른 성향이 아예 없다고 단정하지는 말 것)",
+        "deprioritized": "확인 질문에서 반대 성향을 선택함 — 이 성향이 없다는 뜻이 아니라 상대적으로 "
+        "덜 선택하는 경향이라는 뉘앙스로 서술할 것(결핍처럼 쓰지 말 것)",
+        "context_dependent": "확인 질문에서 '상황에 따라 다르다'를 선택함 — 반드시 "
+        "'상황에 따라 다르게 나타나요'처럼 상황 의존적으로 서술할 것(한쪽으로 단정하지 말 것)",
+    }.get(resolution_role or "", "")
+
+
 def _build_user_prompt(candidates: list[HighlightCandidate]) -> str:
     trait_blocks = []
     for c in candidates:
+        resolution_note = _describe_resolution(c.resolution_role)
+        resolution_line = f"\n  확인 질문 답변: {resolution_note}" if resolution_note else ""
         trait_blocks.append(
             f"""- trait_id: {c.trait_definition.trait_id}
   label: {c.trait_definition.label}
   definition: {c.trait_definition.definition}
   긍정 지표: {', '.join(c.trait_definition.positive_indicators)}
-  상태: {c.judgment.state.value} — {_describe_state(c.judgment.state.value)}"""
+  상태: {c.judgment.state.value} — {_describe_state(c.judgment.state.value)}{resolution_line}"""
         )
     trait_list = "\n".join(trait_blocks)
     return f"""[이번에 문장으로 표현해야 할 Trait 목록 — 정확히 이 순서·이 개수로 반환할 것]
@@ -95,7 +111,12 @@ def _fallback_profile(
 
     highlights = []
     for c in candidates:
-        if c.judgment.state.value in ("INSUFFICIENT", "CONFLICTING", "LIMITED"):
+        # 2026-08-22 2차 리뷰: §12-1 확인 질문 답변을 정성적으로만 반영한다(숫자·보정값 없음).
+        if c.resolution_role == "context_dependent":
+            text = f"{c.trait_definition.label}은(는) 상황에 따라 다르게 나타나요."
+        elif c.resolution_role == "deprioritized":
+            text = f"{c.trait_definition.definition} 다만 확인 질문에서는 다른 방식을 상대적으로 더 자주 선택했어요."
+        elif c.judgment.state.value in ("INSUFFICIENT", "CONFLICTING", "LIMITED"):
             text = f"이번 답변에서는 {c.trait_definition.label}이(가) 충분히 확인되지 않았어요."
         else:
             text = f"{c.trait_definition.definition}"
@@ -124,6 +145,7 @@ def generate_career_profile(
     unresolved_conflict_trait_ids: set[str],
     llm_client: ChatLLMClient | None,
     max_regenerations: int = 1,
+    resolutions: dict[str, ContrastResolutionRecord] | None = None,
 ) -> CareerProfile:
     """2026-08-21 리뷰 반영: `llm_client`가 None이어도(서버에 API Key가 아예 없는 경우)
     이 함수는 항상 "이 학생의 실제 Trait Evidence" 기반 결과를 반환한다 — 이전에는
@@ -131,10 +153,13 @@ def generate_career_profile(
     Mock Profile로 대체했는데, 그러면 실제로 쌓인 Evidence가 있어도 다른 학생 것처럼
     보이는 고정 문구를 보여주는 꼴이었다. LLM이 없으면 문장만 덜 다듬어진
     `_fallback_profile()`로 즉시 넘어가고, Trait 선정·근거 구조는 항상 동일하게 실제
-    계산을 거친다."""
+    계산을 거친다.
+
+    2026-08-22 2차 리뷰: `resolutions`(기본값 None, 하위 호환)가 주어지면 §12-1 확인
+    질문 답변을 highlight 우선순위·문장에 정성적으로 반영한다."""
 
     candidates = select_profile_highlight_traits(
-        trait_summaries, all_trait_definitions, unresolved_conflict_trait_ids
+        trait_summaries, all_trait_definitions, unresolved_conflict_trait_ids, resolutions
     )
     detailed_evidence = build_detailed_evidence_by_dimension(candidates, evidence_ledger)
     requested_trait_ids = [c.trait_definition.trait_id for c in candidates]

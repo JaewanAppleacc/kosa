@@ -24,6 +24,7 @@ from src.ids import generate_evidence_id
 from src.schemas.assessment_state import AnsweredQuestion, AssessmentState
 from src.schemas.evidence import (
     ContrastDefinition,
+    ContrastResolutionQuestionSpec,
     ContrastResolutionRecord,
     ContrastResolutionStatus,
     EvidenceOrigin,
@@ -50,8 +51,9 @@ class AnswerGraphState(BaseModel):
     all_trait_ids: set[str]
     contrast_definitions: list[ContrastDefinition] = Field(default_factory=list)
     is_first_context_in_session: bool = False
-    # contrast_id -> {role_id -> 이 role을 고르면 어떤 해소 결과인지}. 2026-08-22 §12-1 확장.
-    resolution_role_maps: dict[str, dict[str, ContrastResolutionStatus]] = Field(default_factory=dict)
+    # contrast_id -> 확인 질문 Spec(어느 Role이 어떤 해소 결과인지 + 어느 Trait이 positive/
+    # opposite인지). 2026-08-22 §12-1 확장.
+    resolution_specs: dict[str, ContrastResolutionQuestionSpec] = Field(default_factory=dict)
 
     # Node 간 전달용 중간 결과 — 그래프 실행이 끝나면 AnswerSubmissionResult로 변환한다.
     accepted: bool = True
@@ -87,6 +89,10 @@ def _evidence_update(g: AnswerGraphState) -> dict:
     state = g.state
     question = g.question
     selected_option = next(o for o in question.options if o.option_id == g.selected_option_id)
+    # 2026-08-22 2차 리뷰: 확인 질문 답변은 일반 꼬리질문과 별도로 센다 — §5-3 4~6개
+    # 상한은 일반 문항에만 적용되고, 확인 질문이 끼어들어도 다음 일반 질문의 §7-2
+    # 위치·테마 계산이 밀리면 안 된다(위치는 questions_asked_in_current_context 기준).
+    is_resolution_answer = question.contrast_id is not None
 
     evidence = EvidenceRecord(
         evidence_id=generate_evidence_id(),
@@ -123,11 +129,13 @@ def _evidence_update(g: AnswerGraphState) -> dict:
         state.recent_target_trait_ids.append(question.target_traits[0])
     state.used_frame_ids_in_current_context.append(question.frame_id)
 
-    state.questions_asked_in_current_context += 1
-
-    # §7-2: 이번이 이 Context의 Seed 답변이면, DEEPEN 테마가 참고할 Trait을 남긴다.
-    if state.questions_asked_in_current_context == 1:
-        state.current_context_seed_trait_id = sorted(selected_option.primary_trait_delta)[0]
+    if is_resolution_answer:
+        state.resolution_questions_asked_in_current_context += 1
+    else:
+        state.questions_asked_in_current_context += 1
+        # §7-2: 이번이 이 Context의 Seed 답변이면, DEEPEN 테마가 참고할 Trait을 남긴다.
+        if state.questions_asked_in_current_context == 1:
+            state.current_context_seed_trait_id = sorted(selected_option.primary_trait_delta)[0]
 
     all_offered_sets = [set(v) for v in state.offered_trait_ids_by_question.values()]
     for trait_id in g.all_trait_ids:
@@ -137,15 +145,32 @@ def _evidence_update(g: AnswerGraphState) -> dict:
 
     # 2026-08-22 §12-1 확장: 이번 답변이 Explicit Conflict 확인 질문(question.contrast_id)에
     # 대한 답이면, Evidence Ledger는 그대로 두고 별도의 Resolution Record만 저장한다 —
-    # 과거 Evidence를 지우거나 고치지 않는다.
-    if question.contrast_id is not None:
-        role_map = g.resolution_role_maps.get(question.contrast_id, {})
-        resolution_status = role_map.get(selected_option.role_id)
-        if resolution_status is not None:
+    # 과거 Evidence를 지우거나 고치지 않는다("Evidence는 관찰된 답변 기록이고, Conflict
+    # Resolution은 상충 Evidence의 해석 정보다").
+    if is_resolution_answer:
+        spec = g.resolution_specs.get(question.contrast_id)
+        resolution_status = spec.role_resolution_map.get(selected_option.role_id) if spec else None
+        if spec is not None and resolution_status is not None:
+            preferred_trait_id: str | None = None
+            opposite_trait_id: str | None = None
+            context_dependent_trait_ids: list[str] = []
+            if resolution_status == ContrastResolutionStatus.RESOLVED_POSITIVE:
+                preferred_trait_id, opposite_trait_id = spec.positive_trait_id, spec.opposite_trait_id
+            elif resolution_status == ContrastResolutionStatus.RESOLVED_OPPOSITE:
+                preferred_trait_id, opposite_trait_id = spec.opposite_trait_id, spec.positive_trait_id
+            elif resolution_status == ContrastResolutionStatus.RESOLVED_CONTEXT_DEPENDENT:
+                context_dependent_trait_ids = [spec.positive_trait_id, spec.opposite_trait_id]
+            # UNRESOLVED: 셋 다 비워둔다 — 이미 unresolved_conflict_trait_ids로 Mask되므로
+            # Profile/Matching에서 확정적 추천 근거로 쓰이지 않는다.
             state.contrast_resolutions[question.contrast_id] = ContrastResolutionRecord(
                 contrast_id=question.contrast_id,
                 status=resolution_status,
                 resolved_at_answer_id=evidence.answer_id,
+                context_id=question.context,
+                reason_option_id=g.selected_option_id,
+                preferred_trait_id=preferred_trait_id,
+                opposite_trait_id=opposite_trait_id,
+                context_dependent_trait_ids=context_dependent_trait_ids,
             )
         state.pending_resolution_contrast_id = None
 
@@ -167,9 +192,20 @@ def _evidence_update(g: AnswerGraphState) -> dict:
 
 
 def _stop_or_continue(g: AnswerGraphState) -> dict:
-    """§5-3 Adaptive Stop Condition."""
+    """§5-3 Adaptive Stop Condition.
+
+    2026-08-22 2차 리뷰 버그 수정: 예전에는 일반 꼬리질문이 6개(강제 STOP 경계)에 정확히
+    도달한 시점에 Explicit Conflict가 "처음" 감지되면, decide_stop_or_continue가 개수만
+    보고 무조건 STOP을 반환해서 확인 질문을 한 번도 못 물어보고 세션이 끝나버렸다(그
+    Contrast는 영원히 미해결로 남는다). Conflict 확인 질문은 §5-3의 4~6개 상한과 분리된
+    별도 문항이므로, 아직 한 번도 물어보지 않은 확인 질문이 있으면(g.contrast_ids_
+    needing_resolution_question) 개수 상한과 무관하게 무조건 CONTINUE한다 — 이미 한 번
+    물어봤다면(UNRESOLVED 포함) 이 집합에 다시 안 나타나므로 무한 반복은 안 생긴다."""
 
     state = g.state
+    if g.contrast_ids_needing_resolution_question:
+        return {"stop_decision": "CONTINUE"}
+
     tail_questions_asked = state.questions_asked_in_current_context - 1
     decision = decide_stop_or_continue(
         tail_questions_asked, state.trait_summaries, g.all_trait_ids, state.unresolved_conflict_trait_ids
@@ -237,10 +273,10 @@ def submit_answer(
     all_trait_ids: set[str],
     is_first_context_in_session: bool,
     contrast_definitions: list[ContrastDefinition] | None = None,
-    resolution_role_maps: dict[str, dict[str, ContrastResolutionStatus]] | None = None,
+    resolution_specs: dict[str, ContrastResolutionQuestionSpec] | None = None,
 ) -> AnswerSubmissionResult:
     """예전 answer_processor.submit_answer와 시그니처·반환값·"state를 제자리 mutate"
-    계약이 동일하다(신규 `resolution_role_maps`는 기본값 None인 Optional 추가 파라미터라
+    계약이 동일하다(신규 `resolution_specs`는 기본값 None인 Optional 추가 파라미터라
     기존 호출자는 그대로 동작한다) — 내부만 LangGraph 실행으로 바뀌었다."""
 
     graph_input = AnswerGraphState(
@@ -250,7 +286,7 @@ def submit_answer(
         all_trait_ids=all_trait_ids,
         contrast_definitions=contrast_definitions or [],
         is_first_context_in_session=is_first_context_in_session,
-        resolution_role_maps=resolution_role_maps or {},
+        resolution_specs=resolution_specs or {},
     )
     # LangGraph/LangChain은 LANGSMITH_TRACING 환경변수만 보고 원본 Node 입출력(학생 답변
     # 원문 포함)을 자동으로 LangSmith에 전송하려 한다 — 이건 §24 Sanitizer를 거치지 않은

@@ -17,10 +17,6 @@ from src.engines.evidence_engine import decide_stop_or_continue
 from src.schemas.assessment_state import AssessmentState
 from src.schemas.evidence import ContrastResolutionStatus, TraitEvidenceSummary
 
-_RESOLUTION_ROLE_MAPS = {
-    cid: spec.role_resolution_map for cid, spec in VERTICAL_SLICE_RESOLUTION_SPECS.items()
-}
-
 # submit_answer는 FinalizedQuestion을 받는다(실제 API가 학생에게 보여주는 형태) — Seed는
 # mock_data.seed_question_as_finalized()로 변환한 것을 쓴다.
 GAME_SEED_01_FINALIZED = seed_question_as_finalized(GAME_SEED_01)
@@ -287,7 +283,7 @@ class ExplicitConflictIntegrationTest(unittest.TestCase):
         state = self._fresh_state()
         submit_answer(
             state, GAME_SEED_01_FINALIZED, "game_seed_01_o1", VERTICAL_SLICE_TRAIT_IDS, True,
-            VERTICAL_SLICE_CONTRAST_DEFINITIONS, _RESOLUTION_ROLE_MAPS,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS, VERTICAL_SLICE_RESOLUTION_SPECS,
         )
         result = None
         for i, (role_id, trait_id) in enumerate(
@@ -302,7 +298,7 @@ class ExplicitConflictIntegrationTest(unittest.TestCase):
             question = self._tail(f"game_tail_{i:02d}", role_id, trait_id, "new_tool")
             result = submit_answer(
                 state, question, f"game_tail_{i:02d}_o1", VERTICAL_SLICE_TRAIT_IDS, False,
-                VERTICAL_SLICE_CONTRAST_DEFINITIONS, _RESOLUTION_ROLE_MAPS,
+                VERTICAL_SLICE_CONTRAST_DEFINITIONS, VERTICAL_SLICE_RESOLUTION_SPECS,
             )
 
         self.assertEqual(state.pending_resolution_contrast_id, "planning_vs_execution")
@@ -313,7 +309,7 @@ class ExplicitConflictIntegrationTest(unittest.TestCase):
         resolution_question = build_planning_vs_execution_resolution_question("game")
         result = submit_answer(
             state, resolution_question, f"{resolution_question.question_id}_o1", VERTICAL_SLICE_TRAIT_IDS, False,
-            VERTICAL_SLICE_CONTRAST_DEFINITIONS, _RESOLUTION_ROLE_MAPS,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS, VERTICAL_SLICE_RESOLUTION_SPECS,
         )
 
         self.assertEqual(

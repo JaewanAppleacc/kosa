@@ -21,9 +21,7 @@ EvidenceRecord.context가 정확해서 §13 context_count 계산이 왜곡되지
 
 from __future__ import annotations
 
-from pydantic import BaseModel
-
-from src.schemas.evidence import ContrastResolutionStatus
+from src.schemas.evidence import ContrastResolutionQuestionSpec, ContrastResolutionStatus
 from src.schemas.question import FinalizedOption, FinalizedQuestion
 
 PLANNING_VS_EXECUTION_RESOLUTION_QUESTION_ID = "conflict_resolution_planning_vs_execution"
@@ -85,17 +83,15 @@ def build_planning_vs_execution_resolution_question(context_id: str) -> Finalize
     )
 
 
-class ContrastResolutionQuestionSpec(BaseModel):
-    contrast_id: str
-    role_resolution_map: dict[str, ContrastResolutionStatus]
-
-
 VERTICAL_SLICE_RESOLUTION_QUESTION_BUILDERS = {
     "planning_vs_execution": build_planning_vs_execution_resolution_question,
 }
 
 VERTICAL_SLICE_RESOLUTION_SPECS: dict[str, ContrastResolutionQuestionSpec] = {
     "planning_vs_execution": ContrastResolutionQuestionSpec(
-        contrast_id="planning_vs_execution", role_resolution_map=_ROLE_RESOLUTION_MAP
+        contrast_id="planning_vs_execution",
+        positive_trait_id="planning",
+        opposite_trait_id="immediate_execution",
+        role_resolution_map=_ROLE_RESOLUTION_MAP,
     ),
 }

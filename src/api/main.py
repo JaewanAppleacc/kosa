@@ -52,6 +52,7 @@ from src.engines.contrast_context_selector import (
     ContextSelectionError,
     select_contrast_context,
     validate_context_id_list,
+    validate_interest_ratings,
 )
 from src.engines.matching_engine import (
     compute_major_match,
@@ -122,9 +123,6 @@ DEMO_USER_ID = "demo_user_01"
 TRAIT_DEFINITIONS_BY_ID = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
 ALL_TRAIT_LABELS = {tid: t.label for tid, t in TRAIT_DEFINITIONS_BY_ID.items()}
 CONTEXT_DEFINITIONS_BY_ID = {c.context_id: c for c in CONTEXT_DEFINITIONS}
-RESOLUTION_ROLE_MAPS_BY_CONTRAST_ID = {
-    cid: spec.role_resolution_map for cid, spec in VERTICAL_SLICE_RESOLUTION_SPECS.items()
-}
 
 # §10/§11 실시간 LLM 질문 생성 — 명시적으로 켜져 있고(.env ENABLE_LLM_QUESTION_GENERATION)
 # 설정이 완전할 때만 활성화한다. 꺼져 있거나 Key가 없으면 조용히 Mock 경로로 돌아간다
@@ -166,6 +164,8 @@ def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
         state.pending_previous_answer_text = None
         state.pending_option_blueprint_id = None
         state.current_context_seed_trait_id = None
+        state.resolution_questions_asked_in_current_context = 0
+        state.pending_resolution_contrast_id = None
         return True
     state.phase = AssessmentPhase.PROFILE_GENERATION
     return False
@@ -194,6 +194,20 @@ def create_session() -> CreateSessionResponse:
 @app.post("/assessment/interest-rating", response_model=InterestRatingResponse)
 def submit_interest_rating(payload: InterestRatingRequest) -> InterestRatingResponse:
     state = _get_state_or_404(payload.session_id)
+    try:
+        # 2026-08-22 3차 리뷰: 이 값이 그대로 Context Selector(§5-1/§6-5) 입력으로 쓰이므로
+        # 범위 밖 점수·미등록 Context id·빈 입력을 여기서 구조적으로 막는다. 최소 개수는
+        # 지금 유일하게 지원하는 Vertical Slice 모드 기준(§5-1 선호 Context 최소 개수와
+        # 동일한 상수를 재사용 — Full Mode 전환 시 이 값만 바꾸면 된다).
+        validate_interest_ratings(
+            payload.ratings, CONTEXT_IDS, minimum_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE
+        )
+    except ContextSelectionError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+
     state.interest_ratings = payload.ratings
     state.phase = AssessmentPhase.CONTEXT_SELECTION
     _store.save(state)
@@ -434,7 +448,7 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         VERTICAL_SLICE_TRAIT_IDS,
         is_first_context_in_session,
         VERTICAL_SLICE_CONTRAST_DEFINITIONS,
-        RESOLUTION_ROLE_MAPS_BY_CONTRAST_ID,
+        VERTICAL_SLICE_RESOLUTION_SPECS,
     )
 
     if not result.accepted:
@@ -520,6 +534,9 @@ def get_profile(session_id: str) -> ProfileResponse:
         # 이후 안 바뀌므로 같은 결과가 나온다).
         unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
         llm_client=_llm_client,  # None이어도 generate_career_profile이 알아서 Fallback으로 처리
+        # 2026-08-22 2차 리뷰: 확인 질문 답변(선호/비선호/상황 의존)을 highlight 우선순위·
+        # 문장에 정성적으로 반영한다.
+        resolutions=state.contrast_resolutions,
     )
     # §24: highlight 개수·LLM 사용 여부 같은 메타데이터만 남기고, title·highlight 문장
     # 원문은 "상세 Career Profile 문장" 금지 목록에 해당하므로 절대 넘기지 않는다.
@@ -545,7 +562,12 @@ def get_majors(session_id: str) -> MajorsResponse:
 
     state = _get_state_or_404(session_id)
     student_states = compute_student_trait_states(
-        state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids
+        state.trait_summaries,
+        TRAIT_DEFINITIONS_BY_ID,
+        unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
+        # 2026-08-22 2차 리뷰: 확인 질문에서 상대적으로 덜 우선으로 밝혀진 Trait는 여기서
+        # normalized_value가 완화된다(0으로 만들지 않음) — Matching에도 해소 결과가 반영된다.
+        resolutions=state.contrast_resolutions,
     )
     results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
     labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}

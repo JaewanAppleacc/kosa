@@ -114,6 +114,28 @@ class SelectContrastContextTest(unittest.TestCase):
         self.assertIn(result.contrast_context_id, {"c_near", "c_far"})
         self.assertEqual(result.candidate_pool_tier, "no_rated_candidate_arbitrary_fallback")
 
+    def test_reason_text_reflects_actual_preferred_context_count(self) -> None:
+        """2026-08-22 3차 리뷰 항목 4: 예전엔 실제 선호 개수와 무관하게 "선택한 4개
+        Context"라고 고정 출력됐다 — Vertical Slice(2개)·Full Mode(4개) 양쪽에서 문구가
+        실제 개수를 반영해야 한다."""
+
+        two_selected = self._select(
+            preferred_context_ids=["p1", "p2"],
+            interest_ratings={"p1": 5, "p2": 5, "c_near": 2, "c_far": 2},
+            context_vectors={
+                "p1": _vec(0.0), "p2": _vec(0.0), "c_near": _vec(0.1), "c_far": _vec(0.9),
+            },
+            coverage_matrix={
+                "p1": {"a": 0, "b": 0}, "p2": {"a": 0, "b": 0},
+                "c_near": {"a": 0, "b": 0}, "c_far": {"a": 0, "b": 0},
+            },
+        )
+        self.assertIn("선택한 2개 Context", two_selected.contrast_reason)
+        self.assertNotIn("4개", two_selected.contrast_reason)
+
+        four_selected = self._select()  # 기본값이 4개 선호
+        self.assertIn("선택한 4개 Context", four_selected.contrast_reason)
+
     def test_does_not_require_or_use_student_trait_state(self) -> None:
         """CLAUDE.md: "관심 Context 선택 점수를 Trait 점수로 직접 변환하지 않는다" —
         함수 시그니처 자체에 학생 Trait 상태·전공 순위를 받는 자리가 없다는 걸 구조적으로

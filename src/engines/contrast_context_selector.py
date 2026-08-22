@@ -56,6 +56,50 @@ def validate_context_id_list(
             f"{label}는 최소 {minimum_count}개 이상이어야 합니다 (현재 {len(context_ids)}개)."
         )
 
+
+MINIMUM_RATING_SCORE = 1
+MAXIMUM_RATING_SCORE = 5
+
+
+def validate_interest_ratings(
+    ratings: dict[str, int],
+    all_context_ids: set[str],
+    *,
+    minimum_count: int,
+) -> None:
+    """2026-08-22 3차 리뷰: `/assessment/interest-rating`이 이전엔 `dict[str, int]`
+    형태만 확인하고 값 자체는 검증하지 않아, 점수 범위를 벗어나거나(0, 6, 음수) 등록
+    되지 않은 Context id로도 그대로 저장됐다 — 이 값이 나중에 Context Selector(§5-1/§6-5)
+    입력으로 그대로 쓰이므로, 여기서 구조적으로 막는다.
+
+    Context id는 dict의 key라 애초에 중복될 수 없다(같은 key로 오면 마지막 값으로
+    덮어써질 뿐 별도 항목이 되지 않는다) — 그래서 별도 중복 검사가 필요 없고, "정규화
+    충돌"도 CONTEXT_IDS가 이미 정규 slug만 등록하므로 미등록 id 거부로 함께 막힌다."""
+
+    if not ratings:
+        raise ContextSelectionError("관심도 평가가 비어 있습니다.")
+
+    unknown = sorted(set(ratings) - all_context_ids)
+    if unknown:
+        raise ContextSelectionError(f"관심도 평가에 알 수 없는 Context id가 있습니다: {unknown}")
+
+    invalid = sorted(
+        context_id
+        for context_id, score in ratings.items()
+        if isinstance(score, bool) or not isinstance(score, int)
+        or score < MINIMUM_RATING_SCORE or score > MAXIMUM_RATING_SCORE
+    )
+    if invalid:
+        raise ContextSelectionError(
+            f"관심도 점수는 {MINIMUM_RATING_SCORE}~{MAXIMUM_RATING_SCORE} 사이의 정수여야 합니다: {invalid}"
+        )
+
+    if len(ratings) < minimum_count:
+        raise ContextSelectionError(
+            f"관심도 평가는 최소 {minimum_count}개 이상이어야 합니다 (현재 {len(ratings)}개)."
+        )
+
+
 # §5-1: 후보군 선정에 쓰는 관심도 등급 우선순위. 2~3점을 원칙으로 하고, 후보가 없을 때만
 # 단계적으로 넓힌다("1점은 학생이 직접 허용한 경우에만"이므로 가장 마지막 단계에만 쓴다).
 CandidatePoolTier = Literal[
@@ -104,14 +148,19 @@ def _normalize(values: dict[str, float]) -> dict[str, float]:
     return {k: (v - lo) / (hi - lo) for k, v in values.items()}
 
 
-def _build_reason(tier: CandidatePoolTier, covered_gap_trait_labels: list[str]) -> str:
+def _build_reason(tier: CandidatePoolTier, covered_gap_trait_labels: list[str], preferred_count: int) -> str:
+    """2026-08-22 3차 리뷰 항목 4: 이전엔 선호 Context 개수를 "4개"로 고정 문구에 박아뒀다
+    — §5-1 FROZEN 설계의 Full Mode 기준 개수일 뿐, Vertical Slice는 실제로 2개를 쓴다
+    (MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE). 실제 호출자가 넘긴 개수를 그대로
+    반영해 두 흐름 모두에서 문구가 사실과 맞게 한다."""
+
     if covered_gap_trait_labels:
         base = (
-            "선택한 4개 Context와 활동 방식이 달라 새로운 관점에서 성향을 관찰할 수 있고, "
+            f"선택한 {preferred_count}개 Context와 활동 방식이 달라 새로운 관점에서 성향을 관찰할 수 있고, "
             f"{', '.join(covered_gap_trait_labels)} 특성을 추가로 확인할 수 있습니다."
         )
     else:
-        base = "선택한 4개 Context와 활동 방식이 가장 달라 새로운 관점에서 성향을 확인할 수 있습니다."
+        base = f"선택한 {preferred_count}개 Context와 활동 방식이 가장 달라 새로운 관점에서 성향을 확인할 수 있습니다."
 
     if tier == "interest_4_5_widened":
         base += " (관심도 2~3점 범위에 후보가 없어 관심도가 더 높은 Context 중에서 골랐습니다.)"
@@ -193,6 +242,6 @@ def select_contrast_context(
         for t in gap_trait_ids
         if coverage_matrix.get(best, {}).get(t, 0) >= 2
     )
-    reason = _build_reason(tier, covered_gap_labels)
+    reason = _build_reason(tier, covered_gap_labels, len(preferred_context_ids))
 
     return ContrastSelectionResult(contrast_context_id=best, contrast_reason=reason, candidate_pool_tier=tier)

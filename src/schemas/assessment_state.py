@@ -72,6 +72,11 @@ class AssessmentState(BaseModel):
     # Target Planner가 "다음 질문은 이 Contrast의 확인 질문이어야 한다"고 정했을 때만 채워진다.
     # /assessment/next-question이 이 값을 보고 LLM/Mock 대신 고정 확인 질문을 낸다.
     pending_resolution_contrast_id: str | None = None
+    # 2026-08-22 2차 리뷰: 일반 꼬리질문 수(questions_asked_in_current_context)와 별도로
+    # 센다 — Conflict 확인 질문은 §5-3의 4~6개 상한과 무관한 별도 문항이라, 이 카운터가
+    # 올라가도 일반 문항 수는 그대로다(그래서 확인 질문을 하나 끼워 넣어도 다음 질문의
+    # §7-2 위치·테마 계산이 밀리지 않는다).
+    resolution_questions_asked_in_current_context: int = 0
     # summarize_trait_evidence()의 opportunity_count 계산 입력. 질문 하나가 제시한 5개
     # Option(=5개 Trait)을 question_id별로 기록해둔다 — 나중에 "이 Trait가 몇 번 제시됐는지"를
     # 다시 계산하려면 어떤 질문이 어떤 Trait를 다뤘는지가 남아있어야 한다.

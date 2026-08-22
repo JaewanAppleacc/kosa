@@ -413,6 +413,68 @@ class ContextSelectionValidationTest(unittest.TestCase):
         self.assertEqual(state.final_contexts, [])
 
 
+class InterestRatingValidationTest(unittest.TestCase):
+    """2026-08-22 3차 리뷰 항목 3: `/assessment/interest-rating` 입력 검증."""
+
+    def setUp(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _new_session(self) -> str:
+        r = client.post("/assessment/session")
+        return r.json()["session_id"]
+
+    def test_scores_one_and_five_are_accepted(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 1, "media": 5}},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["accepted"])
+
+    def test_out_of_range_and_non_integer_scores_rejected(self) -> None:
+        session_id = self._new_session()
+        for bad_score in (0, 6, -1, "high"):
+            r = client.post(
+                "/assessment/interest-rating",
+                json={"session_id": session_id, "ratings": {"game": bad_score, "media": 4}},
+            )
+            self.assertEqual(r.status_code, 422, f"score={bad_score!r}이 거부되지 않았습니다.")
+
+    def test_unknown_context_id_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "not_a_real_context": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_empty_ratings_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_valid_request_result_unchanged(self) -> None:
+        """검증 추가 이전과 동일하게, 유효한 입력은 그대로 저장되고 정상 응답이 나와야 한다."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"session_id": session_id, "accepted": True})
+        state = main_module._store.load(session_id)
+        self.assertEqual(state.interest_ratings, {"game": 5, "media": 5, "school_life": 4})
+
+
 class TracingFailOpenIntegrationTest(unittest.TestCase):
     """§24: "LangSmith 장애는 로컬 로그만 남기고 사용자 Session을 중단하지 않는다"를
     API 레벨에서 확인한다 — Trace 기록이 매번 실패해도 전체 흐름이 그대로 끝까지 돈다."""

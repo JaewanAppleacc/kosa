@@ -13,9 +13,16 @@ from pydantic import BaseModel
 
 from src.engines.evidence_engine import judge_trait_state
 from src.engines.trait_normalizer import normalize_trait_state
-from src.schemas.evidence import TraitEvidenceSummary, TraitState
+from src.schemas.evidence import ContrastResolutionRecord, TraitEvidenceSummary, TraitState
 from src.schemas.major import EvidenceSufficiencyLabel, MajorProfile, MajorRelevance, RelevanceLabel
 from src.schemas.trait import TraitDefinition
+
+# 2026-08-22 2차 리뷰: Conflict Resolution에서 "상대적으로 덜 우선"으로 밝혀진 Trait는
+# Matching에서 완전히 0으로 만들지 않고 한 단계만 완화한다(§13 등급 간격 0.33과 동일한
+# 폭 — 0.67은 STRONG(1.00)을 MODERATE(0.67) 수준으로, MODERATE를 LIMITED 수준으로 낮춘다).
+# "학생이 명확히 반대쪽을 선호한다고 답했다"는 근거가 있어도 원래 Evidence 자체가 없었던
+# 척 지우지는 않는다는 뜻이다.
+RESOLUTION_DEPRIORITIZED_DAMPING_FACTOR = 0.67
 
 # §16: "가중치는 검증된 상수가 아니며 평가셋을 통해 조정한다" — 그대로 옮긴 MVP 초기값.
 VECTOR_GROUP_WEIGHTS: dict[str, float] = {
@@ -49,13 +56,25 @@ class StudentTraitState(BaseModel):
     primary_vector_group: str
 
 
+def _deprioritized_trait_ids(resolutions: dict[str, ContrastResolutionRecord]) -> set[str]:
+    return {r.opposite_trait_id for r in resolutions.values() if r.opposite_trait_id}
+
+
 def compute_student_trait_states(
     trait_summaries: dict[str, TraitEvidenceSummary],
     all_trait_definitions: dict[str, TraitDefinition],
     unresolved_conflict_trait_ids: set[str],
+    resolutions: dict[str, ContrastResolutionRecord] | None = None,
 ) -> dict[str, StudentTraitState]:
     """§13 상태 판정을 전체 Trait에 대해 한 번 계산해서 재사용한다(Profile 화면과 Matching이
-    같은 판정 결과를 쓰게 하기 위함 — 서로 다른 곳에서 각자 판정하면 불일치가 생길 수 있다)."""
+    같은 판정 결과를 쓰게 하기 위함 — 서로 다른 곳에서 각자 판정하면 불일치가 생길 수 있다).
+
+    2026-08-22 2차 리뷰: `resolutions`(§12-1 확인 질문 답변)가 주어지면, 학생이 명시적으로
+    "상대적으로 덜 우선"이라고 답한 Trait의 normalized_value를 완화한다 — TraitState(state
+    필드)나 원본 Evidence 집계는 그대로 두고, Matching 입력값만 조정한다."""
+
+    resolutions = resolutions or {}
+    deprioritized = _deprioritized_trait_ids(resolutions)
 
     result: dict[str, StudentTraitState] = {}
     for trait_id, trait_def in all_trait_definitions.items():
@@ -63,10 +82,13 @@ def compute_student_trait_states(
         judgment = judge_trait_state(
             summary, trait_def.minimum_context_count, trait_id in unresolved_conflict_trait_ids
         )
+        normalized_value = normalize_trait_state(judgment.state)
+        if normalized_value is not None and trait_id in deprioritized:
+            normalized_value *= RESOLUTION_DEPRIORITIZED_DAMPING_FACTOR
         result[trait_id] = StudentTraitState(
             trait_id=trait_id,
             state=judgment.state,
-            normalized_value=normalize_trait_state(judgment.state),
+            normalized_value=normalized_value,
             context_count=summary.context_count,
             primary_vector_group=trait_def.primary_vector_group,
         )

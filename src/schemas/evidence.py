@@ -83,11 +83,47 @@ class ContrastResolutionStatus(str, Enum):
 class ContrastResolutionRecord(BaseModel):
     """학생이 Explicit Conflict 확인 질문에 답한 결과. 과거 Evidence를 지우거나 고치지
     않는다 — Evidence Ledger는 그대로 두고 이 Record를 별도로 저장해서 "현재 Conflict
-    상태 계산"에만 반영한다."""
+    상태 계산"에만 반영한다.
+
+    2026-08-22 2차 리뷰 반영: "Evidence는 관찰된 답변 기록이고, Conflict Resolution은
+    상충 Evidence의 해석 정보다. Resolution은 Evidence를 삭제하지 않으며, Profile 설명과
+    Matching 우선순위에 제한적으로 반영한다." 이 정책을 실제로 구현하려면 "어느 Trait가
+    우선인지"를 구조적으로 들고 있어야 해서 preferred_trait_id/opposite_trait_id/
+    context_dependent_trait_ids를 추가했다:
+
+    - RESOLVED_POSITIVE/RESOLVED_OPPOSITE: preferred_trait_id = 학생이 실제로 답변에서
+      우선한 쪽, opposite_trait_id = 상대적으로 덜 우선한 쪽(0으로 만들지 않고 완화만 함,
+      §16 damping). status만 보고 매번 다시 계산하지 않도록 이미 "어느 쪽이 우선인지"
+      해석까지 끝낸 값을 들고 다닌다.
+    - RESOLVED_CONTEXT_DEPENDENT: 어느 한쪽도 우선하지 않으므로 preferred/opposite는
+      비우고 context_dependent_trait_ids에 둘 다 담는다 — Profile이 "상황에 따라
+      다르게 나타나요"처럼 정성적으로 표현할 때 쓴다.
+    - UNRESOLVED: 셋 다 비운다 — 이미 unresolved_conflict_trait_ids로 Mask되므로
+      Profile/Matching에서 아예 제외된다(확정적 추천 근거로 쓰지 않음)."""
 
     contrast_id: str
     status: ContrastResolutionStatus
     resolved_at_answer_id: str
+    # 하위 호환을 위해 기본값을 둔다(2026-08-22 1차 리뷰 때 만든 기존 테스트 Fixture가
+    # 이 필드들 없이 생성자를 호출한다).
+    context_id: str = ""
+    reason_option_id: str = ""
+    preferred_trait_id: str | None = None
+    opposite_trait_id: str | None = None
+    context_dependent_trait_ids: list[str] = []
+
+
+class ContrastResolutionQuestionSpec(BaseModel):
+    """§12-1 확장 — 어떤 Contrast의 확인 질문에서, 어떤 Role을 고르면 어떤
+    ContrastResolutionStatus로 해석되는지, 그리고 그 Contrast의 두 Trait이 뭔지를
+    담는다. 실제 질문 문구·선택지는 src/data/conflicts/에 있고, 이 Spec은 그 데이터가
+    Vertical Slice 밖(answer_graph.py 등 범용 Node)에서도 타입으로 참조될 수 있게 여기
+    schemas/에 둔다(ContrastDefinition과 동일한 배치 원칙)."""
+
+    contrast_id: str
+    positive_trait_id: str
+    opposite_trait_id: str
+    role_resolution_map: dict[str, ContrastResolutionStatus]
 
 
 class ConflictDetectionResult(BaseModel):
