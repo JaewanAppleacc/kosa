@@ -3,18 +3,17 @@
   "source": "PRE_SURVEY",
   "recommendations": [
     {
-      "subject_id": "subj_mock0000000000000001",
-      "category": "core",
-      "is_actually_offered": true,
-      "reason": "정보 비교·탐색, 패턴 탐색 Trait와 관련도가 높음"
+      "subject_id": "subj_d9e5930c60201a2739563435",
+      "category": "explore",
+      "is_actually_offered": null,
+      "reason": "선택한 전공(미디어·커뮤니케이션)과 공식적으로 연결된 과목입니다. 학생 답변에서 확인된 사용자 반응 예측 경향과 관련된 활동을 이 과목에서 경험하게 됩니다."
+    },
+    {
+      "subject_id": "subj_fd2661b74f5517b17f5f9d9e",
+      "category": "explore",
+      "is_actually_offered": null,
+      "reason": "선택한 전공(미디어·커뮤니케이션)과 공식적으로 연결된 과목입니다. 학생 답변에서 확인된 사용자 반응 예측 경향과 관련된 활동을 이 과목에서 경험하게 됩니다."
     }
   ],
-  "unresolved_candidates": [
-    {
-      "raw_text": "데이터과학탐구",
-      "matched_subject_id": null,
-      "confidence": "low",
-      "requires_user_confirmation": true
-    }
-  ]
+  "unresolved_candidates": []
 }

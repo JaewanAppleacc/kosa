@@ -2,39 +2,63 @@
   "draft_entry": {
     "draft_id": "subject_trait_mapping_subj_78d6fdd5549b17807752b560",
     "draft_type": "subject_trait_mapping",
-    "author_id": "worker_c",
+    "author_id": "worker_a",
     "review_stage": "DRAFT",
-    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
-    "as_of_date": "2026-08-21",
-    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+    "source_url": null,
+    "as_of_date": "2026-08-24",
+    "notes": "실제 2022 개정 교육과정(교육부 고시 제2022-33호) 공식 성취기준 근거는 data/master/subject_trait_mapping_evidence.jsonl, 전공 연결 근거는 data/master/subject_major_link_evidence.jsonl 참고. UNMAPPED/REVIEW_REQUIRED Trait·전공은 Vector·related_major_ids에서 뺐다(공식 근거를 찾지 못함 ≠ 중요도 0/관련 없음)."
   },
   "subject_id": "subj_78d6fdd5549b17807752b560",
   "label": "소프트웨어와 생활",
   "subject_group": "기술·가정/정보",
   "subject_category": "융합선택",
   "curriculum_code": "2022-33",
-  "trait_grades": {
-    "tool_utilization": 3,
-    "audience_response_prediction": 2,
-    "immediate_execution": 2
-  },
-  "rationale": "생활 문제를 소프트웨어로 바로 만들어 보는 과목이라 즉시 실행 2.",
+  "trait_evidence_summary": [
+    {
+      "trait_id": "audience_response_prediction",
+      "mapping_status": "REVIEW_REQUIRED",
+      "grade": null
+    },
+    {
+      "trait_id": "information_comparison",
+      "mapping_status": "EVIDENCED",
+      "grade": 1
+    },
+    {
+      "trait_id": "tool_utilization",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "visual_expression",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    }
+  ],
+  "major_link_summary": [
+    {
+      "major_id": "hci_ux",
+      "link_status": "RELATED"
+    }
+  ],
   "related_major_ids": [
     "computer_science",
-    "design"
+    "design",
+    "hci_ux"
   ],
   "derived_profile": {
     "subject_id": "subj_78d6fdd5549b17807752b560",
     "label": "소프트웨어와 생활",
     "trait_vector": {
-      "tool_utilization": 1.0,
-      "audience_response_prediction": 0.67,
-      "immediate_execution": 0.67
+      "tool_utilization": 0.67,
+      "visual_expression": 0.67,
+      "information_comparison": 0.33
     },
     "related_major_ids": [
       "computer_science",
-      "design"
+      "design",
+      "hci_ux"
     ],
-    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458"
   }
 }

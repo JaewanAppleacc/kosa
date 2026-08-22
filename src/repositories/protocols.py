@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from typing import Protocol
 
+from src.schemas.course import SubjectProfile
 from src.schemas.major import AdmissionReference, Department
 from src.schemas.mcp_contracts import AdmissionSearchCriteria, DepartmentSearchCriteria
 from src.schemas.retrieval import RetrievedDocument
@@ -21,6 +22,19 @@ class DepartmentRepository(Protocol):
     def search(self, criteria: DepartmentSearchCriteria, limit: int = 30) -> list[Department]: ...
 
     def get(self, department_id: str) -> Department | None: ...
+
+
+class SubjectRepository(Protocol):
+    """2026-08-24 14차 리뷰 — `CoursePlanningService`가 참조하는 과목 조회 인터페이스.
+    `DepartmentRepository`와 같은 이유로 Protocol로 둔다: 테스트에서 Fake Repository를
+    주입할 수 있어야 하고, 저장소가 JSONL에서 다른 구현으로 바뀌어도 이 인터페이스만
+    지키면 Service·FastAPI 코드는 안 바뀐다."""
+
+    def all(self) -> list[SubjectProfile]: ...
+
+    def related_to_major(self, major_id: str) -> list[SubjectProfile]: ...
+
+    def get(self, subject_id: str) -> SubjectProfile | None: ...
 
 
 class AdmissionRepository(Protocol):

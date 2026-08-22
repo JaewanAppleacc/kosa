@@ -133,10 +133,17 @@ def _run(client: TestClient) -> None:
         if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
             break
 
+    majors_response = client.get(f"/majors/{session_id}").json()
     _write("profile_normal", client.get(f"/profile/{session_id}").json())
-    _write("majors_normal", client.get(f"/majors/{session_id}").json())
+    _write("majors_normal", majors_response)
     _write("departments_normal", client.get("/departments/media_communication").json())
-    _write("subjects_normal", client.get(f"/subjects/{session_id}").json())
+    # 2026-08-24 14차 리뷰: selected_major_id는 이 세션이 실제로 추천받은 전공이어야
+    # 한다(§5 검증 규칙) — majors_normal 응답의 1위 전공을 그대로 재사용한다.
+    selected_major_id = majors_response["relevant_majors"][0]["major_id"]
+    _write(
+        "subjects_normal",
+        client.get(f"/subjects/{session_id}", params={"selected_major_id": selected_major_id}).json(),
+    )
 
     r = client.post(
         "/course/upload",

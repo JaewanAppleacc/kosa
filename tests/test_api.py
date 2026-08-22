@@ -78,11 +78,10 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn(r.json()["next_action"], ["NEXT_QUESTION", "CONTEXT_COMPLETE"])
 
-        # 7. Profile / Majors / Departments / Subjects / Subgraph 전부 끊기지 않고 응답하는지
+        # 7. Profile / Majors / Departments / Subgraph 전부 끊기지 않고 응답하는지
         for path in [
             f"/profile/{session_id}",
             f"/majors/{session_id}",
-            f"/subjects/{session_id}",
             f"/subgraph/{session_id}",
         ]:
             r = client.get(path)
@@ -90,6 +89,12 @@ class SessionLifecycleTest(unittest.TestCase):
 
         r = client.get("/departments/media_communication")
         self.assertEqual(r.status_code, 200)
+
+        # 7-0. 2026-08-24 14차 리뷰: /subjects/{session_id}는 이제 selected_major_id
+        # Query Parameter가 필수다 — 없으면 FastAPI가 이 핸들러에 도달하기 전에 422를
+        # 낸다("끊기지 않고 응답"의 의미가 200이 아니라 "정직한 422"로 바뀐 지점).
+        r = client.get(f"/subjects/{session_id}")
+        self.assertEqual(r.status_code, 422)
 
         # 7-1. 과목 문서 업로드 (실제 multipart 파일 전송)
         r = client.post(

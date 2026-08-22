@@ -25,7 +25,7 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 from __future__ import annotations
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -67,6 +67,12 @@ from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
 from src.memory.session_store import InMemorySessionStore
 from src.repositories.department_repository import JsonlDepartmentRepository
+from src.repositories.subject_repository import JsonlSubjectRepository
+from src.services.course_planning_service import (
+    CourseEvidenceNotReadyError,
+    CoursePlanningService,
+    MajorNotSelectableError,
+)
 from src.services.department_recommendation_scope import JsonlDepartmentRecommendationScopePolicy
 from src.services.major_exploration_service import MajorExplorationService
 from src.tracing.langsmith_client import LangSmithTraceClient
@@ -196,6 +202,20 @@ _major_exploration_service = MajorExplorationService(
     _department_repository,
     recommendation_scope_policy=_department_recommendation_scope_policy,
     fail_closed_major_ids=frozenset(m.major_id for m in VERTICAL_SLICE_MAJOR_PROFILES),
+)
+
+# 2026-08-24 14차 리뷰: GET /subjects/{session_id}?selected_major_id=... — 과목 데이터도
+# 학과 Repository와 같은 패턴으로 앱 시작 시 한 번만 읽는다.
+_subject_repository = JsonlSubjectRepository()
+if len(_subject_repository) == 0:
+    print(
+        "[warn] JsonlSubjectRepository가 비어 있습니다 — "
+        "data/master/subjects.jsonl 경로·형식을 확인하세요."
+    )
+_course_planning_service = CoursePlanningService(
+    _subject_repository,
+    major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
+    trait_definitions=TRAIT_DEFINITIONS_BY_ID,
 )
 
 
@@ -646,9 +666,36 @@ def get_departments(major_id: str) -> DepartmentsResponse:
 
 
 @app.get("/subjects/{session_id}", response_model=SubjectsResponse)
-def get_subjects(session_id: str) -> SubjectsResponse:
-    _get_state_or_404(session_id)
-    return mock_data.mock_course_profile(session_id)
+def get_subjects(
+    session_id: str,
+    selected_major_id: str = Query(
+        ...,
+        description=(
+            "학생이 전공 추천 화면에서 선택한 대표 전공(Vertical Slice 3개 중 하나). "
+            "예: /subjects/{session_id}?selected_major_id=industrial_engineering"
+        ),
+    ),
+) -> SubjectsResponse:
+    """2026-08-24 14차 리뷰: 더 이상 `mock_data.mock_course_profile()`을 쓰지 않는다.
+    `CoursePlanningService`가 이 세션의 실제 Trait 상태·전공 추천 결과·과목 정본을
+    조합해 PRE_SURVEY 과목 추천을 계산한다(POST_OFFERING은 범위 밖 — §14).
+    `selected_major_id`는 여기서만 쓰고 어디에도 저장하지 않는다(§5, CLAUDE.md
+    "Assessment 단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다"의
+    반대 방향도 지킨다)."""
+
+    state = _get_state_or_404(session_id)
+    try:
+        return _course_planning_service.build_course_profile(state, selected_major_id)
+    except CourseEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+    except MajorNotSelectableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+        ) from exc
 
 
 _ALLOWED_COURSE_UPLOAD_CONTENT_TYPES = {

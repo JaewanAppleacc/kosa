@@ -2,39 +2,68 @@
   "draft_entry": {
     "draft_id": "subject_trait_mapping_subj_486f78700e4a5981582a75e1",
     "draft_type": "subject_trait_mapping",
-    "author_id": "worker_c",
+    "author_id": "worker_a",
     "review_stage": "DRAFT",
-    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
-    "as_of_date": "2026-08-21",
-    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+    "source_url": null,
+    "as_of_date": "2026-08-24",
+    "notes": "실제 2022 개정 교육과정(교육부 고시 제2022-33호) 공식 성취기준 근거는 data/master/subject_trait_mapping_evidence.jsonl, 전공 연결 근거는 data/master/subject_major_link_evidence.jsonl 참고. UNMAPPED/REVIEW_REQUIRED Trait·전공은 Vector·related_major_ids에서 뺐다(공식 근거를 찾지 못함 ≠ 중요도 0/관련 없음)."
   },
   "subject_id": "subj_486f78700e4a5981582a75e1",
   "label": "데이터 과학",
   "subject_group": "기술·가정/정보",
   "subject_category": "융합선택",
   "curriculum_code": "2022-33",
-  "trait_grades": {
-    "pattern_finding": 3,
-    "information_comparison": 3,
-    "tool_utilization": 2
-  },
-  "rationale": "자료 수집·비교·해석이 전 과정이라 정보 비교 3.",
+  "trait_evidence_summary": [
+    {
+      "trait_id": "causal_analysis",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "information_comparison",
+      "mapping_status": "EVIDENCED",
+      "grade": 3
+    },
+    {
+      "trait_id": "pattern_finding",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "tool_utilization",
+      "mapping_status": "EVIDENCED",
+      "grade": 1
+    }
+  ],
+  "major_link_summary": [
+    {
+      "major_id": "hci_ux",
+      "link_status": "REVIEW_REQUIRED"
+    },
+    {
+      "major_id": "industrial_engineering",
+      "link_status": "RELATED"
+    }
+  ],
   "related_major_ids": [
     "computer_science",
-    "business_administration"
+    "business_administration",
+    "industrial_engineering"
   ],
   "derived_profile": {
     "subject_id": "subj_486f78700e4a5981582a75e1",
     "label": "데이터 과학",
     "trait_vector": {
-      "pattern_finding": 1.0,
       "information_comparison": 1.0,
-      "tool_utilization": 0.67
+      "causal_analysis": 0.67,
+      "pattern_finding": 0.67,
+      "tool_utilization": 0.33
     },
     "related_major_ids": [
       "computer_science",
-      "business_administration"
+      "business_administration",
+      "industrial_engineering"
     ],
-    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458"
   }
 }

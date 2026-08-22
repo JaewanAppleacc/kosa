@@ -8,9 +8,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from src.schemas.assessment_state import AssessmentState
+from src.schemas.course import CourseRecommendationItem
 from src.schemas.question import GeneratedOption, OptionBlueprint
 
 
@@ -74,6 +75,29 @@ def guard_no_major_signal_in_assessment_state() -> None:
                 f"AssessmentState에 전공 관련 필드 {field_name!r}가 존재한다 — "
                 "Assessment 단계는 전공 순위를 참조하면 안 된다 (§5-1, §8)"
             )
+
+
+def guard_offered_status_matches_core_category(
+    items: list[CourseRecommendationItem], source: Literal["PRE_SURVEY", "POST_OFFERING"]
+) -> None:
+    """2026-08-24 14차 리뷰: `is_actually_offered`가 `bool`에서 `bool | None`으로
+    바뀌면서(§6), "False면 절대 core로 노출하지 않는다"는 예전 docstring 주장이 실제
+    코드로 강제되지 않고 있었다 — 이 함수가 그 빈틈을 메운다.
+
+    PRE_SURVEY에서는 검사하지 않는다 — PRE_SURVEY의 `core`는 "실제 개설이 확인된 핵심
+    과목"이 아니라 "학생 Trait 근거가 충분한 희망 우선과목"이라는 뜻이라, 개설 여부
+    미확정(`is_actually_offered=None`)인 채로 core가 나오는 게 정상이다. POST_OFFERING
+    에서만 실제 개설(`is_actually_offered is True`)이 확인된 과목만 core로 노출하도록
+    막는다."""
+
+    if source != "POST_OFFERING":
+        return
+    violating = [i for i in items if i.category == "core" and i.is_actually_offered is not True]
+    if violating:
+        raise PolicyViolation(
+            "POST_OFFERING에서는 실제 개설이 확인된(is_actually_offered=True) 과목만 "
+            f"core로 노출할 수 있다 — 위반 subject_id: {[i.subject_id for i in violating]}"
+        )
 
 
 def guard_subject_must_be_offered(

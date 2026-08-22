@@ -1,6 +1,34 @@
-# B 작업자 핸드오프 — 2026-08-22 (갱신)
+# B 작업자 핸드오프 — 2026-08-24 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-24 갱신 내용 — `GET /subjects/{session_id}` API 계약 변경 (하위 호환 아님)**:
+> 1. **`selected_major_id` Query Parameter가 필수로 추가됐습니다.** 학생이 전공 추천
+>    화면에서 대표 전공 하나를 고른 뒤 과목 추천 화면으로 넘어가는 흐름을 그대로
+>    반영합니다. 예: `GET /subjects/{session_id}?selected_major_id=industrial_engineering`.
+>    이 값은 서버 어디에도 저장되지 않습니다 — 화면이 매번 쿼리 파라미터로 다시
+>    보내야 합니다(무상태 GET).
+> 2. **더 이상 고정 Mock이 아닙니다.** 이 세션의 실제 Trait 근거 + 선택한 전공과
+>    공식적으로 연결된 과목(현재 시연 데이터 18개 과목 한정)을 조합해 실제로 계산한
+>    "PRE_SURVEY 과목 추천"을 반환합니다. 학교가 실제로 이 과목을 개설하는지는
+>    이 단계에서 아직 확인되지 않습니다 — 다음 3번 항목을 꼭 읽어주세요.
+> 3. **`CourseRecommendationItem.is_actually_offered`가 `bool`에서 `bool | None`으로
+>    바뀌었습니다.** PRE_SURVEY 응답에서는 항상 `null`입니다(개설 여부 미확정 — 아직
+>    "미개설 확정"이 아니라는 뜻입니다. `false`로 해석하지 마세요). 이때 `category:
+>    "core"`는 "학교가 실제 개설을 확인한 핵심 과목"이 아니라 **"학생 Trait 근거가
+>    충분한 희망 우선과목"**이라는 뜻입니다 — 화면 문구도 "핵심 과목"보다는 "우선
+>    희망 과목" 계열로 표현하는 걸 권장합니다. `true`/`false`는 다음 단계
+>    (POST_OFFERING, 학교가 실제 개설과목을 업로드한 뒤)에서만 나옵니다.
+> 4. **새 오류 코드 `MAJOR_NOT_SELECTABLE`이 추가됐습니다.** `selected_major_id`가
+>    다음 중 하나면 422로 거부됩니다 — (a) Vertical Slice 대표 전공 3개
+>    (`media_communication`/`hci_ux`/`industrial_engineering`)에 없는 값(`design` 등
+>    추천 제외 전공 포함), (b) 이 세션이 실제로 추천받은 전공 목록(`/majors/{session_id}`
+>    의 `relevant_majors`+`explore_together_majors`)에 없는 값. Evidence 자체가 부족하면
+>    기존과 같은 `EVIDENCE_NOT_READY`(422)입니다.
+> 5. **과목 Trait/전공 연결 근거는 아직 `draft`입니다.** 2022 개정 교육과정 공식
+>    성취기준을 근거로 삼았지만 아직 2인 교차검토를 거치지 않았습니다 —
+>    "검증된 진학 지침"처럼 표현하지 마세요(`outputs/reviews/` 참고, 다음 라운드에
+>    Subject 버전이 추가될 예정입니다).
 
 > **2026-08-22 갱신 내용 (4건)**:
 > 1. C의 Repository·RAG·MCP·데이터 구현이 병합된 뒤 첫 통합 단계로 `GET /departments/
@@ -59,7 +87,8 @@ python3 -m venv .venv
 | Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM을 쓸 수 있으면 실제 Evidence를 바탕으로 LLM이 문장을 생성하고, LLM이 꺼져 있거나 호출에 실패하면 **같은 학생의 같은 실제 Evidence**를 바탕으로 결정론적 Fallback 문장을 생성합니다(다른 학생의 Mock Profile을 대신 보여주지 않습니다). 어느 경로든 Trait·근거 구조는 항상 이 세션의 실제 답변에서 나옵니다. 답변이 아예 없으면 200이 아니라 `EVIDENCE_NOT_READY`입니다(아래 참고). `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
 | Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
 | Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
-| Subjects / Subgraph 조회 | ⚠️ 아직 고정 Mock (A의 Subject Planning 미완료) |
+| Subjects 조회 (`/subjects/{session_id}`) | ✅ 실제 PRE_SURVEY 추천(§20) — `selected_major_id` Query Parameter 필수. **POST_OFFERING(학교 실제 개설과목 기반 재추천)은 다음 단계**입니다. 위 2026-08-24 갱신 내용을 꼭 읽어주세요. |
+| Subgraph 조회 | ⚠️ 아직 고정 Mock |
 | 전국 학과 Master, 입결 필터·정렬 | ⚠️ 아직 미완성 (`schl_id`/`department_id` 일부가 대학알리미 API Key 발급 전 임시값 — 장기 저장 대상 아님) |
 
 **질문 생성과 Profile 문장 생성만 로컬 LLM 설정에 따라 달라지고, 그 외 계산(Evidence·Trait·Matching)은 전부 실제로 동작합니다.** 화면에서 "LLM 켜짐/꺼짐"을 구분할 필요는 없습니다 — 응답 Schema(필드 이름·타입)가 동일해서 화면 코드는 그대로 씁니다.
@@ -79,7 +108,7 @@ python3 -m venv .venv
 | GET | `/profile/{session_id}` | Career Profile 결과 카드 |
 | GET | `/majors/{session_id}` | 전공 관련도 목록 |
 | GET | `/departments/{major_id}` | 실제 학과 목록(35개 시연 데이터 기준, 위 2번 표 참고) |
-| GET | `/subjects/{session_id}` | 과목 추천 결과 |
+| GET | `/subjects/{session_id}?selected_major_id={major_id}` | PRE_SURVEY 과목 추천 결과. `selected_major_id` 필수(위 2026-08-24 갱신 내용 참고) |
 | POST | `/course/upload` | 학교 PDF·Excel 업로드 — `multipart/form-data`, `session_id`(Form) + `file`(File). PDF/Excel 외 형식은 422 `VALIDATION_ERROR` |
 | POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 |
 | GET | `/subgraph/{session_id}` | 관계 그래프 (Trait–전공–학과–과목) |
@@ -91,7 +120,7 @@ python3 -m venv .venv
 `GENERATED` / `REGENERATING` / `CACHE_USED` / `BACKUP_USED` / `CONTEXT_EARLY_TERMINATED`
 
 **오류 코드** (`APIError.error_code`, 404 등에서 `detail`에 담겨 옴):
-`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY`(신규)
+`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY` / `MAJOR_NOT_SELECTABLE`(신규, `GET /subjects/{session_id}` 전용 — 위 2026-08-24 갱신 내용 참고)
 
 > ⚠️ **`/profile/{session_id}` 하위 호환 아닌 변경**: 답변을 하나도 제출하지 않은 세션에서
 > `/profile`을 호출하면 이제 200 대신 **422 + `EVIDENCE_NOT_READY`**를 반환합니다(예전엔
@@ -137,7 +166,7 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 - `src/schemas/api.py` — 모든 Endpoint의 Request/Response
 - `src/schemas/profile.py` — CareerProfile
 - `src/schemas/major.py` — MajorProfile, Department, MajorRelevance
-- `src/schemas/course.py` — CourseProfile, ParsedSubjectCandidate
+- `src/schemas/course.py` — CourseProfile, CourseRecommendationItem(`is_actually_offered: bool | None`), ParsedSubjectCandidate
 - `src/schemas/graph.py` — SubgraphNode/SubgraphEdge
 
 ## 7. 알아둘 것
@@ -145,6 +174,7 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 - Session은 In-Memory라 서버 재시작하면 다 날아갑니다. 새로고침 후 복원 UI는 만들어도 되지만, 서버 재시작까지 버티는 지속성은 아직 없습니다.
 - `/assessment/session`은 `user_id`를 받지 않습니다(보안상 서버가 고정) — 화면에서 이 값을 사용자가 입력하게 만들지 마세요.
 - 화면에 내부 점수(예: 84%, 0.67 같은 숫자)를 노출하는 API는 애초에 없습니다. 정성 Label만 옵니다.
+- `/subjects/{session_id}` 과목 추천은 **현재 시연용으로 등록된 과목 18개**(`data/master/subjects.jsonl`) 범위 안에서만 나옵니다. 전국 고교 편제표 전체를 다루는 게 아닙니다 — "이 학교엔 왜 이 과목이 없나요?" 같은 문의가 예상된다면, 시연 범위임을 화면에 짧게 안내하는 걸 권장합니다.
 - `CareerProfile.title`은 "~형", "~유형", "~타입", "꼼꼼한 탐색자" 같은 성격 유형 검사식 고정
   라벨이 나오지 않도록 서버에서 강제합니다(기획 원칙 "학생을 유형으로 규정하지 않는다"). 항상
   "~보여요", "~나타났어요" 같은 관찰 서술 문장으로 옵니다 — 화면에 "유형 카드"나 "타입 뱃지"

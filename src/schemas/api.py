@@ -38,6 +38,12 @@ class APIErrorCode(str, Enum):
     # CareerProfile.highlights는 5~8개를 강제하는 Schema라 "빈 Profile"을 표현할 방법이
     # 없다 — Majors처럼 200 + 빈 목록이 아니라 이 오류 코드로 명시적으로 알린다.
     EVIDENCE_NOT_READY = "EVIDENCE_NOT_READY"
+    # 2026-08-24 14차 리뷰: GET /subjects/{session_id}?selected_major_id=...가
+    # selected_major_id를 세 가지 이유로 거부할 수 있다 — (1) Vertical Slice 대표 전공
+    # 3개(또는 design 등 추천 제외 전공)에 없는 미등록 전공, (2) 이 세션의 실제 전공
+    # 추천 결과(관련성 높음/함께 탐색해볼 분야)에 없는 전공. 셋 다 "이 세션에서 이
+    # 전공으로 과목 추천을 받을 수 없다"는 같은 성격의 거부라 코드 하나로 묶는다.
+    MAJOR_NOT_SELECTABLE = "MAJOR_NOT_SELECTABLE"
 
 
 class APIError(BaseModel):

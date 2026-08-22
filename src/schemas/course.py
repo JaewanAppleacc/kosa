@@ -38,9 +38,24 @@ class ParsedSubjectCandidate(BaseModel):
 
 
 class CourseRecommendationItem(BaseModel):
+    """2026-08-24 14차 리뷰: `is_actually_offered`를 `bool`에서 `bool | None`으로 바꿨다.
+    PRE_SURVEY 시점에는 학교가 이 과목을 실제로 개설할지 아직 알 수 없다 — 예전
+    `bool` 하나로는 True(실제 개설 확인)/False(미개설 확정)/모름 세 상태를 구분할 수
+    없었다(미확정 상태를 False로 표현하면 "미개설이 확정됐다"는 거짓 정보가 된다).
+
+    - `None`: PRE_SURVEY. 개설 여부 미확정 — 이때 `category="core"`는 "실제 개설이
+      확인된 핵심 과목"이 아니라 "학생 Trait 근거가 충분한 희망 우선과목"이라는 뜻이다.
+    - `True`: POST_OFFERING. 학교가 실제로 개설함을 확인.
+    - `False`: POST_OFFERING. 미개설 또는 대체과목으로 전환됨.
+
+    `src/engines/policy_guard.py::guard_offered_status_matches_core_category`가
+    POST_OFFERING에서만 `is_actually_offered is True`인 과목만 `core`로 노출하도록
+    강제한다 — PRE_SURVEY의 `core`는 이 검사 대상이 아니다(아직 미확정이라 막을
+    이유가 없다)."""
+
     subject_id: str
     category: Literal["core", "explore", "alternative"]
-    is_actually_offered: bool  # False면 절대 "핵심"으로 노출하지 않는다 (policy_guard 규칙 6)
+    is_actually_offered: bool | None
     reason: str
 
 

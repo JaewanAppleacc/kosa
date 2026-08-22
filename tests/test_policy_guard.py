@@ -13,10 +13,12 @@ from src.engines.policy_guard import (
     guard_exactly_five_options,
     guard_llm_call_budget,
     guard_no_major_signal_in_assessment_state,
+    guard_offered_status_matches_core_category,
     guard_role_ids_match_blueprint,
     guard_subject_must_be_offered,
     guard_trait_in_ontology,
 )
+from src.schemas.course import CourseRecommendationItem
 from src.schemas.question import GeneratedOption, OptionBlueprint, OptionRole
 
 
@@ -102,6 +104,45 @@ class Rule6UnofferedSubjectTest(unittest.TestCase):
     def test_unoffered_subject_is_rejected(self) -> None:
         with self.assertRaises(PolicyViolation):
             guard_subject_must_be_offered(["subj_a", "subj_x"], {"subj_a", "subj_b"})
+
+
+class Rule6bOfferedStatusMatchesCoreCategoryTest(unittest.TestCase):
+    """2026-08-24 14차 리뷰: `is_actually_offered`가 `bool | None`이 된 뒤, PRE_SURVEY의
+    core는 개설 여부 미확정("희망 우선과목")이어도 되지만 POST_OFFERING의 core는 반드시
+    실제 개설(True)이 확인돼야 한다."""
+
+    def _item(self, category: str, is_actually_offered: bool | None) -> CourseRecommendationItem:
+        return CourseRecommendationItem(
+            subject_id="subj_a", category=category, is_actually_offered=is_actually_offered,
+            reason="테스트용",
+        )
+
+    def test_pre_survey_core_with_unconfirmed_offering_status_passes(self) -> None:
+        guard_offered_status_matches_core_category(
+            [self._item("core", None)], source="PRE_SURVEY"
+        )
+
+    def test_post_offering_core_requires_confirmed_true(self) -> None:
+        guard_offered_status_matches_core_category(
+            [self._item("core", True)], source="POST_OFFERING"
+        )
+
+    def test_post_offering_core_with_none_is_rejected(self) -> None:
+        with self.assertRaises(PolicyViolation):
+            guard_offered_status_matches_core_category(
+                [self._item("core", None)], source="POST_OFFERING"
+            )
+
+    def test_post_offering_core_with_false_is_rejected(self) -> None:
+        with self.assertRaises(PolicyViolation):
+            guard_offered_status_matches_core_category(
+                [self._item("core", False)], source="POST_OFFERING"
+            )
+
+    def test_post_offering_explore_with_false_passes(self) -> None:
+        guard_offered_status_matches_core_category(
+            [self._item("explore", False)], source="POST_OFFERING"
+        )
 
 
 if __name__ == "__main__":
