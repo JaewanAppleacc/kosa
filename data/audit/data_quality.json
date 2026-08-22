@@ -10,7 +10,7 @@
       "severity": "INFO",
       "check": "schl_id_placeholder",
       "subject": "data/raw/departments.raw.jsonl",
-      "message": "30개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다"
+      "message": "35개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다"
     },
     {
       "severity": "INFO",

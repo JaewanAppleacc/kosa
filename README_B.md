@@ -2,11 +2,16 @@
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
 
-> **2026-08-22 갱신 내용**: C의 Repository·RAG·MCP·데이터 구현이 병합된 뒤 첫 통합 단계로
-> `GET /departments/{major_id}`가 고정 Mock에서 실제 `JsonlDepartmentRepository` 조회로
-> 바뀌었습니다. Response Schema는 동일하지만, **지금 연결된 데이터는 대학 10개·학과 30개
-> 시연 데이터**입니다(전국 학과 DB 아님) — 아래 2번 표를 확인하세요. Subjects/Subgraph,
-> 입결·안정/적정/상향 추천은 아직 연결되지 않았습니다.
+> **2026-08-22 갱신 내용 (2건)**:
+> 1. C의 Repository·RAG·MCP·데이터 구현이 병합된 뒤 첫 통합 단계로 `GET /departments/
+>    {major_id}`가 고정 Mock에서 실제 `JsonlDepartmentRepository` 조회로 바뀌었습니다.
+>    Response Schema는 동일합니다. Subjects/Subgraph, 입결·안정/적정/상향 추천은 아직
+>    연결되지 않았습니다.
+> 2. 이어서 `/majors/{session_id}`가 실제로 추천하는 대표 전공 3개(`media_communication`/
+>    `hci_ux`/`industrial_engineering`) **전부**에 실제 학과를 연결했습니다 — 처음
+>    연결했을 때는 `media_communication`만 학과가 있고 나머지 둘은 항상 빈 목록이었는데,
+>    이제 셋 다 최소 1개 이상 실제 학과가 나옵니다. **지금 연결된 전체 데이터는 대학
+>    13개·학과 35개 시연 데이터**입니다(전국 학과 DB 아님) — 아래 2번 표를 확인하세요.
 
 > **2026-08-21 갱신 내용**: 질문 생성(§10)·Career Profile(§14)·전공 Matching(§16)이 전부
 > Mock에서 실제 계산으로 바뀌었습니다. 아래 2번 표와 4번 상태값 목록이 크게 달라졌으니
@@ -37,7 +42,7 @@ python3 -m venv .venv
 | 답변 제출 → Evidence·Trait 판정 | ✅ 실제 계산(§12/§13). LLM 연동 여부와 무관하게 항상 실제로 동작합니다. |
 | Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM을 쓸 수 있으면 실제 Evidence를 바탕으로 LLM이 문장을 생성하고, LLM이 꺼져 있거나 호출에 실패하면 **같은 학생의 같은 실제 Evidence**를 바탕으로 결정론적 Fallback 문장을 생성합니다(다른 학생의 Mock Profile을 대신 보여주지 않습니다). 어느 경로든 Trait·근거 구조는 항상 이 세션의 실제 답변에서 나옵니다. 답변이 아예 없으면 200이 아니라 `EVIDENCE_NOT_READY`입니다(아래 참고). `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
 | Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
-| Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, C가 구축한 대학 10개·학과 30개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** 매핑된 대표 전공(`computer_science` 등 8개)만 학과가 나오고, 그 외 `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
+| Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개(`media_communication`/`hci_ux`/`industrial_engineering`) **전부** 실제 학과가 연결돼 있습니다(2026-08-22 8차 갱신 — 예전엔 `hci_ux`/`industrial_engineering`을 추천받으면 학과 탭이 항상 비어 있었습니다). 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된 `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
 | Subjects / Subgraph 조회 | ⚠️ 아직 고정 Mock (A의 Subject Planning 미완료) |
 | 전국 학과 Master, 입결 필터·정렬 | ⚠️ 아직 미완성 (`schl_id`/`department_id` 일부가 대학알리미 API Key 발급 전 임시값 — 장기 저장 대상 아님) |
 
@@ -57,7 +62,7 @@ python3 -m venv .venv
 | POST | `/assessment/answer` | 답변 제출 |
 | GET | `/profile/{session_id}` | Career Profile 결과 카드 |
 | GET | `/majors/{session_id}` | 전공 관련도 목록 |
-| GET | `/departments/{major_id}` | 실제 학과 목록(30개 시연 데이터 기준, 위 2번 표 참고) |
+| GET | `/departments/{major_id}` | 실제 학과 목록(35개 시연 데이터 기준, 위 2번 표 참고) |
 | GET | `/subjects/{session_id}` | 과목 추천 결과 |
 | POST | `/course/upload` | 학교 PDF·Excel 업로드 — `multipart/form-data`, `session_id`(Form) + `file`(File). PDF/Excel 외 형식은 422 `VALIDATION_ERROR` |
 | POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 |

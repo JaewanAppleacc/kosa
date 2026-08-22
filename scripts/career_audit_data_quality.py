@@ -166,18 +166,21 @@ def audit_canonical_mapping(findings: Findings, departments: list[Department]) -
                 f"목록에 없는 major_id {result['primary_candidate']}",
                 department.department_id,
             )
-        if result["mapping_status"] != "AUTO_MAPPED" and department.canonical_major_id is not None:
+        # 2026-08-22 8차: CONFIRMED는 AUTO_MAPPED와 마찬가지로 "확정된" 상태다(confirm()이
+        # 사람이 검토해 확정하는 유일한 경로 — canonical_mapper.py). 아직 확정되지 않은
+        # REVIEW_REQUIRED만 canonical_major_id가 비어 있어야 한다.
+        if result["mapping_status"] not in ("AUTO_MAPPED", "CONFIRMED") and department.canonical_major_id is not None:
             findings.add(
                 "ERROR",
                 "unconfirmed_mapping_promoted",
                 f"{result['mapping_status']}인데 canonical_major_id가 채워져 있다",
                 department.department_id,
             )
-        if result["mapping_status"] == "AUTO_MAPPED" and department.canonical_major_id is None:
+        if result["mapping_status"] in ("AUTO_MAPPED", "CONFIRMED") and department.canonical_major_id is None:
             findings.add(
                 "WARN",
-                "auto_mapped_not_applied",
-                "AUTO_MAPPED인데 canonical_major_id가 비어 있다",
+                "confirmed_mapping_not_applied",
+                f"{result['mapping_status']}인데 canonical_major_id가 비어 있다",
                 department.department_id,
             )
 

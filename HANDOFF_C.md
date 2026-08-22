@@ -192,3 +192,43 @@ C의 구현이 `main`에 병합된 뒤, A가 실제 서비스에 처음 연결�
   major_exploration_service.py`(A 소유)에서 이 노출 정책만 담당한다.
 - **다음 후보**: 입결 연결(D1 확정 필요), RAG를 학과 상세 화면에 연결, 전국 학과 Master로
   확장(`DATA_GO_KR_SERVICE_KEY` 발급 이후).
+
+---
+
+## 8. 사용자 승인에 따라 A가 수행한 Vertical Slice 정합화 — 2026-08-22 (`main` 병합 이후 2단계)
+
+7번(1단계) 이후 발견된 문제: `/majors/{session_id}`가 실제로 추천하는 대표 전공은
+`src/data/majors/vertical_slice_major_profiles.py`의 3개(`media_communication`/
+`hci_ux`/`industrial_engineering`)인데, C가 구축한 `data/master/departments.jsonl`은
+그중 `media_communication`만 연결돼 있었다 — `hci_ux`/`industrial_engineering`을
+추천받으면 학과 탐색이 항상 빈 목록이었다. 사용자가 이 정합화를 A에게 명시적으로
+승인해 진행했다.
+
+- **C의 데이터 구조·빌드 파이프라인은 그대로 썼다.** `data/raw/*.raw.jsonl`에 실제 대학·
+  학과 5건을 추가하고(고려대·경희대·숭실대의 산업공학 계열 학과 3건, 이화여대·서울여대의
+  HCI/UX 학과 2건 — 전부 공식 홈페이지로 교육과정을 직접 확인), `career_build_department_
+  master.py`를 다시 돌려 `departments.jsonl`을 재생성했다. `departments.jsonl`을 손으로
+  고치지 않았다.
+- **`canonical_majors.jsonl`에 `hci_ux`/`industrial_engineering`을 새 Canonical Major로
+  추가했다** — 이 둘은 원래 여기에 아예 없어서, 자동 Mapping이 애초에 이 둘로 확정될
+  방법이 없었다. `industrial_engineering`은 실제 학과명(산업경영공학·산업·정보시스템공학
+  등)이 alias와 정확히 일치해 3건 전부 Exact-Alias로 AUTO_MAPPED됐다.
+- **`hci_ux`는 더 엄격하게 다뤘다.** 이화여대 융합콘텐츠학과는 alias("융합콘텐츠")로
+  자동 확정됐다. 서울여대 산업디자인학과는 학과명만 보면 기존 `design`의 alias("산업
+  디자인")에 자동으로 걸린다 — 하지만 공식 페이지 확인 결과 2006년부터 학년별 전용 UX
+  트랙(UX디자인방법론→UX디자인 I/II→UX디자인종합설계)과 15년 이상 운영 중인 UX Design
+  Lab이 있어, `canonical_mapper.confirm()` 경로로 사람이 `hci_ux`로 재확정했다(design
+  자동 매칭 결과는 secondary_candidate로 남겨 근거를 지우지 않았다).
+- **재현성 확보**: `confirm()`은 원래 재빌드 때마다 결과가 사라지는 구조였다 —
+  `data/master/canonical_mapping_manual_confirmations.jsonl`(새 파일, raw 데이터와 같은
+  성격의 입력)에 확정 근거를 남기고, `career_build_department_master.py`가 매 빌드마다
+  이 파일을 다시 적용하도록 고쳤다. `tests/worker_c/test_shipped_data.py`의 재현성·
+  미확정-Mapping-비승격 테스트 2개도 CONFIRMED 상태를 인식하도록 함께 갱신했다(C의
+  기존 검증 의도는 그대로 유지 — REVIEW_REQUIRED만 여전히 확정 데이터에서 제외된다).
+- **기존 8개 전공·30개 학과는 그대로 보존했다** — 개수 감소 없음(자동 검사로 확인).
+- **참고 — `major_profiles.jsonl`은 건드리지 않았다.** C의 `career_build_major_profiles.py`
+  가 만드는 `data/master/major_profiles.jsonl`은 이번에 다룬 `VERTICAL_SLICE_MAJOR_
+  PROFILES`(3개)와 다른, 8개 전공짜리 완전히 별개의 Major Profile 데이터셋이다(둘 다
+  "대표 전공"이라는 같은 개념을 가리키지만 서로 연결돼 있지 않다). `/majors/{session_id}`
+  는 `major_profiles.jsonl`을 전혀 쓰지 않으므로 이번 정합화 범위 밖이라 판단해 손대지
+  않았다 — 이 두 데이터셋을 언젠가 하나로 합칠지는 별도 결정이 필요하다.

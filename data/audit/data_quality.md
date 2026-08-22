@@ -16,4 +16,4 @@
 | INFO | major_profile_draft | life_science | A 검토 전 초안이다 |
 | INFO | rag_sample_documents | data/rag/sources.jsonl | 5건이 공식 자료가 아니라 파이프라인 검증용 샘플이다 (source_url이 sample://로 시작해 공식 출처와 섞이지 않는다) |
 | INFO | review_required_present | data/master/canonical_mapping_review_required.jsonl | 1건이 REVIEW_REQUIRED로 남아 있다 — A 검토 대상 |
-| INFO | schl_id_placeholder | data/raw/departments.raw.jsonl | 30개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다 |
+| INFO | schl_id_placeholder | data/raw/departments.raw.jsonl | 35개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다 |
