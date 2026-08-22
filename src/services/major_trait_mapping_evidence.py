@@ -69,6 +69,27 @@ class MajorTraitMappingRecord(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def _status_specific_grade_range(self) -> "MajorTraitMappingRecord":
+        """2026-08-23 13차 리뷰: EVIDENCED와 NO_DIRECT_EVIDENCE는 grade가 필수라는 것만으로는
+        부족했다 — "공식 자료로 이 활동이 명시적으로 중요하지 않음을 확인했다"(NO_DIRECT_EVIDENCE,
+        Rubric 0)와 "공식 자료로 이 활동이 어느 정도 중요함을 확인했다"(EVIDENCED, Rubric 1~3)는
+        서로 다른 결론이라, 등급 범위 자체를 상태별로 갈라서 강제한다. 예를 들어
+        NO_DIRECT_EVIDENCE인데 grade=2를 적으면("중요하지 않다고 확인했다"면서 등급은 2) 모순이고,
+        EVIDENCED인데 grade=0을 적으면("중요하다는 근거가 있다"면서 등급은 0) 마찬가지로 모순이다."""
+
+        if self.mapping_status == "NO_DIRECT_EVIDENCE" and self.grade != 0:
+            raise ValueError(
+                f"{self.major_id}/{self.trait_id}: NO_DIRECT_EVIDENCE는 grade가 반드시 0이어야 한다"
+                f"(공식 자료로 '명시적으로 중요하지 않음'을 확인했다는 뜻 — got {self.grade!r})"
+            )
+        if self.mapping_status == "EVIDENCED" and self.grade not in (1, 2, 3):
+            raise ValueError(
+                f"{self.major_id}/{self.trait_id}: EVIDENCED는 grade가 1~3이어야 한다"
+                f"(0은 NO_DIRECT_EVIDENCE로 표현한다 — got {self.grade!r})"
+            )
+        return self
+
+    @model_validator(mode="after")
     def _unmapped_and_review_required_have_no_grade(self) -> "MajorTraitMappingRecord":
         # 2026-08-22 12차: "공식 근거를 찾지 못함 ≠ Trait 중요도 0" — UNMAPPED/
         # REVIEW_REQUIRED에 실수로 grade(특히 0)를 적어 넣으면 빌드 단계가 "확정된 0점"과

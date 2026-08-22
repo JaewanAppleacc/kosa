@@ -12,13 +12,17 @@ from __future__ import annotations
 
 import inspect
 import unittest
-from collections import Counter
+
+from pydantic import ValidationError
 
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS
 from src.engines.matching_engine import compute_major_match, compute_student_trait_states
 from src.schemas.evidence import TraitEvidenceSummary
 from src.schemas.major import MajorProfile, MajorRelevance
-from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
+from src.services.major_trait_mapping_evidence import (
+    MajorTraitMappingRecord,
+    load_major_trait_mapping_evidence,
+)
 
 from scripts.career_build_major_profiles import (
     EVIDENCE_BASED_MAJOR_LABELS,
@@ -156,6 +160,104 @@ class MajorTraitMappingEvidenceTest(unittest.TestCase):
                 )
 
 
+class MappingStatusGradeSchemaTest(unittest.TestCase):
+    """2026-08-23 13차 리뷰 §2: 상태별 허용 grade 범위를 Pydantic ValidationError로 강제하는지
+    확인한다. mapping_status가 EVIDENCED/NO_DIRECT_EVIDENCE/REVIEW_REQUIRED/UNMAPPED 4개, grade가
+    None/0/1/2/3 5개인 20개 조합을 전부 명시적으로 검증한다 — 어느 조합이 왜 허용/차단되는지
+    표로 명확히 남긴다."""
+
+    def _record(self, mapping_status: str, grade: int | None, *, with_evidence: bool) -> dict:
+        payload = {
+            "major_id": "industrial_engineering",
+            "trait_id": "causal_analysis",
+            "mapping_status": mapping_status,
+            "grade": grade,
+            "author_id": "worker_a",
+            "mapping_version": "test_v1",
+        }
+        if with_evidence:
+            payload["evidence"] = [
+                {
+                    "university_name": "테스트대학교",
+                    "department_name": "테스트학과",
+                    "evidence_type": "OFFICIAL_CURRICULUM",
+                    "course_or_goal": "테스트 교과",
+                    "source_url": "https://example.ac.kr/curriculum",
+                    "reason": "테스트용",
+                }
+            ]
+        return payload
+
+    def test_evidenced_accepts_grade_1_to_3_with_evidence(self) -> None:
+        for grade in (1, 2, 3):
+            MajorTraitMappingRecord.model_validate(
+                self._record("EVIDENCED", grade, with_evidence=True)
+            )
+
+    def test_evidenced_rejects_grade_0(self) -> None:
+        with self.assertRaises(ValidationError):
+            MajorTraitMappingRecord.model_validate(
+                self._record("EVIDENCED", 0, with_evidence=True)
+            )
+
+    def test_evidenced_rejects_grade_none(self) -> None:
+        with self.assertRaises(ValidationError):
+            MajorTraitMappingRecord.model_validate(
+                self._record("EVIDENCED", None, with_evidence=True)
+            )
+
+    def test_no_direct_evidence_accepts_only_grade_0_with_evidence(self) -> None:
+        MajorTraitMappingRecord.model_validate(
+            self._record("NO_DIRECT_EVIDENCE", 0, with_evidence=True)
+        )
+
+    def test_no_direct_evidence_rejects_grade_1_to_3(self) -> None:
+        for grade in (1, 2, 3):
+            with self.assertRaises(ValidationError):
+                MajorTraitMappingRecord.model_validate(
+                    self._record("NO_DIRECT_EVIDENCE", grade, with_evidence=True)
+                )
+
+    def test_no_direct_evidence_rejects_grade_none(self) -> None:
+        with self.assertRaises(ValidationError):
+            MajorTraitMappingRecord.model_validate(
+                self._record("NO_DIRECT_EVIDENCE", None, with_evidence=True)
+            )
+
+    def test_review_required_accepts_only_grade_none(self) -> None:
+        MajorTraitMappingRecord.model_validate(
+            self._record("REVIEW_REQUIRED", None, with_evidence=False)
+        )
+
+    def test_review_required_rejects_any_grade(self) -> None:
+        for grade in (0, 1, 2, 3):
+            with self.assertRaises(ValidationError):
+                MajorTraitMappingRecord.model_validate(
+                    self._record("REVIEW_REQUIRED", grade, with_evidence=True)
+                )
+
+    def test_unmapped_accepts_only_grade_none(self) -> None:
+        MajorTraitMappingRecord.model_validate(
+            self._record("UNMAPPED", None, with_evidence=False)
+        )
+
+    def test_unmapped_rejects_any_grade(self) -> None:
+        for grade in (0, 1, 2, 3):
+            with self.assertRaises(ValidationError):
+                MajorTraitMappingRecord.model_validate(
+                    self._record("UNMAPPED", grade, with_evidence=True)
+                )
+
+    def test_evidenced_without_evidence_list_is_rejected_regardless_of_grade_fix(self) -> None:
+        """근거 목록이 비어 있으면 grade가 Rubric상 유효한 값이어도(1~3) 여전히 막혀야 한다 —
+        상태별 등급 범위 검사가 기존 '근거 필수' 검사를 대체하는 게 아니라 추가되는 것임을 확인."""
+
+        with self.assertRaises(ValidationError):
+            MajorTraitMappingRecord.model_validate(
+                self._record("EVIDENCED", 2, with_evidence=False)
+            )
+
+
 class ProfileBuildTest(unittest.TestCase):
     """§13 16~22."""
 
@@ -222,6 +324,112 @@ class ProfileBuildTest(unittest.TestCase):
         source = inspect.getsource(module)
         self.assertNotIn("MajorProfile(", source)
         self.assertIn("model_validate_json", source)
+
+
+class VerticalSliceLoaderTest(unittest.TestCase):
+    """2026-08-23 13차 리뷰 §3: `load_vertical_slice_major_profiles`의 중복 방지·필수 전공
+    누락 차단·순서 보장을 직접 임시 파일로 확인한다(실제 정본 파일을 건드리지 않는다)."""
+
+    def _row(self, major_id: str, label: str = "테스트 라벨") -> str:
+        import json as _json
+
+        return _json.dumps(
+            {
+                "major_id": major_id,
+                "label": label,
+                "interest_vector": {},
+                "cognitive_vector": {},
+                "work_style_vector": {},
+                "environment_vector": {},
+                "source_ids": ["https://example.ac.kr/"],
+                "extraction_method": "rule",
+                "review_status": "draft",
+                "profile_version": "test_v1",
+                "updated_at": "2026-08-23T00:00:00Z",
+            },
+            ensure_ascii=False,
+        )
+
+    def _write(self, tmp_path, lines: list[str]):
+        tmp_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return tmp_path
+
+    def test_normal_file_loads_successfully(self) -> None:
+        import tempfile
+        from pathlib import Path as _Path
+
+        from src.data.majors.vertical_slice_major_profiles import load_vertical_slice_major_profiles
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = self._write(
+                _Path(tmp_dir) / "major_profiles.jsonl",
+                [
+                    self._row("media_communication"),
+                    self._row("hci_ux"),
+                    self._row("industrial_engineering"),
+                    self._row("computer_science"),  # Vertical Slice 3개 아닌 행은 무시돼야 함
+                ],
+            )
+            profiles = load_vertical_slice_major_profiles(path)
+            self.assertEqual(
+                [p.major_id for p in profiles],
+                ["media_communication", "hci_ux", "industrial_engineering"],
+            )
+
+    def test_missing_required_major_is_blocked(self) -> None:
+        import tempfile
+        from pathlib import Path as _Path
+
+        from src.data.majors.vertical_slice_major_profiles import load_vertical_slice_major_profiles
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = self._write(
+                _Path(tmp_dir) / "major_profiles.jsonl",
+                [self._row("media_communication"), self._row("hci_ux")],  # industrial_engineering 누락
+            )
+            with self.assertRaises(ValueError):
+                load_vertical_slice_major_profiles(path)
+
+    def test_duplicate_major_id_is_blocked_not_silently_overwritten(self) -> None:
+        import tempfile
+        from pathlib import Path as _Path
+
+        from src.data.majors.vertical_slice_major_profiles import load_vertical_slice_major_profiles
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = self._write(
+                _Path(tmp_dir) / "major_profiles.jsonl",
+                [
+                    self._row("media_communication", label="첫 번째 값"),
+                    self._row("hci_ux"),
+                    self._row("industrial_engineering"),
+                    self._row("media_communication", label="두 번째 값(중복)"),
+                ],
+            )
+            with self.assertRaises(ValueError):
+                load_vertical_slice_major_profiles(path)
+
+    def test_return_order_follows_vertical_slice_major_ids_regardless_of_file_row_order(self) -> None:
+        import tempfile
+        from pathlib import Path as _Path
+
+        from src.data.majors.vertical_slice_major_profiles import (
+            VERTICAL_SLICE_MAJOR_IDS,
+            load_vertical_slice_major_profiles,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # 파일 안 순서를 VERTICAL_SLICE_MAJOR_IDS 선언 순서와 일부러 다르게 뒤섞는다.
+            path = self._write(
+                _Path(tmp_dir) / "major_profiles.jsonl",
+                [
+                    self._row("industrial_engineering"),
+                    self._row("media_communication"),
+                    self._row("hci_ux"),
+                ],
+            )
+            profiles = load_vertical_slice_major_profiles(path)
+            self.assertEqual([p.major_id for p in profiles], list(VERTICAL_SLICE_MAJOR_IDS))
 
 
 class MatchingRegressionTest(unittest.TestCase):

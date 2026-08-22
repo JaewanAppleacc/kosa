@@ -30,35 +30,57 @@
 
 앞선 버전에서는 `source_references`를 전부 "O*NET/Holland 참고"로 뭉뚱그렸는데, 실제로 O*NET Online(onetonline.org)·O*NET Resource Center(onetcenter.org)를 조회해서 12개 각각에 대응하는 공식 항목이 있는지 확인했습니다. **결과: 12개 중 깔끔하게 맞는 건 절반 정도고, 나머지는 억지 대응이거나 아예 대응되는 공식 항목이 없습니다.** 없는 걸 있는 것처럼 적지 않았습니다.
 
-참고로 O*NET Work Styles는 2024년에 구조가 개편돼(21개 하위 항목 → 4개 상위 그룹: Conscientious and Rule Oriented / Emotionally Resilient / Interpersonally Oriented / Proactive and Growth Oriented), 예전에 흔히 인용되던 16개 항목 목록(제 기억 속 지식)은 이제 낡은 버전입니다. 아래는 2024 개편판 기준입니다.
+**2026-08-23 13차 리뷰 정정**: 앞선 버전에서 "O*NET Work Styles가 2024년에 21개 하위 항목 →
+4개 상위 그룹으로 개편됐다"고 적었는데, 이건 부정확한 서술이었습니다. 공식 보고서
+"Revisiting the Work Styles Domain of the O*NET Content Model"(Putka, Kell, Voss(HumRRO);
+Oswald(Rice University); Lewis(National Center for O*NET Development), 2024년 8월,
+https://www.onetcenter.org/reports/Work_Styles_New.html )는 이렇게 명시합니다: *"A new
+Work Styles structure was developed including 21 lower-order dimensions organized into 7
+higher-order dimensions."* 즉 **21개 하위 차원이 4개가 아니라 7개 상위 차원 아래 조직되는
+구조**입니다. (예전에 흔히 인용되던, 상위 그룹 없이 나열된 16개 항목 목록은 더 낡은
+버전입니다.) 7개 상위 차원 각각의 정확한 이름과 21개 하위 차원의 전체 목록은 이 보고서
+HTML 페이지 자체에는 없고, 페이지가 참조하는 별도 엑셀 원본("Work Style Names and
+Descriptions for O*NET Content Model Reference")에만 있어 이번 조사에서는 직접 확인하지
+못했습니다 — 확인 못한 걸 확인한 것처럼 적지 않습니다. `onetcenter.org/content.html`(O*NET
+Content Model 개요 페이지)에는 Adaptability/Cooperation/Empathy를 포함해 4개 상위
+그룹(Conscientious and Rule Oriented / Emotionally Resilient / Interpersonally Oriented /
+Proactive and Growth Oriented) 체계로 소개하는 내용이 있는데, 이는 위 2024년 8월 보고서가
+반영되기 이전(또는 별도) 버전의 소개로 보이며, 7개 상위 차원 체계와 정합 관계가 이번
+조사에서는 확인되지 않았습니다. 그래서 아래 표의 grounding_type은 이 구조적 불확실성을
+반영해 "항목명(하위 차원)은 확인되지만, 그 항목이 속한 상위 차원 체계는 두 공식 자료가
+서로 다르게 설명한다"는 상태로 그대로 둡니다(성급하게 강한 근거로 올리지 않음).
 
 | trait_id | 대응 시도 | 원문 정의 | 적합도 | 확인 방식 |
 |---|---|---|---|---|
 | causal_analysis | O*NET GWA "Analyzing Data or Information" (코드 4.A.2.a.4) | "Identifying the underlying principles, reasons, or facts of information by breaking down information or data into separate parts." | **강함** | 해당 페이지 직접 조회 |
-| pattern_finding | Holland "Investigative" 유형 | "Investigative types typically like to work with ideas... logical, curious, exact, intellectual, cautious, independent" | 보통 (유형 설명 수준, 항목 단위 대응 아님) | 검색 결과 인용 |
+| pattern_finding | Holland "Investigative" 유형 **+ 2026-08-23 13차 추가: O*NET Ability "Inductive Reasoning"(코드 1.A.1.b.5)** | Holland: "Investigative types typically like to work with ideas... logical, curious, exact, intellectual, cautious, independent" / Inductive Reasoning(원문): "The ability to combine pieces of information to form general rules or conclusions (includes finding a relationship among seemingly unrelated events)." | 보통 (유지) — Inductive Reasoning은 **Ability**(적성 검사로 재는 인지 능력) 범주이고, 우리 `pattern_finding`은 상황형 답변에서 관찰하는 **행동 경향**이라 같은 것을 측정한다고 볼 수 없음. 개념적 유사성만 문서화 목적으로 추가한 것이며, 이 추가만으로 grounding_type을 ONET_STRONG으로 올리지 않음(RIASEC_REFERENCE 유지) | Holland: 검색 결과 인용 / Inductive Reasoning: onetonline.org 결과 페이지 직접 조회(1.A.1.b.5) |
 | planning | O*NET GWA "Organizing, Planning, and Prioritizing Work" (코드 4.A.2.b.6) | "Developing specific goals and plans to prioritize, organize, and accomplish your work." | 보통 — 2026-08-20 결정으로 prioritization을 이 항목에 통합 | 검색 결과 인용 |
-| immediate_execution | **팀 정의로 확정(2026-08-20)** — O*NET 대응 항목 없음 (Work Style "Initiative"가 제일 가깝지만 "책임을 자발적으로 더 맡는 것"이지 "계획 없이 바로 하는 것"과는 다른 개념이라 채택 안 함) | - | 팀 정의 | 항목명만 확인, 정의문 미조회 |
-| change_adaptation | O*NET Work Style "Adaptability" (Proactive and Growth Oriented, 2024 개편판) | 정의문 미조회, 항목명만 확인 | 보통 — 항목명 확인, 정의문 미확인 | 항목명만 확인 |
-| collaboration_preference | O*NET Work Style "Cooperation" (Interpersonally Oriented) | 2024 개편판 정의문 미조회 (구버전 정의: "being pleasant with others... cooperative attitude") | 보통 — 항목명은 2024판에도 살아있음, 정의문은 구버전 인용 | 항목명 직접 조회, 정의문은 구버전 기억 |
-| opinion_mediation | **팀 정의로 확정(2026-08-20)** — O*NET 대응 항목 없음 (GWA "Coordinating, Developing, Managing, and Advising" 카테고리명만 존재, 세부 정의 미조회) | - | 팀 정의 | 카테고리명만 확인 |
-| emotional_interpretation | O*NET Work Style "Empathy" (2024 신설 항목) | 정의문 미조회 | 보통 — 항목명은 확인, 정의문 미확인 | 항목명만 확인 |
+| immediate_execution | **팀 정의로 확정(2026-08-20, 2026-08-23 13차 재확인)** — O*NET 대응 항목 없음 (Work Style "Initiative"가 제일 가깝지만 "책임을 자발적으로 더 맡는 것"이지 "계획 없이 바로 하는 것"과는 다른 개념이라 채택 안 함) | - | 팀 정의 | 항목명만 확인, 정의문 미조회 |
+| change_adaptation | O*NET Work Style "Adaptability" | **2026-08-23 13차 확인**: "A tendency to be open to and comfortable with change, new experiences, or ideas at work." (출처: onetcenter.org/content.html) | 보통(ONET_PARTIAL 유지) — 정의문은 이제 확인했지만, `change_adaptation`은 "예상과 다른 결과가 나왔을 때 진행 중 대응 방식을 바꾸는가"라는 더 좁고 구체적인 행동인 반면 Adaptability는 "변화·새 경험·새 아이디어 전반에 대한 개방성"이라는 더 넓은 성향이라 개념이 완전히 같지 않음. 그래서 ONET_STRONG으로 올리지 않고 ONET_PARTIAL 유지 | onetcenter.org/content.html 직접 조회(2026-08-23) |
+| collaboration_preference | O*NET Work Style "Cooperation" | **2026-08-23 13차 확인**: "A tendency to be pleasant, helpful, and willing to assist others at work." (출처: onetcenter.org/content.html) | 보통(ONET_PARTIAL 유지) — 정의문은 확인했지만, `collaboration_preference`는 "혼자 vs 함께 일하는 것 자체에 대한 선호"를 묻는 반면 Cooperation은 "유쾌하고 남을 돕는 태도"라는 더 넓은 대인관계 성향이라 완전히 같은 개념은 아님. ONET_PARTIAL 유지 | onetcenter.org/content.html 직접 조회(2026-08-23) |
+| opinion_mediation | **팀 정의로 확정(2026-08-20, 2026-08-23 13차 재확인)** — O*NET 대응 항목 없음 (GWA "Coordinating, Developing, Managing, and Advising" 카테고리명만 존재, 세부 정의 미조회) | - | 팀 정의 | 카테고리명만 확인 |
+| emotional_interpretation | O*NET Work Style "Empathy" | **2026-08-23 13차 확인**: "A tendency to show concern for others and be sensitive to others' needs and feelings at work." (출처: onetcenter.org/content.html) | 보통(ONET_PARTIAL 유지) — 정의문은 확인했지만, `emotional_interpretation`은 "지금 상대가 느끼는 감정을 관찰·이해"하는 좁은 행동인 반면 Empathy는 "타인의 필요·감정에 대한 민감성"이라는 더 넓은 성향이라 완전히 같은 개념은 아님. ONET_PARTIAL 유지 | onetcenter.org/content.html 직접 조회(2026-08-23) |
 | audience_response_prediction | **팀 정의로 확정(2026-08-20)** — O*NET 대응 항목 불확실 (GWA "Interpreting the Meaning of Information for Others" 추정, 항목명도 정확히 재확인 못함) | - | 팀 정의 | 미확인 |
 | visual_expression | GWA "Thinking Creatively" + Holland "Artistic" | "Developing, designing, or creating new applications, ideas, relationships, systems, or products, including artistic contributions." | **강함** | 검색 결과 인용 |
 | information_comparison | GWA "Getting Information" | "Observing, receiving, and otherwise obtaining information from all relevant sources." | 보통 — "비교"라는 뉘앙스는 원문에 없고 제가 붙인 것 | 검색 결과 인용 |
 | tool_utilization | Holland "Realistic" 유형 | "Realistic types generally like to work with things more than with people... practical, natural, persistent" | 보통 | 검색 결과 인용 |
 
-**정리(2026-08-20 결정 반영):**
+**정리(2026-08-20 결정, 2026-08-23 13차 리뷰로 정의문 보강):**
 - **강하게 대응됨(2개)**: causal_analysis, visual_expression — 공식 정의문까지 직접 확인.
-- **항목명은 확인, 정의문은 미확인(4개)**: planning, change_adaptation, collaboration_preference, emotional_interpretation — O*NET이 2024년에 구조를 바꾸면서 새 정의문이 온라인 페이지 텍스트로 잘 안 열려서, 항목이 "존재한다"까지만 확인했습니다.
+- **정의문까지 확인, 그러나 개념이 완전히 같지 않아 ONET_PARTIAL 유지(3개)**: change_adaptation(Adaptability), collaboration_preference(Cooperation), emotional_interpretation(Empathy) — 2026-08-23 13차 리뷰로 onetcenter.org/content.html에서 공식 정의문을 확인했지만(§1-1 표 참고), 우리 Trait가 O*NET 항목보다 더 좁고 구체적인 행동을 가리켜서 grounding_type을 ONET_STRONG으로 올리지 않았습니다.
+- **항목명만 확인, 정의문은 미확인(1개)**: planning — 정의문 자체는 O*NET GWA 페이지에서 이미 직접 확인됐음(§1-1 표 참고, 위 3개와 달리 애초에 정의문 확보됨).
 - **팀 정의로 확정(3개)**: immediate_execution, opinion_mediation, audience_response_prediction — O*NET/Holland 대응 항목을 찾지 못해 억지로 갖다 붙이지 않고, "이 프로젝트를 위해 팀이 정의한 개념"으로 명시적으로 확정했습니다. 발표 시 이 3개는 O*NET 근거를 주장하지 않습니다.
 - **prioritization은 planning에 통합**: O*NET이 이 둘을 애초에 하나의 활동("Organizing, Planning, and Prioritizing Work")으로 보는 게 확인돼, 별도 유지의 실익이 없다고 판단해 `planning`(계획·우선순위 수립) 하나로 합쳤습니다. 빈 자리에는 O*NET Work Style "Adaptability"에 대응되는 `change_adaptation`(변화 대응)을 추가했습니다.
+- **2026-08-23 13차 추가**: pattern_finding에 O*NET Ability "Inductive Reasoning"(1.A.1.b.5)과의 개념적 관련성을 문서화했으나, Ability(적성)와 우리 Trait(상황형 답변에서 관찰하는 행동 경향)는 측정 대상 자체가 달라 "동일한 능력을 측정한다"고 표현하지 않았고, grounding_type도 RIASEC_REFERENCE로 유지했습니다.
 
 **출처:**
 - [Work Activities — Analyzing Data or Information](https://www.onetonline.org/find/descriptor/result/4.A.2.a.4)
 - [Work Activities — Organizing, Planning, and Prioritizing Work](https://www.onetonline.org/find/descriptor/result/4.A.2.b.6)
+- [Ability — Inductive Reasoning](https://www.onetonline.org/find/descriptor/result/1.A.1.b.5)
 - [Browse by Work Styles (2024 개편 구조)](https://www.onetonline.org/find/descriptor/browse/1.D)
 - [Browse by Work Activities](https://www.onetonline.org/find/descriptor/browse/4.A)
-- [Revisiting the Work Styles Domain of the O*NET Content Model (2024)](https://www.onetcenter.org/reports/Work_Styles_New.html)
+- [Revisiting the Work Styles Domain of the O*NET Content Model — 21개 하위 차원/7개 상위 차원 구조 확정 근거(2024년 8월, HumRRO/Rice University/National Center for O*NET Development)](https://www.onetcenter.org/reports/Work_Styles_New.html)
+- [O*NET Content Model 개요 — Adaptability/Cooperation/Empathy 정의문 출처](https://www.onetcenter.org/content.html)
 - [RIASEC Theory — Self-Directed Search](https://self-directed-search.com/riasec-theory/)
 
 이 결과를 각 Trait의 `source_references` 필드에 그대로 반영했고(강함/보통/약함 표시 포함), "대응 항목 없음"으로 나온 3개는 `source_references: ["팀 정의 — O*NET/Holland 대응 항목 없음, 2026-08-20 조사"]`로 명시했습니다.
@@ -147,7 +169,7 @@ ContrastDefinition(
 ~~0. immediate_execution/opinion_mediation/audience_response_prediction 팀 정의 여부~~ → 팀 정의로 확정(2026-08-20).
 ~~1. prioritization/planning 통합 여부~~ → planning으로 통합, change_adaptation 신규 추가로 확정(2026-08-20).
 
-2. `collaboration_preference`, `emotional_interpretation`, `change_adaptation`은 O*NET 2024 개편판에 항목명("Cooperation", "Empathy", "Adaptability")은 확인했지만 새 정의문 원문은 못 찾았습니다(사이트 구조상 상세 정의 페이지가 텍스트로 잘 안 열림). 정확한 인용이 필요하면 O*NET Resource Center의 Excel 원본 파일(`Work Style Names and Descriptions.xlsx`)을 직접 받아서 확인해야 합니다.
+~~2. `collaboration_preference`, `emotional_interpretation`, `change_adaptation` 정의문 미확인~~ → 2026-08-23 13차 리뷰로 onetcenter.org/content.html에서 세 항목("Cooperation"/"Empathy"/"Adaptability") 정의문을 모두 직접 확인해 §1-1 표에 반영했습니다. 다만 이 정의문이 담긴 페이지가 보여주는 "4개 상위 그룹" 체계와, 2024년 8월 공식 보고서(Work_Styles_New.html)가 말하는 "21개 하위/7개 상위 차원" 체계의 정합 관계는 여전히 확인하지 못했습니다 — 7개 상위 차원의 정확한 이름과 21개 항목 전체 목록은 O*NET Resource Center의 Excel 원본 파일(`Work Style Names and Descriptions.xlsx`)을 직접 받아야 확인할 수 있습니다. 그때까지는 어느 상위 그룹 이름도 "확정된 최신 구조"라고 단정하지 않습니다.
 3. `information_comparison`을 domain_specific으로 분류했는데, 위 표를 보면 3개 Context 전부에서 고르게 관찰돼(3/2/2) 사실상 shared에 가깝습니다. 비율(75/25%)을 맞추려고 domain_specific에 넣었는데, 이후 15개 Context로 확장했을 때도 실제로 도메인 편향이 있는지는 재검토가 필요합니다.
 4. `tool_utilization`은 지금 3개 Context 안에서는 약하게만 관찰됩니다. Vertical Slice 통과 자체엔 지장 없지만("STRONG" 판정까지 안 가고 "LIMITED"에 머물 가능성이 높음), 이게 로직 버그가 아니라 데이터 부족 때문이라는 걸 팀이 미리 인지하고 있어야 나중에 "왜 이 Trait만 약하게 나오지?"라는 오해를 피할 수 있습니다.
 5. Contrast Pair(§3)의 `positive_role_ids`/`opposite_role_ids`는 아직 실제 role_id가 없어 자리표시자입니다. 다음 단계(Question/Option Blueprint 스켈레톤)에서 `planning`·`immediate_execution` 각각에 연결되는 role을 최소 1개씩 만들 때 이 Contrast 정의도 같이 채워야 합니다.

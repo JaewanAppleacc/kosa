@@ -41,8 +41,18 @@ def load_vertical_slice_major_profiles(path: Path | None = None) -> list[MajorPr
         if not line.strip():
             continue
         profile = MajorProfile.model_validate_json(line)
-        if profile.major_id in VERTICAL_SLICE_MAJOR_IDS:
-            by_id[profile.major_id] = profile
+        if profile.major_id not in VERTICAL_SLICE_MAJOR_IDS:
+            continue
+        # 2026-08-23 13차 리뷰: 정본 파일에 같은 major_id가 두 번 있으면 마지막 값으로
+        # 조용히 덮어쓰지 않는다 — 어느 값이 진짜인지 사람이 판단해야 하는 데이터 오류이므로,
+        # Loader가 임의로 하나를 고르는 순간 그 자체가 "검증 안 된 선택"이 된다.
+        if profile.major_id in by_id:
+            raise ValueError(
+                f"{source}에 major_id={profile.major_id!r}가 두 번 이상 있다 — "
+                "정본 파일 중복은 Loader가 마지막 값으로 덮어쓰지 않고 즉시 오류로 막는다. "
+                "career_build_major_profiles.py 산출물 또는 수동 편집 내역을 확인하세요."
+            )
+        by_id[profile.major_id] = profile
 
     missing = set(VERTICAL_SLICE_MAJOR_IDS) - set(by_id)
     if missing:
