@@ -111,14 +111,19 @@ def _evidence_update(g: AnswerGraphState) -> dict:
             EvidenceOrigin.CONFLICT_RESOLUTION if is_resolution_answer else EvidenceOrigin.PRIMARY_BLUEPRINT
         ),
         context=question.context,
-        source_type="seed_question" if question.frame_id == "seed_frame" else "generated_question",
+        # 2026-08-22 5차 리뷰: 확인 질문은 LLM이 그때그때 만든 일반 꼬리질문이 아니라
+        # 사람이 미리 검토한 고정 문항이다("generated_question"으로 남으면 Quality
+        # Gate·재생성 이력을 다룰 때 혼동된다) — API 응답엔 노출되지 않는 내부 값이라
+        # 외부 계약에는 영향 없다.
+        source_type=(
+            "conflict_resolution_question" if is_resolution_answer
+            else "seed_question" if question.frame_id == "seed_frame"
+            else "generated_question"
+        ),
         generator_version="v1",
         quality_gate_status="passed",
     )
     state.evidence_ledger.append(evidence)
-    state.pending_next_probe = selected_option.next_probe
-    state.pending_previous_question_text = question.question_text
-    state.pending_previous_answer_text = selected_option.text
     state.answers.append(
         AnsweredQuestion(
             question_id=question.question_id,
@@ -127,28 +132,39 @@ def _evidence_update(g: AnswerGraphState) -> dict:
         )
     )
 
-    # 2026-08-22 4차 리뷰: opportunity_count(§12: "선택 가능했던 횟수")는 이
-    # offered_trait_ids_by_question에서 계산된다 — 확인 질문에 나온 5개 선택지도 그대로
-    # 넣으면, 답변 자체는 CONFLICT_RESOLUTION으로 분리해도 "planning을 볼 기회가 있었다"는
-    # 흔적은 여전히 남아 opportunity_count가 늘어난다. 확인 질문은 §12-1 별도 정보이므로
-    # 일반 기회 집계에서도 제외한다.
+    # 2026-08-22 5차 리뷰: Conflict Resolution Question은 일반 Adaptive 꼬리질문이
+    # 아니라 상충 Evidence를 해석하기 위한 메타 확인 문항이다 — 다음 일반 질문을 만드는
+    # 데 쓰이는 "직전 일반 질문/답변" 상태(pending_*), 최근 Target Trait·Frame 이력
+    # (recent_target_trait_ids/used_frame_ids_in_current_context), opportunity_count
+    # 계산용 offered_trait_ids_by_question, 일반 질문 카운터·Seed Trait는 전부 마지막
+    # "일반" Seed·꼬리질문에서 만들어진 값을 그대로 유지해야 한다 — 확인 질문 답변으로
+    # 덮어쓰면 그다음 일반 질문을 생성할 때 LLM이 확인 질문을 직전 질문으로 오인하거나
+    # (previous_question_text), Target Planner가 확인 질문의 Trait/Frame을 "최근 다룬
+    # 것"으로 잘못 회피하게 된다("일반 질문/Resolution 답변의 상태 갱신 분리" 정책,
+    # 이번 5차 리뷰 목표).
     if not is_resolution_answer:
+        state.pending_next_probe = selected_option.next_probe
+        state.pending_previous_question_text = question.question_text
+        state.pending_previous_answer_text = selected_option.text
+
+        # opportunity_count(§12: "선택 가능했던 횟수")는 이 offered_trait_ids_by_question에서
+        # 계산된다 — 확인 질문의 5개 선택지까지 넣으면 답변 자체는 CONFLICT_RESOLUTION으로
+        # 분리해도 "planning을 볼 기회가 있었다"는 흔적이 남아 opportunity_count가 늘어난다.
         offered_traits: list[str] = []
         for option in question.options:
             offered_traits.extend(option.primary_trait_delta.keys())
         state.offered_trait_ids_by_question[question.question_id] = offered_traits
 
-    if question.target_traits:
-        state.recent_target_trait_ids.append(question.target_traits[0])
-    state.used_frame_ids_in_current_context.append(question.frame_id)
+        if question.target_traits:
+            state.recent_target_trait_ids.append(question.target_traits[0])
+        state.used_frame_ids_in_current_context.append(question.frame_id)
 
-    if is_resolution_answer:
-        state.resolution_questions_asked_in_current_context += 1
-    else:
         state.questions_asked_in_current_context += 1
         # §7-2: 이번이 이 Context의 Seed 답변이면, DEEPEN 테마가 참고할 Trait을 남긴다.
         if state.questions_asked_in_current_context == 1:
             state.current_context_seed_trait_id = sorted(selected_option.primary_trait_delta)[0]
+    else:
+        state.resolution_questions_asked_in_current_context += 1
 
     all_offered_sets = [set(v) for v in state.offered_trait_ids_by_question.values()]
     for trait_id in g.all_trait_ids:
