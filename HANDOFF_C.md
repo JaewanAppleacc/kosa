@@ -260,7 +260,8 @@ C의 구현이 `main`에 병합된 뒤, A가 실제 서비스에 처음 연결�
   미술대학·디자인대학·체육대학 아님)이고, 같은 단과대학의 체육과학부와 달리 실기고사
   전형이 아니며, 공식 자기소개가 "인문학+공학+디자인" 융합이라 순수 예체능이 아니다.
   이 검토 근거는 새 파일 `data/master/hci_ux_department_review.jsonl`에 학과별로
-  기록해, 앞으로 `hci_ux`에 학과를 추가할 때도 같은 형식으로 근거를 남기게 했다.
+  기록해, 앞으로 `hci_ux`에 학과를 추가할 때도 같은 형식으로 근거를 남기게 했다
+  (10번 참고 — 이 파일은 이후 `department_recommendation_scope.jsonl`로 흡수·대체됐다).
 - **결과**: `hci_ux`는 이제 학과 1개(이화여대 융합콘텐츠학과)뿐이다. 공식 근거로
   검증 가능한 비예체능 HCI/UX 학과를 추가로 찾지 못해 억지로 채우지 않았다 —
   README_B.md에 "학과 1개"로 정직하게 남겨 뒀다(§4).
@@ -268,3 +269,46 @@ C의 구현이 `main`에 병합된 뒤, A가 실제 서비스에 처음 연결�
   이번 작업에서 한 줄도 바꾸지 않았다. 미술·디자인/스포츠/미디어/패션·뷰티 Context는
   그대로 존재하고, Shared Trait 추출에 계속 쓰인다 — "관심 Context 선택"과 "예체능
   학과 추천"은 완전히 다른 경로다(§16).
+
+---
+
+## 10. 검수 보완 — 공식 근거 교체 + 학과 단위 Fail-Closed 정책 — 2026-08-22 (4단계)
+
+9번(3단계) 검수에서 두 가지가 지적됐다: (1) 이화여대 융합콘텐츠학과 계열 판정 근거로
+`namu.wiki`(비공식 위키)를 썼다, (2) `design` 하나만 major_id 단위로 막아서는 "다른
+major_id로 잘못 Mapping된 예체능 학과"까지는 못 막는다. 이 절은 그 보완 내용이다 —
+9번까지의 결정(서울여대 산업디자인학과 hci_ux 취소, design 제외)은 그대로 유지된다.
+
+- **근거 전면 교체**: `namu.wiki` 인용을 전부 제거하고, `data/master/hci_ux_
+  department_review.jsonl`을 더 일반적인 `data/master/department_recommendation_
+  scope.jsonl`로 통합·대체했다(HCI/UX뿐 아니라 media_communication·industrial_
+  engineering까지 포함한 8개 학과 전부를 같은 형식으로 기록). 이화여대는 다음 3개
+  공식 자료로 재검증했다:
+  - 단과대학 분류: `https://ged.ewha.ac.kr/convergence/major/content-convergence.do`
+    (이화여대 공식 사이트 — 신산업융합대학, "인문학, 디자인, ICT 융합")
+  - 입학전형: `https://admission.ewha.ac.kr/upload/GUIDES/20230911092013KBG72F.pdf`
+    (2024학년도 이화여대 정시모집요강 공식 PDF) — 예체능실기전형 대상 학과 목록에
+    "조형예술대학 전 모집단위, 신산업융합대학 체육과학부", "건반악기과·관현악과·
+    성악과·작곡과"만 명시돼 있고 융합콘텐츠학과는 포함되지 않음을 원문에서 직접 확인
+  - 교과과정: `https://cmsguide.ewha.ac.kr/cc/bachelor/curriculum-guide.do`
+    (이화여대 공식 학부 교과과정 안내) — 사용자연구·UI디자인·UX디자인·콘텐츠프로그래밍
+    기초·웹콘텐츠개발 등 실제 개설 과목명을 원문에서 확인
+- **레코드 구조 강화**: `is_arts_or_pe=false` 자기선언 하나가 아니라, `academic_field`/
+  `eligibility_status`(APPROVED/EXCLUDED_ARTS_SPORTS/REVIEW_REQUIRED)/
+  `classification_evidence`(근거 종류·URL·요약 배열)/`hci_ux_curriculum_evidence`
+  (과목명+URL 배열)로 구조화했다. media_communication 4개·industrial_engineering
+  3개 학과도 같은 형식으로 최소 하나 이상의 공식 근거(대학알리미 또는 직접 확인한 학과
+  홈페이지)와 함께 기록해 총 8건을 채웠다 — 전국 학과 전체를 이 형식으로 분류하지는
+  않았다(이번 MVP 범위 밖, 후속 확장 과제).
+- **학과 단위 Fail-Closed 정책 신설**: `src/services/department_recommendation_scope.py`
+  (A 소유, 신규)에 `DepartmentRecommendationScopePolicy` Protocol + JSONL 기반 기본
+  구현을 추가했다. `MajorExplorationService`가 이 Policy를 생성자에서 주입받고,
+  `fail_closed_major_ids`(지금은 VERTICAL_SLICE_MAJOR_PROFILES의 3개, 하드코딩 아님)에
+  속하는 major_id를 조회할 때만 "학과별로 APPROVED 검토 기록이 있는가"를 마지막으로
+  다시 확인한다 — 검토 기록이 없거나 EXCLUDED_ARTS_SPORTS/REVIEW_REQUIRED면 무조건
+  제외한다(Fail-Closed). Repository·Canonical Mapping은 그대로 두고 노출 시점에서만
+  판정하며, 이 3개 전공 밖의 major_id(예: computer_science)는 이번 범위에서 건드리지
+  않았다.
+- **API 계약 무변경**: `GET /departments/{major_id}` 응답에는 여전히 기존
+  `DepartmentsResponse`(`Department[]`)만 나간다 — `academic_field`·
+  `eligibility_status`·검토자 ID 같은 내부 필드는 어디에도 노출하지 않는다.

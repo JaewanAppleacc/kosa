@@ -67,6 +67,7 @@ from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
 from src.memory.session_store import InMemorySessionStore
 from src.repositories.department_repository import JsonlDepartmentRepository
+from src.services.department_recommendation_scope import JsonlDepartmentRecommendationScopePolicy
 from src.services.major_exploration_service import MajorExplorationService
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
@@ -187,7 +188,15 @@ if len(_department_repository) == 0:
         "[warn] JsonlDepartmentRepository가 비어 있습니다 — "
         "data/master/departments.jsonl 경로·형식을 확인하세요."
     )
-_major_exploration_service = MajorExplorationService(_department_repository)
+# 2026-08-22 10차: 실제로 추천 가능한 대표 전공(VERTICAL_SLICE_MAJOR_PROFILES에서 그대로
+# 읽는다 — 별도로 하드코딩하지 않는다)에는 학과 단위 추천 적격성 정책을 Fail-Closed로
+# 적용한다. 정책 데이터도 Repository와 동일하게 앱 시작 시 한 번만 읽는다.
+_department_recommendation_scope_policy = JsonlDepartmentRecommendationScopePolicy()
+_major_exploration_service = MajorExplorationService(
+    _department_repository,
+    recommendation_scope_policy=_department_recommendation_scope_policy,
+    fail_closed_major_ids=frozenset(m.major_id for m in VERTICAL_SLICE_MAJOR_PROFILES),
+)
 
 
 def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:

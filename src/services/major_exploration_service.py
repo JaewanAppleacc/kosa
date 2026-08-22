@@ -24,6 +24,7 @@ from __future__ import annotations
 from src.repositories.protocols import DepartmentRepository
 from src.schemas.major import Department
 from src.schemas.mcp_contracts import DepartmentSearchCriteria
+from src.services.department_recommendation_scope import DepartmentRecommendationScopePolicy
 
 # §17: Canonical Mapping·학과 상태 이력 중 "지금 지원 가능한 학과"로 보여줘도 되는 상태만
 # 일반 탐색 결과에 노출한다. MERGED/SPLIT/ABOLISHED는 과거·통합·폐지 이력이라 이번
@@ -50,10 +51,26 @@ _CANDIDATE_OVERFETCH_LIMIT = 10_000
 
 class MajorExplorationService:
     """대표 전공(major_id) 하나에 실제로 연결된 학과 목록을, 노출 정책에 맞게 걸러
-    결정론적 순서로 반환한다."""
+    결정론적 순서로 반환한다.
 
-    def __init__(self, department_repository: DepartmentRepository) -> None:
+    2026-08-22 10차: `EXCLUDED_RECOMMENDATION_MAJOR_IDS`(major_id 통째로 차단)만으로는
+    "다른 major_id로 잘못 Mapping된 예체능 학과"를 못 막는다 — 그래서 `major_id`가
+    `fail_closed_major_ids`(실제로 추천 가능한 대표 전공들, 지금은 VERTICAL_SLICE_
+    MAJOR_PROFILES의 3개)에 속하면 학과(department_id) 단위로 `recommendation_scope_
+    policy.is_approved()`가 명시적으로 APPROVED라고 확인해 준 것만 통과시킨다
+    (Fail-Closed — 검토 기록이 없으면 거부). `fail_closed_major_ids` 밖의 major_id
+    (예: computer_science)는 이번 MVP 범위 밖이라 기존 동작(상태·출처 필터만) 그대로
+    유지한다 — 전국 학과 전체 예체능 분류는 후속 확장이다."""
+
+    def __init__(
+        self,
+        department_repository: DepartmentRepository,
+        recommendation_scope_policy: DepartmentRecommendationScopePolicy | None = None,
+        fail_closed_major_ids: frozenset[str] = frozenset(),
+    ) -> None:
         self._department_repository = department_repository
+        self._recommendation_scope_policy = recommendation_scope_policy
+        self._fail_closed_major_ids = fail_closed_major_ids
 
     def list_departments_for_major(
         self, major_id: str, limit: int = DEFAULT_DEPARTMENT_LIMIT
@@ -93,6 +110,15 @@ class MajorExplorationService:
             and d.department_status in VISIBLE_DEPARTMENT_STATUSES
             and d.source_url.strip()
         ]
+
+        # 2026-08-22 10차: 실제로 추천 가능한 대표 전공(fail_closed_major_ids)이면, 학과
+        # 하나하나가 사람이 공식 자료로 검토해 APPROVED라고 확정한 것인지 다시 확인한다
+        # (Fail-Closed) — Repository가 canonical_major_id를 정확히 채워도, 그 Mapping
+        # 자체가 예체능 학과를 잘못 담고 있을 수 있어 major_id 필터만으로는 못 막는다.
+        if major_id in self._fail_closed_major_ids:
+            policy = self._recommendation_scope_policy
+            visible = [d for d in visible if policy is not None and policy.is_approved(d.department_id)]
+
         # 결정론적 정렬 — region → university_name → campus → department_name →
         # department_id. Repository 자체 정렬(university_name 우선)과 다른 이유는, 이건
         # "저장소 조회 순서"가 아니라 "학생에게 보여줄 노출 순서" 정책이라 Service가 정한다.
