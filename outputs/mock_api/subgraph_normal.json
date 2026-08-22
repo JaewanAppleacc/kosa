@@ -7,49 +7,153 @@
       "label": "학생"
     },
     {
+      "node_id": "trait_audience_response_prediction",
+      "node_type": "Trait",
+      "label": "사용자 반응 예측"
+    },
+    {
       "node_id": "trait_causal_analysis",
       "node_type": "Trait",
       "label": "원인 분석"
     },
     {
-      "node_id": "dim_analysis",
-      "node_type": "CareerDimension",
-      "label": "분석과 구조화"
+      "node_id": "trait_change_adaptation",
+      "node_type": "Trait",
+      "label": "변화 대응"
+    },
+    {
+      "node_id": "trait_collaboration_preference",
+      "node_type": "Trait",
+      "label": "협업 선호"
     },
     {
       "node_id": "major_media_communication",
       "node_type": "CanonicalMajor",
-      "label": "미디어커뮤니케이션"
+      "label": "미디어·커뮤니케이션"
     },
     {
-      "node_id": "dept_mock0000000000000001",
+      "node_id": "dept_7ecad2659f94f672c435aed7",
       "node_type": "Department",
-      "label": "예시대학교 미디어커뮤니케이션학과"
+      "label": "미디어학과"
+    },
+    {
+      "node_id": "univ_925d9b5de199c382125fbeae",
+      "node_type": "University",
+      "label": "경희대학교"
+    },
+    {
+      "node_id": "dept_595124d3fa674d6a4acf5da6",
+      "node_type": "Department",
+      "label": "미디어학부"
+    },
+    {
+      "node_id": "univ_b552e9fc54ce381f3b893f9c",
+      "node_type": "University",
+      "label": "고려대학교"
+    },
+    {
+      "node_id": "dept_94f12354268af9359e245775",
+      "node_type": "Department",
+      "label": "신문방송학전공"
+    },
+    {
+      "node_id": "univ_1a139ef99cb3babb78efdd88",
+      "node_type": "University",
+      "label": "서강대학교"
+    },
+    {
+      "node_id": "dept_17bb4a41dc9efcc0d144e96e",
+      "node_type": "Department",
+      "label": "미디어커뮤니케이션학부"
+    },
+    {
+      "node_id": "univ_794d7b89a10f736c7c96da27",
+      "node_type": "University",
+      "label": "중앙대학교"
+    },
+    {
+      "node_id": "subj_fd2661b74f5517b17f5f9d9e",
+      "node_type": "HighSchoolSubject",
+      "label": "화법과 언어"
     }
   ],
   "edges": [
     {
       "source_node_id": "student_1",
-      "target_node_id": "trait_causal_analysis",
+      "target_node_id": "trait_audience_response_prediction",
       "relation_type": "HAS_TRAIT",
       "relevance_level": 3,
       "evidence_ids": [
-        "ev_1",
-        "ev_2",
-        "ev_3"
+        "ev_00000000000000000000000000000005",
+        "ev_00000000000000000000000000000007",
+        "ev_00000000000000000000000000000008",
+        "ev_0000000000000000000000000000000a",
+        "ev_00000000000000000000000000000014"
       ],
       "source_ids": [],
       "mapping_version": "v1",
       "created_at": "2026-08-22T00:00:00"
     },
     {
-      "source_node_id": "trait_causal_analysis",
-      "target_node_id": "dim_analysis",
-      "relation_type": "GROUPED_AS",
+      "source_node_id": "student_1",
+      "target_node_id": "trait_causal_analysis",
+      "relation_type": "HAS_TRAIT",
       "relevance_level": 3,
-      "evidence_ids": [],
+      "evidence_ids": [
+        "ev_00000000000000000000000000000001",
+        "ev_00000000000000000000000000000002",
+        "ev_0000000000000000000000000000000d",
+        "ev_00000000000000000000000000000012"
+      ],
       "source_ids": [],
       "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "student_1",
+      "target_node_id": "trait_change_adaptation",
+      "relation_type": "HAS_TRAIT",
+      "relevance_level": 3,
+      "evidence_ids": [
+        "ev_00000000000000000000000000000003",
+        "ev_0000000000000000000000000000000b",
+        "ev_00000000000000000000000000000010",
+        "ev_00000000000000000000000000000015"
+      ],
+      "source_ids": [],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "student_1",
+      "target_node_id": "trait_collaboration_preference",
+      "relation_type": "HAS_TRAIT",
+      "relevance_level": 3,
+      "evidence_ids": [
+        "ev_00000000000000000000000000000006",
+        "ev_00000000000000000000000000000009",
+        "ev_0000000000000000000000000000000e",
+        "ev_0000000000000000000000000000000f",
+        "ev_00000000000000000000000000000013"
+      ],
+      "source_ids": [],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "trait_audience_response_prediction",
+      "target_node_id": "major_media_communication",
+      "relation_type": "RELATED_TO",
+      "relevance_level": 3,
+      "evidence_ids": [
+        "major_trait:media_communication:audience_response_prediction:major_trait_mapping_v1"
+      ],
+      "source_ids": [
+        "https://mediacom.korea.ac.kr/undergraduate/subject.html",
+        "https://mediacom.korea.ac.kr/undergraduate/subject.html",
+        "https://mediacom.khu.ac.kr/media/user/contents/view.do?menuNo=4600008"
+      ],
+      "mapping_version": "major_trait_mapping_v1",
       "created_at": "2026-08-22T00:00:00"
     },
     {
@@ -57,19 +161,150 @@
       "target_node_id": "major_media_communication",
       "relation_type": "RELATED_TO",
       "relevance_level": 2,
+      "evidence_ids": [
+        "major_trait:media_communication:causal_analysis:major_trait_mapping_v1"
+      ],
+      "source_ids": [
+        "https://mediacom.khu.ac.kr/media/user/contents/view.do?menuNo=4600008",
+        "https://mediacom.korea.ac.kr/undergraduate/subject.html"
+      ],
+      "mapping_version": "major_trait_mapping_v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "trait_collaboration_preference",
+      "target_node_id": "major_media_communication",
+      "relation_type": "RELATED_TO",
+      "relevance_level": 3,
+      "evidence_ids": [
+        "major_trait:media_communication:collaboration_preference:major_trait_mapping_v1"
+      ],
+      "source_ids": [
+        "https://mediacom.korea.ac.kr/undergraduate/subject.html",
+        "https://mediacom.korea.ac.kr/undergraduate/subject.html"
+      ],
+      "mapping_version": "major_trait_mapping_v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "major_media_communication",
+      "target_node_id": "dept_7ecad2659f94f672c435aed7",
+      "relation_type": "HAS_DEPARTMENT",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "dept_7ecad2659f94f672c435aed7",
+      "target_node_id": "univ_925d9b5de199c382125fbeae",
+      "relation_type": "BELONGS_TO",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "major_media_communication",
+      "target_node_id": "dept_595124d3fa674d6a4acf5da6",
+      "relation_type": "HAS_DEPARTMENT",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "dept_595124d3fa674d6a4acf5da6",
+      "target_node_id": "univ_b552e9fc54ce381f3b893f9c",
+      "relation_type": "BELONGS_TO",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "major_media_communication",
+      "target_node_id": "dept_94f12354268af9359e245775",
+      "relation_type": "HAS_DEPARTMENT",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "dept_94f12354268af9359e245775",
+      "target_node_id": "univ_1a139ef99cb3babb78efdd88",
+      "relation_type": "BELONGS_TO",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "major_media_communication",
+      "target_node_id": "dept_17bb4a41dc9efcc0d144e96e",
+      "relation_type": "HAS_DEPARTMENT",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "dept_17bb4a41dc9efcc0d144e96e",
+      "target_node_id": "univ_794d7b89a10f736c7c96da27",
+      "relation_type": "BELONGS_TO",
+      "relevance_level": 3,
+      "evidence_ids": [],
+      "source_ids": [
+        "https://www.academyinfo.go.kr/"
+      ],
+      "mapping_version": "v1",
+      "created_at": "2026-08-22T00:00:00"
+    },
+    {
+      "source_node_id": "major_media_communication",
+      "target_node_id": "subj_fd2661b74f5517b17f5f9d9e",
+      "relation_type": "RECOMMENDS",
+      "relevance_level": 3,
       "evidence_ids": [],
       "source_ids": [],
       "mapping_version": "v1",
       "created_at": "2026-08-22T00:00:00"
     },
     {
-      "source_node_id": "major_media_communication",
-      "target_node_id": "dept_mock0000000000000001",
-      "relation_type": "HAS_DEPARTMENT",
+      "source_node_id": "trait_audience_response_prediction",
+      "target_node_id": "subj_fd2661b74f5517b17f5f9d9e",
+      "relation_type": "RELATED_TO",
       "relevance_level": 3,
-      "evidence_ids": [],
-      "source_ids": [],
-      "mapping_version": "v1",
+      "evidence_ids": [
+        "subject_trait:subj_fd2661b74f5517b17f5f9d9e:audience_response_prediction:subject_trait_mapping_v1"
+      ],
+      "source_ids": [
+        "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+        "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458"
+      ],
+      "mapping_version": "subject_trait_mapping_v1",
       "created_at": "2026-08-22T00:00:00"
     }
   ]

@@ -1,16 +1,16 @@
 {
-  "generated_on": "2026-08-22",
+  "generated_on": "2026-08-23",
   "summary": {
     "ERROR": 0,
     "WARN": 1,
-    "INFO": 12
+    "INFO": 17
   },
   "findings": [
     {
       "severity": "INFO",
       "check": "schl_id_placeholder",
       "subject": "data/raw/departments.raw.jsonl",
-      "message": "30개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다"
+      "message": "35개 학과의 schl_id가 임시값이다 — 대학알리미 API Key 발급 시 전부 재생성되며 department_id도 바뀐다"
     },
     {
       "severity": "INFO",
@@ -34,12 +34,6 @@
       "severity": "INFO",
       "check": "major_profile_draft",
       "subject": "computer_science",
-      "message": "A 검토 전 초안이다"
-    },
-    {
-      "severity": "INFO",
-      "check": "major_profile_draft",
-      "subject": "media_communication",
       "message": "A 검토 전 초안이다"
     },
     {
@@ -76,6 +70,42 @@
       "severity": "INFO",
       "check": "major_profile_draft",
       "subject": "life_science",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "trait_unmapped_by_design",
+      "subject": "hci_ux",
+      "message": "근거 기반 Profile — UNMAPPED/REVIEW_REQUIRED로 Vector에서 뺀 Trait ['causal_analysis', 'change_adaptation', 'collaboration_preference', 'emotional_interpretation', 'immediate_execution', 'information_comparison', 'opinion_mediation', 'pattern_finding', 'planning']"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "hci_ux",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "trait_unmapped_by_design",
+      "subject": "industrial_engineering",
+      "message": "근거 기반 Profile — UNMAPPED/REVIEW_REQUIRED로 Vector에서 뺀 Trait ['audience_response_prediction', 'change_adaptation', 'collaboration_preference', 'emotional_interpretation', 'immediate_execution', 'opinion_mediation', 'visual_expression']"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "industrial_engineering",
+      "message": "A 검토 전 초안이다"
+    },
+    {
+      "severity": "INFO",
+      "check": "trait_unmapped_by_design",
+      "subject": "media_communication",
+      "message": "근거 기반 Profile — UNMAPPED/REVIEW_REQUIRED로 Vector에서 뺀 Trait ['change_adaptation', 'emotional_interpretation', 'immediate_execution', 'opinion_mediation']"
+    },
+    {
+      "severity": "INFO",
+      "check": "major_profile_draft",
+      "subject": "media_communication",
       "message": "A 검토 전 초안이다"
     },
     {

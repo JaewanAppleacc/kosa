@@ -39,6 +39,7 @@ from src.schemas.course import SubjectProfile  # noqa: E402
 from src.schemas.major import AdmissionReference, Department, MajorProfile  # noqa: E402
 from src.schemas.retrieval import DocumentManifestEntry, DocumentManifestStatus  # noqa: E402
 from src.schemas.review import DraftEntry  # noqa: E402
+from scripts.career_build_major_profiles import EVIDENCE_BASED_MAJOR_LABELS  # noqa: E402
 
 DATA_DIR = ROOT / "data"
 AUDIT_DIR = DATA_DIR / "audit"
@@ -166,18 +167,21 @@ def audit_canonical_mapping(findings: Findings, departments: list[Department]) -
                 f"목록에 없는 major_id {result['primary_candidate']}",
                 department.department_id,
             )
-        if result["mapping_status"] != "AUTO_MAPPED" and department.canonical_major_id is not None:
+        # 2026-08-22 8차: CONFIRMED는 AUTO_MAPPED와 마찬가지로 "확정된" 상태다(confirm()이
+        # 사람이 검토해 확정하는 유일한 경로 — canonical_mapper.py). 아직 확정되지 않은
+        # REVIEW_REQUIRED만 canonical_major_id가 비어 있어야 한다.
+        if result["mapping_status"] not in ("AUTO_MAPPED", "CONFIRMED") and department.canonical_major_id is not None:
             findings.add(
                 "ERROR",
                 "unconfirmed_mapping_promoted",
                 f"{result['mapping_status']}인데 canonical_major_id가 채워져 있다",
                 department.department_id,
             )
-        if result["mapping_status"] == "AUTO_MAPPED" and department.canonical_major_id is None:
+        if result["mapping_status"] in ("AUTO_MAPPED", "CONFIRMED") and department.canonical_major_id is None:
             findings.add(
                 "WARN",
-                "auto_mapped_not_applied",
-                "AUTO_MAPPED인데 canonical_major_id가 비어 있다",
+                "confirmed_mapping_not_applied",
+                f"{result['mapping_status']}인데 canonical_major_id가 비어 있다",
                 department.department_id,
             )
 
@@ -319,7 +323,18 @@ def audit_major_profiles(findings: Findings) -> None:
             merged.update(vector)
         missing = KNOWN_TRAIT_IDS - set(merged)
         if missing:
-            findings.add("ERROR", "trait_missing", f"등급이 빠진 Trait {sorted(missing)}", profile.major_id)
+            if profile.major_id in EVIDENCE_BASED_MAJOR_LABELS:
+                # 2026-08-22 12차 리뷰: 이 3개 대표 전공은 major_trait_mapping_evidence.jsonl
+                # 근거 기반이라, UNMAPPED/REVIEW_REQUIRED Trait는 "공식 근거를 찾지 못함 ≠
+                # Trait 중요도 0" 원칙에 따라 Vector에서 의도적으로 뺐다 — ERROR가 아니라 INFO.
+                findings.add(
+                    "INFO",
+                    "trait_unmapped_by_design",
+                    f"근거 기반 Profile — UNMAPPED/REVIEW_REQUIRED로 Vector에서 뺀 Trait {sorted(missing)}",
+                    profile.major_id,
+                )
+            else:
+                findings.add("ERROR", "trait_missing", f"등급이 빠진 Trait {sorted(missing)}", profile.major_id)
         unknown = set(merged) - KNOWN_TRAIT_IDS
         if unknown:
             findings.add("ERROR", "unknown_trait_id", f"Ontology에 없는 {sorted(unknown)}", profile.major_id)

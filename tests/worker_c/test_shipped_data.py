@@ -14,7 +14,7 @@ from pathlib import Path
 from eval.trait_eval import evaluate_persona_against_fixture
 from src.agents.course.course_document_parser import SubjectAliasIndex
 from src.engines.admission_filter import assert_single_group, validate_group_field
-from src.engines.canonical_mapper import CanonicalMapper, load_canonical_majors
+from src.engines.canonical_mapper import CanonicalMapper, confirm, load_canonical_majors
 from src.rag.embed import HashingEmbedder
 from src.rag.retrieve import build_retriever_from_data_dir
 from src.repositories.admission_repository import (
@@ -28,6 +28,8 @@ from src.schemas.mcp_contracts import AdmissionSearchCriteria
 from src.schemas.persona import HandCalculatedFixture, Persona
 from src.schemas.question import OptionBlueprint, SeedQuestion
 from src.schemas.review import DraftEntry
+
+from scripts.career_build_major_profiles import EVIDENCE_BASED_MAJOR_LABELS
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
@@ -54,30 +56,54 @@ class MasterDataTest(unittest.TestCase):
         self.assertEqual({d.department_id for d in departments}, {r["department_id"] for r in results})
 
     def test_unconfirmed_mapping_is_never_promoted(self) -> None:
-        """REVIEW_REQUIRED인 학과에 canonical_major_id가 채워져 있으면 안 된다 (§8 완료 조건)."""
+        """REVIEW_REQUIRED인 학과에 canonical_major_id가 채워져 있으면 안 된다 (§8 완료 조건).
+
+        2026-08-22 8차: CONFIRMED(canonical_mapper.confirm() — 사람이 검토해 확정하는
+        유일한 경로)는 AUTO_MAPPED와 마찬가지로 "확정된" 상태라 채워져 있는 게 맞다.
+        아직 확정되지 않은 REVIEW_REQUIRED만 이 검사 대상이다."""
 
         departments = {d.department_id: d for d in load_departments(DATA_DIR / "master" / "departments.jsonl")}
         for row in read_jsonl(DATA_DIR / "master" / "canonical_mapping_results.jsonl"):
-            if row["mapping_status"] != "AUTO_MAPPED":
+            if row["mapping_status"] not in ("AUTO_MAPPED", "CONFIRMED"):
                 self.assertIsNone(departments[row["department_id"]].canonical_major_id)
 
     def test_mapping_is_reproducible_from_current_data(self) -> None:
+        """2026-08-22 8차: CONFIRMED 결과는 CanonicalMapper.map()이 스스로 만들지 않는다
+        (사람이 confirm()으로 확정한 것만 CONFIRMED가 된다) — 그래서 이 재현성 검사는
+        저장된 data/master/canonical_mapping_manual_confirmations.jsonl을 "현재 데이터"의
+        일부로 취급해, map() 결과에 그 확정을 다시 적용한 뒤 비교한다. 그래야 손으로 고쳐
+        저장한 결과와 실제 파이프라인 산출물이 갈라지는 걸 여전히 잡아낸다."""
+
         repository = JsonlDepartmentRepository(path=DATA_DIR / "master" / "departments.jsonl")
         mapper = CanonicalMapper(
             load_canonical_majors(DATA_DIR / "master" / "canonical_majors.jsonl"),
             embedder=HashingEmbedder(),
         )
         stored = {r["department_id"]: r for r in read_jsonl(DATA_DIR / "master" / "canonical_mapping_results.jsonl")}
+        manual_path = DATA_DIR / "master" / "canonical_mapping_manual_confirmations.jsonl"
+        manual_by_department_id = {
+            row["department_id"]: row for row in (read_jsonl(manual_path) if manual_path.exists() else [])
+        }
 
         for department in repository.all():
             result = mapper.map(department)
+            manual = manual_by_department_id.get(department.department_id)
+            if manual is not None:
+                result = confirm(result, manual["reviewer_id"], manual["chosen_major_id"])
             self.assertEqual(result.mapping_status, stored[department.department_id]["mapping_status"])
             self.assertEqual(result.primary_candidate, stored[department.department_id]["primary_candidate"])
 
     def test_major_profiles_cover_all_traits(self) -> None:
+        """지시서 §3: 대표 전공 5~8개(GRADES 기반). 2026-08-22 12차 리뷰로 Vertical
+        Slice 대표 전공 3개(media_communication/hci_ux/industrial_engineering)가
+        `major_trait_mapping_evidence.jsonl` 근거 기반 Profile로 추가돼 총 10개가 됐다
+        — 그래서 전체 상한을 8+3으로 넓혔다. 근거 기반 3개는 UNMAPPED/REVIEW_REQUIRED
+        Trait를 Vector에서 의도적으로 뺀 희소 벡터라(§12 "공식 근거를 찾지 못함 ≠
+        Trait 중요도 0"), 12개 전부를 요구하지 않고 최소 1개 이상만 확인한다."""
+
         rows = read_jsonl(DATA_DIR / "master" / "major_profiles.jsonl")
         self.assertGreaterEqual(len(rows), 5)  # 지시서 §3: 대표 전공 5~8개
-        self.assertLessEqual(len(rows), 8)
+        self.assertLessEqual(len(rows), 8 + len(EVIDENCE_BASED_MAJOR_LABELS))
         for row in rows:
             profile = MajorProfile.model_validate(row)
             merged = {
@@ -86,7 +112,11 @@ class MasterDataTest(unittest.TestCase):
                 **profile.work_style_vector,
                 **profile.environment_vector,
             }
-            self.assertEqual(len(merged), 12)
+            if profile.major_id in EVIDENCE_BASED_MAJOR_LABELS:
+                self.assertGreater(len(merged), 0)
+                self.assertLessEqual(len(merged), 12)
+            else:
+                self.assertEqual(len(merged), 12)
 
     def test_subject_aliases_are_unambiguous(self) -> None:
         index = SubjectAliasIndex.load(DATA_DIR / "master" / "subject_aliases.jsonl")
@@ -177,7 +207,9 @@ class DraftTest(unittest.TestCase):
         for path in paths:
             payload = json.loads(path.read_text(encoding="utf-8"))
             entry = DraftEntry.model_validate(payload["draft_entry"])
-            self.assertEqual(entry.author_id, "worker_c")
+            # worker_c 초안(과목·문항 등)과 worker_a 초안(2026-08-22 12차 리뷰,
+            # major_trait_mapping)이 data/drafts/ 아래 함께 존재한다 — 둘 다 유효한 저자.
+            self.assertIn(entry.author_id, ("worker_c", "worker_a"))
             self.assertIsNotNone(entry.as_of_date)
 
     def test_question_blueprints_pass_lint(self) -> None:

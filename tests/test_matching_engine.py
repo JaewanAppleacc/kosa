@@ -496,13 +496,26 @@ class FixedPersonaVerticalSliceMatchingTest(unittest.TestCase):
         전부 같으면 가중치 분포는 결과에 영향을 못 준다) — 그래서 전공 간 실제 차별화를
         검증하려면 Persona의 Trait 강도 자체가 달라야 한다.
 
-        원인 분석·패턴 탐색·정보 비교·계획(산업공학이 1.00으로 가중치를 둔 Trait)은 STRONG,
-        감정 해석·수용자 반응 예측(미디어·HCI가 1.00 근처로 가중치를 둔 Trait)은 LIMITED로
-        설계한다 — 산업공학은 학생이 강한 영역을 중요하게 보고, 미디어/HCI는 학생이 약한
-        영역을 중요하게 보므로 산업공학 점수가 가장 높아야 한다."""
+        2026-08-22 12차 리뷰: media_communication/hci_ux Vector가 손으로 채운 추측값에서
+        실제 학과 공식 자료 근거(data/master/major_trait_mapping_evidence.jsonl) 기반으로
+        바뀌면서, media_communication의 실제 Vector가 causal_analysis/pattern_finding/
+        information_comparison/planning/tool_utilization을 전부 포함하게 됐다(경희대·고려대
+        미디어커뮤니케이션학과의 "빅데이터분석과미디어"·"미디어데이터마이닝"·"애널리틱스
+        프로그래밍" 등 데이터 분석 중심 과목이 실제로 있었기 때문 — §7 경고대로 영상편집
+        중심이 아니라 사회과학/데이터 분석 중심 학과였다). 즉 media_communication Vector는
+        구조적으로 hci_ux(visual_expression·audience_response_prediction·tool_utilization
+        3개뿐)보다 industrial_engineering의 분석적 Trait와 겹치는 부분이 훨씬 크다.
+
+        그래서 원인 분석·패턴 탐색·정보 비교·계획(산업공학이 1.00 근처로 가중치를 둔
+        Trait, media_communication에도 존재)은 STRONG, 미디어/HCI 공통 Trait(시각적 표현·
+        수용자 반응 예측·도구 활용)는 LIMITED로 설계한다 — 산업공학이 가장 높고, 분석적
+        Trait를 다수 공유하는 media_communication이 hci_ux보다 높게 나오는 것이 실제 근거
+        데이터를 반영한 진짜 우선순위다(예전 손으로 채운 값 기준의 "hci_ux > media" 가정은
+        근거 기반 데이터로는 성립하지 않는다 — §13 25번 "근거 기반 Profile 변경으로 순위가
+        바뀌면 Fixture를 근거와 함께 업데이트"에 따라 갱신)."""
 
         strong_traits = {"causal_analysis", "pattern_finding", "information_comparison", "planning"}
-        limited_traits = {"emotional_interpretation", "audience_response_prediction"}
+        limited_traits = {"visual_expression", "audience_response_prediction", "tool_utilization"}
         summaries = {}
         for trait_id in self.trait_defs:
             if trait_id in strong_traits:
@@ -523,8 +536,8 @@ class FixedPersonaVerticalSliceMatchingTest(unittest.TestCase):
         self.assertEqual(results["industrial_engineering"].status, "computed")
         self.assertEqual(results["media_communication"].status, "computed")
         self.assertEqual(results["hci_ux"].status, "computed")
-        self.assertGreater(results["industrial_engineering"].score, results["hci_ux"].score)
-        self.assertGreater(results["hci_ux"].score, results["media_communication"].score)
+        self.assertGreater(results["industrial_engineering"].score, results["media_communication"].score)
+        self.assertGreater(results["media_communication"].score, results["hci_ux"].score)
 
     def test_ranking_result_contains_no_raw_float(self) -> None:
         """MajorRelevance로 변환된 최종 결과에는 score 필드 자체가 없으므로, 학과 3개를

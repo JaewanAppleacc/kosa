@@ -24,8 +24,10 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -65,9 +67,35 @@ from src.ids import generate_question_id, generate_session_id
 from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
+from src.agents.course.course_document_parser import SubjectAliasIndex
+from src.memory.course_planning_store import InMemoryCoursePlanningStore
 from src.memory.session_store import InMemorySessionStore
 from src.repositories.department_repository import JsonlDepartmentRepository
+from src.repositories.subject_repository import JsonlSubjectRepository
+from src.services.course_document_parsing_service import (
+    MAX_UPLOAD_SIZE_BYTES,
+    CourseConfirmValidationError,
+    CourseDocumentParsingService,
+    CourseParsingFailedError,
+    CourseUploadNotFoundError,
+    EmptyFileError,
+    FileTooLargeError,
+    UnsupportedFileTypeError,
+    read_upload_with_limit,
+)
+from src.services.course_planning_service import (
+    CourseEvidenceNotReadyError,
+    CoursePlanningService,
+    MajorNotSelectableError,
+)
+from src.services.department_recommendation_scope import JsonlDepartmentRecommendationScopePolicy
+from src.services.knowledge_subgraph_service import (
+    KnowledgeSubgraphService,
+    SubgraphEvidenceNotReadyError,
+)
 from src.services.major_exploration_service import MajorExplorationService
+from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
+from src.services.subject_trait_mapping_evidence import load_subject_trait_mapping_evidence
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
 from src.tracing.settings import TracingSettingsError, load_tracing_settings, tracing_enabled
@@ -187,7 +215,58 @@ if len(_department_repository) == 0:
         "[warn] JsonlDepartmentRepository가 비어 있습니다 — "
         "data/master/departments.jsonl 경로·형식을 확인하세요."
     )
-_major_exploration_service = MajorExplorationService(_department_repository)
+# 2026-08-22 10차: 실제로 추천 가능한 대표 전공(VERTICAL_SLICE_MAJOR_PROFILES에서 그대로
+# 읽는다 — 별도로 하드코딩하지 않는다)에는 학과 단위 추천 적격성 정책을 Fail-Closed로
+# 적용한다. 정책 데이터도 Repository와 동일하게 앱 시작 시 한 번만 읽는다.
+_department_recommendation_scope_policy = JsonlDepartmentRecommendationScopePolicy()
+_major_exploration_service = MajorExplorationService(
+    _department_repository,
+    recommendation_scope_policy=_department_recommendation_scope_policy,
+    fail_closed_major_ids=frozenset(m.major_id for m in VERTICAL_SLICE_MAJOR_PROFILES),
+)
+
+# 2026-08-24 14차 리뷰: GET /subjects/{session_id}?selected_major_id=... — 과목 데이터도
+# 학과 Repository와 같은 패턴으로 앱 시작 시 한 번만 읽는다.
+_subject_repository = JsonlSubjectRepository()
+if len(_subject_repository) == 0:
+    print(
+        "[warn] JsonlSubjectRepository가 비어 있습니다 — "
+        "data/master/subjects.jsonl 경로·형식을 확인하세요."
+    )
+_course_planning_store = InMemoryCoursePlanningStore()
+_course_planning_service = CoursePlanningService(
+    _subject_repository,
+    major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
+    trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+    course_planning_store=_course_planning_store,
+)
+
+# 2026-08-26 16차 리뷰: POST /course/upload — 실제 Parser를 연결한다. Alias 표도 학과·
+# 과목 Repository와 같은 패턴으로 앱 시작 시 한 번만 읽는다.
+_subject_alias_index = SubjectAliasIndex.load(
+    Path(__file__).resolve().parents[2] / "data" / "master" / "subject_aliases.jsonl"
+)
+_course_document_parsing_service = CourseDocumentParsingService(
+    _subject_alias_index,
+    _subject_repository,
+    _course_planning_service,
+    _course_planning_store,
+)
+
+# 2026-08-28 19차 리뷰: GET /subgraph/{session_id} — 실제 Knowledge Subgraph. Major/
+# Subject-Trait Mapping Evidence도 학과·과목 Repository와 같은 패턴으로 앱 시작 시 한 번만
+# 읽는다(파일이 없으면 빈 리스트 — build 스크립트가 아니라 런타임이므로 여기선 경고만
+# 남기지 않는다, MajorProfile Vector 자체가 이미 이 파일로 만들어졌으므로 있는 게 정상).
+_knowledge_subgraph_service = KnowledgeSubgraphService(
+    major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
+    trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+    major_trait_records=load_major_trait_mapping_evidence(),
+    subject_trait_records=load_subject_trait_mapping_evidence(),
+    major_exploration_service=_major_exploration_service,
+    course_planning_service=_course_planning_service,
+    course_planning_store=_course_planning_store,
+    subject_repository=_subject_repository,
+)
 
 
 def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
@@ -637,64 +716,191 @@ def get_departments(major_id: str) -> DepartmentsResponse:
 
 
 @app.get("/subjects/{session_id}", response_model=SubjectsResponse)
-def get_subjects(session_id: str) -> SubjectsResponse:
-    _get_state_or_404(session_id)
-    return mock_data.mock_course_profile(session_id)
+def get_subjects(
+    session_id: str,
+    selected_major_id: str = Query(
+        ...,
+        description=(
+            "학생이 전공 추천 화면에서 선택한 대표 전공(Vertical Slice 3개 중 하나). "
+            "예: /subjects/{session_id}?selected_major_id=industrial_engineering"
+        ),
+    ),
+) -> SubjectsResponse:
+    """2026-08-24 14차 리뷰: 더 이상 `mock_data.mock_course_profile()`을 쓰지 않는다.
+    2026-08-26 16차 리뷰: 이 세션·selected_major_id 조합에 실제로 확정
+    (`upload_status == "CONFIRMED"`)된 개설과목이 있으면 POST_OFFERING 최종 추천을,
+    없으면 기존과 동일한 PRE_SURVEY 희망과목 추천을 반환한다(§10 —
+    `CoursePlanningService.get_course_profile`이 이 분기를 담당한다). `selected_major_id`
+    는 여기서만 쓰고 AssessmentState에는 저장하지 않는다(§5, CLAUDE.md "Assessment
+    단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다"의 반대 방향도
+    지킨다)."""
 
-
-_ALLOWED_COURSE_UPLOAD_CONTENT_TYPES = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
-    "application/vnd.ms-excel",  # .xls
-}
+    state = _get_state_or_404(session_id)
+    try:
+        return _course_planning_service.get_course_profile(state, selected_major_id)
+    except CourseEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+    except MajorNotSelectableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+        ) from exc
 
 
 @app.post("/course/upload", response_model=CourseUploadResponse)
 async def upload_course_document(
-    session_id: str = Form(...), file: UploadFile = File(...)
+    session_id: str = Form(...),
+    selected_major_id: str = Form(
+        ..., description="PRE_SURVEY와 동일한 규칙으로 검증되는, 이 업로드가 속할 대표 전공"
+    ),
+    file: UploadFile = File(...),
 ) -> CourseUploadResponse:
-    """2026-08-21 리뷰 반영: 이전에는 session_id만 받고 실제 파일을 받지 않았다 —
-    B README가 약속한 "PDF·Excel 업로드"와 실제 계약이 어긋나 있었다. 지금은
-    multipart/form-data로 진짜 파일을 받는다. 파싱 자체(course_document_parser.py)는
-    여전히 C 소유·미구현이라 형식만 검증하고 Mock 후보를 반환한다.
-    """
+    """2026-08-26 16차 리뷰: 더 이상 형식만 확인하고 고정 Mock 후보를 돌려주지 않는다.
+    `CourseDocumentParsingService`가 실제 Parser(`course_document_parser.py`)·Alias
+    표(`data/master/subject_aliases.jsonl`)로 연결한다. 이 Handler는 요청·응답 변환과
+    `UploadFile`에서 원본 bytes를 읽는 것까지만 한다 — 과목명 유사도 계산이나 파일
+    경로 조립은 전부 Service 쪽에서 한다(Path Traversal 방지: 사용자가 보낸 filename을
+    로컬 경로로 직접 쓰지 않는다).
 
-    _get_state_or_404(session_id)
+    2026-08-27 17차 리뷰 §3: `await file.read()`로 전체를 한 번에 메모리에 올린 뒤
+    크기를 검사하지 않는다 — `read_upload_with_limit`이 chunk 단위로 읽으면서 10MB를
+    넘는 순간 그 자리에서 멈춘다(초과분을 이미 메모리에 올려버린 뒤 뒤늦게 거부하지
+    않는다)."""
 
-    if file.content_type not in _ALLOWED_COURSE_UPLOAD_CONTENT_TYPES:
+    state = _get_state_or_404(session_id)
+
+    try:
+        content = await read_upload_with_limit(file, MAX_UPLOAD_SIZE_BYTES)
+    except FileTooLargeError as exc:
         raise HTTPException(
             status_code=422,
-            detail=APIError(
-                error_code=APIErrorCode.VALIDATION_ERROR,
-                message=f"PDF 또는 Excel 파일만 허용합니다. 받은 형식: {file.content_type}",
-            ).model_dump(),
-        )
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
 
-    from src.schemas.course import ParsedSubjectCandidate
+    try:
+        candidates, warnings = _course_document_parsing_service.parse_upload(
+            state, selected_major_id, content, file.filename or "", file.content_type
+        )
+    except CourseEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+    except MajorNotSelectableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+        ) from exc
+    except (UnsupportedFileTypeError, EmptyFileError, FileTooLargeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+    except CourseParsingFailedError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.PARSE_FAILED, message=str(exc)).model_dump(),
+        ) from exc
 
     return CourseUploadResponse(
         session_id=session_id,
-        parsed_candidates=[
-            ParsedSubjectCandidate(
-                raw_text="데이터과학탐구",
-                matched_subject_id=None,
-                confidence="low",
-                requires_user_confirmation=True,
-            )
-        ],
+        selected_major_id=selected_major_id,
+        parsed_candidates=candidates,
+        parse_warnings=warnings,
     )
 
 
 @app.post("/course/confirm", response_model=CourseConfirmResponse)
 def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResponse:
-    _get_state_or_404(payload.session_id)
-    return CourseConfirmResponse(session_id=payload.session_id, accepted=True)
+    """2026-08-26 16차 리뷰: 더 이상 어떤 ID든 받아 accepted=True만 돌려주는 Mock이
+    아니다. `CourseDocumentParsingService.confirm()`이 §6의 모든 검증(정본 존재·이번
+    업로드 후보에서 나온 값인지 등)을 통과시킨 뒤, 확정된 실제 개설과목 집합으로
+    POST_OFFERING CourseProfile을 함께 계산해 반환한다.
+
+    2026-08-27 17차 리뷰 §2: 검증·추천 계산·Policy Guard가 전부 성공해야만 Store가
+    `CONFIRMED`로 갱신된다(원자성) — 그 판단은 전부 `CourseDocumentParsingService.
+    confirm()` 내부에서 이뤄지므로, 이 Handler는 더 이상 "confirm 저장 → 별도로
+    추천 계산" 두 단계로 나눠 호출하지 않는다(예전에는 그 사이에 계산이 실패하면
+    Store에 이미 CONFIRMED만 남는 비원자적 상태가 될 수 있었다)."""
+
+    state = _get_state_or_404(payload.session_id)
+
+    try:
+        course_profile = _course_document_parsing_service.confirm(
+            state, payload.confirmed_subject_ids
+        )
+    except CourseUploadNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=APIError(error_code=APIErrorCode.COURSE_UPLOAD_NOT_FOUND, message=str(exc)).model_dump(),
+        ) from exc
+    except CourseConfirmValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+    except CourseEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+    except MajorNotSelectableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+        ) from exc
+
+    return CourseConfirmResponse(
+        session_id=payload.session_id, accepted=True, course_profile=course_profile
+    )
 
 
 @app.get("/subgraph/{session_id}", response_model=SubgraphResponse)
 def get_subgraph(session_id: str) -> SubgraphResponse:
-    _get_state_or_404(session_id)
-    nodes, edges = mock_data.mock_subgraph(session_id)
+    """2026-08-28 19차 리뷰: 더 이상 `mock_data.mock_subgraph()`의 고정 5개 Node가 아니다.
+    `KnowledgeSubgraphService`가 이 세션의 실제 Trait·대표 전공·학과·(확정됐다면) 추천
+    과목으로 Node·Edge를 계산한다 — 이 Handler는 세션 조회·Service 호출·응답 변환·오류
+    코드 매핑만 한다. 성공하면 §10의 Sanitizer를 거친 LangSmith Trace를 남긴다(node_count
+    등 개수 요약만 — session_id·학생 답변 원문은 Allowlist에 아예 없어 샐 수 없다)."""
+
+    state = _get_state_or_404(session_id)
+    try:
+        nodes, edges = _knowledge_subgraph_service.build(state)
+    except SubgraphEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+
+    # 2026-08-29 19차 후속 보완: "has_confirmed_course_profile"은 원래 "과목 Node가
+    # 하나라도 있는가"로 계산했는데, 이건 실제로 다른 질문이다 — CoursePlanningStore가
+    # upload_status="CONFIRMED"인데 confirmed_subject_ids=[]라서 HighSchoolSubject
+    # Node가 0개인 상태도 있을 수 있다("확정은 했다"와 "확정된 과목이 있다"는 다른
+    # 사실). 이 둘을 각각 정확한 이름으로 나눈다. Store 조회는 순수 읽기다 — 추천을
+    # 다시 계산하거나 상태를 바꾸지 않는다(KnowledgeSubgraphService.build()가 이미
+    # 내부에서 필요하면 조회했다 — 여기서는 Trace 메타데이터만 위해 한 번 더 읽는다).
+    planning_state = _course_planning_store.load(session_id)
+    has_confirmed_course_profile = planning_state is not None and planning_state.upload_status == "CONFIRMED"
+    has_subject_nodes = any(n.node_type == "HighSchoolSubject" for n in nodes)
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Knowledge Subgraph Extractor",
+        attributes={
+            "graph_node": "knowledge_subgraph_extractor",
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "trait_node_count": sum(1 for n in nodes if n.node_type == "Trait"),
+            "major_node_count": sum(1 for n in nodes if n.node_type == "CanonicalMajor"),
+            "department_node_count": sum(1 for n in nodes if n.node_type == "Department"),
+            "subject_node_count": sum(1 for n in nodes if n.node_type == "HighSchoolSubject"),
+            "has_confirmed_course_profile": has_confirmed_course_profile,
+            "has_subject_nodes": has_subject_nodes,
+        },
+    )
     return SubgraphResponse(session_id=session_id, nodes=nodes, edges=edges)
 
 

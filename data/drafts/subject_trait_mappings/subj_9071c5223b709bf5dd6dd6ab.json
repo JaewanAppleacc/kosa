@@ -2,24 +2,40 @@
   "draft_entry": {
     "draft_id": "subject_trait_mapping_subj_9071c5223b709bf5dd6dd6ab",
     "draft_type": "subject_trait_mapping",
-    "author_id": "worker_c",
+    "author_id": "worker_a",
     "review_stage": "DRAFT",
-    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
-    "as_of_date": "2026-08-21",
-    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+    "source_url": null,
+    "as_of_date": "2026-08-24",
+    "notes": "실제 2022 개정 교육과정(교육부 고시 제2022-33호) 공식 성취기준 근거는 data/master/subject_trait_mapping_evidence.jsonl, 전공 연결 근거는 data/master/subject_major_link_evidence.jsonl 참고. UNMAPPED/REVIEW_REQUIRED Trait·전공은 Vector·related_major_ids에서 뺐다(공식 근거를 찾지 못함 ≠ 중요도 0/관련 없음)."
   },
   "subject_id": "subj_9071c5223b709bf5dd6dd6ab",
   "label": "창의 공학 설계",
   "subject_group": "기술·가정/정보",
   "subject_category": "진로선택",
   "curriculum_code": "2022-33",
-  "trait_grades": {
-    "tool_utilization": 3,
-    "planning": 3,
-    "immediate_execution": 2,
-    "visual_expression": 2
-  },
-  "rationale": "설계-제작-개선 주기를 직접 도는 과목이라 계획 3, 도구 활용 3.",
+  "trait_evidence_summary": [
+    {
+      "trait_id": "planning",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "tool_utilization",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "visual_expression",
+      "mapping_status": "EVIDENCED",
+      "grade": 1
+    }
+  ],
+  "major_link_summary": [
+    {
+      "major_id": "industrial_engineering",
+      "link_status": "REVIEW_REQUIRED"
+    }
+  ],
   "related_major_ids": [
     "mechanical_engineering",
     "design"
@@ -28,15 +44,15 @@
     "subject_id": "subj_9071c5223b709bf5dd6dd6ab",
     "label": "창의 공학 설계",
     "trait_vector": {
-      "tool_utilization": 1.0,
-      "planning": 1.0,
-      "immediate_execution": 0.67,
-      "visual_expression": 0.67
+      "planning": 0.67,
+      "tool_utilization": 0.67,
+      "visual_expression": 0.33
     },
     "related_major_ids": [
       "mechanical_engineering",
       "design"
     ],
-    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+    "activity_summary": "문제 정의부터 설계·개선까지 공학 설계 과정을 탐구하는 활동"
   }
 }

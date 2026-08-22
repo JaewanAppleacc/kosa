@@ -1,11 +1,31 @@
 {
   "session_id": "sess_00000000000000000000000000000000",
+  "selected_major_id": "media_communication",
   "parsed_candidates": [
     {
-      "raw_text": "데이터과학탐구",
+      "raw_text": "확률과 통계",
+      "matched_subject_id": "subj_fde7a436237d8af94c11515e",
+      "confidence": "high",
+      "requires_user_confirmation": false
+    },
+    {
+      "raw_text": "정보",
+      "matched_subject_id": "subj_a668a359a7a11a7fbcbbc447",
+      "confidence": "high",
+      "requires_user_confirmation": false
+    },
+    {
+      "raw_text": "화법과언어",
+      "matched_subject_id": "subj_fd2661b74f5517b17f5f9d9e",
+      "confidence": "high",
+      "requires_user_confirmation": false
+    },
+    {
+      "raw_text": "정체불명 과목ABC",
       "matched_subject_id": null,
-      "confidence": "low",
+      "confidence": "unmatched",
       "requires_user_confirmation": true
     }
-  ]
+  ],
+  "parse_warnings": []
 }

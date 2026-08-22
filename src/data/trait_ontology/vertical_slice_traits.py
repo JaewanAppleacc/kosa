@@ -26,6 +26,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="ONET_STRONG",
     ),
     TraitDefinition(
         trait_id="pattern_finding",
@@ -37,11 +38,17 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         aliases=[],
         source_references=[
             "보통 — Holland 'Investigative' 유형(항목 단위 대응 아님, 유형 설명 수준): "
-            "https://self-directed-search.com/riasec-theory/"
+            "https://self-directed-search.com/riasec-theory/",
+            "2026-08-23 13차 리뷰 추가 — O*NET Ability 'Inductive Reasoning'(1.A.1.b.5)과 개념적으로 "
+            "관련은 있으나, Ability(적성 검사로 재는 인지 능력)와 우리 Trait(상황형 답변에서 관찰하는 "
+            "행동 경향)는 측정 대상이 달라 동일한 능력을 측정한다고 볼 수 없음 — grounding_type을 "
+            "ONET_STRONG으로 올리지 않고 RIASEC_REFERENCE 유지: "
+            "https://www.onetonline.org/find/descriptor/result/1.A.1.b.5",
         ],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="RIASEC_REFERENCE",
     ),
     TraitDefinition(
         trait_id="planning",
@@ -65,6 +72,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="immediate_execution",
@@ -78,6 +86,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="TEAM_DEFINED",
     ),
     TraitDefinition(
         trait_id="change_adaptation",
@@ -88,12 +97,19 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         conflicting_indicators=["원래 방식을 고수하며 바꾸지 않음"],
         aliases=[],
         source_references=[
-            "보통 — O*NET Work Style 'Adaptability' (Proactive and Growth Oriented, 2024 개편판, "
-            "항목명만 확인·정의문 미확인): https://www.onetonline.org/find/descriptor/browse/1.D"
+            "보통 — O*NET Work Style 'Adaptability': "
+            "https://www.onetonline.org/find/descriptor/browse/1.D",
+            "2026-08-23 13차 리뷰 — 공식 정의문 확인(onetcenter.org/content.html): "
+            "\"A tendency to be open to and comfortable with change, new experiences, or ideas "
+            "at work.\" 우리 change_adaptation은 '진행 중 예상과 다른 결과가 나왔을 때 대응 방식을 "
+            "바꾸는가'라는 더 좁고 구체적인 행동인 반면 Adaptability는 변화·새 경험 전반에 대한 "
+            "개방성이라는 더 넓은 성향이라 개념이 완전히 같지 않음 — ONET_PARTIAL 유지: "
+            "https://www.onetcenter.org/content.html",
         ],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="collaboration_preference",
@@ -104,12 +120,18 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         conflicting_indicators=["혼자 처리하는 방식을 선호"],
         aliases=[],
         source_references=[
-            "보통 — O*NET Work Style 'Cooperation' (Interpersonally Oriented, "
-            "항목명 확인·정의문은 구버전 인용): https://www.onetonline.org/find/descriptor/browse/1.D"
+            "보통 — O*NET Work Style 'Cooperation': "
+            "https://www.onetonline.org/find/descriptor/browse/1.D",
+            "2026-08-23 13차 리뷰 — 공식 정의문 확인(onetcenter.org/content.html): "
+            "\"A tendency to be pleasant, helpful, and willing to assist others at work.\" "
+            "우리 collaboration_preference는 '혼자 vs 함께 일하는 것 자체에 대한 선호'를 묻는 반면 "
+            "Cooperation은 유쾌하고 남을 돕는 태도라는 더 넓은 대인관계 성향이라 완전히 같은 개념은 "
+            "아님 — ONET_PARTIAL 유지: https://www.onetcenter.org/content.html",
         ],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="opinion_mediation",
@@ -123,6 +145,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="TEAM_DEFINED",
     ),
     TraitDefinition(
         trait_id="emotional_interpretation",
@@ -133,12 +156,18 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         conflicting_indicators=["감정보다 사실·결과 자체에만 집중"],
         aliases=[],
         source_references=[
-            "보통 — O*NET Work Style 'Empathy' (2024 신설 항목, 항목명만 확인): "
-            "https://www.onetonline.org/find/descriptor/browse/1.D"
+            "보통 — O*NET Work Style 'Empathy': "
+            "https://www.onetonline.org/find/descriptor/browse/1.D",
+            "2026-08-23 13차 리뷰 — 공식 정의문 확인(onetcenter.org/content.html): "
+            "\"A tendency to show concern for others and be sensitive to others' needs and "
+            "feelings at work.\" 우리 emotional_interpretation은 '지금 상대가 느끼는 감정을 "
+            "관찰·이해'하는 좁은 행동인 반면 Empathy는 타인의 필요·감정에 대한 민감성이라는 더 넓은 "
+            "성향이라 완전히 같은 개념은 아님 — ONET_PARTIAL 유지: https://www.onetcenter.org/content.html",
         ],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="audience_response_prediction",
@@ -152,6 +181,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="TEAM_DEFINED",
     ),
     TraitDefinition(
         trait_id="visual_expression",
@@ -168,6 +198,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="domain_specific",
         minimum_context_count=1,
         primary_vector_group="interest",
+        grounding_type="ONET_STRONG",
     ),
     TraitDefinition(
         trait_id="information_comparison",
@@ -184,6 +215,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="domain_specific",
         minimum_context_count=1,
         primary_vector_group="cognitive",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="tool_utilization",
@@ -199,6 +231,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="domain_specific",
         minimum_context_count=1,
         primary_vector_group="environment",
+        grounding_type="RIASEC_REFERENCE",
     ),
 ]
 

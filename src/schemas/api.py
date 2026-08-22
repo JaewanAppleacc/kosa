@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, StrictInt
 
-from src.schemas.course import CourseProfile, ParsedSubjectCandidate
+from src.schemas.course import CourseParseWarning, CourseProfile, ParsedSubjectCandidate
 from src.schemas.graph import SubgraphEdge, SubgraphNode
 from src.schemas.major import Department, MajorRelevance
 from src.schemas.profile import CareerProfile
@@ -38,6 +38,23 @@ class APIErrorCode(str, Enum):
     # CareerProfile.highlights는 5~8개를 강제하는 Schema라 "빈 Profile"을 표현할 방법이
     # 없다 — Majors처럼 200 + 빈 목록이 아니라 이 오류 코드로 명시적으로 알린다.
     EVIDENCE_NOT_READY = "EVIDENCE_NOT_READY"
+    # 2026-08-24 14차 리뷰: GET /subjects/{session_id}?selected_major_id=...가
+    # selected_major_id를 세 가지 이유로 거부할 수 있다 — (1) Vertical Slice 대표 전공
+    # 3개(또는 design 등 추천 제외 전공)에 없는 미등록 전공, (2) 이 세션의 실제 전공
+    # 추천 결과(관련성 높음/함께 탐색해볼 분야)에 없는 전공. 셋 다 "이 세션에서 이
+    # 전공으로 과목 추천을 받을 수 없다"는 같은 성격의 거부라 코드 하나로 묶는다.
+    MAJOR_NOT_SELECTABLE = "MAJOR_NOT_SELECTABLE"
+    # 2026-08-26 16차 리뷰: POST /course/upload가 문서를 읽긴 했지만 본문에서 과목명
+    # 후보를 하나도 뽑아내지 못한 상태(이미지 스캔 PDF, .xls 미지원, 손상된 xlsx 등).
+    # "개설과목이 0개"(빈 목록, 200)와 "문서를 못 읽었다"(파싱 실패, 422)는 서로 다른
+    # 사실이라 반드시 구분한다 — 전자를 후자로 표현하면 "이 학교는 개설과목이 없다"는
+    # 거짓 정보가 된다.
+    PARSE_FAILED = "PARSE_FAILED"
+    # POST /course/confirm이 호출됐는데 이 session_id로 먼저 POST /course/upload를
+    # 거친 적이 없을 때(CoursePlanningSessionState 자체가 없음) — 순서가 잘못된
+    # 호출이라는 뜻이라 SESSION_NOT_FOUND(Assessment 세션 자체가 없음)와는 다른
+    # 코드로 구분한다.
+    COURSE_UPLOAD_NOT_FOUND = "COURSE_UPLOAD_NOT_FOUND"
 
 
 class APIError(BaseModel):
@@ -163,7 +180,11 @@ SubjectsResponse = CourseProfile
 
 class CourseUploadResponse(BaseModel):
     session_id: str
+    # 2026-08-26 16차 리뷰: PRE_SURVEY(GET /subjects)와 동일한 규칙으로 검증된
+    # selected_major_id를 그대로 응답에도 담아 화면이 다시 물어보지 않아도 되게 한다.
+    selected_major_id: str
     parsed_candidates: list[ParsedSubjectCandidate]
+    parse_warnings: list[CourseParseWarning] = []
 
 
 class CourseConfirmRequest(BaseModel):
@@ -174,6 +195,10 @@ class CourseConfirmRequest(BaseModel):
 class CourseConfirmResponse(BaseModel):
     session_id: str
     accepted: bool
+    # 2026-08-26 16차 리뷰: 예전엔 accepted=True만 돌려주고 끝났다 — 화면이 확정 직후
+    # 바로 최종 추천을 보여주려면 별도로 GET /subjects를 다시 호출해야 했다. 이제
+    # 확정과 동시에 POST_OFFERING CourseProfile을 함께 반환한다.
+    course_profile: CourseProfile
 
 
 # --- GET /subgraph/{session_id} ---

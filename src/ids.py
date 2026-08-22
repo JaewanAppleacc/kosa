@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 import uuid
 from typing import Literal
 
@@ -71,3 +72,13 @@ def generate_department_id(schl_id: str, department_name: str, college_name: str
 def generate_subject_id(curriculum_code: str, canonical_subject_name: str) -> str:
     """raw 과목명이 아니라 Alias 정규화를 마친 canonical_subject_name을 넣어야 한다."""
     return f"subj_{_sha256_prefix(curriculum_code, canonical_subject_name)}"
+
+
+def generate_university_id(university_name: str) -> str:
+    """Knowledge Subgraph(2026-08-28 19차)의 University Node id. `hash()`는 프로세스마다
+    Salt가 달라(PYTHONHASHSEED) 같은 대학명이 실행할 때마다 다른 id를 받으므로 쓰지
+    않는다 — department_id/subject_id와 같은 안정적 SHA-256 해시 방식을 그대로 따른다.
+    앞뒤 공백만 정리하고(NFKC) 대학명 표기 자체는 원문 그대로 해시한다."""
+
+    normalized = unicodedata.normalize("NFKC", university_name).strip()
+    return f"univ_{_sha256_prefix(normalized)}"

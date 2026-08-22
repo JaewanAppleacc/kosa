@@ -15,6 +15,7 @@ LLM·LangSmith 네트워크 호출을 절대 하지 않는다(실행할 때마�
 
 from __future__ import annotations
 
+import itertools
 import json
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +23,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import src.agents.assessment.graph.answer_graph as answer_graph_module
 import src.agents.assessment.profile_generator as profile_generator_module
 import src.api.main as main_module
 import src.api.mock_data as mock_data_module
@@ -42,6 +44,22 @@ def _write(name: str, payload: dict) -> None:
     print(f"wrote {path.relative_to(OUT_DIR.parent.parent)}")
 
 
+def _deterministic_evidence_id_generator():
+    """2026-08-28 19차 리뷰: `GET /subgraph`가 `SubgraphEdge.evidence_ids`에 실제
+    `EvidenceRecord.evidence_id`(`generate_evidence_id()` = `uuid.uuid4()` 기반)를 그대로
+    노출하게 되면서, 이 값이 재실행마다 달라져 Mock JSON diff가 의미 없이 생겼다 —
+    `generate_session_id`를 고정하는 것과 같은 이유로, 이 스크립트 실행 동안만 순번
+    기반 결정론적 값으로 바꾼다(매 `main()` 호출마다 새 Generator라 두 번 실행해도 항상
+    같은 순서로 같은 값이 나온다). 실제 서버는 계속 `uuid.uuid4()`를 쓴다."""
+
+    counter = itertools.count(1)
+
+    def _generate() -> str:
+        return f"ev_{next(counter):032x}"
+
+    return _generate
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -50,8 +68,14 @@ def main() -> None:
         patch.object(main_module, "_llm_client", None),
         patch.object(main_module, "_tracer", Tracer(client=None)),
         patch.object(main_module, "generate_session_id", lambda: _FIXED_SESSION_ID),
+        patch.object(answer_graph_module, "generate_evidence_id", _deterministic_evidence_id_generator()),
         patch.object(profile_generator_module, "datetime") as mock_datetime,
         patch.object(mock_data_module, "datetime") as mock_data_datetime,
+        # 2026-08-28 19차 리뷰: GET /subgraph는 더 이상 mock_data.mock_subgraph()를 쓰지
+        # 않는다 — KnowledgeSubgraphService가 SubgraphEdge.created_at을 생성자 Clock으로
+        # 만든다(§8 "created_at은 Clock을 주입해 테스트에서 고정할 수 있게" 그대로). 이
+        # 스크립트도 같은 이유로 고정 Clock을 주입해야 재실행해도 diff가 안 생긴다.
+        patch.object(main_module._knowledge_subgraph_service, "_clock", lambda: _FIXED_GENERATED_AT),
     ):
         mock_datetime.now.return_value = _FIXED_GENERATED_AT
         mock_data_datetime.now.return_value = _FIXED_GENERATED_AT
@@ -133,24 +157,57 @@ def _run(client: TestClient) -> None:
         if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
             break
 
+    majors_response = client.get(f"/majors/{session_id}").json()
     _write("profile_normal", client.get(f"/profile/{session_id}").json())
-    _write("majors_normal", client.get(f"/majors/{session_id}").json())
+    _write("majors_normal", majors_response)
     _write("departments_normal", client.get("/departments/media_communication").json())
-    _write("subjects_normal", client.get(f"/subjects/{session_id}").json())
+    # 2026-08-24 14차 리뷰: selected_major_id는 이 세션이 실제로 추천받은 전공이어야
+    # 한다(§5 검증 규칙) — majors_normal 응답의 1위 전공을 그대로 재사용한다.
+    selected_major_id = majors_response["relevant_majors"][0]["major_id"]
+    _write(
+        "subjects_normal",
+        client.get(f"/subjects/{session_id}", params={"selected_major_id": selected_major_id}).json(),
+    )
 
+    # 2026-08-26 16차 리뷰: 실제 Parser로 연결된 뒤로는 텍스트를 추출할 수 없는 가짜
+    # PDF("%PDF-1.4 fake content")를 올리면 이제 성공(200)이 아니라 PARSE_FAILED(422)가
+    # 정직한 결과다 — Mock 예시도 실제 시연 Fixture(demo_school_offerings.xlsx)를 올려서
+    # 진짜 성공 사례를 보여준다.
+    fixture_path = (
+        Path(__file__).resolve().parent.parent
+        / "data" / "fixtures" / "course_offerings" / "demo_school_offerings.xlsx"
+    )
+    with open(fixture_path, "rb") as f:
+        fixture_bytes = f.read()
     r = client.post(
         "/course/upload",
-        data={"session_id": session_id},
-        files={"file": ("curriculum.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        data={"session_id": session_id, "selected_major_id": selected_major_id},
+        files={
+            "file": (
+                "demo_school_offerings.xlsx", fixture_bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
     _write("course_upload_normal", r.json())
+    matched_subject_ids = sorted(
+        {c["matched_subject_id"] for c in r.json()["parsed_candidates"] if c["matched_subject_id"]}
+    )
 
     r = client.post(
         "/course/upload",
-        data={"session_id": session_id},
+        data={"session_id": session_id, "selected_major_id": selected_major_id},
         files={"file": ("notes.txt", b"hello", "text/plain")},
     )
     _write("course_upload_error_invalid_file_type", r.json()["detail"])
+
+    # 2026-08-26 16차 리뷰: 확정 응답이 accepted=True만 반환하던 Mock에서 실제
+    # POST_OFFERING CourseProfile을 함께 담는 형태로 바뀌었다 — B가 참고할 실제 예시.
+    r = client.post(
+        "/course/confirm",
+        json={"session_id": session_id, "confirmed_subject_ids": matched_subject_ids},
+    )
+    _write("course_confirm_normal", r.json())
     _write("subgraph_normal", client.get(f"/subgraph/{session_id}").json())
     _write("session_restore_normal", client.get(f"/session/{session_id}").json())
 

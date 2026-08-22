@@ -27,6 +27,7 @@ from scripts.career_console import use_utf8_stdout  # noqa: E402
 
 from src.engines.canonical_mapper import (  # noqa: E402
     CanonicalMapper,
+    confirm,
     load_canonical_majors,
     normalize_department_name,
     review_required,
@@ -140,9 +141,49 @@ def build_departments() -> tuple[list[Department], list[dict]]:
     return departments, rejected
 
 
+def _load_manual_confirmations() -> list[dict]:
+    """2026-08-22 8차: `confirm()`(canonical_mapper.py)은 사람이 검토해 확정하는 유일한
+    경로지만, 예전엔 이 빌드 스크립트가 호출할 자리가 없었다 — 사람이 확정해도 raw
+    데이터로 파이프라인을 다시 돌리면 그 확정이 사라지는 구조였다. 이 파일(재현 가능한
+    입력)에 확정 결정을 남겨두고, 매 빌드마다 다시 적용한다 — `data/raw/*.raw.jsonl`과
+    같은 성격의 입력이지 손으로 고친 산출물이 아니다."""
+
+    path = MASTER_DIR / "canonical_mapping_manual_confirmations.jsonl"
+    if not path.exists():
+        return []
+    return _read_jsonl(path)
+
+
 def build_mappings(departments: list[Department]) -> None:
-    mapper = CanonicalMapper(load_canonical_majors(MASTER_DIR / "canonical_majors.jsonl"))
+    canonical_majors = load_canonical_majors(MASTER_DIR / "canonical_majors.jsonl")
+    known_major_ids = {m.major_id for m in canonical_majors}
+    mapper = CanonicalMapper(canonical_majors)
     results = mapper.map_all(departments)
+
+    # 2026-08-22 8차: 사람이 직접 검토해 확정한 Mapping을 적용한다. Exact-Alias 자동
+    # 매칭이 아예 없을 때(REVIEW_REQUIRED)뿐 아니라, 학과명만으로는 다른 canonical major와
+    # 자동 일치하지만 실제 교육과정 근거로 보면 부정확할 때(AUTO_MAPPED 결과를 사람이
+    # 다시 판단)도 덮어쓸 수 있다 — confirm()은 원래 상태와 무관하게 동작한다. 근거는
+    # canonical_mapping_manual_confirmations.jsonl에 기록해 재현 가능하게 한다.
+    by_department_id = {r.department_id: r for r in results}
+    for entry in _load_manual_confirmations():
+        if entry["chosen_major_id"] not in known_major_ids:
+            raise ValueError(
+                f"canonical_mapping_manual_confirmations.jsonl: department_id "
+                f"{entry['department_id']!r}의 chosen_major_id {entry['chosen_major_id']!r}가 "
+                "canonical_majors.jsonl에 없다"
+            )
+        existing = by_department_id.get(entry["department_id"])
+        if existing is None:
+            raise ValueError(
+                f"canonical_mapping_manual_confirmations.jsonl: department_id "
+                f"{entry['department_id']!r}가 현재 학과 목록에 없다 — raw 데이터가 바뀌었는지 확인"
+            )
+        by_department_id[entry["department_id"]] = confirm(
+            existing, entry["reviewer_id"], entry["chosen_major_id"]
+        )
+    results = [by_department_id[d.department_id] for d in departments]
+
     _write_jsonl(
         MASTER_DIR / "canonical_mapping_results.jsonl", [r.model_dump_json() for r in results]
     )
@@ -151,14 +192,14 @@ def build_mappings(departments: list[Department]) -> None:
         [r.model_dump_json() for r in review_required(results)],
     )
 
-    # AUTO_MAPPED만 Department.canonical_major_id에 반영한다. REVIEW_REQUIRED는 비워 둔 채
-    # 남긴다 — 미확정 결과가 확정 데이터에 섞이면 §8 완료 조건이 깨진다.
+    # AUTO_MAPPED·CONFIRMED만 Department.canonical_major_id에 반영한다. REVIEW_REQUIRED는
+    # 비워 둔 채 남긴다 — 미확정 결과가 확정 데이터에 섞이면 §8 완료 조건이 깨진다.
     by_id = {r.department_id: r for r in results}
     updated = [
         d.model_copy(
             update={
                 "canonical_major_id": by_id[d.department_id].primary_candidate
-                if by_id[d.department_id].mapping_status == "AUTO_MAPPED"
+                if by_id[d.department_id].mapping_status in ("AUTO_MAPPED", "CONFIRMED")
                 else None
             }
         )
@@ -167,7 +208,9 @@ def build_mappings(departments: list[Department]) -> None:
     _write_jsonl(MASTER_DIR / "departments.jsonl", [d.model_dump_json() for d in updated])
 
     auto = sum(1 for r in results if r.mapping_status == "AUTO_MAPPED")
-    print(f"Canonical Mapping: AUTO_MAPPED {auto} / REVIEW_REQUIRED {len(results) - auto}")
+    confirmed = sum(1 for r in results if r.mapping_status == "CONFIRMED")
+    review = sum(1 for r in results if r.mapping_status == "REVIEW_REQUIRED")
+    print(f"Canonical Mapping: AUTO_MAPPED {auto} / CONFIRMED {confirmed} / REVIEW_REQUIRED {review}")
 
 
 if __name__ == "__main__":

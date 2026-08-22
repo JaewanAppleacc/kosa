@@ -8,3 +8,6 @@
 {"schl_id": "ACADEMYINFO_PENDING_khu", "name": "경희대학교", "region": "서울", "establishment_type": "사립", "homepage": "https://www.khu.ac.kr"}
 {"schl_id": "ACADEMYINFO_PENDING_pnu", "name": "부산대학교", "region": "부산", "establishment_type": "국립", "homepage": "https://www.pusan.ac.kr"}
 {"schl_id": "ACADEMYINFO_PENDING_cnu", "name": "충남대학교", "region": "대전", "establishment_type": "국립", "homepage": "https://www.cnu.ac.kr"}
+{"schl_id": "ACADEMYINFO_PENDING_ssu", "name": "숭실대학교", "region": "서울", "establishment_type": "사립", "homepage": "https://www.ssu.ac.kr"}
+{"schl_id": "ACADEMYINFO_PENDING_ewha", "name": "이화여자대학교", "region": "서울", "establishment_type": "사립", "homepage": "https://www.ewha.ac.kr"}
+{"schl_id": "ACADEMYINFO_PENDING_swu", "name": "서울여자대학교", "region": "서울", "establishment_type": "사립", "homepage": "https://www.swu.ac.kr"}

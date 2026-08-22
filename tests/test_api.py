@@ -78,11 +78,10 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn(r.json()["next_action"], ["NEXT_QUESTION", "CONTEXT_COMPLETE"])
 
-        # 7. Profile / Majors / Departments / Subjects / Subgraph 전부 끊기지 않고 응답하는지
+        # 7. Profile / Majors / Departments / Subgraph 전부 끊기지 않고 응답하는지
         for path in [
             f"/profile/{session_id}",
             f"/majors/{session_id}",
-            f"/subjects/{session_id}",
             f"/subgraph/{session_id}",
         ]:
             r = client.get(path)
@@ -91,14 +90,25 @@ class SessionLifecycleTest(unittest.TestCase):
         r = client.get("/departments/media_communication")
         self.assertEqual(r.status_code, 200)
 
-        # 7-1. 과목 문서 업로드 (실제 multipart 파일 전송)
+        # 7-0. 2026-08-24 14차 리뷰: /subjects/{session_id}는 이제 selected_major_id
+        # Query Parameter가 필수다 — 없으면 FastAPI가 이 핸들러에 도달하기 전에 422를
+        # 낸다("끊기지 않고 응답"의 의미가 200이 아니라 "정직한 422"로 바뀐 지점).
+        r = client.get(f"/subjects/{session_id}")
+        self.assertEqual(r.status_code, 422)
+
+        # 7-1. 2026-08-26 16차 리뷰: 과목 문서 업로드도 이제 selected_major_id를 같은
+        # 규칙으로 검증한다 — 이 시점의 세션은 답변이 1개뿐이라 Evidence가 부족해서
+        # /subjects와 마찬가지로 정직한 422가 나오는 게 맞다(끊기지 않고 응답한다는
+        # 뜻이 200이 아니라 "정직한 422"로 바뀐 지점, 위 7-0과 같은 이유).
         r = client.post(
             "/course/upload",
-            data={"session_id": session_id},
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
             files={"file": ("curriculum.pdf", b"%PDF-1.4 fake content", "application/pdf")},
         )
-        self.assertEqual(r.status_code, 200, r.text)
-        self.assertTrue(r.json()["parsed_candidates"])
+        self.assertEqual(r.status_code, 422, r.text)
+        self.assertIn(
+            r.json()["detail"]["error_code"], ("EVIDENCE_NOT_READY", "MAJOR_NOT_SELECTABLE")
+        )
 
         # 8. Session 복원
         r = client.get(f"/session/{session_id}")
@@ -122,7 +132,7 @@ class SessionLifecycleTest(unittest.TestCase):
 
         r = client.post(
             "/course/upload",
-            data={"session_id": session_id},
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
             files={"file": ("notes.txt", b"hello", "text/plain")},
         )
         self.assertEqual(r.status_code, 422)
@@ -131,8 +141,37 @@ class SessionLifecycleTest(unittest.TestCase):
     def test_course_upload_without_file_is_rejected(self) -> None:
         r = client.post("/assessment/session")
         session_id = r.json()["session_id"]
-        r = client.post("/course/upload", data={"session_id": session_id})
+        r = client.post(
+            "/course/upload",
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
+        )
         self.assertEqual(r.status_code, 422)
+
+    def test_course_upload_over_10mb_is_rejected_without_parsing(self) -> None:
+        """2026-08-27 17차 리뷰 §3: 실제 HTTP 경로에서도 10MB 초과 파일이 chunk 읽기
+        단계에서 거부되는지 확인한다(파일 형식과 무관하게 크기부터 걸린다)."""
+
+        from src.services.course_document_parsing_service import MAX_UPLOAD_SIZE_BYTES
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+
+        oversized = b"0" * (MAX_UPLOAD_SIZE_BYTES + 1)
+        r = client.post(
+            "/course/upload",
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
+            files={
+                "file": (
+                    "big.xlsx", oversized,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+        detail_text = str(r.json()["detail"])
+        self.assertNotIn("/tmp/", detail_text)
+        self.assertNotIn("Traceback", detail_text)
 
     def test_unknown_session_returns_404_with_structured_error(self) -> None:
         r = client.get("/profile/sess_does_not_exist")
@@ -603,6 +642,331 @@ class DepartmentsEndpointTest(unittest.TestCase):
             r = client.get("/departments/computer_science")
             self.assertEqual(r.status_code, 200)
             self.assertEqual(len(r.json()["departments"]), 10)
+
+
+def _drive_to_industrial_engineering_upload(test_case: unittest.TestCase) -> tuple[str, list[str]]:
+    """2026-08-28 19차 리뷰: `tests/test_post_offering_full_flow_e2e.py`(17차)가 이미
+    검증해 둔, industrial_engineering으로 결정론적으로 수렴하는 관심도·Context·옵션 선택
+    패턴을 그대로 재사용해 학교 편제표 업로드까지 끌고 간다 — Confirm 여부는 호출부가
+    직접 결정한다(트레이스 메타데이터 시나리오마다 confirmed_subject_ids가 달라야 하므로
+    이 함수에서 확정까지 하지 않는다). `(session_id, matched_ids)`를 반환한다."""
+
+    from pathlib import Path
+
+    fixture_path = (
+        Path(__file__).resolve().parent.parent
+        / "data" / "fixtures" / "course_offerings" / "demo_school_offerings.xlsx"
+    )
+
+    r = client.post("/assessment/session")
+    session_id = r.json()["session_id"]
+    client.post(
+        "/assessment/interest-rating",
+        json={
+            "session_id": session_id,
+            "ratings": {"game": 3, "media": 3, "school_life": 5, "business": 2, "making": 2},
+        },
+    )
+    client.post(
+        "/assessment/context-select",
+        json={"session_id": session_id, "selected_preferred_context_ids": ["school_life", "game"]},
+    )
+    client.post(
+        "/assessment/context-confirm",
+        json={"session_id": session_id, "final_context_ids": ["school_life", "game", "media"]},
+    )
+    for _ in range(30):
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        body = r.json()
+        if body["status"] == "CONTEXT_EARLY_TERMINATED":
+            if body["assessment_complete"]:
+                break
+            continue
+        question = body["question"]
+        option = question["options"][0]
+        ar = client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question["question_id"],
+                "selected_option_id": option["option_id"],
+            },
+        )
+        if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+            break
+
+    selected_major_id = "industrial_engineering"
+    with open(fixture_path, "rb") as f:
+        file_bytes = f.read()
+    r = client.post(
+        "/course/upload",
+        data={"session_id": session_id, "selected_major_id": selected_major_id},
+        files={
+            "file": (
+                "demo_school_offerings.xlsx", file_bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
+    )
+    test_case.assertEqual(r.status_code, 200, r.text)
+    matched_ids = sorted({c["matched_subject_id"] for c in r.json()["parsed_candidates"] if c["matched_subject_id"]})
+    return session_id, matched_ids
+
+
+def _drive_to_confirmed_industrial_engineering_subgraph(test_case: unittest.TestCase) -> tuple[str, dict]:
+    """업로드에 이어 실제 confirmed_subject_ids로 확정까지 마치고 GET /subgraph가 전체
+    Graph(과목 Node 포함)를 반환하는 지점까지 끌고 간다 — 여기서는 API 계약(§9)만
+    확인하고, 근거 그래프의 세부 내용은 별도 `tests/test_subgraph_full_flow_e2e.py`가
+    깊게 검증한다."""
+
+    session_id, matched_ids = _drive_to_industrial_engineering_upload(test_case)
+    r = client.post("/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": matched_ids})
+    test_case.assertEqual(r.status_code, 200, r.text)
+
+    r = client.get(f"/subgraph/{session_id}")
+    test_case.assertEqual(r.status_code, 200, r.text)
+    return session_id, r.json()
+
+
+class SubgraphEndpointTest(unittest.TestCase):
+    """2026-08-28 19차 리뷰: GET /subgraph/{session_id}가 더 이상 mock_data.mock_subgraph()
+    의 고정 5개 Node가 아니라 KnowledgeSubgraphService의 실제 계산 결과다(지시서 §9/§12
+    "API 테스트")."""
+
+    def setUp(self) -> None:
+        # SessionLifecycleTest.setUp과 같은 이유: 로컬 .env가 실제 LLM/LangSmith 설정을
+        # 갖고 있어도(ENABLE_LLM_QUESTION_GENERATION=true 등) 이 계약 테스트는 항상
+        # Mock/Fallback 경로로 고정한다 — 실제 네트워크 호출로 멈추면 안 된다.
+        for patch_target in (
+            patch.object(main_module, "_llm_client", None),
+            patch.object(main_module, "_tracer", main_module.Tracer(client=None)),
+        ):
+            patch_target.start()
+            self.addCleanup(patch_target.stop)
+
+    def test_unknown_session_returns_404(self) -> None:
+        r = client.get("/subgraph/sess_does_not_exist_at_all")
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.json()["detail"]["error_code"], "SESSION_NOT_FOUND")
+
+    def test_no_evidence_at_all_returns_evidence_not_ready(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "EVIDENCE_NOT_READY")
+
+    def test_some_evidence_but_no_confirmed_course_returns_partial_graph(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        question = r.json()["question"]
+        client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question["question_id"],
+                "selected_option_id": question["options"][0]["option_id"],
+            },
+        )
+
+        r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        body = r.json()
+        node_types = {n["node_type"] for n in body["nodes"]}
+        self.assertIn("Student", node_types)
+        self.assertNotIn("HighSchoolSubject", node_types)  # 아직 업로드·확정 전이다.
+
+    def test_confirmed_course_profile_yields_full_graph_with_subject_nodes(self) -> None:
+        _session_id, body = _drive_to_confirmed_industrial_engineering_subgraph(self)
+        node_types = {n["node_type"] for n in body["nodes"]}
+        self.assertEqual(
+            node_types, {"Student", "Trait", "CanonicalMajor", "Department", "University", "HighSchoolSubject"}
+        )
+
+    def test_response_schema_matches_existing_contract(self) -> None:
+        _session_id, body = _drive_to_confirmed_industrial_engineering_subgraph(self)
+        self.assertEqual(set(body.keys()), {"session_id", "nodes", "edges"})
+        for node in body["nodes"]:
+            self.assertEqual(set(node.keys()), {"node_id", "node_type", "label"})
+        for edge in body["edges"]:
+            self.assertEqual(
+                set(edge.keys()),
+                {
+                    "source_node_id", "target_node_id", "relation_type", "relevance_level",
+                    "evidence_ids", "source_ids", "mapping_version", "created_at",
+                },
+            )
+
+    def test_no_mock_strings_leak_into_response(self) -> None:
+        _session_id, body = _drive_to_confirmed_industrial_engineering_subgraph(self)
+        body_text = str(body)
+        self.assertNotIn("예시대학교", body_text)
+        self.assertNotIn("dept_mock", body_text)
+        self.assertNotIn("교과(군)", body_text)
+        self.assertNotIn("정체불명 과목ABC", body_text)
+
+    def test_no_internal_float_score_is_exposed(self) -> None:
+        _session_id, body = _drive_to_confirmed_industrial_engineering_subgraph(self)
+
+        def _assert_no_float(node) -> None:
+            if isinstance(node, float):
+                self.fail(f"float 값이 노출됨: {node}")
+            elif isinstance(node, dict):
+                for value in node.values():
+                    _assert_no_float(value)
+            elif isinstance(node, list):
+                for value in node:
+                    _assert_no_float(value)
+
+        _assert_no_float(body)
+
+    def test_no_raw_student_answer_text_is_exposed(self) -> None:
+        """session_id는 응답 최상위 필드(`session_id`)로 정상적으로 echo되는 계약이라
+        제외하고, Node label·Edge 값 안에는 학생이 실제로 고른 선택지 원문이 그대로
+        들어오면 안 된다는 것만 확인한다."""
+
+        import re
+
+        session_id, body = _drive_to_confirmed_industrial_engineering_subgraph(self)
+        nodes_and_edges_text = str(body["nodes"]) + str(body["edges"])
+        self.assertNotIn(session_id, nodes_and_edges_text)
+        for node in body["nodes"]:
+            self.assertNotIn(" ", node["node_id"])  # node_id는 답변 문장이 아니라 식별자다.
+        # HAS_TRAIT의 evidence_ids는 항상 opaque한 "ev_<hex>" 식별자다 — 선택지 원문
+        # 문장이 아니다(RELATED_TO는 Mapping 식별자라 형식이 다르므로 검사 대상이 아니다).
+        for edge in body["edges"]:
+            if edge["relation_type"] != "HAS_TRAIT":
+                continue
+            for evidence_id in edge["evidence_ids"]:
+                self.assertRegex(evidence_id, r"^ev_[0-9a-f]{32}$")
+
+
+class SubgraphTraceMetadataTest(unittest.TestCase):
+    """2026-08-29 19차 후속 보완: `has_confirmed_course_profile`(CoursePlanningStore의
+    실제 Confirm 상태)과 `has_subject_nodes`(실제 생성된 HighSchoolSubject Node 존재
+    여부)가 서로 다른 사실을 정확히 반영하는지 확인한다 — 빈 `confirmed_subject_ids=[]`
+    로도 CONFIRMED가 될 수 있어(§2), Node 개수만으로 Confirm 여부를 추론하면 틀린다."""
+
+    def setUp(self) -> None:
+        for patch_target in (
+            patch.object(main_module, "_llm_client", None),
+        ):
+            patch_target.start()
+            self.addCleanup(patch_target.stop)
+
+    def test_confirmed_with_subject_nodes(self) -> None:
+        session_id, matched_ids = _drive_to_industrial_engineering_upload(self)
+        r = client.post(
+            "/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": matched_ids}
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(matched_ids, "이 Fixture는 최소 1개 이상 매칭 후보가 있어야 한다")
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], True)
+        self.assertIs(attributes["has_subject_nodes"], True)
+
+    def test_confirmed_with_empty_subject_list_has_no_subject_nodes(self) -> None:
+        """upload_status=='CONFIRMED'인데 confirmed_subject_ids=[]라 HighSchoolSubject
+        Node가 0개인 경우 — has_confirmed_course_profile은 True, has_subject_nodes는
+        False여야 한다(둘을 혼동하면 이 경우가 (False, False)로 잘못 나온다)."""
+
+        session_id, _matched_ids = _drive_to_industrial_engineering_upload(self)
+        r = client.post("/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": []})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["course_profile"]["recommendations"], [])
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        node_types = {n["node_type"] for n in r.json()["nodes"]}
+        self.assertNotIn("HighSchoolSubject", node_types)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], True)
+        self.assertIs(attributes["has_subject_nodes"], False)
+
+    def test_not_yet_confirmed_has_neither(self) -> None:
+        session_id, _matched_ids = _drive_to_industrial_engineering_upload(self)
+        # /course/confirm을 아예 호출하지 않는다 — planning_state.upload_status는
+        # PARSED 또는 CONFIRMATION_REQUIRED로 남아 있다.
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        node_types = {n["node_type"] for n in r.json()["nodes"]}
+        self.assertNotIn("HighSchoolSubject", node_types)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], False)
+        self.assertIs(attributes["has_subject_nodes"], False)
+
+    def test_no_upload_at_all_has_neither(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        question = r.json()["question"]
+        client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question["question_id"],
+                "selected_option_id": question["options"][0]["option_id"],
+            },
+        )
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], False)
+        self.assertIs(attributes["has_subject_nodes"], False)
+
+    def test_langsmith_failure_does_not_break_the_subgraph_response(self) -> None:
+        """§24 fail-open을 /subgraph에서도 그대로 확인한다 — Trace 기록이 실패해도
+        200 응답과 실제 계산 결과는 그대로 나와야 한다(has_confirmed_course_profile
+        계산은 Store 조회일 뿐이라 Trace 실패와 무관하게 항상 먼저 끝난다)."""
+
+        from src.tracing.protocols import TraceError
+        from src.tracing.tracer import Tracer
+
+        class _AlwaysFailingTraceClient:
+            def record_run(self, *, trace_id, name, run_type, attributes) -> None:
+                raise TraceError("모의 LangSmith 장애")
+
+        session_id, matched_ids = _drive_to_industrial_engineering_upload(self)
+        client.post("/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": matched_ids})
+
+        with patch.object(main_module, "_tracer", Tracer(client=_AlwaysFailingTraceClient())):
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(r.json()["nodes"])
 
 
 class TracingFailOpenIntegrationTest(unittest.TestCase):

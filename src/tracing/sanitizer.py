@@ -125,6 +125,22 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "quality_gate_result": _allow_none(lambda v: v in _ALLOWED_GATE_RESULTS),
     "prompt_version": _allow_none(_is_short_token),
     "model": _allow_none(_is_short_token),
+    # 2026-08-28 19차 리뷰: Knowledge Subgraph Extractor Stage(§10) — Node·Edge 개수
+    # 요약만 허용한다. session_id/user_id/학생 답변 원문/질문 원문/과목 문서 원문·추천
+    # 이유 전문은 애초에 이 Allowlist에 Key 자체가 없으므로 구조적으로 샐 수 없다.
+    "node_count": _is_nonneg_int,
+    "edge_count": _is_nonneg_int,
+    "trait_node_count": _is_nonneg_int,
+    "major_node_count": _is_nonneg_int,
+    "department_node_count": _is_nonneg_int,
+    "subject_node_count": _is_nonneg_int,
+    # 2026-08-29 19차 후속 보완: "Confirm까지 마쳤는가"(CoursePlanningStore 상태 기준)와
+    # "실제로 과목 Node가 생겼는가"(Graph 생성 결과 기준)는 다른 사실이라 필드를
+    # 나눴다(빈 confirmed_subject_ids=[]로도 CONFIRMED는 가능하다) — 둘 다 `_is_bool`이라
+    # `isinstance(value, bool)`로 엄격히 검사한다(bool이 int의 하위 타입이라는 점 때문에
+    # `1`/`0`이 새지 않도록: `isinstance(1, bool)`은 False다).
+    "has_confirmed_course_profile": _is_bool,
+    "has_subject_nodes": _is_bool,
 }
 
 ALLOWED_TRACE_ATTRIBUTE_KEYS: frozenset[str] = frozenset(_VALUE_VALIDATORS.keys())
