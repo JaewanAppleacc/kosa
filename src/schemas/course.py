@@ -67,12 +67,64 @@ class CourseRecommendationItem(BaseModel):
     category: Literal["core", "explore", "alternative"]
     is_actually_offered: bool | None
     reason: str
+    # 2026-08-26 16차 리뷰: category="alternative"일 때만 채운다 — "이 과목이 어떤
+    # 미개설 희망과목을 대신하는가"를 가리킨다(UnavailableSubjectItem.subject_id와
+    # 짝을 이룬다). core/explore는 대체가 아니라 원래부터의 추천이므로 항상 None이다.
+    replaces_subject_id: str | None = None
+
+
+class UnavailableSubjectItem(BaseModel):
+    """2026-08-26 16차 리뷰: POST_OFFERING에서 원래 PRE_SURVEY 희망과목이었지만 학교가
+    실제로 개설하지 않은 과목. `recommendations`에 category="alternative"로 섞어
+    넣지 않고 별도 목록으로 분리한다 — "이 과목은 못 듣는다"는 사실 자체가 학생에게
+    중요한 정보라 추천 목록 속에 파묻히면 안 된다."""
+
+    subject_id: str
+    label: str
+    reason: str
 
 
 class CourseProfile(BaseModel):
-    """세션 하나의 과목 추천 결과 집계. PRE_SURVEY/POST_OFFERING 어느 쪽이든 이 형태로 반환한다."""
+    """세션 하나의 과목 추천 결과 집계. PRE_SURVEY/POST_OFFERING 어느 쪽이든 이 형태로 반환한다.
+
+    2026-08-26 16차 리뷰: `unavailable_subjects`를 추가했다. PRE_SURVEY에서는 항상
+    빈 리스트다(개설 여부 자체가 아직 미확정이라 "미개설"이라는 사실이 존재하지
+    않는다) — POST_OFFERING에서만 실제로 채워진다."""
 
     session_id: str
     source: Literal["PRE_SURVEY", "POST_OFFERING"]
     recommendations: list[CourseRecommendationItem]
     unresolved_candidates: list[ParsedSubjectCandidate] = []  # 사용자 확인 대기 중인 것들
+    unavailable_subjects: list[UnavailableSubjectItem] = []
+
+
+class CourseParseWarning(BaseModel):
+    """2026-08-26 16차 리뷰: 문서 파싱 중 발생한 문제를 사용자에게 안전하게 알리는 값.
+    로컬 임시 파일 경로·Stack Trace·원본 전체 텍스트는 절대 담지 않는다 — `stage`(
+    course_document_parser.ParseError.stage와 동일한 값: "input"/"extract"/"normalize")
+    와 사람이 읽을 수 있는 `message`만 담는다."""
+
+    stage: str
+    message: str
+
+
+class CoursePlanningSessionState(BaseModel):
+    """2026-08-26 16차 리뷰 §4: 업로드·확인 상태는 AssessmentState에 넣지 않는다
+    (Assessment 질문 Planner는 이 상태를 볼 수 없어야 한다 — CLAUDE.md "Assessment
+    단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다"와 같은 방향).
+    session_id 기준으로 `CoursePlanningStore`에 저장한다. 원본 파일 bytes와 임시
+    파일 경로는 여기에도 저장하지 않는다 — `raw_text`(추출된 문자열)와 정규화된
+    후보(`ParsedSubjectCandidate`)만 필요한 범위에서 담는다.
+
+    새 파일을 다시 업로드하면 이전 미확정 결과는 명시적으로 통째로 교체된다(과거
+    업로드의 후보가 새 업로드 후보와 섞이지 않는다) — `CoursePlanningStore.save()`가
+    항상 이 객체 전체를 덮어쓰는 방식으로 구현된다."""
+
+    session_id: str
+    selected_major_id: str
+    parsed_candidates: list[ParsedSubjectCandidate] = []
+    confirmed_offered_subject_ids: list[str] = []
+    # PARSED: 방금 파싱됨(모든 후보가 high 확신, 모호함 없음 — 그래도 자동 확정은 안 됨).
+    # CONFIRMATION_REQUIRED: low 또는 unmatched 후보가 있어 사용자 확인이 꼭 필요함.
+    # CONFIRMED: POST /course/confirm으로 실제 개설과목이 확정됨.
+    upload_status: Literal["PARSED", "CONFIRMATION_REQUIRED", "CONFIRMED"] = "PARSED"

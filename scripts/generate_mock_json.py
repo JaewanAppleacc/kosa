@@ -145,19 +145,45 @@ def _run(client: TestClient) -> None:
         client.get(f"/subjects/{session_id}", params={"selected_major_id": selected_major_id}).json(),
     )
 
+    # 2026-08-26 16차 리뷰: 실제 Parser로 연결된 뒤로는 텍스트를 추출할 수 없는 가짜
+    # PDF("%PDF-1.4 fake content")를 올리면 이제 성공(200)이 아니라 PARSE_FAILED(422)가
+    # 정직한 결과다 — Mock 예시도 실제 시연 Fixture(demo_school_offerings.xlsx)를 올려서
+    # 진짜 성공 사례를 보여준다.
+    fixture_path = (
+        Path(__file__).resolve().parent.parent
+        / "data" / "fixtures" / "course_offerings" / "demo_school_offerings.xlsx"
+    )
+    with open(fixture_path, "rb") as f:
+        fixture_bytes = f.read()
     r = client.post(
         "/course/upload",
-        data={"session_id": session_id},
-        files={"file": ("curriculum.pdf", b"%PDF-1.4 fake content", "application/pdf")},
+        data={"session_id": session_id, "selected_major_id": selected_major_id},
+        files={
+            "file": (
+                "demo_school_offerings.xlsx", fixture_bytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+        },
     )
     _write("course_upload_normal", r.json())
+    matched_subject_ids = sorted(
+        {c["matched_subject_id"] for c in r.json()["parsed_candidates"] if c["matched_subject_id"]}
+    )
 
     r = client.post(
         "/course/upload",
-        data={"session_id": session_id},
+        data={"session_id": session_id, "selected_major_id": selected_major_id},
         files={"file": ("notes.txt", b"hello", "text/plain")},
     )
     _write("course_upload_error_invalid_file_type", r.json()["detail"])
+
+    # 2026-08-26 16차 리뷰: 확정 응답이 accepted=True만 반환하던 Mock에서 실제
+    # POST_OFFERING CourseProfile을 함께 담는 형태로 바뀌었다 — B가 참고할 실제 예시.
+    r = client.post(
+        "/course/confirm",
+        json={"session_id": session_id, "confirmed_subject_ids": matched_subject_ids},
+    )
+    _write("course_confirm_normal", r.json())
     _write("subgraph_normal", client.get(f"/subgraph/{session_id}").json())
     _write("session_restore_normal", client.get(f"/session/{session_id}").json())
 

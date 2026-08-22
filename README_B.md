@@ -1,6 +1,52 @@
-# B 작업자 핸드오프 — 2026-08-25 (갱신)
+# B 작업자 핸드오프 — 2026-08-26 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-26 갱신 내용 — POST_OFFERING(학교 실제 개설과목 기반 최종 추천) 구현 (`/course/upload`·`/course/confirm` 계약 변경, 하위 호환 아님)**:
+> 1. **`POST /course/upload`가 이제 `selected_major_id`를 함께 받습니다.** `multipart/
+>    form-data`로 `session_id`(Form) + `selected_major_id`(Form, `GET /subjects`와 동일한
+>    규칙으로 검증됨) + `file`(File)을 보내세요. 더 이상 형식만 확인하는 Mock이 아니라
+>    실제 Parser(과목명 추출·Alias 매칭)로 연결됩니다.
+> 2. **지원 파일은 PDF와 XLSX뿐입니다. XLS(97-2003 이진 형식)는 명시적으로 거부됩니다**
+>    (422 `VALIDATION_ERROR`, "XLSX로 다시 저장해 업로드해주세요" 안내). 파일 크기 상한은
+>    10MB입니다. 빈 파일도 거부됩니다.
+> 3. **문서를 읽지 못하면(이미지 스캔 PDF, 손상된 xlsx 등) 새 오류 코드 `PARSE_FAILED`
+>    (422)가 옵니다.** "개설과목이 0개"(정상, 200 + 빈 목록)와 "문서를 못 읽었다"(422)는
+>    다른 상황이니 화면에서도 다르게 안내해주세요.
+> 4. **`CourseUploadResponse`에 `selected_major_id`·`parse_warnings`가 추가됐습니다.**
+>    `parse_warnings`는 `{stage, message}` 형태의 안전한 경고 목록입니다(로컬 파일 경로나
+>    Stack Trace는 절대 안 옵니다).
+> 5. **`ParsedSubjectCandidate.confidence`가 `"high"`/`"low"`/`"unmatched"` 중 하나로 옵니다.**
+>    `"high"`도 자동으로 개설과목이 되는 게 아닙니다 — 세 등급 전부 사용자가 확인 화면에서
+>    보고, `POST /course/confirm`을 호출해야만 확정됩니다. `"unmatched"`는 `matched_
+>    subject_id`가 없어서 애초에 확정 대상이 될 수 없습니다(화면에서 선택 불가로
+>    표시하세요).
+> 6. **`POST /course/confirm`이 이제 실제로 검증합니다.** 어떤 ID든 받아주던 Mock이
+>    아닙니다 — (a) 이 세션이 먼저 업로드를 거쳤는지(404 `COURSE_UPLOAD_NOT_FOUND`),
+>    (b) 보낸 `confirmed_subject_ids`가 이번 업로드의 실제 후보에서 나온 값인지, 정본
+>    과목 목록에 있는지(422 `VALIDATION_ERROR`)를 확인합니다. 빈 목록(`[]`)은 "이번 업로드
+>    에서 하나도 확정 안 함"이라는 뜻으로 정상 허용됩니다. 중복 ID는 서버가 자동으로
+>    하나로 정리합니다.
+> 7. **`CourseConfirmResponse`에 `course_profile`이 추가됐습니다.** 확정 직후 바로
+>    POST_OFFERING 최종 추천을 함께 받습니다 — 별도로 `GET /subjects`를 다시 호출할
+>    필요가 없습니다(호출해도 같은 결과가 옵니다, 아래 10번 참고).
+> 8. **`CourseProfile`에 `unavailable_subjects`가 추가됐고, `CourseRecommendationItem`에
+>    `replaces_subject_id`가 추가됐습니다.** PRE_SURVEY에서는 항상 각각 빈 리스트/`null`
+>    입니다. POST_OFFERING에서: 원래 희망했지만 실제로 개설 안 된 과목은
+>    `recommendations`가 아니라 `unavailable_subjects`에 `{subject_id, label, reason}`
+>    으로 옵니다. 그 대신 제안하는 대체 과목은 `recommendations`에
+>    `category="alternative"`로 들어오고, `replaces_subject_id`에 어떤 미개설 과목을
+>    대신하는지가 담깁니다. 대체 과목을 못 찾으면 `unavailable_subjects`에만 남고
+>    `recommendations`에는 아무것도 추가되지 않습니다(억지 대체 없음).
+> 9. **`GET /subjects/{session_id}?selected_major_id=...`는 그대로지만 동작이 똑똑해졌습니다.**
+>    이 세션·전공 조합으로 `/course/confirm`까지 마쳤으면 POST_OFFERING 결과를, 아직
+>    안 마쳤으면(또는 다른 전공으로 확정했으면) 기존 PRE_SURVEY 결과를 반환합니다 —
+>    화면에서 "지금 PRE_SURVEY인지 POST_OFFERING인지"는 응답의 `source` 필드로
+>    판단하세요.
+> 10. **시연용 학교 개설과목 파일**: `data/fixtures/course_offerings/demo_school_offerings.xlsx`
+>    — 업로드 UI를 테스트할 실제 예시 파일입니다(고정 텍스트 3개 과목 + low confidence
+>    1개 + unmatched 1개 + 표 잡음 포함). `outputs/mock_api/course_upload_normal.json`·
+>    `course_confirm_normal.json`이 이 파일로 만든 실제 예시 응답입니다.
 
 > **2026-08-25 갱신 내용 — 14차(2026-08-24) PRE_SURVEY 구현의 검수 후속 수정 (`GET /subjects` 응답 필드 추가, 하위 호환)**:
 > 1. **`CourseRecommendationItem`에 `label: str`이 추가됐습니다.** 예전엔 `subject_id`
@@ -115,7 +161,8 @@ python3 -m venv .venv
 | Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM을 쓸 수 있으면 실제 Evidence를 바탕으로 LLM이 문장을 생성하고, LLM이 꺼져 있거나 호출에 실패하면 **같은 학생의 같은 실제 Evidence**를 바탕으로 결정론적 Fallback 문장을 생성합니다(다른 학생의 Mock Profile을 대신 보여주지 않습니다). 어느 경로든 Trait·근거 구조는 항상 이 세션의 실제 답변에서 나옵니다. 답변이 아예 없으면 200이 아니라 `EVIDENCE_NOT_READY`입니다(아래 참고). `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
 | Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
 | Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
-| Subjects 조회 (`/subjects/{session_id}`) | ✅ 실제 PRE_SURVEY 추천(§20) — `selected_major_id` Query Parameter 필수. **POST_OFFERING(학교 실제 개설과목 기반 재추천)은 다음 단계**입니다. 위 2026-08-24 갱신 내용을 꼭 읽어주세요. |
+| Subjects 조회 (`/subjects/{session_id}`) | ✅ 실제 PRE_SURVEY + POST_OFFERING 추천(§20) — `selected_major_id` Query Parameter 필수. `/course/confirm`을 마쳤으면 자동으로 POST_OFFERING 결과가 나옵니다(응답의 `source` 필드로 구분). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
+| 과목 업로드·확정 (`/course/upload`, `/course/confirm`) | ✅ 실제 Parser 연결 + 실제 확정 검증(§20). PDF/XLSX만 지원(XLS 제외). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
 | Subgraph 조회 | ⚠️ 아직 고정 Mock |
 | 전국 학과 Master, 입결 필터·정렬 | ⚠️ 아직 미완성 (`schl_id`/`department_id` 일부가 대학알리미 API Key 발급 전 임시값 — 장기 저장 대상 아님) |
 
@@ -136,9 +183,9 @@ python3 -m venv .venv
 | GET | `/profile/{session_id}` | Career Profile 결과 카드 |
 | GET | `/majors/{session_id}` | 전공 관련도 목록 |
 | GET | `/departments/{major_id}` | 실제 학과 목록(35개 시연 데이터 기준, 위 2번 표 참고) |
-| GET | `/subjects/{session_id}?selected_major_id={major_id}` | PRE_SURVEY 과목 추천 결과. `selected_major_id` 필수(위 2026-08-24 갱신 내용 참고) |
-| POST | `/course/upload` | 학교 PDF·Excel 업로드 — `multipart/form-data`, `session_id`(Form) + `file`(File). PDF/Excel 외 형식은 422 `VALIDATION_ERROR` |
-| POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 |
+| GET | `/subjects/{session_id}?selected_major_id={major_id}` | PRE_SURVEY 또는 POST_OFFERING(확정 여부에 따라 자동 분기) 과목 추천 결과. `selected_major_id` 필수 |
+| POST | `/course/upload` | 학교 PDF·XLSX 업로드 — `multipart/form-data`, `session_id`(Form) + `selected_major_id`(Form) + `file`(File). PDF/XLSX 외 형식(XLS 포함)은 422 `VALIDATION_ERROR`, 문서를 못 읽으면 422 `PARSE_FAILED` |
+| POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 — 성공하면 POST_OFFERING `course_profile`을 함께 반환 |
 | GET | `/subgraph/{session_id}` | 관계 그래프 (Trait–전공–학과–과목) |
 | GET | `/session/{session_id}` | Session 복원 |
 
@@ -148,7 +195,7 @@ python3 -m venv .venv
 `GENERATED` / `REGENERATING` / `CACHE_USED` / `BACKUP_USED` / `CONTEXT_EARLY_TERMINATED`
 
 **오류 코드** (`APIError.error_code`, 404 등에서 `detail`에 담겨 옴):
-`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY` / `MAJOR_NOT_SELECTABLE`(신규, `GET /subjects/{session_id}` 전용 — 위 2026-08-24 갱신 내용 참고)
+`VALIDATION_ERROR` / `SESSION_NOT_FOUND` / `LLM_UNAVAILABLE` / `LANGSMITH_UNAVAILABLE` / `INTERNAL_ERROR` / `EVIDENCE_NOT_READY` / `MAJOR_NOT_SELECTABLE`(`GET /subjects`·`POST /course/upload` 공통) / `PARSE_FAILED`(신규, `POST /course/upload` 전용 — 문서를 읽지 못함) / `COURSE_UPLOAD_NOT_FOUND`(신규, `POST /course/confirm` 전용, 404 — 이 세션이 아직 업로드를 안 거쳤음)
 
 > ⚠️ **`/profile/{session_id}` 하위 호환 아닌 변경**: 답변을 하나도 제출하지 않은 세션에서
 > `/profile`을 호출하면 이제 200 대신 **422 + `EVIDENCE_NOT_READY`**를 반환합니다(예전엔
@@ -181,6 +228,62 @@ python3 -m venv .venv
 (`outputs/mock_api/majors_normal.json`이 채워진 예시, 이 필드가 비게 되는 경우는 세션을
 얼마 안 진행했을 때 재현됩니다.)
 
+## 4-1. 학교 개설과목 업로드·확정 흐름 (실제 예시)
+
+**1) 업로드** — `outputs/mock_api/course_upload_normal.json`이 실제 예시입니다:
+
+```
+POST /course/upload
+Content-Type: multipart/form-data
+
+session_id=sess_...
+selected_major_id=industrial_engineering
+file=<PDF 또는 XLSX>
+```
+
+응답의 `parsed_candidates[]` 각 항목은 `confidence`가 `"high"`(Alias와 정확히 일치)/
+`"low"`(비슷하지만 확인 필요)/`"unmatched"`(전혀 못 찾음) 중 하나입니다. **셋 다
+`/course/confirm`을 호출하기 전까지는 확정된 개설과목이 아닙니다** — `"high"`를 화면에서
+기본 선택 상태로 보여주는 건 괜찮지만, 서버가 자동으로 확정 처리하지는 않습니다.
+`"unmatched"`는 `matched_subject_id`가 `null`이라 애초에 확정에 쓸 수 없습니다(선택
+불가로 표시하세요).
+
+**2) 확인 후 확정** — 사용자가 체크한 과목들의 `matched_subject_id`만 모아서 보냅니다:
+
+```json
+POST /course/confirm
+{
+  "session_id": "sess_...",
+  "confirmed_subject_ids": ["subj_fde7a436237d8af94c11515e", "subj_a668a359a7a11a7fbcbbc447"]
+}
+```
+
+빈 배열(`[]`)도 유효합니다 — "이번 업로드에서 확정할 과목이 없음"이라는 뜻으로 정상
+처리됩니다. `data/master/subjects.jsonl`에 없는 값이나 이번 업로드 후보에 없는 값을
+보내면 422 `VALIDATION_ERROR`입니다.
+
+**3) POST_OFFERING 결과** — `outputs/mock_api/course_confirm_normal.json`이 실제 예시입니다.
+`confirmed_subject_ids`로 보낸 과목 중 학생 Trait 근거와 맞는 것들이 `recommendations`에
+`category="core"`/`"explore"`로 옵니다. 원래 PRE_SURVEY 희망과목이었지만 이번에 개설 안 된
+과목은 `unavailable_subjects`로 옮겨지고, 그 대신 제안하는 실제 개설과목이 있으면
+`recommendations`에 `category="alternative"`로 오며 `replaces_subject_id`에 어떤 과목을
+대신하는지 담깁니다:
+
+```json
+{
+  "subject_id": "subj_a668a359a7a11a7fbcbbc447",
+  "label": "정보",
+  "category": "alternative",
+  "is_actually_offered": true,
+  "reason": "원래 희망했던 데이터 과학은 이 학교에서 실제로 개설되지 않았습니다. 대신 ...",
+  "replaces_subject_id": "subj_486f78700e4a5981582a75e1"
+}
+```
+
+대체 과목을 못 찾으면 `unavailable_subjects`에만 남고 `recommendations`에는 아무것도
+추가되지 않습니다 — 화면에서 "대체 과목 없음"을 정직하게 보여주세요(억지로 아무 과목이나
+채워 넣지 않습니다).
+
 ## 5. Mock JSON (서버 안 띄워도 되는 정적 파일)
 
 `outputs/mock_api/`에 정상·오류·빈 결과 예시와 `openapi.json`이 있습니다. Schema가 바뀌면 아래 명령으로 재생성됩니다(재생성됐는지 커밋 로그로 확인하세요):
@@ -194,12 +297,14 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 - `src/schemas/api.py` — 모든 Endpoint의 Request/Response
 - `src/schemas/profile.py` — CareerProfile
 - `src/schemas/major.py` — MajorProfile, Department, MajorRelevance
-- `src/schemas/course.py` — CourseProfile, CourseRecommendationItem(`label: str`, `is_actually_offered: bool | None`), ParsedSubjectCandidate
+- `src/schemas/course.py` — CourseProfile(`unavailable_subjects` 포함), CourseRecommendationItem(`label: str`, `is_actually_offered: bool | None`, `replaces_subject_id: str | None`), UnavailableSubjectItem, ParsedSubjectCandidate, CourseParseWarning
 - `src/schemas/graph.py` — SubgraphNode/SubgraphEdge
 
 ## 7. 알아둘 것
 
 - Session은 In-Memory라 서버 재시작하면 다 날아갑니다. 새로고침 후 복원 UI는 만들어도 되지만, 서버 재시작까지 버티는 지속성은 아직 없습니다.
+- **업로드·확정 상태(`CoursePlanningSessionState`)도 별도의 In-Memory Store입니다.** Assessment Session Store와 완전히 분리돼 있고(전공 관련 정보는 Assessment 쪽에 전혀 저장되지 않습니다), 이쪽도 서버 재시작하면 날아갑니다 — 업로드→확정까지 한 서버 프로세스 안에서 끝내야 합니다.
+- B는 UI만 구현합니다. 과목명 유사도 매칭이나 POST_OFFERING 재추천 로직을 화면 쪽에서 다시 계산하지 마세요 — 전부 서버가 계산해서 내려줍니다. 화면은 받은 `confidence`(high/low/unmatched)에 따라 확인 UI를 다르게 보여주고, 사용자가 고른 `confirmed_subject_ids`만 그대로 `/course/confirm`에 전달하면 됩니다.
 - `/assessment/session`은 `user_id`를 받지 않습니다(보안상 서버가 고정) — 화면에서 이 값을 사용자가 입력하게 만들지 마세요.
 - 화면에 내부 점수(예: 84%, 0.67 같은 숫자)를 노출하는 API는 애초에 없습니다. 정성 Label만 옵니다.
 - `/subjects/{session_id}` 과목 추천은 **현재 시연용으로 등록된 과목 18개**(`data/master/subjects.jsonl`) 범위 안에서만 나옵니다. 전국 고교 편제표 전체를 다루는 게 아닙니다 — "이 학교엔 왜 이 과목이 없나요?" 같은 문의가 예상된다면, 시연 범위임을 화면에 짧게 안내하는 걸 권장합니다.

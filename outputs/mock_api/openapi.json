@@ -339,7 +339,7 @@
     "/subjects/{session_id}": {
       "get": {
         "summary": "Get Subjects",
-        "description": "2026-08-24 14차 리뷰: 더 이상 `mock_data.mock_course_profile()`을 쓰지 않는다.\n`CoursePlanningService`가 이 세션의 실제 Trait 상태·전공 추천 결과·과목 정본을\n조합해 PRE_SURVEY 과목 추천을 계산한다(POST_OFFERING은 범위 밖 — §14).\n`selected_major_id`는 여기서만 쓰고 어디에도 저장하지 않는다(§5, CLAUDE.md\n\"Assessment 단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다\"의\n반대 방향도 지킨다).",
+        "description": "2026-08-24 14차 리뷰: 더 이상 `mock_data.mock_course_profile()`을 쓰지 않는다.\n2026-08-26 16차 리뷰: 이 세션·selected_major_id 조합에 실제로 확정\n(`upload_status == \"CONFIRMED\"`)된 개설과목이 있으면 POST_OFFERING 최종 추천을,\n없으면 기존과 동일한 PRE_SURVEY 희망과목 추천을 반환한다(§10 —\n`CoursePlanningService.get_course_profile`이 이 분기를 담당한다). `selected_major_id`\n는 여기서만 쓰고 AssessmentState에는 저장하지 않는다(§5, CLAUDE.md \"Assessment\n단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다\"의 반대 방향도\n지킨다).",
         "operationId": "get_subjects_subjects__session_id__get",
         "parameters": [
           {
@@ -390,7 +390,7 @@
     "/course/upload": {
       "post": {
         "summary": "Upload Course Document",
-        "description": "2026-08-21 리뷰 반영: 이전에는 session_id만 받고 실제 파일을 받지 않았다 —\nB README가 약속한 \"PDF·Excel 업로드\"와 실제 계약이 어긋나 있었다. 지금은\nmultipart/form-data로 진짜 파일을 받는다. 파싱 자체(course_document_parser.py)는\n여전히 C 소유·미구현이라 형식만 검증하고 Mock 후보를 반환한다.",
+        "description": "2026-08-26 16차 리뷰: 더 이상 형식만 확인하고 고정 Mock 후보를 돌려주지 않는다.\n`CourseDocumentParsingService`가 실제 Parser(`course_document_parser.py`)·Alias\n표(`data/master/subject_aliases.jsonl`)로 연결한다. 이 Handler는 요청·응답 변환과\n`UploadFile`에서 원본 bytes를 읽는 것까지만 한다 — 과목명 유사도 계산이나 파일\n경로 조립은 전부 Service 쪽에서 한다(Path Traversal 방지: 사용자가 보낸 filename을\n로컬 경로로 직접 쓰지 않는다).",
         "operationId": "upload_course_document_course_upload_post",
         "requestBody": {
           "content": {
@@ -429,6 +429,7 @@
     "/course/confirm": {
       "post": {
         "summary": "Confirm Course Selection",
+        "description": "2026-08-26 16차 리뷰: 더 이상 어떤 ID든 받아 accepted=True만 돌려주는 Mock이\n아니다. `CourseDocumentParsingService.confirm()`이 §6의 모든 검증(정본 존재·이번\n업로드 후보에서 나온 값인지 등)을 통과시킨 뒤, 확정된 실제 개설과목 집합으로\nPOST_OFFERING CourseProfile을 함께 계산해 반환한다.",
         "operationId": "confirm_course_selection_course_confirm_post",
         "requestBody": {
           "content": {
@@ -602,6 +603,11 @@
             "type": "string",
             "title": "Session Id"
           },
+          "selected_major_id": {
+            "type": "string",
+            "title": "Selected Major Id",
+            "description": "PRE_SURVEY와 동일한 규칙으로 검증되는, 이 업로드가 속할 대표 전공"
+          },
           "file": {
             "type": "string",
             "format": "binary",
@@ -611,6 +617,7 @@
         "type": "object",
         "required": [
           "session_id",
+          "selected_major_id",
           "file"
         ],
         "title": "Body_upload_course_document_course_upload_post"
@@ -829,14 +836,37 @@
           "accepted": {
             "type": "boolean",
             "title": "Accepted"
+          },
+          "course_profile": {
+            "$ref": "#/components/schemas/CourseProfile"
           }
         },
         "type": "object",
         "required": [
           "session_id",
-          "accepted"
+          "accepted",
+          "course_profile"
         ],
         "title": "CourseConfirmResponse"
+      },
+      "CourseParseWarning": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "message"
+        ],
+        "title": "CourseParseWarning",
+        "description": "2026-08-26 16차 리뷰: 문서 파싱 중 발생한 문제를 사용자에게 안전하게 알리는 값.\n로컬 임시 파일 경로·Stack Trace·원본 전체 텍스트는 절대 담지 않는다 — `stage`(\ncourse_document_parser.ParseError.stage와 동일한 값: \"input\"/\"extract\"/\"normalize\")\n와 사람이 읽을 수 있는 `message`만 담는다."
       },
       "CourseProfile": {
         "properties": {
@@ -866,6 +896,14 @@
             "type": "array",
             "title": "Unresolved Candidates",
             "default": []
+          },
+          "unavailable_subjects": {
+            "items": {
+              "$ref": "#/components/schemas/UnavailableSubjectItem"
+            },
+            "type": "array",
+            "title": "Unavailable Subjects",
+            "default": []
           }
         },
         "type": "object",
@@ -875,7 +913,7 @@
           "recommendations"
         ],
         "title": "CourseProfile",
-        "description": "세션 하나의 과목 추천 결과 집계. PRE_SURVEY/POST_OFFERING 어느 쪽이든 이 형태로 반환한다."
+        "description": "세션 하나의 과목 추천 결과 집계. PRE_SURVEY/POST_OFFERING 어느 쪽이든 이 형태로 반환한다.\n\n2026-08-26 16차 리뷰: `unavailable_subjects`를 추가했다. PRE_SURVEY에서는 항상\n빈 리스트다(개설 여부 자체가 아직 미확정이라 \"미개설\"이라는 사실이 존재하지\n않는다) — POST_OFFERING에서만 실제로 채워진다."
       },
       "CourseRecommendationItem": {
         "properties": {
@@ -910,6 +948,17 @@
           "reason": {
             "type": "string",
             "title": "Reason"
+          },
+          "replaces_subject_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replaces Subject Id"
           }
         },
         "type": "object",
@@ -929,17 +978,30 @@
             "type": "string",
             "title": "Session Id"
           },
+          "selected_major_id": {
+            "type": "string",
+            "title": "Selected Major Id"
+          },
           "parsed_candidates": {
             "items": {
               "$ref": "#/components/schemas/ParsedSubjectCandidate"
             },
             "type": "array",
             "title": "Parsed Candidates"
+          },
+          "parse_warnings": {
+            "items": {
+              "$ref": "#/components/schemas/CourseParseWarning"
+            },
+            "type": "array",
+            "title": "Parse Warnings",
+            "default": []
           }
         },
         "type": "object",
         "required": [
           "session_id",
+          "selected_major_id",
           "parsed_candidates"
         ],
         "title": "CourseUploadResponse"
@@ -1581,6 +1643,30 @@
           "edges"
         ],
         "title": "SubgraphResponse"
+      },
+      "UnavailableSubjectItem": {
+        "properties": {
+          "subject_id": {
+            "type": "string",
+            "title": "Subject Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject_id",
+          "label",
+          "reason"
+        ],
+        "title": "UnavailableSubjectItem",
+        "description": "2026-08-26 16차 리뷰: POST_OFFERING에서 원래 PRE_SURVEY 희망과목이었지만 학교가\n실제로 개설하지 않은 과목. `recommendations`에 category=\"alternative\"로 섞어\n넣지 않고 별도 목록으로 분리한다 — \"이 과목은 못 듣는다\"는 사실 자체가 학생에게\n중요한 정보라 추천 목록 속에 파묻히면 안 된다."
       },
       "ValidationError": {
         "properties": {

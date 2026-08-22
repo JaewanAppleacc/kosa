@@ -84,19 +84,25 @@ def guard_offered_status_matches_core_category(
     바뀌면서(§6), "False면 절대 core로 노출하지 않는다"는 예전 docstring 주장이 실제
     코드로 강제되지 않고 있었다 — 이 함수가 그 빈틈을 메운다.
 
+    2026-08-26 16차 리뷰로 규칙을 강화했다: POST_OFFERING에서는 core뿐 아니라
+    recommendations에 들어가는 모든 과목(core/explore/alternative)이 실제 개설이
+    확인돼야 한다 — `recommendations`는 "학교가 실제로 여는 과목 목록에서 고른 추천"
+    이라는 뜻이고, 미개설 과목은 `unavailable_subjects`로만 표현한다(§7). alternative도
+    "실제 개설된 과목"이어야 대체 제안으로서 의미가 있다 — 아직 안 열리는 과목을
+    "대체"라고 부르면 안 된다.
+
     PRE_SURVEY에서는 검사하지 않는다 — PRE_SURVEY의 `core`는 "실제 개설이 확인된 핵심
     과목"이 아니라 "학생 Trait 근거가 충분한 희망 우선과목"이라는 뜻이라, 개설 여부
-    미확정(`is_actually_offered=None`)인 채로 core가 나오는 게 정상이다. POST_OFFERING
-    에서만 실제 개설(`is_actually_offered is True`)이 확인된 과목만 core로 노출하도록
-    막는다."""
+    미확정(`is_actually_offered=None`)인 채로 core가 나오는 게 정상이다."""
 
     if source != "POST_OFFERING":
         return
-    violating = [i for i in items if i.category == "core" and i.is_actually_offered is not True]
+    violating = [i for i in items if i.is_actually_offered is not True]
     if violating:
         raise PolicyViolation(
-            "POST_OFFERING에서는 실제 개설이 확인된(is_actually_offered=True) 과목만 "
-            f"core로 노출할 수 있다 — 위반 subject_id: {[i.subject_id for i in violating]}"
+            "POST_OFFERING에서는 recommendations에 들어가는 모든 과목이 실제 개설이 "
+            f"확인(is_actually_offered=True)돼야 한다 — 위반 subject_id: "
+            f"{[i.subject_id for i in violating]}"
         )
 
 

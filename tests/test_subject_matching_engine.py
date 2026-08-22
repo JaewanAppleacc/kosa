@@ -10,6 +10,7 @@ from src.engines.subject_matching_engine import (
     MINIMUM_USABLE_TRAITS_FOR_CORE,
     MINIMUM_USABLE_TRAITS_FOR_EXPLORE,
     build_reason,
+    compute_post_offering_recommendations,
     compute_subject_recommendations,
     to_course_recommendation_items,
 )
@@ -220,6 +221,173 @@ class ReasonAndMappingTest(unittest.TestCase):
         )
         self.assertIn("아직 정리되지 않았습니다", reason)
         self.assertNotIn("경험할 수 있으며", reason)  # 활동을 지어내는 문장 구조가 안 쓰였는지
+
+
+class ComputePostOfferingRecommendationsTest(unittest.TestCase):
+    """2026-08-26 16차 리뷰 §7/§8 — POST_OFFERING 재추천 순수 계산.
+
+    합성 데이터로 구성한다(진짜 subjects.jsonl 값에 의존하지 않는다) — 시나리오:
+    - subj_core_a: core, 실제 개설됨 → 그대로 core 유지.
+    - subj_core_b: core, 미개설 → unavailable + 대체 후보 탐색.
+    - subj_explore_c: explore, 실제 개설됨 → subj_core_b의 대체과목으로 소비됨.
+    - subj_explore_d: explore, 실제 개설됨, 아무 것도 대체하지 않음 → 그대로 explore 유지.
+    - subj_explore_e: explore, 미개설 → unavailable에는 들어가지만 대체 후보 탐색은
+      하지 않는다(§8 "explore는 확실한 희망이 아니었으므로 대체 탐색 범위 밖").
+    """
+
+    def _trait_defs(self) -> dict[str, TraitDefinition]:
+        return {
+            "causal_analysis": _trait_def("causal_analysis", "원인 분석"),
+            "pattern_finding": _trait_def("pattern_finding", "패턴 탐색"),
+        }
+
+    def _subjects(self) -> list[SubjectProfile]:
+        return [
+            _subject(
+                "subj_core_a", {"causal_analysis": 1.0, "pattern_finding": 1.0}, ["test_major"],
+                label="핵심 개설과목 A", activity_summary="핵심 활동 A를 수행하는 활동",
+            ),
+            _subject(
+                "subj_core_b", {"causal_analysis": 1.0, "pattern_finding": 1.0}, ["test_major"],
+                label="핵심 미개설과목 B", activity_summary="핵심 활동 B를 수행하는 활동",
+            ),
+            _subject(
+                "subj_explore_c", {"causal_analysis": 1.0}, ["test_major"],
+                label="탐색 개설과목 C", activity_summary="탐색 활동 C를 수행하는 활동",
+            ),
+            _subject(
+                "subj_explore_d", {"pattern_finding": 1.0}, ["test_major"],
+                label="탐색 개설과목 D", activity_summary="탐색 활동 D를 수행하는 활동",
+            ),
+            _subject(
+                "subj_explore_e", {"causal_analysis": 1.0}, ["test_major"],
+                label="탐색 미개설과목 E", activity_summary="탐색 활동 E를 수행하는 활동",
+            ),
+        ]
+
+    def _states(self) -> dict[str, StudentTraitState]:
+        return {
+            "causal_analysis": _state("causal_analysis", 1.0),
+            "pattern_finding": _state("pattern_finding", 1.0),
+        }
+
+    def _offered(self) -> set[str]:
+        return {"subj_core_a", "subj_explore_c", "subj_explore_d"}
+
+    def test_offered_core_is_kept_as_core_with_offered_true(self) -> None:
+        recs, _unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        core_items = [r for r in recs if r.subject_id == "subj_core_a"]
+        self.assertEqual(len(core_items), 1)
+        self.assertEqual(core_items[0].category, "core")
+        self.assertIs(core_items[0].is_actually_offered, True)
+        self.assertIsNone(core_items[0].replaces_subject_id)
+
+    def test_missing_core_becomes_unavailable_and_gets_an_alternative(self) -> None:
+        recs, unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        self.assertEqual([u.subject_id for u in unavail if u.subject_id == "subj_core_b"], ["subj_core_b"])
+        alternative_items = [r for r in recs if r.category == "alternative"]
+        self.assertEqual(len(alternative_items), 1)
+        self.assertEqual(alternative_items[0].replaces_subject_id, "subj_core_b")
+        self.assertIs(alternative_items[0].is_actually_offered, True)
+        # 동점 후보(subj_explore_c/d 둘 다 usable_trait_count=1, score=1.0)는 subject_id
+        # 오름차순으로 결정론적으로 골라야 한다 — "subj_explore_c" < "subj_explore_d".
+        self.assertEqual(alternative_items[0].subject_id, "subj_explore_c")
+
+    def test_alternative_is_not_duplicated_as_its_own_explore_item(self) -> None:
+        """대체과목으로 소비된 explore 과목은 별도의 explore 추천으로 중복 노출되면
+        안 된다 — 한 번만(alternative로) 나와야 한다."""
+
+        recs, _unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        subject_ids = [r.subject_id for r in recs]
+        self.assertEqual(subject_ids.count("subj_explore_c"), 1)
+
+    def test_unconsumed_offered_explore_is_kept_as_explore(self) -> None:
+        recs, _unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        explore_d = [r for r in recs if r.subject_id == "subj_explore_d"]
+        self.assertEqual(len(explore_d), 1)
+        self.assertEqual(explore_d[0].category, "explore")
+        self.assertIs(explore_d[0].is_actually_offered, True)
+
+    def test_missing_explore_is_unavailable_without_alternative_search(self) -> None:
+        """§8: explore는 확실한 희망이 아니었으므로 대체 탐색 범위 밖이다 — 미개설
+        subj_explore_e는 unavailable에는 들어가지만 어떤 recommendation도 이를 대체하지
+        않는다."""
+
+        recs, unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        self.assertIn("subj_explore_e", [u.subject_id for u in unavail])
+        self.assertNotIn("subj_explore_e", [r.replaces_subject_id for r in recs])
+
+    def test_no_alternative_available_leaves_unavailable_only(self) -> None:
+        """§8 "대체 후보를 못 찾으면 지어내지 않고 unavailable 상태만 유지"."""
+
+        subjects = self._subjects()[:2]  # subj_core_a, subj_core_b만 — explore 후보 없음
+        recs, unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", subjects, {"subj_core_a"}, "테스트 전공", self._trait_defs()
+        )
+        self.assertEqual([r.category for r in recs], ["core"])  # subj_core_a만
+        self.assertEqual([u.subject_id for u in unavail], ["subj_core_b"])
+
+    def test_same_alternative_is_never_assigned_to_two_missing_subjects(self) -> None:
+        """§8 "동일한 대체과목을 여러 미개설 과목에 무조건 중복 배정하지 말 것"."""
+
+        subjects = [
+            _subject("subj_core_x", {"causal_analysis": 1.0, "pattern_finding": 1.0}, ["test_major"], activity_summary="a"),
+            _subject("subj_core_y", {"causal_analysis": 1.0, "pattern_finding": 1.0}, ["test_major"], activity_summary="b"),
+            _subject("subj_explore_only", {"causal_analysis": 1.0}, ["test_major"], activity_summary="c"),
+        ]
+        recs, unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", subjects, {"subj_explore_only"}, "테스트 전공", self._trait_defs()
+        )
+        alternative_subject_ids = [r.subject_id for r in recs if r.category == "alternative"]
+        # 두 개의 core가 모두 미개설이고 대체 후보는 explore 1개뿐 — 그중 하나만
+        # 대체과목을 받고, 나머지 하나는 대체 없이 unavailable로만 남아야 한다.
+        self.assertEqual(len(alternative_subject_ids), 1)
+        self.assertEqual(len(unavail), 2)
+
+    def test_rerunning_with_same_input_is_identical(self) -> None:
+        first = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        second = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        self.assertEqual(
+            [r.model_dump() for r in first[0]], [r.model_dump() for r in second[0]]
+        )
+        self.assertEqual(
+            [u.model_dump() for u in first[1]], [u.model_dump() for u in second[1]]
+        )
+
+    def test_no_score_leaks_into_post_offering_items(self) -> None:
+        recs, _unavail = compute_post_offering_recommendations(
+            self._states(), "test_major", self._subjects(), self._offered(), "테스트 전공", self._trait_defs()
+        )
+        for item in recs:
+            self.assertNotIn("score", item.model_dump())
+
+
+class ImportRequiredSymbolsTest(unittest.TestCase):
+    """모듈에서 POST_OFFERING용 함수들을 정상적으로 가져올 수 있는지 확인 — 위 테스트가
+    전부 import에 의존하므로, import 자체가 실패하면 이 파일 전체가 collection error로
+    조용히 스킵될 수 있다(명시적으로 한 번 더 확인)."""
+
+    def test_functions_are_importable(self) -> None:
+        from src.engines.subject_matching_engine import (  # noqa: F401
+            build_alternative_reason,
+            build_unavailable_reason,
+            compute_post_offering_recommendations,
+            to_alternative_course_recommendation_items,
+        )
 
 
 if __name__ == "__main__":

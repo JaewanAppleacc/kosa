@@ -107,14 +107,18 @@ class Rule6UnofferedSubjectTest(unittest.TestCase):
 
 
 class Rule6bOfferedStatusMatchesCoreCategoryTest(unittest.TestCase):
-    """2026-08-24 14차 리뷰: `is_actually_offered`가 `bool | None`이 된 뒤, PRE_SURVEY의
-    core는 개설 여부 미확정("희망 우선과목")이어도 되지만 POST_OFFERING의 core는 반드시
-    실제 개설(True)이 확인돼야 한다."""
+    """2026-08-24 14차 리뷰(2026-08-26 16차 리뷰로 규칙 강화): `is_actually_offered`가
+    `bool | None`이 된 뒤, PRE_SURVEY의 core는 개설 여부 미확정("희망 우선과목")이어도
+    되지만 POST_OFFERING의 recommendations(core/explore/alternative 전부)는 반드시
+    실제 개설(True)이 확인돼야 한다 — 미개설 과목은 unavailable_subjects로만 표현한다."""
 
-    def _item(self, category: str, is_actually_offered: bool | None) -> CourseRecommendationItem:
+    def _item(
+        self, category: str, is_actually_offered: bool | None, replaces_subject_id: str | None = None
+    ) -> CourseRecommendationItem:
         return CourseRecommendationItem(
             subject_id="subj_a", label="테스트 과목", category=category,
             is_actually_offered=is_actually_offered, reason="테스트용",
+            replaces_subject_id=replaces_subject_id,
         )
 
     def test_pre_survey_core_with_unconfirmed_offering_status_passes(self) -> None:
@@ -139,10 +143,32 @@ class Rule6bOfferedStatusMatchesCoreCategoryTest(unittest.TestCase):
                 [self._item("core", False)], source="POST_OFFERING"
             )
 
-    def test_post_offering_explore_with_false_passes(self) -> None:
+    def test_post_offering_explore_with_false_is_rejected(self) -> None:
+        """2026-08-26 16차 리뷰: 예전엔 explore는 검사하지 않았지만, POST_OFFERING의
+        recommendations는 전부 실제 개설이 확인돼야 한다는 규칙으로 강화됐다."""
+
+        with self.assertRaises(PolicyViolation):
+            guard_offered_status_matches_core_category(
+                [self._item("explore", False)], source="POST_OFFERING"
+            )
+
+    def test_post_offering_explore_with_true_passes(self) -> None:
         guard_offered_status_matches_core_category(
-            [self._item("explore", False)], source="POST_OFFERING"
+            [self._item("explore", True)], source="POST_OFFERING"
         )
+
+    def test_post_offering_alternative_requires_true(self) -> None:
+        """§9: alternative도 실제 개설과목이어야 한다."""
+
+        guard_offered_status_matches_core_category(
+            [self._item("alternative", True, replaces_subject_id="subj_missing")],
+            source="POST_OFFERING",
+        )
+        with self.assertRaises(PolicyViolation):
+            guard_offered_status_matches_core_category(
+                [self._item("alternative", False, replaces_subject_id="subj_missing")],
+                source="POST_OFFERING",
+            )
 
 
 if __name__ == "__main__":

@@ -96,14 +96,19 @@ class SessionLifecycleTest(unittest.TestCase):
         r = client.get(f"/subjects/{session_id}")
         self.assertEqual(r.status_code, 422)
 
-        # 7-1. 과목 문서 업로드 (실제 multipart 파일 전송)
+        # 7-1. 2026-08-26 16차 리뷰: 과목 문서 업로드도 이제 selected_major_id를 같은
+        # 규칙으로 검증한다 — 이 시점의 세션은 답변이 1개뿐이라 Evidence가 부족해서
+        # /subjects와 마찬가지로 정직한 422가 나오는 게 맞다(끊기지 않고 응답한다는
+        # 뜻이 200이 아니라 "정직한 422"로 바뀐 지점, 위 7-0과 같은 이유).
         r = client.post(
             "/course/upload",
-            data={"session_id": session_id},
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
             files={"file": ("curriculum.pdf", b"%PDF-1.4 fake content", "application/pdf")},
         )
-        self.assertEqual(r.status_code, 200, r.text)
-        self.assertTrue(r.json()["parsed_candidates"])
+        self.assertEqual(r.status_code, 422, r.text)
+        self.assertIn(
+            r.json()["detail"]["error_code"], ("EVIDENCE_NOT_READY", "MAJOR_NOT_SELECTABLE")
+        )
 
         # 8. Session 복원
         r = client.get(f"/session/{session_id}")
@@ -127,7 +132,7 @@ class SessionLifecycleTest(unittest.TestCase):
 
         r = client.post(
             "/course/upload",
-            data={"session_id": session_id},
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
             files={"file": ("notes.txt", b"hello", "text/plain")},
         )
         self.assertEqual(r.status_code, 422)
@@ -136,7 +141,10 @@ class SessionLifecycleTest(unittest.TestCase):
     def test_course_upload_without_file_is_rejected(self) -> None:
         r = client.post("/assessment/session")
         session_id = r.json()["session_id"]
-        r = client.post("/course/upload", data={"session_id": session_id})
+        r = client.post(
+            "/course/upload",
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
+        )
         self.assertEqual(r.status_code, 422)
 
     def test_unknown_session_returns_404_with_structured_error(self) -> None:

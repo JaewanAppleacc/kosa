@@ -24,6 +24,8 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -65,9 +67,20 @@ from src.ids import generate_question_id, generate_session_id
 from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
+from src.agents.course.course_document_parser import SubjectAliasIndex
+from src.memory.course_planning_store import InMemoryCoursePlanningStore
 from src.memory.session_store import InMemorySessionStore
 from src.repositories.department_repository import JsonlDepartmentRepository
 from src.repositories.subject_repository import JsonlSubjectRepository
+from src.services.course_document_parsing_service import (
+    CourseConfirmValidationError,
+    CourseDocumentParsingService,
+    CourseParsingFailedError,
+    CourseUploadNotFoundError,
+    EmptyFileError,
+    FileTooLargeError,
+    UnsupportedFileTypeError,
+)
 from src.services.course_planning_service import (
     CourseEvidenceNotReadyError,
     CoursePlanningService,
@@ -212,10 +225,24 @@ if len(_subject_repository) == 0:
         "[warn] JsonlSubjectRepository가 비어 있습니다 — "
         "data/master/subjects.jsonl 경로·형식을 확인하세요."
     )
+_course_planning_store = InMemoryCoursePlanningStore()
 _course_planning_service = CoursePlanningService(
     _subject_repository,
     major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
     trait_definitions=TRAIT_DEFINITIONS_BY_ID,
+    course_planning_store=_course_planning_store,
+)
+
+# 2026-08-26 16차 리뷰: POST /course/upload — 실제 Parser를 연결한다. Alias 표도 학과·
+# 과목 Repository와 같은 패턴으로 앱 시작 시 한 번만 읽는다.
+_subject_alias_index = SubjectAliasIndex.load(
+    Path(__file__).resolve().parents[2] / "data" / "master" / "subject_aliases.jsonl"
+)
+_course_document_parsing_service = CourseDocumentParsingService(
+    _subject_alias_index,
+    _subject_repository,
+    _course_planning_service,
+    _course_planning_store,
 )
 
 
@@ -677,15 +704,17 @@ def get_subjects(
     ),
 ) -> SubjectsResponse:
     """2026-08-24 14차 리뷰: 더 이상 `mock_data.mock_course_profile()`을 쓰지 않는다.
-    `CoursePlanningService`가 이 세션의 실제 Trait 상태·전공 추천 결과·과목 정본을
-    조합해 PRE_SURVEY 과목 추천을 계산한다(POST_OFFERING은 범위 밖 — §14).
-    `selected_major_id`는 여기서만 쓰고 어디에도 저장하지 않는다(§5, CLAUDE.md
-    "Assessment 단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다"의
-    반대 방향도 지킨다)."""
+    2026-08-26 16차 리뷰: 이 세션·selected_major_id 조합에 실제로 확정
+    (`upload_status == "CONFIRMED"`)된 개설과목이 있으면 POST_OFFERING 최종 추천을,
+    없으면 기존과 동일한 PRE_SURVEY 희망과목 추천을 반환한다(§10 —
+    `CoursePlanningService.get_course_profile`이 이 분기를 담당한다). `selected_major_id`
+    는 여기서만 쓰고 AssessmentState에는 저장하지 않는다(§5, CLAUDE.md "Assessment
+    단계에서 전공 추천 결과나 성적을 Planner 입력으로 사용하지 않는다"의 반대 방향도
+    지킨다)."""
 
     state = _get_state_or_404(session_id)
     try:
-        return _course_planning_service.build_course_profile(state, selected_major_id)
+        return _course_planning_service.get_course_profile(state, selected_major_id)
     except CourseEvidenceNotReadyError as exc:
         raise HTTPException(
             status_code=422,
@@ -698,53 +727,89 @@ def get_subjects(
         ) from exc
 
 
-_ALLOWED_COURSE_UPLOAD_CONTENT_TYPES = {
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
-    "application/vnd.ms-excel",  # .xls
-}
-
-
 @app.post("/course/upload", response_model=CourseUploadResponse)
 async def upload_course_document(
-    session_id: str = Form(...), file: UploadFile = File(...)
+    session_id: str = Form(...),
+    selected_major_id: str = Form(
+        ..., description="PRE_SURVEY와 동일한 규칙으로 검증되는, 이 업로드가 속할 대표 전공"
+    ),
+    file: UploadFile = File(...),
 ) -> CourseUploadResponse:
-    """2026-08-21 리뷰 반영: 이전에는 session_id만 받고 실제 파일을 받지 않았다 —
-    B README가 약속한 "PDF·Excel 업로드"와 실제 계약이 어긋나 있었다. 지금은
-    multipart/form-data로 진짜 파일을 받는다. 파싱 자체(course_document_parser.py)는
-    여전히 C 소유·미구현이라 형식만 검증하고 Mock 후보를 반환한다.
-    """
+    """2026-08-26 16차 리뷰: 더 이상 형식만 확인하고 고정 Mock 후보를 돌려주지 않는다.
+    `CourseDocumentParsingService`가 실제 Parser(`course_document_parser.py`)·Alias
+    표(`data/master/subject_aliases.jsonl`)로 연결한다. 이 Handler는 요청·응답 변환과
+    `UploadFile`에서 원본 bytes를 읽는 것까지만 한다 — 과목명 유사도 계산이나 파일
+    경로 조립은 전부 Service 쪽에서 한다(Path Traversal 방지: 사용자가 보낸 filename을
+    로컬 경로로 직접 쓰지 않는다)."""
 
-    _get_state_or_404(session_id)
+    state = _get_state_or_404(session_id)
+    content = await file.read()
 
-    if file.content_type not in _ALLOWED_COURSE_UPLOAD_CONTENT_TYPES:
+    try:
+        candidates, warnings = _course_document_parsing_service.parse_upload(
+            state, selected_major_id, content, file.filename or "", file.content_type
+        )
+    except CourseEvidenceNotReadyError as exc:
         raise HTTPException(
             status_code=422,
-            detail=APIError(
-                error_code=APIErrorCode.VALIDATION_ERROR,
-                message=f"PDF 또는 Excel 파일만 허용합니다. 받은 형식: {file.content_type}",
-            ).model_dump(),
-        )
-
-    from src.schemas.course import ParsedSubjectCandidate
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+    except MajorNotSelectableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+        ) from exc
+    except (UnsupportedFileTypeError, EmptyFileError, FileTooLargeError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+    except CourseParsingFailedError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.PARSE_FAILED, message=str(exc)).model_dump(),
+        ) from exc
 
     return CourseUploadResponse(
         session_id=session_id,
-        parsed_candidates=[
-            ParsedSubjectCandidate(
-                raw_text="데이터과학탐구",
-                matched_subject_id=None,
-                confidence="low",
-                requires_user_confirmation=True,
-            )
-        ],
+        selected_major_id=selected_major_id,
+        parsed_candidates=candidates,
+        parse_warnings=warnings,
     )
 
 
 @app.post("/course/confirm", response_model=CourseConfirmResponse)
 def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResponse:
-    _get_state_or_404(payload.session_id)
-    return CourseConfirmResponse(session_id=payload.session_id, accepted=True)
+    """2026-08-26 16차 리뷰: 더 이상 어떤 ID든 받아 accepted=True만 돌려주는 Mock이
+    아니다. `CourseDocumentParsingService.confirm()`이 §6의 모든 검증(정본 존재·이번
+    업로드 후보에서 나온 값인지 등)을 통과시킨 뒤, 확정된 실제 개설과목 집합으로
+    POST_OFFERING CourseProfile을 함께 계산해 반환한다."""
+
+    state = _get_state_or_404(payload.session_id)
+
+    try:
+        planning_state = _course_document_parsing_service.confirm(
+            payload.session_id, payload.confirmed_subject_ids
+        )
+    except CourseUploadNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=APIError(error_code=APIErrorCode.COURSE_UPLOAD_NOT_FOUND, message=str(exc)).model_dump(),
+        ) from exc
+    except CourseConfirmValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
+
+    course_profile = _course_planning_service.build_post_offering_course_profile(
+        state,
+        planning_state.selected_major_id,
+        set(planning_state.confirmed_offered_subject_ids),
+    )
+    return CourseConfirmResponse(
+        session_id=payload.session_id, accepted=True, course_profile=course_profile
+    )
 
 
 @app.get("/subgraph/{session_id}", response_model=SubgraphResponse)

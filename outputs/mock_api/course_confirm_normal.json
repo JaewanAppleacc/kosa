@@ -1,0 +1,26 @@
+{
+  "session_id": "sess_00000000000000000000000000000000",
+  "accepted": true,
+  "course_profile": {
+    "session_id": "sess_00000000000000000000000000000000",
+    "source": "POST_OFFERING",
+    "recommendations": [
+      {
+        "subject_id": "subj_fd2661b74f5517b17f5f9d9e",
+        "label": "화법과 언어",
+        "category": "explore",
+        "is_actually_offered": true,
+        "reason": "공식 교육과정 자료를 바탕으로 미디어·커뮤니케이션 탐색과 연결한 시연 과목입니다. 화법과 언어에서 청중의 반응을 고려해 설득 전략을 구성하는 활동을 경험할 수 있으며, 학생 답변에서 확인된 사용자 반응 예측 경향과 연결됩니다.",
+        "replaces_subject_id": null
+      }
+    ],
+    "unresolved_candidates": [],
+    "unavailable_subjects": [
+      {
+        "subject_id": "subj_d9e5930c60201a2739563435",
+        "label": "매체 의사소통",
+        "reason": "매체 의사소통은 원래 미디어·커뮤니케이션 탐색 희망 과목이었지만, 이 학교의 실제 개설과목 목록에는 없습니다."
+      }
+    ]
+  }
+}
