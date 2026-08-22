@@ -320,6 +320,77 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertIn("NextQuestionResponse", str(spec["components"]["schemas"].keys()))
 
 
+class ContextCatalogEndpointTest(unittest.TestCase):
+    """2026-08-30 20차 리뷰: GET /contexts — B가 Context 목록·선택 정책을 프론트엔드
+    상수로 복제하지 않도록 서버가 검증하는 것과 동일한 값을 내려준다."""
+
+    def test_returns_200(self) -> None:
+        r = client.get("/contexts")
+        self.assertEqual(r.status_code, 200)
+
+    def test_exactly_15_contexts(self) -> None:
+        r = client.get("/contexts")
+        self.assertEqual(len(r.json()["contexts"]), 15)
+
+    def test_no_duplicate_context_ids(self) -> None:
+        r = client.get("/contexts")
+        ids = [c["context_id"] for c in r.json()["contexts"]]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_order_matches_context_definitions(self) -> None:
+        from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+
+        r = client.get("/contexts")
+        ids = [c["context_id"] for c in r.json()["contexts"]]
+        self.assertEqual(ids, [c.context_id for c in CONTEXT_DEFINITIONS])
+
+    def test_fields_match_context_definitions(self) -> None:
+        from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+
+        r = client.get("/contexts")
+        by_id = {c["context_id"]: c for c in r.json()["contexts"]}
+        for definition in CONTEXT_DEFINITIONS:
+            item = by_id[definition.context_id]
+            self.assertEqual(item["label"], definition.label)
+            self.assertEqual(item["description"], definition.description)
+            self.assertEqual(item["example_activities"], definition.example_activities)
+            self.assertEqual(item["interest_rating_prompt"], definition.interest_rating_prompt)
+            self.assertEqual(item["is_core"], definition.is_core)
+
+    def test_exactly_three_assessment_supported(self) -> None:
+        r = client.get("/contexts")
+        supported = [c for c in r.json()["contexts"] if c["assessment_supported"]]
+        self.assertEqual(len(supported), 3)
+
+    def test_supported_contexts_are_exactly_game_media_school_life(self) -> None:
+        r = client.get("/contexts")
+        supported_ids = {c["context_id"] for c in r.json()["contexts"] if c["assessment_supported"]}
+        self.assertEqual(supported_ids, {"game", "media", "school_life"})
+
+    def test_selection_policy_values(self) -> None:
+        r = client.get("/contexts")
+        self.assertEqual(
+            r.json()["selection_policy"],
+            {
+                "preferred_context_min_count": 2,
+                "preferred_context_max_count": 2,
+                "contrast_context_count": 1,
+                "final_context_min_count": 2,
+                "final_context_max_count": 3,
+                "coverage_replacement_enabled": False,
+            },
+        )
+
+    def test_no_internal_context_vector_or_coverage_score_exposed(self) -> None:
+        r = client.get("/contexts")
+        body_text = r.text
+        for forbidden_field in (
+            "individual_vs_team", "digital_vs_physical", "people_vs_system",
+            "appreciation_vs_creation", "expression_vs_analysis", "exploration_vs_goal",
+        ):
+            self.assertNotIn(forbidden_field, body_text)
+
+
 class ContextSelectionValidationTest(unittest.TestCase):
     """2026-08-22 6항목: Contrast Context State 저장 + Context 선택·확정 입력 검증."""
 
@@ -450,6 +521,178 @@ class ContextSelectionValidationTest(unittest.TestCase):
         # 제안은 저장됐지만(state.contrast_context_id) 최종 Context에는 아직 전혀 반영 안 됨.
         self.assertIsNotNone(state.contrast_context_id)
         self.assertEqual(state.final_contexts, [])
+
+    # --- 2026-08-30 20차 리뷰: 선호 Context "정확히 2개", 지원 Context 제한 ---
+
+    def test_one_preferred_context_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game"]},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_three_preferred_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={
+                "session_id": session_id,
+                "selected_preferred_context_ids": ["game", "media", "school_life"],
+            },
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_registered_but_unsupported_preferred_context_rejected(self) -> None:
+        """art_design은 등록된 15개 중 하나지만 실제 질문 흐름을 지원하지 않는다 —
+        "미등록"과는 다른 사유로 거부돼야 한다(둘 다 422 VALIDATION_ERROR지만, 이 값이
+        나중에 next-question에서야 뒤늦게 실패하면 안 된다는 게 핵심)."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "art_design"]},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+        self.assertIn("art_design", r.json()["detail"]["message"])
+
+    def test_preferred_context_without_interest_rating_rejected(self) -> None:
+        """관심도 평가를 아예 안 한 Context는 선호 Context로 직접 제출할 수 없다."""
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 3}},
+        )
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+        self.assertIn("school_life", r.json()["detail"]["message"])
+
+    def test_contrast_candidate_is_always_a_supported_context(self) -> None:
+        """선호 2개(지원 3개 중 2개)를 고르면, 남는 지원 Context 1개가 결정론적으로
+        Contrast 후보가 된다 — 미지원 12개 Context 중 하나가 나오면 안 된다."""
+
+        cases = [
+            (["game", "media"], "school_life"),
+            (["game", "school_life"], "media"),
+            (["media", "school_life"], "game"),
+        ]
+        for preferred, expected_contrast in cases:
+            with self.subTest(preferred=preferred):
+                r = client.post("/assessment/session")
+                session_id = r.json()["session_id"]
+                client.post(
+                    "/assessment/interest-rating",
+                    json={
+                        "session_id": session_id,
+                        "ratings": {"game": 5, "media": 5, "school_life": 5, "business": 3, "making": 3},
+                    },
+                )
+                r = client.post(
+                    "/assessment/context-select",
+                    json={"session_id": session_id, "selected_preferred_context_ids": preferred},
+                )
+                self.assertEqual(r.status_code, 200, r.text)
+                self.assertEqual(r.json()["contrast_context_id"], expected_contrast)
+
+    def test_contrast_candidate_never_duplicates_a_preferred_context(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn(r.json()["contrast_context_id"], ["game", "media"])
+
+    def test_contrast_context_id_saved_in_state(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        state = main_module._store.load(session_id)
+        self.assertEqual(state.contrast_context_id, r.json()["contrast_context_id"])
+
+    # --- 2026-08-30 20차 리뷰: 최종 Context 2~3개(정확히 3개 강제 아님) ---
+
+    def test_final_context_two_supported_accepted(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+
+    def test_final_context_three_supported_accepted(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+
+    def test_final_context_one_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_final_context_with_unsupported_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "business"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_final_context_duplicate_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "game"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_final_context_can_replace_with_supported_context_never_selected(self) -> None:
+        """§5-1: Contrast를 수용하지 않고, 처음 고르지 않았던 지원 Context로 교체 가능."""
+
+        session_id = self._new_session()
+        client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["media", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["final_context_ids"], ["media", "school_life"])
+
+    def test_final_context_does_not_force_accepting_contrast(self) -> None:
+        """선호 2개만으로 확정할 수 있다 — Contrast Context 수용을 강제하지 않는다."""
+
+        session_id = self._new_session()
+        select_response = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        contrast_id = select_response.json()["contrast_context_id"]
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertNotIn(contrast_id, r.json()["final_context_ids"])
 
 
 class InterestRatingValidationTest(unittest.TestCase):

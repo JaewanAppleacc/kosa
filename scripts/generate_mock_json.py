@@ -88,6 +88,10 @@ def _run(client: TestClient) -> None:
     # Mock 응답과 함께 현재 FastAPI 앱의 OpenAPI 명세도 항상 갱신한다.
     _write("openapi", app.openapi())
 
+    # 2026-08-30 20차 리뷰: GET /contexts는 session_id가 필요 없다 — 실제 Endpoint를
+    # 그대로 호출해서 만든다(스크립트에 15개 Context를 다시 하드코딩하지 않는다).
+    _write("contexts_normal", client.get("/contexts").json())
+
     # --- 정상 흐름 ---
     r = client.post("/assessment/session")
     _write("session_create_normal", r.json())

@@ -1,9 +1,26 @@
-# B 작업자 핸드오프 — 2026-08-29 (갱신)
+# B 작업자 핸드오프 — 2026-08-30 (갱신)
 
 이 저장소의 `worker-b` 브랜치를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. 루트의
 `CLAUDE.md`는 B 브랜치 전용 작업 규칙이며 Claude Code가 자동으로 읽으므로 별도로 전달받을
 필요가 없습니다. 이 README와 `outputs/work_assignments/작업자_B_개발_지시서.md`를 시작점으로
 사용하고, 필요한 API 계약과 Mock 예시는 아래 경로에서 확인하세요.
+
+> **2026-08-30 갱신 내용 — Context 화면 API 정합성 (20차)**:
+> 1. **`GET /contexts`가 새로 추가됐습니다(세션 불필요).** Context 15개 목록과 선택
+>    개수 정책을 서버가 그대로 내려줍니다 — 화면에서 Context 목록이나 선택 개수를 상수로
+>    복제하지 마세요. 아래 "4-3. Context 카탈로그" 절을 꼭 읽어주세요.
+> 2. **`/assessment/context-select`의 선호 Context는 이제 "정확히 2개"만, 그것도
+>    `game`/`media`/`school_life` 중에서만 허용됩니다.** 예전엔 등록된 15개 Context 중
+>    아무거나 최소 2개만 통과시켜서, 화면이 실수로 `art_design` 같은 Context를 보내면
+>    이 단계는 통과하고 `/assessment/next-question`에서야 뒤늦게 실패했습니다 — 이제
+>    여기서 바로 422로 막습니다. 관심도 평가(`/assessment/interest-rating`)를 아직 안 한
+>    Context도 선호 Context로 보낼 수 없습니다.
+> 3. **`/assessment/context-confirm`의 최종 Context는 "2개 이상 3개 이하"입니다.**
+>    예전엔 사실상 최소 1개만 검사해서 개수 제한이 없었습니다. **정확히 3개를 강제하지
+>    않습니다** — 학생이 Contrast Context 제안을 받아들이지 않고 처음 고른 2개만으로
+>    확정하는 기존 흐름은 그대로 유지됩니다.
+> 4. **API Request/Response Schema 자체는 안 바뀌었습니다**(`GET /contexts` 신규
+>    추가 제외) — 필드 이름·타입은 그대로고, 검증 범위만 정확해졌습니다.
 
 > **2026-08-29 갱신 내용 — `GET /subgraph/{session_id}` 실제 계산으로 교체 (19차, API Request/Response Schema 변경 없음)**:
 > 1. **더 이상 고정 5개 Node짜리 Mock이 아닙니다.** 이 세션의 실제 답변→Trait→대표
@@ -243,10 +260,11 @@ API Base URL은 환경설정 한 곳에서만 관리하고, Component마다 주�
 
 | Method | Path | 용도 |
 |---|---|---|
+| GET | `/contexts` | Context 카탈로그 + 선택 개수 정책 (세션 불필요 — 화면 로딩 시 한 번 불러와 쓰세요) |
 | POST | `/assessment/session` | 세션 생성 (user_id는 서버가 자동으로 demo_user_01로 고정, 클라이언트가 지정 못 함) |
-| POST | `/assessment/interest-rating` | 등록된 Context 중 최소 2개의 관심도 정수(1~5) 제출 |
-| POST | `/assessment/context-select` | 선호 Context 최소 2개 제출 → Contrast Context 1개 제안받음 |
-| POST | `/assessment/context-confirm` | 최종 Context 최소 1개 확정. 현재 질문 지원 범위는 game/media/school_life뿐 |
+| POST | `/assessment/interest-rating` | 15개 Context 관심도(1~5) 제출 |
+| POST | `/assessment/context-select` | 선호 Context **정확히 2개**(`game`/`media`/`school_life` 중, 관심도 평가를 마친 것만) 제출 → Contrast Context 1개 제안받음 |
+| POST | `/assessment/context-confirm` | 최종 Context 확정 (**2개 이상 3개 이하**, `game`/`media`/`school_life` 중 — 정확히 3개를 강제하지 않음) |
 | POST | `/assessment/next-question?session_id={session_id}` | 다음 질문 받기. JSON Body가 아니라 Query Parameter 사용 |
 | POST | `/assessment/answer` | 답변 제출 |
 | GET | `/profile/{session_id}` | Career Profile 결과 카드 |
@@ -297,21 +315,23 @@ ASSESSMENT_COMPLETE → /profile/{session_id}, /majors/{session_id} 조회
 > 탭을 활성화"하는 흐름이면 원래 안 마주칠 상황이지만, 혹시 세션 생성 직후 Profile을
 > 미리 호출하는 코드가 있다면 이 오류를 처리해야 합니다. 예시: `outputs/mock_api/error_evidence_not_ready__hand_crafted.json`
 
-> ⚠️ **`/assessment/context-select`·`/assessment/context-confirm` 검증 강화(2026-08-22)**:
-> 필드 이름·타입은 그대로지만, 이제 서버가 입력을 실제로 검증합니다.
-> - `context-select`의 `selected_preferred_context_ids`는 Vertical Slice에서 최소 2개입니다.
->   비어 있거나, 1개뿐이거나, 중복이 있거나,
->   알 수 없는 Context id를 포함하면 422 `VALIDATION_ERROR`.
-> - `context-confirm`의 `final_context_ids`는 최소 1개이며 동일하게 검증합니다. 추가로 **아직 실제
->   질문 흐름을 지원하는 Context가 game/media/school_life 3개뿐이라** 그 외 Context id는
->   거부합니다(알려진 Context라도). 제안받은 Contrast 후보를 그대로 안 써도 되고, 학생이
->   다른 유효한 조합으로 자유롭게 바꿔서 확정할 수 있습니다 — "제안한 것만 가능"으로
->   강제하지 않습니다.
-
-> ⚠️ **현재 Context UI 범위**: 관심도 API에는 등록된 Context를 보낼 수 있지만, 실제 질문까지
-> 이어지는 것은 `game`, `media`, `school_life`뿐입니다. Vertical Slice 화면에서는 이 3개만
-> 선택 가능하게 하거나 나머지를 “준비 중”으로 비활성화하세요. 지원하지 않는 Context를 최종
-> 확정하면 422가 발생합니다.
+> ⚠️ **`/assessment/context-select`·`/assessment/context-confirm` 검증 규칙(2026-08-30, 20차 최신)**:
+> 필드 이름·타입은 그대로지만, 서버가 입력을 실제로 검증합니다.
+> - `context-select`의 `selected_preferred_context_ids`는 **정확히 2개**여야 하고, 그
+>   2개는 반드시 `game`/`media`/`school_life`(`GET /contexts`의 `assessment_supported:
+>   true` 3개) 안에서만 골라야 합니다. 빈 목록·중복·미등록 Context id·1개나 3개 이상·
+>   미지원 Context(예: `art_design` — 등록은 됐지만 아직 질문 흐름이 없음)는 전부 422
+>   `VALIDATION_ERROR`입니다. **관심도 평가를 아직 안 한 Context도 선호로 보낼 수
+>   없습니다** — 먼저 `/assessment/interest-rating`으로 그 Context의 점수를 제출해야
+>   합니다.
+> - `context-confirm`의 `final_context_ids`는 **2개 이상 3개 이하**여야 하고, 역시
+>   `game`/`media`/`school_life` 안에서만 고를 수 있습니다(빈 목록·중복·미등록·미지원·
+>   1개·4개 이상은 422). **정확히 3개를 강제하지 않습니다** — 학생이 Contrast 제안을
+>   받아들이지 않고 원래 선호 2개만으로 확정해도 정상입니다. 제안받은 Contrast 후보를
+>   그대로 안 써도 되고, 학생이 처음에 고르지 않았던 지원 Context로 자유롭게 바꿔서
+>   확정할 수도 있습니다 — "제안한 것만 가능"으로 강제하지 않습니다.
+> - 개수 제한·지원 Context 목록을 화면에 하드코딩하지 말고 `GET /contexts`의
+>   `selection_policy`/`assessment_supported`를 그대로 쓰세요(아래 "4-3" 절 참고).
 
 > ⚠️ **`/assessment/interest-rating` 엄격한 입력 검증**: 점수는 JSON 정수 `1`~`5`만
 > 허용합니다. 문자열 `"4"`, 실수 `4.0`, 불리언 `true`/`false`, 범위 밖 점수, 빈 `ratings`,
@@ -335,12 +355,15 @@ ASSESSMENT_COMPLETE → /profile/{session_id}, /majors/{session_id} 조회
 > 확인 질문에서만 값이 들어옵니다. 현재 질문 Component는 별도 디자인 없이 동일하게 표시해도
 > 정상 동작합니다. 내부 Trait 보정값을 화면에 노출하지 마세요.
 
-> ⚠️ **추천 전공과 실제 학과 데이터의 현재 연결 범위**: `/majors/{session_id}`가 추천하는
-> 대표 전공은 `media_communication`, `hci_ux`, `industrial_engineering` 3개지만, 현재 30개
-> 학과 데이터와 겹치는 것은 `media_communication` 하나뿐입니다. 따라서 `hci_ux` 또는
-> `industrial_engineering`의 `/departments/{major_id}`는 정상적으로 200 + 빈 배열을 반환합니다.
-> 이를 네트워크 오류나 로딩 실패로 처리하지 말고 “현재 시연 데이터에 연결된 학과가 없습니다”
-> Empty State로 표시하세요. 이 불일치는 A·C의 후속 데이터 정합화 대상입니다.
+> ⚠️ **추천 전공과 실제 학과 데이터의 현재 연결 범위(2026-08-30 정정)**: 이 박스는 예전에
+> "`media_communication` 하나만 실제 학과와 연결돼 있다"고 적혀 있었는데, 그건 더는
+> 사실이 아닙니다 — 실제로는 대표 전공 3개 전부에 학과가 연결돼 있습니다
+> (`media_communication` 4개·`industrial_engineering` 3개·`hci_ux` 1개, 위 2번 표 참고).
+> `design`만 정책상 통째로 제외돼 `/departments/design`이 200 + 빈 배열을 반환합니다 —
+> 이건 데이터 불일치가 아니라 의도된 정책입니다. 그래도 학과가 0개로 오는 경우 자체는
+> 여전히 정상 상황일 수 있으니(예: `computer_science`처럼 추천 대상이 아닌 `major_id`를
+> 조회한 경우), 빈 배열을 네트워크 오류로 처리하지 말고 "현재 시연 데이터에 연결된 학과가
+> 없습니다" Empty State로 표시하는 원칙 자체는 그대로 유지하세요.
 
 **전공 관련도 정성 Label** (`MajorRelevance.relevance_label` — 절대 숫자 아님, 숫자 필드 자체가 없음):
 `"관련성 높음"` / `"함께 탐색해볼 분야"` / `"비교해볼 만한 분야"`
@@ -494,6 +517,65 @@ GET /subgraph/{session_id}
   전부 계산해서 내려주므로, 화면은 받은 그래프를 그대로 그리기만 하면 됩니다. Obsidian
   Export 변환은 B 소유 그대로이고 이번 라운드에서 A가 건드리지 않았습니다.
 
+## 4-3. Context 카탈로그와 선택 규칙 (실제 예시, 2026-08-30)
+
+```
+GET /contexts
+```
+
+세션과 무관합니다 — 화면 로딩 시(또는 앱 시작 시) 한 번 불러와 두고 재사용하세요.
+`outputs/mock_api/contexts_normal.json`이 실제 예시입니다:
+
+```json
+{
+  "contexts": [
+    {
+      "context_id": "game",
+      "label": "게임",
+      "description": "게임을 하거나 게임의 구조·전략·시스템에 관심을 갖는 것",
+      "example_activities": ["전략 게임 공략", "게임 시스템 분석", "커뮤니티 공략 공유"],
+      "interest_rating_prompt": "게임을 하거나 게임의 시스템·전략을 분석하는 것에 관심이 있나요?",
+      "is_core": true,
+      "assessment_supported": true
+    },
+    {
+      "context_id": "art_design",
+      "label": "미술·디자인",
+      "...": "...",
+      "is_core": false,
+      "assessment_supported": false
+    }
+  ],
+  "selection_policy": {
+    "preferred_context_min_count": 2,
+    "preferred_context_max_count": 2,
+    "contrast_context_count": 1,
+    "final_context_min_count": 2,
+    "final_context_max_count": 3,
+    "coverage_replacement_enabled": false
+  }
+}
+```
+
+읽는 법:
+
+- **`contexts`는 항상 15개, `CONTEXT_DEFINITIONS`(서버 정본)와 같은 순서로 옵니다.**
+  관심도 평가 화면(15개 전부 보여주기)은 이 배열을 그대로 순회하면 됩니다.
+- **`assessment_supported: true`인 Context(현재 3개: game/media/school_life)만
+  `/assessment/context-select`에서 선호 Context로 고를 수 있습니다.** 나머지 12개는
+  관심도는 매길 수 있지만(`/assessment/interest-rating`), 선호 Context 선택 화면에서는
+  선택 불가로 표시하거나 아예 숨기세요 — 골라도 서버가 422로 거부합니다.
+- **`selection_policy`의 숫자를 그대로 쓰세요.** 선호 Context 선택 UI는
+  `preferred_context_min_count`~`preferred_context_max_count`(현재 둘 다 2 — "정확히
+  2개")개를 고르게 만들고, 최종 확정 UI는 `final_context_min_count`~
+  `final_context_max_count`(현재 2~3) 범위로 만드세요. **이 값들을 화면에 상수로
+  하드코딩하지 마세요** — 다음 라운드에 Full Mode로 전환되면 이 정책 값 자체가
+  바뀔 수 있고, 그때 이 API 응답만 바뀌면 화면 코드는 그대로 동작해야 합니다.
+- **`coverage_replacement_enabled: false`는 "지금은 이 기능이 꺼져 있다"는 뜻입니다.**
+  `ContextSelectResponse.coverage_replacement_offered`가 항상 빈 배열인 이유와 같은
+  사실입니다 — 배열이 비어 있으면 교체 제안 UI를 아예 숨기세요(실제 Coverage
+  Replacement 계산은 Context 확장 이후 별도 작업입니다).
+
 ## 5. Mock JSON (서버 안 띄워도 되는 정적 파일)
 
 `outputs/mock_api/`에 정상·오류·빈 결과 예시와 `openapi.json`이 있습니다. Schema가 바뀌면 아래 명령으로 재생성됩니다(재생성됐는지 커밋 로그로 확인하세요):
@@ -504,7 +586,8 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 
 ## 6. Schema 원본 위치 (타입 확인하고 싶을 때)
 
-- `src/schemas/api.py` — 모든 Endpoint의 Request/Response
+- `src/schemas/api.py` — 모든 Endpoint의 Request/Response(`ContextCatalogItem`/`ContextCatalogResponse`/`ContextSelectionPolicyResponse` 포함)
+- `src/data/contexts/context_definitions.py` — `GET /contexts`가 그대로 옮겨 담는 Context 15개 정본(A 소유, B는 참고만)
 - `src/schemas/profile.py` — CareerProfile
 - `src/schemas/major.py` — MajorProfile, Department, MajorRelevance
 - `src/schemas/course.py` — CourseProfile(`unavailable_subjects` 포함), CourseRecommendationItem(`label: str`, `is_actually_offered: bool | None`, `replaces_subject_id: str | None`), UnavailableSubjectItem, ParsedSubjectCandidate, CourseParseWarning
@@ -524,6 +607,24 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
   라벨이 나오지 않도록 서버에서 강제합니다(기획 원칙 "학생을 유형으로 규정하지 않는다"). 항상
   "~보여요", "~나타났어요" 같은 관찰 서술 문장으로 옵니다 — 화면에 "유형 카드"나 "타입 뱃지"
   같은 고정 라벨 UI를 전제로 디자인하지 마세요.
+- **질문 진행률(2026-08-30, 20차): 정확한 전체 문항 수와 퍼센트 진행률을 표시하지
+  않습니다.** `NextQuestionResponse`에 그런 필드가 없습니다 — Adaptive 질문 수는 꼬리질문
+  4~6개·Evidence 충족 여부·Conflict 확인 질문·Context 조기 종료(`CONTEXT_EARLY_
+  TERMINATED`) 때문에 사전에 확정할 수 없습니다. 화면에서는 `current_context_id`와
+  `questions_asked_in_current_context`로 "학교생활 탐색 중 · 완료한 답변 3개"처럼
+  "진행 중인 Context + 답변한 개수"만 보여주세요. **`questions_asked_in_current_context`
+  를 "이 Context의 전체 목표 문항 수"로 해석하지 마세요** — 그냥 지금까지 답한 개수입니다.
+- **이전 Profile 비교(2026-08-30, 20차): `SessionRestoreResponse.has_previous_completed_
+  profile`은 지금 항상 `false`입니다.** 이전 Profile을 조회하는 API와 영속 Profile
+  Store가 아직 없습니다 — 이번 MVP에서는 "이전 결과와 비교" 화면을 숨겨주세요.
+- **성적·입결 필터(2026-08-30, 20차): 학과 목록에 성적 필터·정렬 UI를 아직 넣지
+  마세요.** Admission Repository 초안은 있지만 사용자 API·검증된 필터가 아직 연결되지
+  않았습니다(위 §2 표의 "전국 학과 Master, 입결 필터·정렬" 행 참고). `/departments/
+  {major_id}`가 반환하는 순서를 그대로 표시하세요.
+- **LangSmith `trace_id`(2026-08-30, 20차): 서버 내부 전용입니다.** `AssessmentState.
+  trace_id`는 어떤 API 응답에도 노출되지 않습니다 — 화면은 `session_id`만 API 호출
+  동안 유지하면 되고, `trace_id`를 화면에 표시하거나 요청 파라미터로 보낼 필요가
+  전혀 없습니다.
 
 ## 8. 문제 발견 시
 

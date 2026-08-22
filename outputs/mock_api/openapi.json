@@ -6,6 +6,25 @@
     "version": "0.1.0-vertical-slice"
   },
   "paths": {
+    "/contexts": {
+      "get": {
+        "summary": "Get Context Catalog",
+        "description": "2026-08-30 20차 리뷰: B가 Context 목록·선택 정책을 프론트엔드 상수로 복제하지\n않도록 한다. session_id가 필요 없다 — 이 값은 세션과 무관하게 항상 같다(정본은\n`CONTEXT_DEFINITIONS`, 이 Handler는 그걸 그대로 옮겨 담을 뿐 새 데이터를 만들지\n않는다). `assessment_supported`는 `VERTICAL_SLICE_CONTEXT_IDS`(현재 3개)에 속하는지로\n계산한다 — `/assessment/context-select`가 실제로 검증하는 것과 동일한 기준이다.",
+        "operationId": "get_context_catalog_contexts_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextCatalogResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/assessment/session": {
       "post": {
         "summary": "Create Session",
@@ -65,6 +84,7 @@
     "/assessment/context-select": {
       "post": {
         "summary": "Select Contexts",
+        "description": "2026-08-30 20차 리뷰: 선호 Context는 등록된 15개가 아니라 실제 질문 흐름이 지원하는\n3개(`VERTICAL_SLICE_CONTEXT_IDS`)에서 \"정확히 2개\"만 선택할 수 있다 — 예전엔 등록된\n15개 중 아무거나 최소 2개만 통과시켜서, art_design 같은 Context를 골라도 이 단계는\n통과하고 나중에 `/assessment/next-question`에서야 실패했다. 오류 상황을 구분해서\n알려준다: (1) 미등록 Context, (2) 등록됐지만 미지원 Context, (3) 개수 불일치,\n(4) 관심도를 아직 안 매긴 Context.",
         "operationId": "select_contexts_assessment_context_select_post",
         "requestBody": {
           "content": {
@@ -103,6 +123,7 @@
     "/assessment/context-confirm": {
       "post": {
         "summary": "Confirm Contexts",
+        "description": "2026-08-30 20차 리뷰: 최종 Context는 정확히 3개로 강제하지 않는다 — 학생이\nContrast Context를 수용하지 않고 선호 2개만으로 진행하는 기존 HITL 흐름을 유지해야\n하므로, 최소 2개·최대 3개 범위로만 검증한다(예전엔 최소 1개만 검사해 사실상 아무\n개수나 통과했다).",
         "operationId": "confirm_contexts_assessment_context_confirm_post",
         "requestBody": {
           "content": {
@@ -705,6 +726,73 @@
         ],
         "title": "CareerProfileHighlight"
       },
+      "ContextCatalogItem": {
+        "properties": {
+          "context_id": {
+            "type": "string",
+            "title": "Context Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "example_activities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Example Activities"
+          },
+          "interest_rating_prompt": {
+            "type": "string",
+            "title": "Interest Rating Prompt"
+          },
+          "is_core": {
+            "type": "boolean",
+            "title": "Is Core"
+          },
+          "assessment_supported": {
+            "type": "boolean",
+            "title": "Assessment Supported"
+          }
+        },
+        "type": "object",
+        "required": [
+          "context_id",
+          "label",
+          "description",
+          "example_activities",
+          "interest_rating_prompt",
+          "is_core",
+          "assessment_supported"
+        ],
+        "title": "ContextCatalogItem",
+        "description": "2026-08-30 20차 리뷰: B가 `src/data/contexts/context_definitions.py`(15개)를\n프론트엔드 상수로 복제하지 않도록, 서버가 검증하는 것과 동일한 Context 목록·순서를\n그대로 API로 내려준다. 필드는 `ContextDefinition`(`src/schemas/context.py`)과\n`assessment_supported`(계산값) 하나를 더한 것뿐이다 — 새 정본 데이터를 만들지 않는다."
+      },
+      "ContextCatalogResponse": {
+        "properties": {
+          "contexts": {
+            "items": {
+              "$ref": "#/components/schemas/ContextCatalogItem"
+            },
+            "type": "array",
+            "title": "Contexts"
+          },
+          "selection_policy": {
+            "$ref": "#/components/schemas/ContextSelectionPolicyResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contexts",
+          "selection_policy"
+        ],
+        "title": "ContextCatalogResponse"
+      },
       "ContextConfirmRequest": {
         "properties": {
           "session_id": {
@@ -806,6 +894,45 @@
           "contrast_reason"
         ],
         "title": "ContextSelectResponse"
+      },
+      "ContextSelectionPolicyResponse": {
+        "properties": {
+          "preferred_context_min_count": {
+            "type": "integer",
+            "title": "Preferred Context Min Count"
+          },
+          "preferred_context_max_count": {
+            "type": "integer",
+            "title": "Preferred Context Max Count"
+          },
+          "contrast_context_count": {
+            "type": "integer",
+            "title": "Contrast Context Count"
+          },
+          "final_context_min_count": {
+            "type": "integer",
+            "title": "Final Context Min Count"
+          },
+          "final_context_max_count": {
+            "type": "integer",
+            "title": "Final Context Max Count"
+          },
+          "coverage_replacement_enabled": {
+            "type": "boolean",
+            "title": "Coverage Replacement Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preferred_context_min_count",
+          "preferred_context_max_count",
+          "contrast_context_count",
+          "final_context_min_count",
+          "final_context_max_count",
+          "coverage_replacement_enabled"
+        ],
+        "title": "ContextSelectionPolicyResponse",
+        "description": "B가 선택 개수 제한을 하드코딩하지 않도록 서버가 실제로 검증하는 값을 그대로\n내려준다 — `src/engines/contrast_context_selector.py`의 상수와 항상 같은 값이다."
       },
       "CourseConfirmRequest": {
         "properties": {

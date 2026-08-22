@@ -52,6 +52,11 @@ from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
 from src.engines.contrast_context_selector import (
+    CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE,
+    COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE,
+    MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+    MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+    MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
     MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
     ContextSelectionError,
     select_contrast_context,
@@ -105,8 +110,11 @@ from src.schemas.api import (
     AnswerResponse,
     APIError,
     APIErrorCode,
+    ContextCatalogItem,
+    ContextCatalogResponse,
     ContextConfirmRequest,
     ContextConfirmResponse,
+    ContextSelectionPolicyResponse,
     ContextSelectRequest,
     ContextSelectResponse,
     CourseConfirmRequest,
@@ -306,6 +314,39 @@ def _get_state_or_404(session_id: str) -> AssessmentState:
     return state
 
 
+@app.get("/contexts", response_model=ContextCatalogResponse)
+def get_context_catalog() -> ContextCatalogResponse:
+    """2026-08-30 20차 리뷰: B가 Context 목록·선택 정책을 프론트엔드 상수로 복제하지
+    않도록 한다. session_id가 필요 없다 — 이 값은 세션과 무관하게 항상 같다(정본은
+    `CONTEXT_DEFINITIONS`, 이 Handler는 그걸 그대로 옮겨 담을 뿐 새 데이터를 만들지
+    않는다). `assessment_supported`는 `VERTICAL_SLICE_CONTEXT_IDS`(현재 3개)에 속하는지로
+    계산한다 — `/assessment/context-select`가 실제로 검증하는 것과 동일한 기준이다."""
+
+    contexts = [
+        ContextCatalogItem(
+            context_id=c.context_id,
+            label=c.label,
+            description=c.description,
+            example_activities=c.example_activities,
+            interest_rating_prompt=c.interest_rating_prompt,
+            is_core=c.is_core,
+            assessment_supported=c.context_id in VERTICAL_SLICE_CONTEXT_IDS,
+        )
+        for c in CONTEXT_DEFINITIONS
+    ]
+    return ContextCatalogResponse(
+        contexts=contexts,
+        selection_policy=ContextSelectionPolicyResponse(
+            preferred_context_min_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            preferred_context_max_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            contrast_context_count=CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE,
+            final_context_min_count=MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            final_context_max_count=MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            coverage_replacement_enabled=COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE,
+        ),
+    )
+
+
 @app.post("/assessment/session", response_model=CreateSessionResponse)
 def create_session() -> CreateSessionResponse:
     session_id = generate_session_id()
@@ -338,14 +379,33 @@ def submit_interest_rating(payload: InterestRatingRequest) -> InterestRatingResp
 
 @app.post("/assessment/context-select", response_model=ContextSelectResponse)
 def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
+    """2026-08-30 20차 리뷰: 선호 Context는 등록된 15개가 아니라 실제 질문 흐름이 지원하는
+    3개(`VERTICAL_SLICE_CONTEXT_IDS`)에서 "정확히 2개"만 선택할 수 있다 — 예전엔 등록된
+    15개 중 아무거나 최소 2개만 통과시켜서, art_design 같은 Context를 골라도 이 단계는
+    통과하고 나중에 `/assessment/next-question`에서야 실패했다. 오류 상황을 구분해서
+    알려준다: (1) 미등록 Context, (2) 등록됐지만 미지원 Context, (3) 개수 불일치,
+    (4) 관심도를 아직 안 매긴 Context."""
+
     state = _get_state_or_404(payload.session_id)
     try:
         validate_context_id_list(
             payload.selected_preferred_context_ids,
             CONTEXT_IDS,
             minimum_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            maximum_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
             label="선호 Context",
         )
+        unsupported = sorted(set(payload.selected_preferred_context_ids) - set(VERTICAL_SLICE_CONTEXT_IDS))
+        if unsupported:
+            raise ContextSelectionError(
+                f"등록은 됐지만 Vertical Slice가 아직 실제 질문 흐름을 지원하지 않는 Context입니다: "
+                f"{unsupported} (지원: {VERTICAL_SLICE_CONTEXT_IDS})"
+            )
+        not_rated = sorted(set(payload.selected_preferred_context_ids) - set(state.interest_ratings))
+        if not_rated:
+            raise ContextSelectionError(
+                f"관심도 평가를 아직 제출하지 않은 Context는 선호 Context로 선택할 수 없습니다: {not_rated}"
+            )
     except ContextSelectionError as exc:
         raise HTTPException(
             status_code=422,
@@ -356,10 +416,14 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
     state.phase = AssessmentPhase.CONTRAST_PROPOSAL
     # §5-1/§6-5: 실제 계산 — 관심도 평가와 사전 정의된 Context Vector·Coverage Matrix만
     # 사용한다(학생의 Trait 점수나 전공 순위는 절대 참조하지 않는다, CLAUDE.md).
+    # 2026-08-30 20차 리뷰: all_context_ids를 등록된 15개 전체가 아니라 실제 질문 흐름을
+    # 지원하는 3개로 제한한다 — 안 그러면 Contrast 후보가 미지원 12개 Context 중 하나로
+    # 제안될 수 있었다(선호 Context는 이미 지원 3개 중 2개이므로, 남는 후보는 자동으로
+    # 나머지 1개가 된다).
     selection = select_contrast_context(
         preferred_context_ids=state.selected_preferred_contexts,
         interest_ratings=state.interest_ratings,
-        all_context_ids=CONTEXT_IDS,
+        all_context_ids=set(VERTICAL_SLICE_CONTEXT_IDS),
         context_vectors=CONTEXT_VECTORS,
         coverage_matrix=CONTEXT_TRAIT_COVERAGE,
         all_trait_ids=VERTICAL_SLICE_TRAIT_IDS,
@@ -384,12 +448,21 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
 
 @app.post("/assessment/context-confirm", response_model=ContextConfirmResponse)
 def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
+    """2026-08-30 20차 리뷰: 최종 Context는 정확히 3개로 강제하지 않는다 — 학생이
+    Contrast Context를 수용하지 않고 선호 2개만으로 진행하는 기존 HITL 흐름을 유지해야
+    하므로, 최소 2개·최대 3개 범위로만 검증한다(예전엔 최소 1개만 검사해 사실상 아무
+    개수나 통과했다)."""
+
     state = _get_state_or_404(payload.session_id)
     try:
-        # 구조적 검증(빈 목록·중복·미지의 Context id) — "제안한 후보만 허용"으로 강제하지
-        # 않는다. 학생이 다른 Context로 교체할 수 있어야 한다(§5-1).
+        # 구조적 검증(빈 목록·중복·미지의 Context id·개수) — "제안한 후보만 허용"으로
+        # 강제하지 않는다. 학생이 다른 Context로 교체할 수 있어야 한다(§5-1).
         validate_context_id_list(
-            payload.final_context_ids, CONTEXT_IDS, minimum_count=1, label="최종 Context"
+            payload.final_context_ids,
+            CONTEXT_IDS,
+            minimum_count=MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            maximum_count=MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            label="최종 Context",
         )
         # Vertical Slice 운영 제약: 실제 질문 흐름(Seed·Option Blueprint)이 아직
         # game/media/school_life 3개만 지원한다 — 다른 유효한 Context를 확정하면
