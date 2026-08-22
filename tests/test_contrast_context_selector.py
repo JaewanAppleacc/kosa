@@ -173,6 +173,42 @@ class ValidateContextIdListTest(unittest.TestCase):
     def test_valid_list_passes_without_raising(self) -> None:
         validate_context_id_list(["game", "media"], self.ALL_IDS, minimum_count=2, label="테스트")  # 예외 없으면 통과
 
+    # --- 2026-08-30 20차 리뷰: maximum_count 추가 ---
+
+    def test_maximum_count_none_by_default_no_upper_bound(self) -> None:
+        """기존 호출부(maximum_count를 안 넘기는 곳)는 그대로 상한 없이 동작해야 한다."""
+
+        validate_context_id_list(
+            ["game", "media", "school_life", "business", "making"],
+            self.ALL_IDS, minimum_count=1, label="테스트",
+        )  # 예외 없으면 통과 — 5개 전부 넘겨도 상한이 없다.
+
+    def test_above_maximum_count_rejected(self) -> None:
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list(
+                ["game", "media", "school_life"], self.ALL_IDS,
+                minimum_count=1, maximum_count=2, label="테스트",
+            )
+
+    def test_exactly_maximum_count_passes(self) -> None:
+        validate_context_id_list(
+            ["game", "media"], self.ALL_IDS, minimum_count=1, maximum_count=2, label="테스트",
+        )  # 예외 없으면 통과
+
+    def test_minimum_equals_maximum_expresses_exact_count(self) -> None:
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list(
+                ["game"], self.ALL_IDS, minimum_count=2, maximum_count=2, label="테스트",
+            )
+        with self.assertRaises(ContextSelectionError):
+            validate_context_id_list(
+                ["game", "media", "school_life"], self.ALL_IDS,
+                minimum_count=2, maximum_count=2, label="테스트",
+            )
+        validate_context_id_list(
+            ["game", "media"], self.ALL_IDS, minimum_count=2, maximum_count=2, label="테스트",
+        )  # 예외 없으면 통과 — 정확히 2개만 허용
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,10 +25,22 @@ COVERAGE_WEIGHT = 0.4
 # 쓴다. Full Mode 전환 시 이 상수만 바꾸면 된다(§5-1 자체 재구현은 이번 범위 밖).
 MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE = 2
 MINIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE = 4
+# 2026-08-30 20차 리뷰: 선호 Context는 Vertical Slice에서 "정확히 2개"다 — 최솟값과
+# 최댓값을 같은 값으로 둬서 "정확히"를 표현한다(별도 exact_count 매개변수를 새로 만들지
+# 않고 기존 minimum/maximum 쌍으로 표현 가능해서, validate_context_id_list()를 재사용).
+MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE = MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE
+# 최종 확정 Context — 선호 2개(그대로 유지 가능) ~ 선호 2개+Contrast 1개(수용) 범위다.
+MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE = 2
+MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE = 3
+CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE = 1
+# Coverage Replacement(관심 Context 부족분을 자동으로 보완 제안하는 기능)는 아직 실제
+# 계산이 없다 — `ContextSelectResponse.coverage_replacement_offered`가 항상 빈 배열인
+# 이유와 같은 사실을 `GET /contexts`의 selection_policy로도 명시적으로 알려준다.
+COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE = False
 
 
 class ContextSelectionError(ValueError):
-    """Context 선택·확정 입력이 유효하지 않을 때(중복, 미지의 ID, 빈 목록, 개수 미달)."""
+    """Context 선택·확정 입력이 유효하지 않을 때(중복, 미지의 ID, 빈 목록, 개수 미달·초과)."""
 
 
 def validate_context_id_list(
@@ -36,12 +48,15 @@ def validate_context_id_list(
     all_context_ids: set[str],
     *,
     minimum_count: int,
+    maximum_count: int | None = None,
     label: str,
 ) -> None:
     """§5-1 "학생이 선호 Context를 직접 선택한다"/"최종 Context 확정"에 공통으로 적용하는
-    구조적 검증 — 빈 목록·중복·미지의 Context id·개수 미달을 거부한다. "제안한 Contrast
-    후보만 허용"처럼 내용을 강제하지는 않는다(학생이 다른 Context로 교체할 수 있어야
-    하므로, §5-1 "학생은 유지·수용·다른 Context 선택 중 하나를 고른다")."""
+    구조적 검증 — 빈 목록·중복·미지의 Context id·개수 미달(및 `maximum_count`가 주어지면
+    개수 초과)을 거부한다. "제안한 Contrast 후보만 허용"처럼 내용을 강제하지는 않는다
+    (학생이 다른 Context로 교체할 수 있어야 하므로, §5-1 "학생은 유지·수용·다른 Context
+    선택 중 하나를 고른다"). `maximum_count=None`(기본값)은 기존 호출부와 동일하게 상한이
+    없다는 뜻이다 — 2026-08-30 20차 리뷰로 추가된 매개변수라 기존 호출부를 깨지 않는다."""
 
     if not context_ids:
         raise ContextSelectionError(f"{label} 목록이 비어 있습니다.")
@@ -54,6 +69,10 @@ def validate_context_id_list(
     if len(context_ids) < minimum_count:
         raise ContextSelectionError(
             f"{label}는 최소 {minimum_count}개 이상이어야 합니다 (현재 {len(context_ids)}개)."
+        )
+    if maximum_count is not None and len(context_ids) > maximum_count:
+        raise ContextSelectionError(
+            f"{label}는 최대 {maximum_count}개까지만 선택할 수 있습니다 (현재 {len(context_ids)}개)."
         )
 
 

@@ -62,6 +62,45 @@ class APIError(BaseModel):
     message: str
 
 
+# --- GET /contexts ---
+
+
+class ContextCatalogItem(BaseModel):
+    """2026-08-30 20차 리뷰: B가 `src/data/contexts/context_definitions.py`(15개)를
+    프론트엔드 상수로 복제하지 않도록, 서버가 검증하는 것과 동일한 Context 목록·순서를
+    그대로 API로 내려준다. 필드는 `ContextDefinition`(`src/schemas/context.py`)과
+    `assessment_supported`(계산값) 하나를 더한 것뿐이다 — 새 정본 데이터를 만들지 않는다."""
+
+    context_id: str
+    label: str
+    description: str
+    example_activities: list[str]
+    interest_rating_prompt: str
+    is_core: bool
+    # 실제 심층 질문 흐름(Seed·Option Blueprint)이 이 Context를 지원하는지 — 현재는
+    # VERTICAL_SLICE_CONTEXT_IDS(game/media/school_life) 3개만 true다. 관심도 평가
+    # (`/assessment/interest-rating`)는 15개 전부 받지만, `/assessment/context-select`로
+    # 선택할 수 있는 건 이 값이 true인 Context뿐이다.
+    assessment_supported: bool
+
+
+class ContextSelectionPolicyResponse(BaseModel):
+    """B가 선택 개수 제한을 하드코딩하지 않도록 서버가 실제로 검증하는 값을 그대로
+    내려준다 — `src/engines/contrast_context_selector.py`의 상수와 항상 같은 값이다."""
+
+    preferred_context_min_count: int
+    preferred_context_max_count: int
+    contrast_context_count: int
+    final_context_min_count: int
+    final_context_max_count: int
+    coverage_replacement_enabled: bool
+
+
+class ContextCatalogResponse(BaseModel):
+    contexts: list[ContextCatalogItem]
+    selection_policy: ContextSelectionPolicyResponse
+
+
 # --- /assessment/session ---
 
 

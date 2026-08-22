@@ -1,0 +1,210 @@
+{
+  "contexts": [
+    {
+      "context_id": "game",
+      "label": "게임",
+      "description": "게임을 하거나 게임의 구조·전략·시스템에 관심을 갖는 것",
+      "example_activities": [
+        "전략 게임 공략",
+        "게임 시스템 분석",
+        "커뮤니티 공략 공유"
+      ],
+      "interest_rating_prompt": "게임을 하거나 게임의 시스템·전략을 분석하는 것에 관심이 있나요?",
+      "is_core": true,
+      "assessment_supported": true
+    },
+    {
+      "context_id": "media",
+      "label": "미디어",
+      "description": "SNS·영화·드라마·음악 등을 감상하거나 직접 제작하고, 유행·트렌드를 따라가는 것",
+      "example_activities": [
+        "영상 촬영·편집",
+        "SNS 콘텐츠 기획",
+        "영화·드라마 감상",
+        "트렌드 분석"
+      ],
+      "interest_rating_prompt": "SNS·영화·드라마를 즐기거나 직접 콘텐츠를 만들어보는 것, 유행을 따라가는 것에 관심이 있나요?",
+      "is_core": true,
+      "assessment_supported": true
+    },
+    {
+      "context_id": "school_life",
+      "label": "학교생활",
+      "description": "수업·과제·발표·동아리 등 학교 활동과 그 안에서의 교우관계·갈등조정까지 포함",
+      "example_activities": [
+        "조별과제 진행",
+        "발표 준비",
+        "동아리 운영",
+        "친구 갈등 중재",
+        "또래 상담"
+      ],
+      "interest_rating_prompt": "수업·동아리 활동이나 친구 관계에서 맡는 역할에 관심이 있나요?",
+      "is_core": true,
+      "assessment_supported": true
+    },
+    {
+      "context_id": "business",
+      "label": "창업·비즈니스",
+      "description": "아이디어를 사업화하거나 문제 해결 상품을 기획하는 것",
+      "example_activities": [
+        "아이디어 피칭",
+        "모의창업",
+        "마케팅 기획"
+      ],
+      "interest_rating_prompt": "아이디어를 사업으로 구체화하는 것에 관심이 있나요?",
+      "is_core": true,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "making",
+      "label": "만들기·코딩",
+      "description": "도구나 코드로 무언가를 직접 만들고 반복 개선하는 것",
+      "example_activities": [
+        "앱·웹 제작",
+        "로봇·메이커 활동",
+        "문제 자동화"
+      ],
+      "interest_rating_prompt": "직접 도구나 코드로 무언가를 만들어보는 것에 관심이 있나요?",
+      "is_core": true,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "volunteer",
+      "label": "봉사·사회참여",
+      "description": "다른 사람을 돕거나 공동체 문제에 참여하는 활동",
+      "example_activities": [
+        "봉사활동",
+        "캠페인 기획",
+        "후배·또래 지원"
+      ],
+      "interest_rating_prompt": "다른 사람을 돕거나 사회 문제에 참여하는 활동에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "sports",
+      "label": "스포츠",
+      "description": "운동 경기를 하거나 관전·분석하는 것",
+      "example_activities": [
+        "팀 스포츠",
+        "개인 운동",
+        "경기 전략 분석"
+      ],
+      "interest_rating_prompt": "운동을 하거나 경기를 분석하는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "science",
+      "label": "과학탐구",
+      "description": "실험이나 관찰로 현상의 원리를 확인하는 것",
+      "example_activities": [
+        "과학 실험",
+        "자연 관찰",
+        "탐구보고서 작성"
+      ],
+      "interest_rating_prompt": "실험이나 관찰로 원리를 확인하는 활동에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "writing",
+      "label": "글쓰기·독서",
+      "description": "글을 읽거나 생각을 글로 정리해 표현하는 것",
+      "example_activities": [
+        "소설·에세이 쓰기",
+        "독서토론",
+        "블로그 운영"
+      ],
+      "interest_rating_prompt": "글을 읽거나 생각을 글로 정리하는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "art_design",
+      "label": "미술·디자인",
+      "description": "시각적으로 표현하거나 디자인을 구성하는 것",
+      "example_activities": [
+        "그림·일러스트",
+        "굿즈 디자인",
+        "공간 꾸미기"
+      ],
+      "interest_rating_prompt": "그림을 그리거나 디자인을 구성하는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "travel",
+      "label": "여행·문화탐방",
+      "description": "낯선 장소나 다른 문화를 탐색하는 것",
+      "example_activities": [
+        "여행 계획",
+        "지역 답사",
+        "다른 문화 학습"
+      ],
+      "interest_rating_prompt": "새로운 장소나 문화를 탐색하는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "cooking",
+      "label": "요리·음식",
+      "description": "음식을 만들거나 조합을 실험하는 것",
+      "example_activities": [
+        "레시피 개발",
+        "베이킹",
+        "재료 조합 실험"
+      ],
+      "interest_rating_prompt": "요리를 하거나 새로운 레시피를 시도하는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "fashion_beauty",
+      "label": "패션·뷰티",
+      "description": "옷차림·스타일·메이크업 등으로 자신을 표현하고 꾸미는 것",
+      "example_activities": [
+        "코디 연구",
+        "메이크업 실습",
+        "스타일 트렌드 탐색"
+      ],
+      "interest_rating_prompt": "패션이나 뷰티 스타일을 연구하고 꾸며보는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "history_humanities",
+      "label": "역사·인문학",
+      "description": "과거의 사건이나 사람들의 사고방식을 탐구하는 것",
+      "example_activities": [
+        "역사 다큐 시청",
+        "인물사 탐구",
+        "고전 읽기"
+      ],
+      "interest_rating_prompt": "역사나 인문학적 주제를 깊이 탐구하는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    },
+    {
+      "context_id": "law_politics",
+      "label": "법·정치·시사",
+      "description": "사회 이슈나 제도, 시사 문제를 분석하고 판단하는 것",
+      "example_activities": [
+        "시사 토론",
+        "뉴스 분석",
+        "모의재판·모의국회"
+      ],
+      "interest_rating_prompt": "사회 이슈나 시사 문제를 분석하고 의견을 세우는 것에 관심이 있나요?",
+      "is_core": false,
+      "assessment_supported": false
+    }
+  ],
+  "selection_policy": {
+    "preferred_context_min_count": 2,
+    "preferred_context_max_count": 2,
+    "contrast_context_count": 1,
+    "final_context_min_count": 2,
+    "final_context_max_count": 3,
+    "coverage_replacement_enabled": false
+  }
+}
