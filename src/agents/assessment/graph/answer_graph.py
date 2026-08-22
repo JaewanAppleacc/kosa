@@ -23,6 +23,7 @@ from src.engines.evidence_engine import decide_stop_or_continue, summarize_trait
 from src.ids import generate_evidence_id
 from src.schemas.assessment_state import AnsweredQuestion, AssessmentState
 from src.schemas.evidence import (
+    AppliedTraitSignal,
     ContrastDefinition,
     ContrastResolutionQuestionSpec,
     ContrastResolutionRecord,
@@ -31,6 +32,7 @@ from src.schemas.evidence import (
     EvidenceRecord,
 )
 from src.schemas.question import FinalizedQuestion
+from src.services.trait_signal_registry import signals_for_role
 
 
 class AnswerSubmissionResult(BaseModel):
@@ -94,6 +96,23 @@ def _evidence_update(g: AnswerGraphState) -> dict:
     # 위치·테마 계산이 밀리면 안 된다(위치는 questions_asked_in_current_context 기준).
     is_resolution_answer = question.contrast_id is not None
 
+    # 2026-08-31 Trait Ontology v2(1단계) §8/§9: Conflict Resolution 확인 질문 답변은
+    # 기존 정책대로 일반 Trait Evidence를 오염시키면 안 된다 — v2 Signal도 legacy
+    # applied_primary_trait_delta와 똑같이, 확인 질문 답변에는 절대 채우지 않는다
+    # (Registry에 확인 질문 role_id를 아예 등록하지 않았지만, Registry가 나중에 실수로
+    # 등록되더라도 이 방어적 분기가 오염을 막는다).
+    applied_trait_signals_v2: list[AppliedTraitSignal] = (
+        []
+        if is_resolution_answer
+        else [
+            AppliedTraitSignal(
+                trait_id=s.trait_id, signal_role=s.signal_role, weight=s.weight,
+                related_concept_ids=s.related_concept_ids,
+            )
+            for s in signals_for_role(selected_option.role_id)
+        ]
+    )
+
     evidence = EvidenceRecord(
         evidence_id=generate_evidence_id(),
         answer_id=f"ans_{question.question_id}_{len(state.answers) + 1:02d}",
@@ -102,6 +121,7 @@ def _evidence_update(g: AnswerGraphState) -> dict:
         option_role_id=selected_option.role_id,
         option_text=selected_option.text,
         applied_primary_trait_delta=selected_option.primary_trait_delta,
+        applied_trait_signals_v2=applied_trait_signals_v2,
         # 2026-08-22 4차 리뷰: 확인 질문 답변은 일반 Trait Evidence와 구분해서 남긴다 —
         # evidence_engine.summarize_trait_evidence/conflict_engine.detect_explicit_conflicts/
         # profile_engine.build_detailed_evidence_by_dimension이 전부 이미 PRIMARY_BLUEPRINT만

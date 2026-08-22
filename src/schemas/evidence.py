@@ -7,6 +7,21 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from src.schemas.trait_signal import SignalRole
+
+
+class AppliedTraitSignal(BaseModel):
+    """2026-08-31 Trait Ontology v2(1단계) §8 — 답변 하나가 실제로 적용한 v2 Trait
+    Signal 하나. `TraitSignal`(정본 Registry 값)과 필드는 같지만, 이건 "이 답변이 실제로
+    적용받은 값"을 Evidence Ledger에 그대로 굳혀 기록하는 별도 타입이다 — 나중에
+    Registry 내용이 바뀌어도 과거 Evidence 기록은 그때 실제로 적용된 값 그대로 남아야
+    감사 가능성(auditability)이 유지된다."""
+
+    trait_id: str
+    signal_role: SignalRole
+    weight: float
+    related_concept_ids: list[str] = []
+
 
 class EvidenceOrigin(str, Enum):
     PRIMARY_BLUEPRINT = "primary_blueprint"
@@ -42,6 +57,13 @@ class EvidenceRecord(BaseModel):
     generator_version: str
     quality_gate_status: str
     cross_context_group: str | None = None
+    # 2026-08-31 Trait Ontology v2(1단계) §8: 기존 `applied_primary_trait_delta`는
+    # 즉시 제거하지 않고 하위 호환·Legacy 계산을 위해 그대로 유지한다 — 이 필드는
+    # 그 옆에 병행으로 추가하는 v2 Signal 기록이다(기본값 빈 리스트라 기존 EvidenceRecord
+    # 생성 코드는 하나도 안 고쳐도 된다). `role_id`가 v2 Registry에 없으면(예: 아직
+    # Signal을 매핑하지 않은 Backup Question, Conflict Resolution 확인 질문) 빈 리스트로
+    # 남는다 — 지어내지 않는다.
+    applied_trait_signals_v2: list[AppliedTraitSignal] = []
 
 
 class ContrastDefinition(BaseModel):
