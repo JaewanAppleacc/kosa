@@ -95,6 +95,61 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
             for fragment in forbidden_key_fragments:
                 self.assertNotIn(fragment, key, msg=f"{key!r}에 금지 필드 조각 {fragment!r} 포함")
 
+    def test_free_text_value_in_an_allowed_key_is_dropped(self) -> None:
+        """2026-08-22 리뷰: 허용된 Key라도 값이 사전 정의된 고정 문구가 아니면 버려야
+        한다 — planner_decision_reason에 자유서술 문장을 넣어도 통과하면 안 된다."""
+
+        sanitized = sanitize_trace_attributes(
+            {"planner_decision_reason": "학생이 게임에서 전략을 짜는 걸 좋아한다고 답했음"}
+        )
+        self.assertEqual(sanitized, {})
+
+    def test_error_key_itself_is_no_longer_allowed(self) -> None:
+        """2026-08-22 리뷰: 예외 원문이 실릴 수 있던 `error` 필드는 아예 허용 목록에서
+        뺐다 — error_type/error_code 같은 구조화 필드로만 오류 정보를 보낸다."""
+
+        sanitized = sanitize_trace_attributes({"error": "LLM 호출 실패: Connection to 10.0.0.5 refused"})
+        self.assertEqual(sanitized, {})
+        self.assertNotIn("error", ALLOWED_TRACE_ATTRIBUTE_KEYS)
+
+    def test_error_type_only_accepts_fixed_values(self) -> None:
+        self.assertEqual(
+            sanitize_trace_attributes({"error_type": "llm_call_error"}), {"error_type": "llm_call_error"}
+        )
+        self.assertEqual(
+            sanitize_trace_attributes({"error_type": "Traceback (most recent call last): ..."}), {}
+        )
+
+    def test_error_code_accepts_fixed_code_shape_only(self) -> None:
+        self.assertEqual(sanitize_trace_attributes({"error_code": "LLM_TIMEOUT"}), {"error_code": "LLM_TIMEOUT"})
+        self.assertEqual(sanitize_trace_attributes({"error_code": "학생 답변: 실패"}), {})
+
+    def test_nested_object_with_unexpected_keys_is_dropped_entirely(self) -> None:
+        """token_usage처럼 중첩 dict를 허용하는 필드도, 정해진 키 외에 다른 값(이름·
+        답변 원문 등)이 섞여 있으면 필드 전체를 버린다 — 일부만 걸러내지 않는다."""
+
+        sanitized = sanitize_trace_attributes(
+            {"token_usage": {"prompt_tokens": 120, "student_name": "홍길동"}}
+        )
+        self.assertEqual(sanitized, {})
+
+    def test_valid_token_usage_dict_is_preserved(self) -> None:
+        payload = {"prompt_tokens": 120, "completion_tokens": 40, "total_tokens": 160}
+        self.assertEqual(sanitize_trace_attributes({"token_usage": payload}), {"token_usage": payload})
+
+    def test_trait_ids_must_be_a_list_of_slugs(self) -> None:
+        self.assertEqual(
+            sanitize_trace_attributes({"trait_ids": ["causal_analysis", "planning"]}),
+            {"trait_ids": ["causal_analysis", "planning"]},
+        )
+        self.assertEqual(
+            sanitize_trace_attributes({"trait_ids": ["causal_analysis", "학생이 직접 쓴 문장"]}), {}
+        )
+
+    def test_valid_context_and_frame_ids_are_preserved(self) -> None:
+        attributes = {"context_id": "game", "frame_id": "new_tool", "role_id": "advance_planning"}
+        self.assertEqual(sanitize_trace_attributes(attributes), attributes)
+
 
 class _FakeTraceClient:
     """TraceClient Protocol을 만족하는 테스트용 대역 — 실제 LangSmith 호출 없음."""

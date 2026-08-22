@@ -148,6 +148,22 @@ class QuestionGenerationOutcome(BaseModel):
     failure_reason: str | None = None
 
 
+def classify_generation_failure(failure_reason: str | None) -> str | None:
+    """2026-08-22 리뷰: failure_reason 원문(예외 메시지 포함 가능)을 LangSmith Trace에
+    그대로 보내지 않는다 — 이 함수가 만드는 고정된 error_type만 Sanitizer의 허용 목록을
+    통과한다(src/tracing/sanitizer.py `_ALLOWED_ERROR_TYPES`와 반드시 맞춰서 유지한다)."""
+
+    if failure_reason is None:
+        return None
+    if failure_reason.startswith("LLM 호출 실패"):
+        return "llm_call_error"
+    if failure_reason.startswith("Role ID 불일치로 거부"):
+        return "role_id_mismatch"
+    if failure_reason.startswith("Quality Gate 실패"):
+        return "quality_gate_failure"
+    return "unknown_error"
+
+
 class QuestionGenerationGraphState(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 

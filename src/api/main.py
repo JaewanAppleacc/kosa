@@ -27,6 +27,7 @@ load_dotenv()
 
 from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
 from src.agents.assessment.profile_generator import generate_career_profile
+from src.agents.assessment.graph.question_generation_graph import classify_generation_failure
 from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
 from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
@@ -299,7 +300,8 @@ def next_question(session_id: str) -> NextQuestionResponse:
                 "blueprint_id": state.pending_option_blueprint_id,
                 "trait_ids": state.pending_target_traits,
                 "source": outcome.source,
-                "error": outcome.failure_reason,
+                # 2026-08-22 리뷰: 예외/실패 메시지 원문 대신 고정된 error_type만 보낸다.
+                "error_type": classify_generation_failure(outcome.failure_reason),
             },
         )
         if outcome.source in {"backup", "exhausted"}:
@@ -310,7 +312,8 @@ def next_question(session_id: str) -> NextQuestionResponse:
                     "graph_node": "regeneration_or_fallback",
                     "context_id": current_context,
                     "cache_or_fallback_status": outcome.source,
-                    "error": outcome.failure_reason,
+                    "fallback_source": outcome.source,
+                    "error_type": classify_generation_failure(outcome.failure_reason),
                 },
             )
         if outcome.question is None:
