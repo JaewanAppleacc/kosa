@@ -30,6 +30,10 @@ from src.agents.assessment.profile_generator import generate_career_profile
 from src.agents.assessment.question_generator import generate_tail_question
 from src.api import mock_data
 from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
+from src.data.conflicts.vertical_slice_conflict_resolution_questions import (
+    VERTICAL_SLICE_RESOLUTION_QUESTION_BUILDERS,
+    VERTICAL_SLICE_RESOLUTION_SPECS,
+)
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_IDS
 from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
@@ -107,6 +111,9 @@ DEMO_USER_ID = "demo_user_01"
 TRAIT_DEFINITIONS_BY_ID = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
 ALL_TRAIT_LABELS = {tid: t.label for tid, t in TRAIT_DEFINITIONS_BY_ID.items()}
 CONTEXT_DEFINITIONS_BY_ID = {c.context_id: c for c in CONTEXT_DEFINITIONS}
+RESOLUTION_ROLE_MAPS_BY_CONTRAST_ID = {
+    cid: spec.role_resolution_map for cid, spec in VERTICAL_SLICE_RESOLUTION_SPECS.items()
+}
 
 # §10/§11 실시간 LLM 질문 생성 — 명시적으로 켜져 있고(.env ENABLE_LLM_QUESTION_GENERATION)
 # 설정이 완전할 때만 활성화한다. 꺼져 있거나 Key가 없으면 조용히 Mock 경로로 돌아간다
@@ -241,6 +248,23 @@ def next_question(session_id: str) -> NextQuestionResponse:
 
     status = QuestionDeliveryStatus.GENERATED
 
+    if state.pending_resolution_contrast_id is not None:
+        # 2026-08-22 §12-1 확장: Explicit Conflict 확인 질문은 LLM/Mock이 아니라 사람이
+        # 미리 검토한 고정 문항을 그대로 낸다(Backup Question과 같은 신뢰도 이유).
+        builder = VERTICAL_SLICE_RESOLUTION_QUESTION_BUILDERS.get(state.pending_resolution_contrast_id)
+        if builder is not None:
+            question = builder(current_context)
+            state.current_question = question
+            _store.save(state)
+            return NextQuestionResponse(
+                session_id=session_id,
+                status=QuestionDeliveryStatus.GENERATED,
+                question=question,
+                current_context_id=current_context,
+                questions_asked_in_current_context=state.questions_asked_in_current_context,
+                assessment_complete=False,
+            )
+
     if state.questions_asked_in_current_context == 0:
         # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
         question = mock_data.next_mock_question(current_context, 0)
@@ -360,6 +384,7 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         VERTICAL_SLICE_TRAIT_IDS,
         is_first_context_in_session,
         VERTICAL_SLICE_CONTRAST_DEFINITIONS,
+        RESOLUTION_ROLE_MAPS_BY_CONTRAST_ID,
     )
 
     if not result.accepted:

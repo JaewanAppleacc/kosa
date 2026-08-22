@@ -1138,6 +1138,17 @@
             },
             "type": "array",
             "title": "Options"
+          },
+          "contrast_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast Id"
           }
         },
         "type": "object",

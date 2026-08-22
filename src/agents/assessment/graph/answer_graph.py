@@ -22,7 +22,13 @@ from src.engines.conflict_engine import detect_explicit_conflicts
 from src.engines.evidence_engine import decide_stop_or_continue, summarize_trait_evidence
 from src.ids import generate_evidence_id
 from src.schemas.assessment_state import AnsweredQuestion, AssessmentState
-from src.schemas.evidence import ContrastDefinition, EvidenceOrigin, EvidenceRecord
+from src.schemas.evidence import (
+    ContrastDefinition,
+    ContrastResolutionRecord,
+    ContrastResolutionStatus,
+    EvidenceOrigin,
+    EvidenceRecord,
+)
 from src.schemas.question import FinalizedQuestion
 
 
@@ -44,12 +50,15 @@ class AnswerGraphState(BaseModel):
     all_trait_ids: set[str]
     contrast_definitions: list[ContrastDefinition] = Field(default_factory=list)
     is_first_context_in_session: bool = False
+    # contrast_id -> {role_id -> 이 role을 고르면 어떤 해소 결과인지}. 2026-08-22 §12-1 확장.
+    resolution_role_maps: dict[str, dict[str, ContrastResolutionStatus]] = Field(default_factory=dict)
 
     # Node 간 전달용 중간 결과 — 그래프 실행이 끝나면 AnswerSubmissionResult로 변환한다.
     accepted: bool = True
     rejection_reason: str | None = None
     stop_decision: str | None = None
     next_planner_decision: PlannerDecision | None = None
+    contrast_ids_needing_resolution_question: set[str] = Field(default_factory=set)
 
 
 def _validate_option(g: AnswerGraphState) -> dict:
@@ -126,8 +135,27 @@ def _evidence_update(g: AnswerGraphState) -> dict:
             trait_id, state.evidence_ledger, all_offered_sets
         )
 
-    conflict_result = detect_explicit_conflicts(state.evidence_ledger, g.contrast_definitions)
+    # 2026-08-22 §12-1 확장: 이번 답변이 Explicit Conflict 확인 질문(question.contrast_id)에
+    # 대한 답이면, Evidence Ledger는 그대로 두고 별도의 Resolution Record만 저장한다 —
+    # 과거 Evidence를 지우거나 고치지 않는다.
+    if question.contrast_id is not None:
+        role_map = g.resolution_role_maps.get(question.contrast_id, {})
+        resolution_status = role_map.get(selected_option.role_id)
+        if resolution_status is not None:
+            state.contrast_resolutions[question.contrast_id] = ContrastResolutionRecord(
+                contrast_id=question.contrast_id,
+                status=resolution_status,
+                resolved_at_answer_id=evidence.answer_id,
+            )
+        state.pending_resolution_contrast_id = None
+
+    conflict_result = detect_explicit_conflicts(
+        state.evidence_ledger, g.contrast_definitions, state.contrast_resolutions
+    )
     state.unresolved_conflict_trait_ids = conflict_result.unresolved_conflict_trait_ids
+    state.unresolved_contrast_ids = {
+        r.contrast_id for r in conflict_result.pair_results if r.status == "explicit_conflict"
+    }
     for trait_id, summary in state.trait_summaries.items():
         state.trait_summaries[trait_id] = summary.model_copy(
             update={
@@ -135,7 +163,7 @@ def _evidence_update(g: AnswerGraphState) -> dict:
                 "context_dependency_flag": conflict_result.context_dependency_flag_by_trait.get(trait_id, False),
             }
         )
-    return {}
+    return {"contrast_ids_needing_resolution_question": conflict_result.contrast_ids_needing_resolution_question}
 
 
 def _stop_or_continue(g: AnswerGraphState) -> dict:
@@ -174,7 +202,9 @@ def _target_planner(g: AnswerGraphState) -> dict:
         used_frame_ids_in_context=set(state.used_frame_ids_in_current_context),
         is_first_context_in_session=g.is_first_context_in_session,
         deepen_anchor_trait_id=state.current_context_seed_trait_id,
+        contrast_ids_needing_resolution_question=g.contrast_ids_needing_resolution_question,
     )
+    state.pending_resolution_contrast_id = decision.contrast_resolution_id
     return {"next_planner_decision": decision}
 
 
@@ -207,9 +237,11 @@ def submit_answer(
     all_trait_ids: set[str],
     is_first_context_in_session: bool,
     contrast_definitions: list[ContrastDefinition] | None = None,
+    resolution_role_maps: dict[str, dict[str, ContrastResolutionStatus]] | None = None,
 ) -> AnswerSubmissionResult:
     """예전 answer_processor.submit_answer와 시그니처·반환값·"state를 제자리 mutate"
-    계약이 동일하다 — 내부만 LangGraph 실행으로 바뀌었다."""
+    계약이 동일하다(신규 `resolution_role_maps`는 기본값 None인 Optional 추가 파라미터라
+    기존 호출자는 그대로 동작한다) — 내부만 LangGraph 실행으로 바뀌었다."""
 
     graph_input = AnswerGraphState(
         state=state,
@@ -218,6 +250,7 @@ def submit_answer(
         all_trait_ids=all_trait_ids,
         contrast_definitions=contrast_definitions or [],
         is_first_context_in_session=is_first_context_in_session,
+        resolution_role_maps=resolution_role_maps or {},
     )
     # LangGraph/LangChain은 LANGSMITH_TRACING 환경변수만 보고 원본 Node 입출력(학생 답변
     # 원문 포함)을 자동으로 LangSmith에 전송하려 한다 — 이건 §24 Sanitizer를 거치지 않은

@@ -6,12 +6,20 @@ import unittest
 
 from src.agents.assessment.answer_processor import submit_answer
 from src.api.mock_data import seed_question_as_finalized
+from src.data.conflicts.vertical_slice_conflict_resolution_questions import (
+    VERTICAL_SLICE_RESOLUTION_SPECS,
+    build_planning_vs_execution_resolution_question,
+)
 from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
 from src.data.questions.vertical_slice_seed_questions import GAME_SEED_01
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
 from src.engines.evidence_engine import decide_stop_or_continue
 from src.schemas.assessment_state import AssessmentState
-from src.schemas.evidence import TraitEvidenceSummary
+from src.schemas.evidence import ContrastResolutionStatus, TraitEvidenceSummary
+
+_RESOLUTION_ROLE_MAPS = {
+    cid: spec.role_resolution_map for cid, spec in VERTICAL_SLICE_RESOLUTION_SPECS.items()
+}
 
 # submit_answer는 FinalizedQuestion을 받는다(실제 API가 학생에게 보여주는 형태) — Seed는
 # mock_data.seed_question_as_finalized()로 변환한 것을 쓴다.
@@ -238,9 +246,12 @@ class ExplicitConflictIntegrationTest(unittest.TestCase):
         self.assertEqual(state.trait_summaries["immediate_execution"].explicit_conflict_count, 1)
         # §5-3: 4개 완료 시점이어도 Conflict가 남아있으면 STOP할 수 없다.
         self.assertEqual(result.stop_decision, "CONTINUE")
-        # §8 위치 5~6: Conflict가 Coverage Gap보다 먼저 우선순위를 가진다(conflict 해소 질문).
-        self.assertIn(result.next_planner_decision.target_traits[0], {"planning", "immediate_execution"})
-        self.assertEqual(result.next_planner_decision.purpose, "해결되지 않은 Explicit Conflict 보완")
+        # 2026-08-22 리뷰 반영: 위치·테마와 무관하게 최우선으로 Explicit Conflict 확인
+        # 질문(고정 문항)을 낸다 — 특정 Trait를 타깃하는 일반 질문이 아니다.
+        self.assertEqual(result.next_planner_decision.contrast_resolution_id, "planning_vs_execution")
+        self.assertEqual(result.next_planner_decision.purpose, "Explicit Conflict 확인 질문")
+        self.assertEqual(state.pending_resolution_contrast_id, "planning_vs_execution")
+        self.assertEqual(state.unresolved_contrast_ids, {"planning_vs_execution"})
 
     def test_evidence_outside_comparable_frame_does_not_mask_traits(self) -> None:
         """같은 두 Trait라도 "new_tool" Frame 밖(예: 시간 제약 상황)에서만 반대로
@@ -267,6 +278,55 @@ class ExplicitConflictIntegrationTest(unittest.TestCase):
         self.assertEqual(state.unresolved_conflict_trait_ids, set())
         self.assertTrue(state.trait_summaries["planning"].context_dependency_flag)
         self.assertTrue(state.trait_summaries["immediate_execution"].context_dependency_flag)
+
+    def test_answering_the_resolution_question_unmasks_traits_end_to_end(self) -> None:
+        """2026-08-22 리뷰 반영 전체 흐름: 탐지 → 확인 질문이 다음 질문으로 배정됨 →
+        학생이 "계획을 우선한다" 쪽으로 답함 → RESOLVED_POSITIVE로 해소 → 더 이상 Mask 안 됨.
+        과거 Evidence(4개)는 그대로 남는다."""
+
+        state = self._fresh_state()
+        submit_answer(
+            state, GAME_SEED_01_FINALIZED, "game_seed_01_o1", VERTICAL_SLICE_TRAIT_IDS, True,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS, _RESOLUTION_ROLE_MAPS,
+        )
+        result = None
+        for i, (role_id, trait_id) in enumerate(
+            [
+                ("advance_planning", "planning"),
+                ("quick_execution", "immediate_execution"),
+                ("advance_planning", "planning"),
+                ("quick_execution", "immediate_execution"),
+            ],
+            start=2,
+        ):
+            question = self._tail(f"game_tail_{i:02d}", role_id, trait_id, "new_tool")
+            result = submit_answer(
+                state, question, f"game_tail_{i:02d}_o1", VERTICAL_SLICE_TRAIT_IDS, False,
+                VERTICAL_SLICE_CONTRAST_DEFINITIONS, _RESOLUTION_ROLE_MAPS,
+            )
+
+        self.assertEqual(state.pending_resolution_contrast_id, "planning_vs_execution")
+        evidence_count_before_resolution = len(state.evidence_ledger)
+
+        # 다음 질문으로 확인 질문이 나온다(main.py의 /assessment/next-question이 하는 일과
+        # 동일하게, 이 테스트에서는 직접 만든다).
+        resolution_question = build_planning_vs_execution_resolution_question("game")
+        result = submit_answer(
+            state, resolution_question, f"{resolution_question.question_id}_o1", VERTICAL_SLICE_TRAIT_IDS, False,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS, _RESOLUTION_ROLE_MAPS,
+        )
+
+        self.assertEqual(
+            state.contrast_resolutions["planning_vs_execution"].status,
+            ContrastResolutionStatus.RESOLVED_POSITIVE,
+        )
+        self.assertEqual(state.unresolved_conflict_trait_ids, set())
+        self.assertEqual(state.unresolved_contrast_ids, set())
+        self.assertIsNone(state.pending_resolution_contrast_id)
+        # 과거 Evidence 보존 + 확인 질문 자체도 새 Evidence로 추가됨.
+        self.assertEqual(len(state.evidence_ledger), evidence_count_before_resolution + 1)
+        # 다음 질문 결정도 더 이상 확인 질문을 다시 요구하지 않는다.
+        self.assertIsNone(result.next_planner_decision.contrast_resolution_id)
 
 
 if __name__ == "__main__":

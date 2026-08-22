@@ -116,6 +116,32 @@ class ComputeMajorMatchTest(unittest.TestCase):
         # c가 Mask되면 work_style 그룹이 통째로 제외 → usable_trait_count는 a,b 둘뿐(2개, 3 미만)
         self.assertEqual(result.status, "insufficient")
 
+    def test_resolved_conflict_is_not_permanently_masked(self) -> None:
+        """2026-08-22 리뷰: unresolved_conflict_trait_ids는 conflict_engine이 매번 다시
+        계산해 넘기는 값이라, 확인 질문으로 해소되면(더 이상 이 집합에 없으면) 같은
+        Evidence로도 더 이상 Mask되지 않아야 한다 — Mask는 "영구"가 아니라 "그 시점의
+        판정"이다."""
+
+        summaries = {"a": _strong("a"), "b": _strong("b"), "c": _strong("c")}
+        major = MajorProfile(
+            major_id="m1", label="테스트전공",
+            cognitive_vector={"a": 1.00, "b": 1.00},
+            work_style_vector={"c": 1.00},
+            extraction_method="manual", review_status="draft", profile_version="v1",
+            updated_at=datetime(2026, 1, 1),
+        )
+
+        # 해소 전: c가 unresolved_conflict_trait_ids에 있어 Mask됨.
+        masked_states = compute_student_trait_states(summaries, DEFS, unresolved_conflict_trait_ids={"c"})
+        masked_result = compute_major_match(masked_states, major)
+        self.assertEqual(masked_result.status, "insufficient")
+
+        # 해소 후(같은 Evidence, 같은 support_count): c가 더 이상 이 집합에 없으면 정상 반영.
+        resolved_states = compute_student_trait_states(summaries, DEFS, unresolved_conflict_trait_ids=set())
+        resolved_result = compute_major_match(resolved_states, major)
+        self.assertEqual(resolved_result.status, "computed")
+        self.assertEqual(resolved_result.usable_trait_count, 3)
+
     def test_insufficient_evidence_trait_excluded_from_denominator(self) -> None:
         """CONFLICTING뿐 아니라 INSUFFICIENT(opportunity_count=0, 한 번도 못 물어본 Trait)도
         major 벡터에 있으면 usable에서 빠져야 한다 — Evidence가 부족한 Trait은 매칭에서

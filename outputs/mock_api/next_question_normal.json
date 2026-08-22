@@ -1,5 +1,5 @@
 {
-  "session_id": "sess_f8a20f7c40f1469694a9833df56066cd",
+  "session_id": "sess_571f5d6b123d47748a592570cb36d00b",
   "status": "GENERATED",
   "question": {
     "question_id": "game_seed_01",
@@ -53,7 +53,8 @@
         },
         "next_probe": "도구·장비 활용이 다른 상황에서도 나타나는지 확인"
       }
-    ]
+    ],
+    "contrast_id": null
   },
   "current_context_id": "game",
   "questions_asked_in_current_context": 0,
