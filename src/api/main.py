@@ -1,13 +1,13 @@
 """FastAPI 앱 — B에게 줄 API 계약의 실행 가능한 형태.
 
-2026-08-21 리뷰 이후 상태(오래된 설명 갱신): Session 생성부터 Context 확정, Evidence·Trait
-계산, Explicit Conflict 판정(§12-1), Career Profile(§14), 전공 Matching(§16)까지 전부 실제
-계산 경로다. 질문 생성(§10)만 `.env`의 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에
-따라 실제 LLM 또는 Mock 문구로 갈리고, 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로
-동작한다 — Evidence가 전혀 없는 세션에서 Profile을 물으면 Mock으로 얼버무리지 않고
-`EVIDENCE_NOT_READY`를 반환한다. Postgres Profile Store·LangGraph·LangSmith·Contrast
-Context Selector·C 소유 데이터(학과 Repository·RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수
-docstring에 개별 표시).
+2026-08-22 리뷰 이후 상태(오래된 설명 갱신): Session 생성부터 Context 확정, Evidence·Trait
+계산, Explicit Conflict 판정(§12-1), Career Profile(§14), 전공 Matching(§16), LangSmith
+Trace(§24, `LANGSMITH_TRACING=true`일 때만) 까지 전부 실제 경로다. 질문 생성(§10)만
+`.env`의 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에 따라 실제 LLM 또는 Mock 문구로
+갈리고, 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로 동작한다 — Evidence가 전혀 없는
+세션에서 Profile을 물으면 Mock으로 얼버무리지 않고 `EVIDENCE_NOT_READY`를 반환한다.
+Postgres Profile Store·LangGraph·Contrast Context Selector·C 소유 데이터(학과 Repository·
+RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수 docstring에 개별 표시).
 
 실행: ./.venv/bin/uvicorn src.api.main:app --reload
 OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 그 자체)
@@ -41,6 +41,10 @@ from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
 from src.memory.session_store import InMemorySessionStore
+from src.tracing.langsmith_client import LangSmithTraceClient
+from src.tracing.protocols import TraceClient
+from src.tracing.settings import TracingSettingsError, load_tracing_settings, tracing_enabled
+from src.tracing.tracer import Tracer
 from src.schemas.api import (
     AnswerRequest,
     AnswerResponse,
@@ -71,9 +75,9 @@ app = FastAPI(
     title="AI 진로·학업설계 Agent API",
     version="0.1.0-vertical-slice",
     description=(
-        "Vertical Slice API. Evidence·Trait 판정·Career Profile·전공 Matching은 실제 계산 "
-        "경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). LangGraph·LangSmith·"
-        "Explicit Conflict 판정은 아직 없다."
+        "Vertical Slice API. Evidence·Trait 판정·Explicit Conflict 판정·Career Profile·"
+        "전공 Matching은 실제 계산 경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). "
+        "LangSmith Trace도 LANGSMITH_TRACING=true일 때 실제로 기록된다. LangGraph는 아직 없다."
     ),
 )
 
@@ -105,6 +109,17 @@ if llm_generation_enabled():
         _llm_client = OpenAIChatClient(load_chat_llm_settings())
     except LLMSettingsError as exc:
         print(f"[warn] ENABLE_LLM_QUESTION_GENERATION=true이지만 설정이 불완전합니다: {exc}")
+
+# §24 LangSmith Observability — LLM 연동과 동일한 패턴: 명시적으로 켜져 있고 설정이
+# 완전할 때만 실제 Client를 만든다. 꺼져 있거나 설정이 없으면 Tracer가 client=None으로
+# 항상 조용히 아무것도 안 한다(fail-open) — 세션 진행에는 영향이 없다.
+_trace_client: TraceClient | None = None
+if tracing_enabled():
+    try:
+        _trace_client = LangSmithTraceClient(load_tracing_settings())
+    except TracingSettingsError as exc:
+        print(f"[warn] LANGSMITH_TRACING=true이지만 설정이 불완전합니다: {exc}")
+_tracer = Tracer(_trace_client)
 
 
 def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
@@ -165,9 +180,15 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
     state.phase = AssessmentPhase.CONTRAST_PROPOSAL
     _store.save(state)
     # Contrast Context 계산(§6-5)은 아직 미구현 — Mock으로 고정 응답
+    contrast_context_id = "business"
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Context Selector",
+        attributes={"graph_node": "context_selector", "context_id": contrast_context_id},
+    )
     return ContextSelectResponse(
         session_id=state.session_id,
-        contrast_context_id="business",
+        contrast_context_id=contrast_context_id,
         contrast_reason="선택한 4개와 활동 방식 거리가 멀고, 부족한 Shared Trait를 보완합니다(Mock).",
         coverage_replacement_offered=[],
     )
@@ -226,6 +247,30 @@ def next_question(session_id: str) -> NextQuestionResponse:
             backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
             used_backup_question_ids=set(state.used_backup_question_ids),
         )
+        _tracer.record_stage(
+            trace_id=state.trace_id,
+            stage_name="Question Generator",
+            attributes={
+                "graph_node": "question_generator",
+                "context_id": current_context,
+                "frame_id": frame_id,
+                "blueprint_id": state.pending_option_blueprint_id,
+                "trait_ids": state.pending_target_traits,
+                "source": outcome.source,
+                "error": outcome.failure_reason,
+            },
+        )
+        if outcome.source in {"backup", "exhausted"}:
+            _tracer.record_stage(
+                trace_id=state.trace_id,
+                stage_name="재생성 또는 Fallback",
+                attributes={
+                    "graph_node": "regeneration_or_fallback",
+                    "context_id": current_context,
+                    "cache_or_fallback_status": outcome.source,
+                    "error": outcome.failure_reason,
+                },
+            )
         if outcome.question is None:
             # §11 Fallback 소진 — Context 조기 종료. 남은 재생성·Backup 경로를 다 썼다는
             # 뜻이라 조용히 넘기지 않고 상태를 남긴다.
@@ -308,6 +353,23 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
             ).model_dump(),
         )
 
+    latest_evidence = state.evidence_ledger[-1] if state.evidence_ledger else None
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Evidence Update",
+        attributes={
+            "graph_node": "evidence_update",
+            "context_id": latest_evidence.context if latest_evidence else None,
+            "role_id": latest_evidence.option_role_id if latest_evidence else None,
+            "trait_ids": list(latest_evidence.applied_primary_trait_delta) if latest_evidence else [],
+        },
+    )
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Stop / Continue Decision",
+        attributes={"graph_node": "stop_continue_decision", "stop_reason": result.stop_decision},
+    )
+
     if result.stop_decision == "STOP":
         has_next_context = _advance_to_next_context_or_complete(state)
         next_action = "CONTEXT_COMPLETE" if has_next_context else "ASSESSMENT_COMPLETE"
@@ -318,6 +380,17 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         state.pending_purpose = decision.purpose if decision else None
         state.pending_option_blueprint_id = decision.option_blueprint_id if decision else None
         next_action = "NEXT_QUESTION"
+        _tracer.record_stage(
+            trace_id=state.trace_id,
+            stage_name="Target Planner",
+            attributes={
+                "graph_node": "target_planner",
+                "trait_ids": decision.target_traits if decision else [],
+                "frame_id": decision.question_frame if decision else None,
+                "blueprint_id": decision.option_blueprint_id if decision else None,
+                "planner_decision_reason": decision.purpose if decision else None,
+            },
+        )
 
     _store.save(state)
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
@@ -343,7 +416,7 @@ def get_profile(session_id: str) -> ProfileResponse:
                 "답변한 뒤 다시 호출하세요.",
             ).model_dump(),
         )
-    return generate_career_profile(
+    profile = generate_career_profile(
         session_id=state.session_id,
         user_id=state.user_id,
         trait_summaries=state.trait_summaries,
@@ -355,6 +428,18 @@ def get_profile(session_id: str) -> ProfileResponse:
         unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
         llm_client=_llm_client,  # None이어도 generate_career_profile이 알아서 Fallback으로 처리
     )
+    # §24: highlight 개수·LLM 사용 여부 같은 메타데이터만 남기고, title·highlight 문장
+    # 원문은 "상세 Career Profile 문장" 금지 목록에 해당하므로 절대 넘기지 않는다.
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Profile Summary Generator",
+        attributes={
+            "graph_node": "profile_summary_generator",
+            "used_llm": _llm_client is not None,
+            "highlight_count": len(profile.highlights),
+        },
+    )
+    return profile
 
 
 @app.get("/majors/{session_id}", response_model=MajorsResponse)

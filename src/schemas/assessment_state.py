@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from src.ids import generate_trace_id
 from src.schemas.evidence import EvidenceRecord, TraitEvidenceSummary
 from src.schemas.question import FinalizedQuestion
 
@@ -35,6 +36,9 @@ class AnsweredQuestion(BaseModel):
 class AssessmentState(BaseModel):
     session_id: str
     user_id: str
+    # §24 LangSmith Observability: session_id와 분리된 익명 식별자. LangSmith에는 이
+    # 값만 보내고 session_id 원문은 보내지 않는다.
+    trace_id: str = Field(default_factory=generate_trace_id)
     phase: AssessmentPhase = AssessmentPhase.INTEREST_RATING
 
     # §5-1 Context 선택 흐름

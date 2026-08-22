@@ -281,5 +281,68 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertIn("NextQuestionResponse", str(spec["components"]["schemas"].keys()))
 
 
+class TracingFailOpenIntegrationTest(unittest.TestCase):
+    """§24: "LangSmith 장애는 로컬 로그만 남기고 사용자 Session을 중단하지 않는다"를
+    API 레벨에서 확인한다 — Trace 기록이 매번 실패해도 전체 흐름이 그대로 끝까지 돈다."""
+
+    def setUp(self) -> None:
+        from src.tracing.protocols import TraceError
+        from src.tracing.tracer import Tracer
+
+        class _AlwaysFailingTraceClient:
+            def record_run(self, *, trace_id, name, run_type, attributes) -> None:
+                raise TraceError("모의 LangSmith 장애 — 이 예외는 세션 밖으로 나가면 안 된다")
+
+        llm_patcher = patch.object(main_module, "_llm_client", None)
+        tracer_patcher = patch.object(main_module, "_tracer", Tracer(client=_AlwaysFailingTraceClient()))
+        llm_patcher.start()
+        tracer_patcher.start()
+        self.addCleanup(llm_patcher.stop)
+        self.addCleanup(tracer_patcher.stop)
+
+    def test_flow_completes_despite_every_trace_call_failing(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Context Selector 계측 지점을 통과한다.
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Question Generator 계측 지점을 통과한다(Mock 경로여도 Tracer는 호출됨).
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        self.assertEqual(r.status_code, 200)
+        question_body = r.json()["question"]
+
+        # Evidence Update·Stop/Continue·Target Planner 계측 지점을 통과한다.
+        r = client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question_body["question_id"],
+                "selected_option_id": question_body["options"][0]["option_id"],
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Profile Summary Generator 계측 지점을 통과한다.
+        r = client.get(f"/profile/{session_id}")
+        self.assertEqual(r.status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

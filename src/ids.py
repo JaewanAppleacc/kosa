@@ -42,6 +42,13 @@ def generate_session_id() -> str:
     return f"sess_{uuid.uuid4().hex}"
 
 
+def generate_trace_id() -> str:
+    """§24 LangSmith Observability: "PostgreSQL의 session_id와 LangSmith의 trace_id를
+    매핑하되, LangSmith에는 익명화된 식별자만 전달한다" — session_id와 별개의 무작위
+    식별자를 만들어, LangSmith 쪽에는 이 값만 보내고 session_id 원문은 보내지 않는다."""
+    return f"trace_{uuid.uuid4().hex}"
+
+
 def generate_evidence_id() -> str:
     return f"ev_{uuid.uuid4().hex}"
 
