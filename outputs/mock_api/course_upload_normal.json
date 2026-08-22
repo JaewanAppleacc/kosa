@@ -3,12 +3,6 @@
   "selected_major_id": "media_communication",
   "parsed_candidates": [
     {
-      "raw_text": "교과(군)",
-      "matched_subject_id": null,
-      "confidence": "unmatched",
-      "requires_user_confirmation": true
-    },
-    {
       "raw_text": "확률과 통계",
       "matched_subject_id": "subj_fde7a436237d8af94c11515e",
       "confidence": "high",

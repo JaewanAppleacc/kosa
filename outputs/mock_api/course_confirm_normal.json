@@ -16,12 +16,6 @@
     ],
     "unresolved_candidates": [
       {
-        "raw_text": "교과(군)",
-        "matched_subject_id": null,
-        "confidence": "unmatched",
-        "requires_user_confirmation": true
-      },
-      {
         "raw_text": "정체불명 과목ABC",
         "matched_subject_id": null,
         "confidence": "unmatched",

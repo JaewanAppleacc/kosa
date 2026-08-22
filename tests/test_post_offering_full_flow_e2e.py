@@ -215,8 +215,8 @@ class PostOfferingFullFlowEndToEndTest(unittest.TestCase):
 
         # 2026-08-27 17차 리뷰 §1: unmatched 후보(matched_subject_id가 없는 것)는
         # Confirm 이후에도 사라지지 않고 unresolved_candidates에 그대로 남아야 한다.
-        # 이 Fixture(demo_school_offerings.xlsx)는 "정체불명 과목ABC"·"교과(군)" 등
-        # 실제 unmatched 후보를 포함하도록 만들어졌다.
+        # 이 Fixture(demo_school_offerings.xlsx)는 "정체불명 과목ABC"라는 실제 unmatched
+        # 후보를 포함하도록 만들어졌다.
         unmatched_candidates_from_upload = [c for c in candidates if c["matched_subject_id"] is None]
         self.assertTrue(unmatched_candidates_from_upload, "이 Fixture는 unmatched 후보를 포함해야 한다")
         unresolved_texts = {c["raw_text"] for c in post_offering["unresolved_candidates"]}
@@ -228,6 +228,13 @@ class PostOfferingFullFlowEndToEndTest(unittest.TestCase):
         unresolved_matched_ids = [c["matched_subject_id"] for c in post_offering["unresolved_candidates"]]
         for confirmed_id in confirmed_ids:
             self.assertNotIn(confirmed_id, unresolved_matched_ids)
+
+        # 2026-08-28 18차 리뷰 §1/§5: "교과(군)"은 편제표 열 제목이지 과목이 아니므로
+        # Parser 후보 자체에 아예 없어야 한다(unmatched로도 잡히면 안 된다) — high/low/
+        # unmatched 어느 confidence로도 존재하지 않는다.
+        all_raw_texts = {c["raw_text"] for c in candidates}
+        self.assertNotIn("교과(군)", all_raw_texts)
+        self.assertIn("정체불명 과목ABC", all_raw_texts, "실제 unmatched 후보는 여전히 노출돼야 한다")
 
         _assert_no_float(post_offering, "post_offering", self)
         _assert_no_float(upload_body, "upload_body", self)
