@@ -28,6 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.agents.course.course_document_parser import (  # noqa: E402
     _FUZZY_THRESHOLD,
     normalize_subject_name,
@@ -197,6 +199,7 @@ def run(verbose: bool = False) -> dict:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     measurements = run(verbose=True)
     output = DATA_DIR / "audit" / "threshold_measurements.json"
     output.parent.mkdir(parents=True, exist_ok=True)

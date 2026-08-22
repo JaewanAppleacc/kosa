@@ -26,6 +26,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from pydantic import ValidationError  # noqa: E402
 
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS  # noqa: E402
@@ -427,6 +429,7 @@ def run() -> Findings:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     result = run()
     write_report(result)
     counts = result.counts()

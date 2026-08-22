@@ -20,7 +20,7 @@ audit/          데이터 품질 검사 결과
 python scripts/career_build_all.py
 ```
 
-**이 규모와 범위를 어떤 기준으로 정했는지는 [`../RATIONALE_C.md`](../RATIONALE_C.md) §2**에
+**이 규모와 범위를 어떤 기준으로 정했는지는 [`../rationale_c/02-data-scope.md`](../rationale_c/02-data-scope.md)**에
 있다 — 개수 자체가 목표가 아니라 "무엇을 확인할 수 있는 최소 집합인가"로 정했다.
 
 ## 지금 데이터의 출처 상태 — 반드시 읽을 것

@@ -25,14 +25,23 @@ from __future__ import annotations
 import json
 import shutil
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 RAG_DIR = ROOT / "data" / "rag"
 DOCS_DIR = RAG_DIR / "documents"
 AS_OF = "2026-08-21"
+
+# Manifest의 fetched_at/indexed_at에 넣을 시각. 실행 시각을 쓰면 재생성할 때마다
+# manifest.jsonl이 바뀌어 git diff가 매번 지저분해지고, 정작 "무엇이 달라졌는지"가 안 보인다.
+# 이 파이프라인은 네트워크를 치지 않고 저장된 원문을 읽으므로 실행 시각에 의미도 없다.
+# 실제 수집기가 붙으면 그때는 진짜 수집 시각을 넣어야 한다.
+CORPUS_SNAPSHOT_AT = datetime(2026, 8, 21, tzinfo=timezone.utc)
 
 REAL_SOURCE = {
     "source_url": "https://kess.kedi.re.kr/publ/view?survSeq=2024&publSeq=2&menuSeq=0&itemCode=02",
@@ -182,6 +191,7 @@ def build() -> list[dict]:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     from src.rag.ingest import DocumentManifest, load_sources  # noqa: E402
     from src.rag.retrieve import build_retriever  # noqa: E402
 
@@ -196,7 +206,7 @@ if __name__ == "__main__":
     from src.rag.ingest import ingest  # noqa: E402
 
     manifest = DocumentManifest()
-    ingest(sources, base_dir=RAG_DIR, manifest=manifest)
+    ingest(sources, base_dir=RAG_DIR, manifest=manifest, now=CORPUS_SNAPSHOT_AT)
     manifest.save(RAG_DIR / "manifest.jsonl")
     for entry in sorted(manifest.entries(), key=lambda e: e.document_id):
         print(f"  {entry.status.value:15s} {entry.source_url}")

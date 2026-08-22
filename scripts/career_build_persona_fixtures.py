@@ -46,6 +46,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from eval.trait_eval import evaluate_persona_against_fixture  # noqa: E402
 from src.data.personas.demo_user_01 import BLUEPRINT_BY_QUESTION_ID  # noqa: E402
 from src.schemas.persona import (  # noqa: E402
@@ -326,6 +328,7 @@ def build_all(write: bool = True) -> list[tuple[Persona, HandCalculatedFixture]]
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     results = build_all()
     print(f"Persona·Fixture {len(results)}쌍 생성 — 전부 Evidence Engine 결과와 일치")
     for persona, _ in results:

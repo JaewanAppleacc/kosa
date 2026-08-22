@@ -23,6 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.engines.canonical_mapper import (  # noqa: E402
     CanonicalMapper,
     load_canonical_majors,
@@ -169,6 +171,7 @@ def build_mappings(departments: list[Department]) -> None:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     universities = build_universities()
     departments, rejected = build_departments()
     print(f"대학 {len(universities)}개, 학과 {len(departments)}개 정제 완료")

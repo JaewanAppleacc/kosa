@@ -28,6 +28,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS  # noqa: E402
 from src.data.questions.vertical_slice_seed_questions import (  # noqa: E402
     VERTICAL_SLICE_SEED_QUESTIONS,
@@ -163,6 +165,7 @@ def build() -> dict:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     result = build()
     print(f"Coverage 표 생성 — Context {len(result['matrix'])}개 × Trait {len(VERTICAL_SLICE_TRAITS)}개")
     if result["pending_contexts"]:

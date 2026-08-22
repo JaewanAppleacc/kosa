@@ -17,6 +17,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from scripts.career_console import use_utf8_stdout  # noqa: E402
 
 STEPS: list[tuple[str, str]] = [
     ("career_build_department_master.py", "대학·학과 Master 정제 + Canonical Mapping"),
@@ -37,8 +40,6 @@ def main() -> int:
     # 산출물·로그가 전부 한글이라 Windows 기본 콘솔 인코딩(cp949)에서는 출력이 깨지거나
     # UnicodeEncodeError로 죽는다. 자식 프로세스 출력만 UTF-8로 고정한다.
     env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
 
     for script, description in STEPS:
         print(f"\n=== {description} ({script}) ===")
@@ -53,4 +54,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     raise SystemExit(main())

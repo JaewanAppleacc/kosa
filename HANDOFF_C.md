@@ -3,7 +3,7 @@
 `README_C.md`가 요구한 C 소유 모듈을 A 확정 계약(`src/schemas/`, `src/repositories/protocols.py`)에
 맞춰 전부 구현했다. A 소유 파일은 하나도 건드리지 않았다.
 
-**설계 근거는 [`RATIONALE_C.md`](RATIONALE_C.md)에 따로 정리했다** — 왜 LLM에 판정을
+**설계 근거는 [`rationale_c/`](rationale_c/README.md) 폴더에 따로 정리했다** — 왜 LLM에 판정을
 맡기지 않았는지, 데이터 규모를 어떤 기준으로 정했는지, 코드에 박힌 숫자를 무엇을 재서
 정했는지. 발표에서 "그건 왜 그렇게 정했나"가 나올 지점만 모았다.
 

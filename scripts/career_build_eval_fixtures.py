@@ -25,6 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.engines.canonical_mapper import CanonicalMapper, load_canonical_majors  # noqa: E402
 from src.rag.retrieve import build_retriever_from_data_dir  # noqa: E402
 from src.repositories.department_repository import JsonlDepartmentRepository  # noqa: E402
@@ -260,6 +262,7 @@ def build_question_cache() -> list[dict]:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
 
     rag_rows = build_rag_expectations()

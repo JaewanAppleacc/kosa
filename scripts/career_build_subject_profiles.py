@@ -24,6 +24,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS  # noqa: E402
 from src.engines.trait_normalizer import normalize_grade  # noqa: E402
 from src.ids import generate_subject_id  # noqa: E402
@@ -220,6 +222,7 @@ def build() -> tuple[list[SubjectProfile], list[dict]]:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     built, alias_rows = build()
     duplicated = {
         a["alias"] for a in alias_rows if sum(1 for b in alias_rows if b["alias"] == a["alias"]) > 1

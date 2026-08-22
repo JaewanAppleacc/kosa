@@ -30,6 +30,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS  # noqa: E402
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS  # noqa: E402
 from src.ids import generate_option_id, generate_question_id  # noqa: E402
@@ -281,6 +283,7 @@ def coverage(questions: list[SeedQuestion]) -> Counter[str]:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     built = build()
     non_core = {c.context_id for c in CONTEXT_DEFINITIONS if not c.is_core}
     missing = non_core - set(QUESTIONS)

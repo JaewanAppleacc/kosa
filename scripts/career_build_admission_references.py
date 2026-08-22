@@ -30,6 +30,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from scripts.career_console import use_utf8_stdout  # noqa: E402
+
 from src.engines.admission_filter import (  # noqa: E402
     derive_comparability_group,
     validate_group_field,
@@ -147,6 +149,7 @@ def _write(path: Path, rows: list[AdmissionReference]) -> None:
 
 
 if __name__ == "__main__":
+    use_utf8_stdout()
     skeleton, placeholder = build()
     problems = validate_group_field(skeleton) + validate_group_field(placeholder)
     if problems:
