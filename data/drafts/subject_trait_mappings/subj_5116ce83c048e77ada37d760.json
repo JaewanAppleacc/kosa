@@ -1,0 +1,40 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_5116ce83c048e77ada37d760",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_5116ce83c048e77ada37d760",
+  "label": "생명과학",
+  "subject_group": "과학",
+  "subject_category": "일반선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "causal_analysis": 3,
+    "pattern_finding": 3,
+    "information_comparison": 2
+  },
+  "rationale": "관찰 자료에서 규칙을 찾고 원인을 설명하는 활동이 함께 있어 둘 다 3.",
+  "related_major_ids": [
+    "life_science",
+    "psychology"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_5116ce83c048e77ada37d760",
+    "label": "생명과학",
+    "trait_vector": {
+      "causal_analysis": 1.0,
+      "pattern_finding": 1.0,
+      "information_comparison": 0.67
+    },
+    "related_major_ids": [
+      "life_science",
+      "psychology"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

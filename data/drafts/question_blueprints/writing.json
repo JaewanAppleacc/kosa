@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_writing_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "writing",
+  "context_label": "글쓰기·독서",
+  "seed_question": {
+    "question_id": "writing_seed_01",
+    "context": "writing",
+    "question_text": "글을 읽거나 쓸 때, 어떤 작업에 가장 오래 머무르게 되나요?",
+    "options": [
+      {
+        "option_id": "writing_seed_01_o1",
+        "text": "같은 주제를 다룬 다른 글들과 견줘 보는 것",
+        "role_id": "cross_reading",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": "자료가 서로 다를 때 무엇을 기준으로 고르는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "writing_seed_01_o2",
+        "text": "읽는 사람이 어떻게 받아들일지 떠올려 보는 것",
+        "role_id": "imagining_reader",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": "반응이 예상과 다를 때의 행동 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "writing_seed_01_o3",
+        "text": "인물의 감정선이 왜 그렇게 흐르는지 따라가는 것",
+        "role_id": "character_feeling",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": "타인의 감정을 어떻게 읽는지 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "team_role"
+        ]
+      },
+      {
+        "option_id": "writing_seed_01_o4",
+        "text": "주장이 어떤 근거에서 나왔는지 구조를 뜯어보는 것",
+        "role_id": "argument_structure",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": "근거가 부실할 때 무엇부터 확인하는지 확인",
+        "preferred_frames": [
+          "problem_check",
+          "longest_focus"
+        ]
+      },
+      {
+        "option_id": "writing_seed_01_o5",
+        "text": "쓰기 전에 전체 얼개를 먼저 잡아 두는 것",
+        "role_id": "outline_first",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": "마감이 촉박할 때 무엇을 먼저 하는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "first_action"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "writing_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "cross_reading",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "imagining_reader",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "character_feeling",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "argument_structure",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "outline_first",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "cross_reading": {
+      "trait_id": "information_comparison",
+      "why": "같은 주제를 다룬 다른 글들과 견줘 보는 것"
+    },
+    "imagining_reader": {
+      "trait_id": "audience_response_prediction",
+      "why": "읽는 사람이 어떻게 받아들일지 떠올려 보는 것"
+    },
+    "character_feeling": {
+      "trait_id": "emotional_interpretation",
+      "why": "인물의 감정선이 왜 그렇게 흐르는지 따라가는 것"
+    },
+    "argument_structure": {
+      "trait_id": "causal_analysis",
+      "why": "주장이 어떤 근거에서 나왔는지 구조를 뜯어보는 것"
+    },
+    "outline_first": {
+      "trait_id": "planning",
+      "why": "쓰기 전에 전체 얼개를 먼저 잡아 두는 것"
+    }
+  }
+}

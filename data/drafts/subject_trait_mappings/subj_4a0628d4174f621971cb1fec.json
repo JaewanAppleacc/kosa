@@ -1,0 +1,42 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_4a0628d4174f621971cb1fec",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_4a0628d4174f621971cb1fec",
+  "label": "주제 탐구 독서",
+  "subject_group": "국어",
+  "subject_category": "진로선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "causal_analysis": 2,
+    "information_comparison": 3,
+    "planning": 2
+  },
+  "rationale": "스스로 탐구 주제를 정하고 여러 자료를 대조하는 과목이라 정보 비교 3.",
+  "related_major_ids": [
+    "media_communication",
+    "psychology",
+    "education"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_4a0628d4174f621971cb1fec",
+    "label": "주제 탐구 독서",
+    "trait_vector": {
+      "causal_analysis": 0.67,
+      "information_comparison": 1.0,
+      "planning": 0.67
+    },
+    "related_major_ids": [
+      "media_communication",
+      "psychology",
+      "education"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

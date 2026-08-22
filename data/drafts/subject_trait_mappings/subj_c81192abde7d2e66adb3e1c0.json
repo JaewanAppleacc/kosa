@@ -1,0 +1,38 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_c81192abde7d2e66adb3e1c0",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_c81192abde7d2e66adb3e1c0",
+  "label": "인공지능 기초",
+  "subject_group": "기술·가정/정보",
+  "subject_category": "진로선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "tool_utilization": 3,
+    "pattern_finding": 3,
+    "causal_analysis": 2
+  },
+  "rationale": "데이터에서 규칙을 학습시키는 과정이라 패턴 탐색 3.",
+  "related_major_ids": [
+    "computer_science"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_c81192abde7d2e66adb3e1c0",
+    "label": "인공지능 기초",
+    "trait_vector": {
+      "tool_utilization": 1.0,
+      "pattern_finding": 1.0,
+      "causal_analysis": 0.67
+    },
+    "related_major_ids": [
+      "computer_science"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

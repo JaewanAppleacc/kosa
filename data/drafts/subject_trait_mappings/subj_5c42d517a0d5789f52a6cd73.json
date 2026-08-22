@@ -1,0 +1,40 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_5c42d517a0d5789f52a6cd73",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_5c42d517a0d5789f52a6cd73",
+  "label": "미적분Ⅱ",
+  "subject_group": "수학",
+  "subject_category": "진로선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "causal_analysis": 3,
+    "pattern_finding": 2
+  },
+  "rationale": "변화율로 현상을 설명하는 과목이라 원인 분석 3.",
+  "related_major_ids": [
+    "mechanical_engineering",
+    "computer_science",
+    "life_science"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_5c42d517a0d5789f52a6cd73",
+    "label": "미적분Ⅱ",
+    "trait_vector": {
+      "causal_analysis": 1.0,
+      "pattern_finding": 0.67
+    },
+    "related_major_ids": [
+      "mechanical_engineering",
+      "computer_science",
+      "life_science"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

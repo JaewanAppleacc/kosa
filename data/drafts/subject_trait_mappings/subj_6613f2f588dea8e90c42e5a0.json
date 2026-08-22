@@ -1,0 +1,42 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_6613f2f588dea8e90c42e5a0",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_6613f2f588dea8e90c42e5a0",
+  "label": "사회문제 탐구",
+  "subject_group": "사회",
+  "subject_category": "융합선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "causal_analysis": 3,
+    "information_comparison": 3,
+    "opinion_mediation": 2
+  },
+  "rationale": "사회 현상의 원인을 자료로 규명하는 과목이라 둘 다 3.",
+  "related_major_ids": [
+    "psychology",
+    "education",
+    "business_administration"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_6613f2f588dea8e90c42e5a0",
+    "label": "사회문제 탐구",
+    "trait_vector": {
+      "causal_analysis": 1.0,
+      "information_comparison": 1.0,
+      "opinion_mediation": 0.67
+    },
+    "related_major_ids": [
+      "psychology",
+      "education",
+      "business_administration"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

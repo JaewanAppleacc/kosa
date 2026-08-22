@@ -1,0 +1,42 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_fd2661b74f5517b17f5f9d9e",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_fd2661b74f5517b17f5f9d9e",
+  "label": "화법과 언어",
+  "subject_group": "국어",
+  "subject_category": "일반선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "audience_response_prediction": 3,
+    "opinion_mediation": 2,
+    "emotional_interpretation": 2
+  },
+  "rationale": "말하기 상황에서 청자 반응을 고려하는 활동이 성취기준의 중심이라 반응 예측 3.",
+  "related_major_ids": [
+    "media_communication",
+    "education",
+    "psychology"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_fd2661b74f5517b17f5f9d9e",
+    "label": "화법과 언어",
+    "trait_vector": {
+      "audience_response_prediction": 1.0,
+      "opinion_mediation": 0.67,
+      "emotional_interpretation": 0.67
+    },
+    "related_major_ids": [
+      "media_communication",
+      "education",
+      "psychology"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

@@ -1,0 +1,573 @@
+{
+  "format_version": "persona_fixture_v1",
+  "persona": {
+    "persona_id": "persona_demo_user_02_expression_focused",
+    "user_id": "demo_user_02",
+    "label": "표현·창작 중심",
+    "description": "직접 만들어 보고, 상황이 바뀌면 방식을 바꿔 다시 시도하는 경향이 반복 관찰되는 페르소나",
+    "final_context_ids": [
+      "game",
+      "media",
+      "school_life"
+    ],
+    "answers": [
+      {
+        "context_id": "game",
+        "question_id": "game_seed_01",
+        "question_frame_id": "seed_frame",
+        "selected_option_id": "game_seed_01_o5",
+        "selected_role_id": "tool_mastery"
+      },
+      {
+        "context_id": "media",
+        "question_id": "media_seed_01",
+        "question_frame_id": "seed_frame",
+        "selected_option_id": "media_seed_01_o2",
+        "selected_role_id": "creative_making"
+      },
+      {
+        "context_id": "school_life",
+        "question_id": "school_life_seed_01",
+        "question_frame_id": "seed_frame",
+        "selected_option_id": "school_life_seed_01_o5",
+        "selected_role_id": "adapting_change"
+      },
+      {
+        "context_id": "game",
+        "question_id": "game_tail_01",
+        "question_frame_id": "first_action",
+        "selected_option_id": "game_tail_01_o3",
+        "selected_role_id": "direct_trial"
+      },
+      {
+        "context_id": "game",
+        "question_id": "game_tail_02",
+        "question_frame_id": "unexpected_result",
+        "selected_option_id": "game_tail_02_o2",
+        "selected_role_id": "strategy_change"
+      },
+      {
+        "context_id": "media",
+        "question_id": "media_tail_01",
+        "question_frame_id": "others_reaction",
+        "selected_option_id": "media_tail_01_o4",
+        "selected_role_id": "external_research"
+      },
+      {
+        "context_id": "media",
+        "question_id": "media_tail_02",
+        "question_frame_id": "new_tool",
+        "selected_option_id": "media_tail_02_o2",
+        "selected_role_id": "strategy_change"
+      },
+      {
+        "context_id": "school_life",
+        "question_id": "school_life_tail_01",
+        "question_frame_id": "conflicting_opinions",
+        "selected_option_id": "school_life_tail_01_o3",
+        "selected_role_id": "direct_trial"
+      },
+      {
+        "context_id": "school_life",
+        "question_id": "school_life_tail_02",
+        "question_frame_id": "limited_time_priority",
+        "selected_option_id": "school_life_tail_02_o4",
+        "selected_role_id": "external_research"
+      }
+    ]
+  },
+  "hand_calculated_fixture": {
+    "fixture_id": "fixture_persona_demo_user_02_expression_focused",
+    "persona_id": "persona_demo_user_02_expression_focused",
+    "trait_expectations": [
+      {
+        "trait_id": "change_adaptation",
+        "expected_support_count": 3,
+        "expected_opportunity_count": 7,
+        "expected_context_count": 3,
+        "expected_distinct_frame_count": 3,
+        "expected_state": "STRONG",
+        "expected_insufficient_reason": null,
+        "calculation_notes": "school_life Seed(seed_frame) 1회 + game 꼬리(unexpected_result) 1회 + media 꼬리(new_tool) 1회 = 3회 선택. Context 3개, Frame 3종이라 최소 Context 2개·Frame 2종 조건을 넘어 STRONG."
+      },
+      {
+        "trait_id": "immediate_execution",
+        "expected_support_count": 2,
+        "expected_opportunity_count": 7,
+        "expected_context_count": 2,
+        "expected_distinct_frame_count": 2,
+        "expected_state": "MODERATE",
+        "expected_insufficient_reason": null,
+        "calculation_notes": "game 꼬리(first_action)와 school_life 꼬리(conflicting_opinions)에서 2회. Context 2개·Frame 2종을 채우지만 support가 3에 못 미쳐 MODERATE."
+      },
+      {
+        "trait_id": "information_comparison",
+        "expected_support_count": 2,
+        "expected_opportunity_count": 7,
+        "expected_context_count": 2,
+        "expected_distinct_frame_count": 2,
+        "expected_state": "MODERATE",
+        "expected_insufficient_reason": null,
+        "calculation_notes": "media 꼬리(others_reaction)와 school_life 꼬리(limited_time_priority)에서 2회. domain_specific이라 최소 Context가 1개인데 실제 2개를 채웠고 Frame도 2종이라 MODERATE."
+      },
+      {
+        "trait_id": "tool_utilization",
+        "expected_support_count": 1,
+        "expected_opportunity_count": 1,
+        "expected_context_count": 1,
+        "expected_distinct_frame_count": 1,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "EVIDENCE_LIMITED",
+        "calculation_notes": "game Seed에서만 1회 선택. 제시 자체가 1회뿐이라 반복 확인이 불가능했다."
+      },
+      {
+        "trait_id": "visual_expression",
+        "expected_support_count": 1,
+        "expected_opportunity_count": 1,
+        "expected_context_count": 1,
+        "expected_distinct_frame_count": 1,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "EVIDENCE_LIMITED",
+        "calculation_notes": "media Seed에서만 1회 선택. 제시 1회, 지지 1회로 근거가 한 번뿐이다."
+      },
+      {
+        "trait_id": "causal_analysis",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 8,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "8회 제시됐지만 한 번도 고르지 않았다 — 물어봤는데 지지 근거가 없는 경우다."
+      },
+      {
+        "trait_id": "collaboration_preference",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 8,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "꼬리질문 6회와 game·school_life Seed에서 총 8회 제시됐지만 한 번도 고르지 않았다."
+      },
+      {
+        "trait_id": "pattern_finding",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 1,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "game Seed의 5개 선택지 중 하나로 1회 제시됐지만 고르지 않았다."
+      },
+      {
+        "trait_id": "audience_response_prediction",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 1,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "media Seed의 5개 선택지 중 하나로 1회 제시됐지만 고르지 않았다."
+      },
+      {
+        "trait_id": "emotional_interpretation",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 2,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "media·school_life Seed에서 2회 제시됐지만 두 번 다 다른 선택지를 골랐다."
+      },
+      {
+        "trait_id": "planning",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 1,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "school_life Seed의 5개 선택지 중 하나로 1회 제시됐지만 고르지 않았다."
+      },
+      {
+        "trait_id": "opinion_mediation",
+        "expected_support_count": 0,
+        "expected_opportunity_count": 1,
+        "expected_context_count": 0,
+        "expected_distinct_frame_count": 0,
+        "expected_state": "INSUFFICIENT",
+        "expected_insufficient_reason": "NO_POSITIVE_EVIDENCE",
+        "calculation_notes": "school_life Seed의 5개 선택지 중 하나로 1회 제시됐지만 고르지 않았다."
+      }
+    ],
+    "expected_top_major_relevance_order": [
+      "design",
+      "computer_science",
+      "media_communication"
+    ],
+    "notes": "표현·제작 축(visual_expression·tool_utilization)이 Seed에서 각각 1회씩만 제시되는 구조라, 이 유형은 정작 자기 축에서 STRONG이 나오지 않는다. Contrast Context 제안(§5-1)이 필요한 대표 사례."
+  },
+  "option_blueprints": {
+    "game_seed_01": {
+      "blueprint_id": "game_seed_01_blueprint",
+      "roles": [
+        {
+          "role_id": "strategy_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "quick_execution",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "team_coordination",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "pattern_recognition",
+          "primary_trait_delta": {
+            "pattern_finding": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "tool_mastery",
+          "primary_trait_delta": {
+            "tool_utilization": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "game_tail_01": {
+      "blueprint_id": "problem_response_v1",
+      "roles": [
+        {
+          "role_id": "cause_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "strategy_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "direct_trial",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "external_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "ask_others",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "game_tail_02": {
+      "blueprint_id": "problem_response_v1",
+      "roles": [
+        {
+          "role_id": "cause_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "strategy_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "direct_trial",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "external_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "ask_others",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "media_seed_01": {
+      "blueprint_id": "media_seed_01_blueprint",
+      "roles": [
+        {
+          "role_id": "structure_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "creative_making",
+          "primary_trait_delta": {
+            "visual_expression": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "audience_reaction",
+          "primary_trait_delta": {
+            "audience_response_prediction": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "character_empathy",
+          "primary_trait_delta": {
+            "emotional_interpretation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "trend_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "media_tail_01": {
+      "blueprint_id": "problem_response_v1",
+      "roles": [
+        {
+          "role_id": "cause_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "strategy_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "direct_trial",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "external_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "ask_others",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "media_tail_02": {
+      "blueprint_id": "problem_response_v1",
+      "roles": [
+        {
+          "role_id": "cause_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "strategy_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "direct_trial",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "external_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "ask_others",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "school_life_seed_01": {
+      "blueprint_id": "school_life_seed_01_blueprint",
+      "roles": [
+        {
+          "role_id": "task_planning",
+          "primary_trait_delta": {
+            "planning": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "team_project",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "conflict_mediation",
+          "primary_trait_delta": {
+            "opinion_mediation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "peer_understanding",
+          "primary_trait_delta": {
+            "emotional_interpretation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "adapting_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "school_life_tail_01": {
+      "blueprint_id": "problem_response_v1",
+      "roles": [
+        {
+          "role_id": "cause_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "strategy_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "direct_trial",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "external_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "ask_others",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        }
+      ]
+    },
+    "school_life_tail_02": {
+      "blueprint_id": "problem_response_v1",
+      "roles": [
+        {
+          "role_id": "cause_analysis",
+          "primary_trait_delta": {
+            "causal_analysis": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "strategy_change",
+          "primary_trait_delta": {
+            "change_adaptation": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "direct_trial",
+          "primary_trait_delta": {
+            "immediate_execution": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "external_research",
+          "primary_trait_delta": {
+            "information_comparison": 1
+          },
+          "next_probe": null
+        },
+        {
+          "role_id": "ask_others",
+          "primary_trait_delta": {
+            "collaboration_preference": 1
+          },
+          "next_probe": null
+        }
+      ]
+    }
+  }
+}

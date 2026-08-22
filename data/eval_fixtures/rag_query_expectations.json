@@ -1,0 +1,44 @@
+{
+  "format_version": "rag_expectations_v1",
+  "queries": [
+    {
+      "query": "컴퓨터공학부 졸업요건",
+      "filter_department_id": "dept_c40d4e93f85d51c824579e9d",
+      "expect_min_results": 1,
+      "expect_source_contains": "컴퓨터공학부",
+      "note": "학과 필터를 걸면 그 학과 문서만 나와야 한다.",
+      "observed_top_source_urls": [
+        "sample://서울대학교/컴퓨터공학부/학과 소개"
+      ]
+    },
+    {
+      "query": "미디어커뮤니케이션 교육과정 수용자 조사",
+      "filter_department_id": null,
+      "expect_min_results": 1,
+      "expect_source_contains": "미디어커뮤니케이션학부",
+      "note": "필터 없이도 질의어와 맞는 문서가 1순위 근처에 와야 한다.",
+      "observed_top_source_urls": [
+        "sample://중앙대학교/미디어커뮤니케이션학부/교육과정",
+        "sample://중앙대학교/디자인학부/학과 소개"
+      ]
+    },
+    {
+      "query": "고교에서 준비하면 좋은 과목 물리학 미적분",
+      "filter_department_id": "dept_e47910ac959a7d45ac02abc6",
+      "expect_min_results": 1,
+      "expect_source_contains": "기계공학부",
+      "note": "본문에 있는 과목명으로도 문서를 찾을 수 있어야 한다.",
+      "observed_top_source_urls": [
+        "sample://서울대학교/기계공학부/교육과정"
+      ]
+    },
+    {
+      "query": "존재하지 않는 학과의 장학금 규정",
+      "filter_department_id": "dept_8933daeb5344a0962989bb83",
+      "expect_min_results": 0,
+      "expect_source_contains": null,
+      "note": "근거가 없으면 빈 결과여야 한다 — 아무 문서나 끌어오면 안 된다.",
+      "observed_top_source_urls": []
+    }
+  ]
+}

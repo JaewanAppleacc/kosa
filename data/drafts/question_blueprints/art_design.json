@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_art_design_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "art_design",
+  "context_label": "미술·디자인",
+  "seed_question": {
+    "question_id": "art_design_seed_01",
+    "context": "art_design",
+    "question_text": "그림을 그리거나 무언가를 꾸밀 때, 어떤 순간이 가장 즐거운가요?",
+    "options": [
+      {
+        "option_id": "art_design_seed_01_o1",
+        "text": "머릿속 이미지를 눈에 보이게 만들어 낼 때",
+        "role_id": "visual_making",
+        "primary_trait_delta": {
+          "visual_expression": 1
+        },
+        "next_probe": "표현 방식을 고를 때 무엇을 먼저 정하는지 확인",
+        "preferred_frames": [
+          "first_action",
+          "longest_focus"
+        ]
+      },
+      {
+        "option_id": "art_design_seed_01_o2",
+        "text": "보는 사람이 어떻게 느낄지 맞춰 볼 때",
+        "role_id": "viewer_reaction",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": "반응이 갈릴 때의 행동 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "art_design_seed_01_o3",
+        "text": "새로운 재료나 프로그램을 써 볼 때",
+        "role_id": "trying_materials",
+        "primary_trait_delta": {
+          "tool_utilization": 1
+        },
+        "next_probe": "낯선 도구를 다루는 방식 확인",
+        "preferred_frames": [
+          "new_tool",
+          "first_action"
+        ]
+      },
+      {
+        "option_id": "art_design_seed_01_o4",
+        "text": "처음 방향이 안 맞으면 방식을 바꿔 다시 잡을 때",
+        "role_id": "reworking",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": "중간에 방향을 바꾸는 기준 확인",
+        "preferred_frames": [
+          "unexpected_result",
+          "new_tool"
+        ]
+      },
+      {
+        "option_id": "art_design_seed_01_o5",
+        "text": "완성까지 단계를 나눠 계획대로 진행할 때",
+        "role_id": "scheduling_work",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": "제한된 시간에 무엇을 남기는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "first_action"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "art_design_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "visual_making",
+        "primary_trait_delta": {
+          "visual_expression": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "viewer_reaction",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "trying_materials",
+        "primary_trait_delta": {
+          "tool_utilization": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "reworking",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "scheduling_work",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "visual_making": {
+      "trait_id": "visual_expression",
+      "why": "머릿속 이미지를 눈에 보이게 만들어 낼 때"
+    },
+    "viewer_reaction": {
+      "trait_id": "audience_response_prediction",
+      "why": "보는 사람이 어떻게 느낄지 맞춰 볼 때"
+    },
+    "trying_materials": {
+      "trait_id": "tool_utilization",
+      "why": "새로운 재료나 프로그램을 써 볼 때"
+    },
+    "reworking": {
+      "trait_id": "change_adaptation",
+      "why": "처음 방향이 안 맞으면 방식을 바꿔 다시 잡을 때"
+    },
+    "scheduling_work": {
+      "trait_id": "planning",
+      "why": "완성까지 단계를 나눠 계획대로 진행할 때"
+    }
+  }
+}

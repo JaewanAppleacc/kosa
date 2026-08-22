@@ -1,0 +1,141 @@
+{
+  "format_version": "mapping_expectations_v1",
+  "canonical_mapping": [
+    {
+      "university_name": "서울대학교",
+      "department_name": "컴퓨터공학부",
+      "department_id": "dept_c40d4e93f85d51c824579e9d",
+      "expected_primary_candidate": "computer_science",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "연세대학교",
+      "department_name": "컴퓨터과학과",
+      "department_id": "dept_6f091f7d659f8a391a9ae474",
+      "expected_primary_candidate": "computer_science",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "고려대학교",
+      "department_name": "컴퓨터학과",
+      "department_id": "dept_8548b740bd7f240041d34fee",
+      "expected_primary_candidate": "computer_science",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "한양대학교",
+      "department_name": "커뮤니케이션디자인학과",
+      "department_id": "dept_bcaaaafde04f828c19b3d5c1",
+      "expected_primary_candidate": "design",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "서강대학교",
+      "department_name": "신문방송학전공",
+      "department_id": "dept_94f12354268af9359e245775",
+      "expected_primary_candidate": "media_communication",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "충남대학교",
+      "department_name": "생물과학과",
+      "department_id": "dept_b7d9b5f01a5268091ecc59b5",
+      "expected_primary_candidate": "life_science",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "연세대학교",
+      "department_name": "경영학과",
+      "department_id": "dept_f7e14a0128db6e7564ae4f80",
+      "expected_primary_candidate": "business_administration",
+      "expected_mapping_status": "AUTO_MAPPED"
+    },
+    {
+      "university_name": "충남대학교",
+      "department_name": "자유전공학부",
+      "department_id": "dept_aea305c2a82fba36c46d983a",
+      "expected_primary_candidate": null,
+      "expected_mapping_status": "REVIEW_REQUIRED"
+    }
+  ],
+  "subject_trait": [
+    {
+      "subject_id": "subj_a668a359a7a11a7fbcbbc447",
+      "label": "정보",
+      "expected_top_trait_ids": [
+        "tool_utilization"
+      ]
+    },
+    {
+      "subject_id": "subj_c81192abde7d2e66adb3e1c0",
+      "label": "인공지능 기초",
+      "expected_top_trait_ids": [
+        "pattern_finding",
+        "tool_utilization"
+      ]
+    },
+    {
+      "subject_id": "subj_a8a7c87f8ee5b5e4c3e63bfd",
+      "label": "미술 창작",
+      "expected_top_trait_ids": [
+        "visual_expression"
+      ]
+    },
+    {
+      "subject_id": "subj_a7b6aafe84325271f94fc237",
+      "label": "인간과 심리",
+      "expected_top_trait_ids": [
+        "emotional_interpretation"
+      ]
+    },
+    {
+      "subject_id": "subj_5116ce83c048e77ada37d760",
+      "label": "생명과학",
+      "expected_top_trait_ids": [
+        "causal_analysis",
+        "pattern_finding"
+      ]
+    },
+    {
+      "subject_id": "subj_9071c5223b709bf5dd6dd6ab",
+      "label": "창의 공학 설계",
+      "expected_top_trait_ids": [
+        "planning",
+        "tool_utilization"
+      ]
+    }
+  ],
+  "major_trait": [
+    {
+      "major_id": "computer_science",
+      "expected_top_trait_ids": [
+        "causal_analysis",
+        "pattern_finding",
+        "tool_utilization"
+      ]
+    },
+    {
+      "major_id": "design",
+      "expected_top_trait_ids": [
+        "audience_response_prediction",
+        "visual_expression"
+      ]
+    },
+    {
+      "major_id": "education",
+      "expected_top_trait_ids": [
+        "collaboration_preference",
+        "emotional_interpretation",
+        "opinion_mediation",
+        "planning"
+      ]
+    },
+    {
+      "major_id": "psychology",
+      "expected_top_trait_ids": [
+        "causal_analysis",
+        "emotional_interpretation"
+      ]
+    }
+  ]
+}
