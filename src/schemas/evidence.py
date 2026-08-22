@@ -11,6 +11,18 @@ from pydantic import BaseModel
 class EvidenceOrigin(str, Enum):
     PRIMARY_BLUEPRINT = "primary_blueprint"
     SECONDARY_HYPOTHESIS = "secondary_hypothesis"
+    # 2026-08-22 4차 리뷰: Explicit Conflict 확인 질문(§12-1) 답변은 일반 상황형 질문
+    # 답변과 다른 종류의 정보다 — "이 Trait가 실제로 얼마나 자주 나타나는가"가 아니라
+    # "상충하는 기존 Evidence를 어떻게 해석할지"를 알려주는 답이다. PRIMARY_BLUEPRINT로
+    # 기록하면 support_count/opportunity_count/context_count/distinct_frame_count 같은
+    # 일반 Trait 집계에 그대로 섞여 들어가는데(evidence_engine.summarize_trait_evidence는
+    # PRIMARY_BLUEPRINT만 집계), 이러면 확인 질문 한 번이 "일반 Evidence +1"과
+    # "Matching damping(×0.67, matching_engine.py)"을 동시에 유발해 정책보다 과하게
+    # 반영된다. 이 값으로 따로 표시하면 기존의 "PRIMARY_BLUEPRINT만 계산에 쓴다"는
+    # 필터를 그대로 재사용하는 것만으로 자동으로 제외된다(evidence_engine.py,
+    # conflict_engine.py, profile_engine.py 세 곳 모두 이미 `== PRIMARY_BLUEPRINT`로
+    # 걸러쓰고 있었다). Evidence Ledger에서 삭제하지 않고 그대로 남긴다 — 역추적용.
+    CONFLICT_RESOLUTION = "conflict_resolution"
 
 
 class EvidenceRecord(BaseModel):

@@ -434,14 +434,67 @@ class InterestRatingValidationTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.json()["accepted"])
 
-    def test_out_of_range_and_non_integer_scores_rejected(self) -> None:
+    def test_out_of_range_integer_scores_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: 0/6/-1은 타입은 맞지만(strict int) 범위(1~5) 밖 —
+        이건 여전히 핸들러의 validate_interest_ratings()가 APIError로 거부한다."""
+
         session_id = self._new_session()
-        for bad_score in (0, 6, -1, "high"):
+        for bad_score in (0, 6, -1):
             r = client.post(
                 "/assessment/interest-rating",
                 json={"session_id": session_id, "ratings": {"game": bad_score, "media": 4}},
             )
             self.assertEqual(r.status_code, 422, f"score={bad_score!r}이 거부되지 않았습니다.")
+            self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_numeric_string_score_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: "4"(문자열)는 예전엔 Pydantic이 조용히 int로
+        변환해 받아줬다 — StrictInt 도입 후 거부돼야 하고, 응답 형식도 다른 검증 오류와
+        동일한 APIError(VALIDATION_ERROR) 형태를 유지해야 한다(RequestValidationError
+        핸들러로 정규화)."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": "4", "media": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_non_numeric_string_score_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": "high", "media": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_float_score_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: 4.0(실수)도 예전엔 int로 조용히 잘렸다 — StrictInt는
+        실수를 거부한다."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 4.0, "media": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_boolean_score_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: 파이썬에서 bool은 int의 하위형이라(True==1) 예전
+        dict[str, int]는 true/false를 1/0으로 조용히 받아들였다 — StrictInt는 bool을
+        명시적으로 거부한다."""
+
+        session_id = self._new_session()
+        for bad_score in (True, False):
+            r = client.post(
+                "/assessment/interest-rating",
+                json={"session_id": session_id, "ratings": {"game": bad_score, "media": 4}},
+            )
+            self.assertEqual(r.status_code, 422, f"score={bad_score!r}이 거부되지 않았습니다.")
+            self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
 
     def test_unknown_context_id_rejected(self) -> None:
         session_id = self._new_session()

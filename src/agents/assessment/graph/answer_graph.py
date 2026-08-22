@@ -102,7 +102,14 @@ def _evidence_update(g: AnswerGraphState) -> dict:
         option_role_id=selected_option.role_id,
         option_text=selected_option.text,
         applied_primary_trait_delta=selected_option.primary_trait_delta,
-        evidence_origin=EvidenceOrigin.PRIMARY_BLUEPRINT,
+        # 2026-08-22 4차 리뷰: 확인 질문 답변은 일반 Trait Evidence와 구분해서 남긴다 —
+        # evidence_engine.summarize_trait_evidence/conflict_engine.detect_explicit_conflicts/
+        # profile_engine.build_detailed_evidence_by_dimension이 전부 이미 PRIMARY_BLUEPRINT만
+        # 걸러 쓰므로, 이 값만 바꾸면 세 계산에서 자동으로 제외된다(Evidence Ledger에서
+        # 삭제하진 않는다 — 역추적·감사용으로는 그대로 남아있어야 한다).
+        evidence_origin=(
+            EvidenceOrigin.CONFLICT_RESOLUTION if is_resolution_answer else EvidenceOrigin.PRIMARY_BLUEPRINT
+        ),
         context=question.context,
         source_type="seed_question" if question.frame_id == "seed_frame" else "generated_question",
         generator_version="v1",
@@ -120,10 +127,16 @@ def _evidence_update(g: AnswerGraphState) -> dict:
         )
     )
 
-    offered_traits: list[str] = []
-    for option in question.options:
-        offered_traits.extend(option.primary_trait_delta.keys())
-    state.offered_trait_ids_by_question[question.question_id] = offered_traits
+    # 2026-08-22 4차 리뷰: opportunity_count(§12: "선택 가능했던 횟수")는 이
+    # offered_trait_ids_by_question에서 계산된다 — 확인 질문에 나온 5개 선택지도 그대로
+    # 넣으면, 답변 자체는 CONFLICT_RESOLUTION으로 분리해도 "planning을 볼 기회가 있었다"는
+    # 흔적은 여전히 남아 opportunity_count가 늘어난다. 확인 질문은 §12-1 별도 정보이므로
+    # 일반 기회 집계에서도 제외한다.
+    if not is_resolution_answer:
+        offered_traits: list[str] = []
+        for option in question.options:
+            offered_traits.extend(option.primary_trait_delta.keys())
+        state.offered_trait_ids_by_question[question.question_id] = offered_traits
 
     if question.target_traits:
         state.recent_target_trait_ids.append(question.target_traits[0])

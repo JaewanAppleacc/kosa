@@ -8,7 +8,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictInt
 
 from src.schemas.course import CourseProfile, ParsedSubjectCandidate
 from src.schemas.graph import SubgraphEdge, SubgraphNode
@@ -58,7 +58,13 @@ class CreateSessionResponse(BaseModel):
 
 class InterestRatingRequest(BaseModel):
     session_id: str
-    ratings: dict[str, int]  # context_id -> 1~5
+    # 2026-08-22 4차 리뷰: 예전엔 dict[str, int]라 Pydantic이 "4"(문자열)·4.0(실수)·
+    # true/false(bool은 파이썬에서 int의 하위형이라 1/0으로 통과)까지 전부 int로 조용히
+    # 변환해 받아들였다. StrictInt는 그 자동 변환(coercion)을 막고 JSON 정수만 통과시킨다
+    # (범위 1~5 검사는 값 검증이라 여기서 하지 않고, 기존과 동일하게 핸들러의
+    # validate_interest_ratings()가 한다 — 타입 문제와 값 범위 문제를 같은 곳에서 섞지
+    # 않기 위함).
+    ratings: dict[str, StrictInt]
 
 
 class InterestRatingResponse(BaseModel):

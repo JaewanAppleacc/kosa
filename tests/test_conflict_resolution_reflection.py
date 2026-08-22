@@ -9,6 +9,12 @@ end-to-end(submit_answer)로 검증한다.
 §12-1 확인 질문 답변(RESOLVED_POSITIVE/RESOLVED_OPPOSITE/RESOLVED_CONTEXT_DEPENDENT/
 UNRESOLVED)이 Evidence를 지우거나 고치지 않으면서도 Profile 문장 선정(profile_engine)과
 Matching 정규화 값(matching_engine)에 정성적으로만 반영되는지 확인한다.
+
+## 2026-08-22 4차 리뷰 — Resolution 답변과 일반 Trait Evidence 분리
+확인 질문 답변이 EvidenceOrigin.CONFLICT_RESOLUTION으로 따로 표시돼, 일반 Trait 집계
+(support_count/opportunity_count/context_count/distinct_frame_count)와 일반 Explicit
+Conflict 재탐지에서 제외되는지 확인한다. Ledger·답변 이력에는 그대로 남아야 한다
+(ResolutionEvidenceSeparationTest).
 """
 
 from __future__ import annotations
@@ -26,8 +32,9 @@ from src.data.questions.vertical_slice_seed_questions import GAME_SEED_01
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
 from src.engines.matching_engine import compute_student_trait_states
 from src.engines.profile_engine import _resolution_role_for_trait, select_profile_highlight_traits
+from src.engines.conflict_engine import detect_explicit_conflicts
 from src.schemas.assessment_state import AssessmentState
-from src.schemas.evidence import ContrastResolutionStatus
+from src.schemas.evidence import ContrastResolutionStatus, EvidenceOrigin
 
 GAME_SEED_01_FINALIZED = seed_question_as_finalized(GAME_SEED_01)
 TRAIT_DEFINITIONS_BY_ID = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
@@ -372,6 +379,204 @@ class ResolutionReflectedInProfileAndMatchingTest(unittest.TestCase):
             state.contrast_resolutions,
         )
         self.assertEqual(candidates_without, candidates_with_empty)
+
+
+class ResolutionEvidenceSeparationTest(unittest.TestCase):
+    """2026-08-22 4차 리뷰 항목 2: 확인 질문 답변은 EvidenceOrigin.CONFLICT_RESOLUTION으로
+    구분되고, 일반 Trait 집계·재탐지에서 제외되지만 Ledger·답변 이력에는 남아야 한다."""
+
+    def test_resolution_answer_is_kept_in_evidence_ledger_and_answer_history(self) -> None:
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        evidence_count_before = len(state.evidence_ledger)
+        answers_count_before = len(state.answers)
+
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        # Ledger에도, 별도 답변 이력(state.answers)에도 새 항목이 남는다 — 삭제하지 않는다.
+        self.assertEqual(len(state.evidence_ledger), evidence_count_before + 1)
+        self.assertEqual(len(state.answers), answers_count_before + 1)
+        resolution_record = state.evidence_ledger[-1]
+        resolution_question = build_planning_vs_execution_resolution_question("game")
+        self.assertEqual(resolution_record.question_id, resolution_question.question_id)
+        self.assertEqual(resolution_record.option_text, resolution_question.options[0].text)
+
+    def test_resolution_answer_evidence_origin_is_distinct_from_ordinary_answers(self) -> None:
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        # 해소 전 5개(Seed 1 + Conflict 꼬리 4)는 전부 일반 질문 Evidence다.
+        for record in state.evidence_ledger:
+            self.assertEqual(record.evidence_origin, EvidenceOrigin.PRIMARY_BLUEPRINT)
+
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        self.assertEqual(state.evidence_ledger[-1].evidence_origin, EvidenceOrigin.CONFLICT_RESOLUTION)
+        # 과거 5개는 여전히 PRIMARY_BLUEPRINT 그대로다.
+        for record in state.evidence_ledger[:-1]:
+            self.assertEqual(record.evidence_origin, EvidenceOrigin.PRIMARY_BLUEPRINT)
+
+    def test_existing_primary_evidence_records_unchanged_by_resolution(self) -> None:
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        evidence_before = list(state.evidence_ledger)
+
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        for before, after in zip(evidence_before, state.evidence_ledger[: len(evidence_before)]):
+            self.assertEqual(before, after)
+
+    def test_resolution_answer_does_not_increase_support_count(self) -> None:
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        support_before = state.trait_summaries["planning"].support_count
+
+        # RESOLVED_POSITIVE로 답하면(선호 Trait=planning) 일반 Evidence였다면 planning의
+        # support_count가 +1 됐을 것이다 — CONFLICT_RESOLUTION으로 분리됐으므로 안 늘어야 한다.
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        self.assertEqual(state.trait_summaries["planning"].support_count, support_before)
+
+    def test_resolution_answer_does_not_increase_opportunity_count(self) -> None:
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        # 확인 질문 선택지 5개 중엔 collaboration_preference/information_comparison도
+        # 포함된다(filler_ask_others/filler_research_first) — 이 Trait들의
+        # opportunity_count도 늘면 안 된다.
+        opportunity_before = {
+            trait_id: state.trait_summaries[trait_id].opportunity_count
+            for trait_id in ("planning", "immediate_execution", "collaboration_preference", "information_comparison")
+        }
+
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        for trait_id, before in opportunity_before.items():
+            self.assertEqual(
+                state.trait_summaries[trait_id].opportunity_count, before,
+                f"{trait_id}의 opportunity_count가 확인 질문 답변으로 바뀌면 안 됩니다.",
+            )
+
+    def test_resolution_answer_does_not_change_context_or_frame_diversity(self) -> None:
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        before = {
+            trait_id: (
+                state.trait_summaries[trait_id].context_count,
+                state.trait_summaries[trait_id].distinct_frame_count,
+            )
+            for trait_id in ("planning", "immediate_execution")
+        }
+
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        for trait_id, (context_count, frame_count) in before.items():
+            self.assertEqual(state.trait_summaries[trait_id].context_count, context_count)
+            self.assertEqual(state.trait_summaries[trait_id].distinct_frame_count, frame_count)
+
+    def test_resolution_answer_does_not_create_new_explicit_conflict(self) -> None:
+        """확인 질문 자체의 role_id(consistent_planning 등)는 어떤 ContrastDefinition의
+        positive_role_ids/opposite_role_ids에도 없고, 이제는 evidence_origin도 달라
+        detect_explicit_conflicts가 아예 보지 않는다 — 확인 질문 답변 자체가 새로운
+        Explicit Conflict를 만들지 않아야 한다."""
+
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        _resolve_with(state, ContrastResolutionStatus.RESOLVED_POSITIVE)
+
+        # 해소 직후 재탐지 — 이미 RESOLVED_POSITIVE라 "resolved" 처리되지만, 그 판정이
+        # 확인 질문 자신의 Evidence 때문이 아니라 저장된 ContrastResolutionRecord 때문임을
+        # 확인하기 위해, 이 Contrast를 완전히 새 이름으로 다시 붙여 evidence만으로 재탐지한다.
+        from src.schemas.evidence import ContrastDefinition
+
+        probe_definition = ContrastDefinition(
+            contrast_id="probe_only_resolution_role_ids",
+            construct_id="probe",
+            positive_role_ids=["consistent_planning"],
+            opposite_role_ids=["consistent_execution"],
+            comparable_frame_ids=["new_tool"],
+            condition_scope="probe",
+            minimum_evidence_each_side=1,
+            description="확인 질문 role_id만으로 만든 진단용 Contrast — 실제 데이터에는 없다.",
+        )
+        result = detect_explicit_conflicts(state.evidence_ledger, [probe_definition], {})
+        self.assertEqual(
+            result.pair_results[0].status, "insufficient_evidence",
+            "확인 질문 답변(CONFLICT_RESOLUTION)이 detect_explicit_conflicts의 Evidence로 잡히면 안 됩니다.",
+        )
+
+    def test_resolved_positive_still_reflected_in_profile_and_matching(self) -> None:
+        state, _, _ = self._run_to_resolution(ContrastResolutionStatus.RESOLVED_POSITIVE)
+        self.assertEqual(state.contrast_resolutions["planning_vs_execution"].preferred_trait_id, "planning")
+        matching_states = compute_student_trait_states(
+            state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, state.unresolved_conflict_trait_ids,
+            state.contrast_resolutions,
+        )
+        self.assertIsNotNone(matching_states["planning"].normalized_value)
+
+    def test_resolved_opposite_still_reflected_in_profile_and_matching(self) -> None:
+        state, _, _ = self._run_to_resolution(ContrastResolutionStatus.RESOLVED_OPPOSITE)
+        self.assertEqual(state.contrast_resolutions["planning_vs_execution"].preferred_trait_id, "immediate_execution")
+        matching_states = compute_student_trait_states(
+            state.trait_summaries, TRAIT_DEFINITIONS_BY_ID, state.unresolved_conflict_trait_ids,
+            state.contrast_resolutions,
+        )
+        self.assertIsNotNone(matching_states["immediate_execution"].normalized_value)
+
+    def test_resolved_context_dependent_still_expressed_qualitatively(self) -> None:
+        state, _, _ = self._run_to_resolution(ContrastResolutionStatus.RESOLVED_CONTEXT_DEPENDENT)
+        record = state.contrast_resolutions["planning_vs_execution"]
+        self.assertEqual(set(record.context_dependent_trait_ids), {"planning", "immediate_execution"})
+        self.assertEqual(
+            _resolution_role_for_trait("planning", state.contrast_resolutions), "context_dependent"
+        )
+
+    def test_unresolved_still_masks_and_is_not_reasked(self) -> None:
+        state, _, _ = self._run_to_resolution(ContrastResolutionStatus.UNRESOLVED)
+        self.assertEqual(state.unresolved_conflict_trait_ids, {"planning", "immediate_execution"})
+        self.assertIsNone(state.pending_resolution_contrast_id)
+
+        follow_up = _tail("follow_up_03", "some_other_role", "collaboration_preference", "other_frame")
+        result = submit_answer(
+            state, follow_up, "follow_up_03_o1", VERTICAL_SLICE_TRAIT_IDS, False,
+            VERTICAL_SLICE_CONTRAST_DEFINITIONS, VERTICAL_SLICE_RESOLUTION_SPECS,
+        )
+        self.assertIsNone(result.next_planner_decision.contrast_resolution_id)
+
+    def test_ordinary_seed_and_tail_evidence_calculation_unaffected(self) -> None:
+        """Resolution 답변이 아예 없는 일반 흐름(Seed + 꼬리 4개)의 Trait Summary 계산
+        결과가 이번 변경 전후로 동일해야 한다 — origin 필터링은 CONFLICT_RESOLUTION에만
+        새로 영향을 주고, 기존 PRIMARY_BLUEPRINT 경로는 손대지 않았음을 확인한다."""
+
+        state = _fresh_state()
+        submit_answer(
+            state, GAME_SEED_01_FINALIZED, "game_seed_01_o1", VERTICAL_SLICE_TRAIT_IDS, True,
+        )
+        for i, option in enumerate(GAME_SEED_01_FINALIZED.options[1:], start=2):
+            fake_tail = GAME_SEED_01_FINALIZED.model_copy(
+                update={
+                    "question_id": f"ordinary_tail_{i:02d}",
+                    "frame_id": f"frame_{i}",
+                    "target_traits": list(option.primary_trait_delta.keys()),
+                    "options": [
+                        o.model_copy(update={"option_id": f"ordinary_tail_{i:02d}_o{j}"})
+                        for j, o in enumerate(GAME_SEED_01_FINALIZED.options, start=1)
+                    ],
+                }
+            )
+            selected_option_id = f"ordinary_tail_{i:02d}_o{i}"
+            submit_answer(state, fake_tail, selected_option_id, VERTICAL_SLICE_TRAIT_IDS, False)
+
+        self.assertEqual(state.questions_asked_in_current_context, 5)  # seed 1 + tail 4
+        self.assertEqual(state.trait_summaries["causal_analysis"].support_count, 1)
+        self.assertEqual(state.trait_summaries["visual_expression"].opportunity_count, 0)
+        for record in state.evidence_ledger:
+            self.assertEqual(record.evidence_origin, EvidenceOrigin.PRIMARY_BLUEPRINT)
+
+    def _run_to_resolution(self, status: ContrastResolutionStatus):
+        state = _fresh_state()
+        _drive_conflict_to_detection(state)
+        evidence_before = list(state.evidence_ledger)
+        result = _resolve_with(state, status)
+        return state, evidence_before, result
 
 
 if __name__ == "__main__":

@@ -25,7 +25,9 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 from __future__ import annotations
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 # 로컬 개발 편의용 — 이미 설정된 실제 배포 환경변수는 덮어쓰지 않는다(override=False가 기본값).
 load_dotenv()
@@ -105,6 +107,31 @@ app = FastAPI(
         "Workflow는 범위 밖이다."
     ),
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def _handle_request_validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """2026-08-22 4차 리뷰: StrictInt 등 Pydantic 자체 타입 검증이 걸리면 FastAPI 기본
+    핸들러가 `{"detail": [{"loc": ..., "msg": ..., "type": ...}]}` 형태로 응답한다 —
+    이 서비스의 모든 다른 검증 오류(§3, ContextSelectionError 등)는 항상
+    `{"detail": {"error_code": "VALIDATION_ERROR", "message": ...}}` 형태다. B가 오류를
+    한 가지 방식으로만 처리할 수 있도록, Pydantic 검증 실패도 같은 형태로 맞춘다.
+
+    원본 요청 값(exc.errors()[i]["input"])은 절대 message에 담지 않는다 — 어떤 필드가
+    문제인지(JSON 경로)만 알려준다. 자유서술 답변 같은 민감한 원문이 여기로 들어올 일은
+    없지만("body -> ratings -> game" 같은 구조적 위치만 다루므로), 그래도 원칙을 지킨다."""
+
+    locations = [".".join(str(part) for part in err["loc"]) for err in exc.errors()]
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=f"요청 형식이 올바르지 않습니다: {locations}",
+            ).model_dump()
+        },
+    )
+
 
 _store = InMemorySessionStore()
 
