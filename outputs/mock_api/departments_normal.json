@@ -2,16 +2,55 @@
   "major_id": "media_communication",
   "departments": [
     {
-      "department_id": "dept_mock0000000000000001",
-      "university_name": "예시대학교",
-      "campus": "본교",
+      "department_id": "dept_7ecad2659f94f672c435aed7",
+      "university_name": "경희대학교",
+      "campus": "서울",
       "region": "서울",
-      "department_name": "미디어커뮤니케이션학과",
-      "college_name": "사회과학대학",
-      "admission_unit": "인문계열",
+      "department_name": "미디어학과",
+      "college_name": "미디어커뮤니케이션대학",
+      "admission_unit": "미디어커뮤니케이션대학",
+      "department_status": "NEW",
+      "source_svy_year": 2025,
+      "source_url": "https://www.academyinfo.go.kr/",
+      "canonical_major_id": "media_communication"
+    },
+    {
+      "department_id": "dept_595124d3fa674d6a4acf5da6",
+      "university_name": "고려대학교",
+      "campus": "서울",
+      "region": "서울",
+      "department_name": "미디어학부",
+      "college_name": "미디어학부",
+      "admission_unit": "미디어학부",
       "department_status": "EXISTING",
-      "source_svy_year": 2024,
-      "source_url": "https://example.ac.kr/media-comm",
+      "source_svy_year": 2025,
+      "source_url": "https://www.academyinfo.go.kr/",
+      "canonical_major_id": "media_communication"
+    },
+    {
+      "department_id": "dept_94f12354268af9359e245775",
+      "university_name": "서강대학교",
+      "campus": null,
+      "region": "서울",
+      "department_name": "신문방송학전공",
+      "college_name": "사회과학대학",
+      "admission_unit": "사회과학부",
+      "department_status": "EXISTING",
+      "source_svy_year": 2025,
+      "source_url": "https://www.academyinfo.go.kr/",
+      "canonical_major_id": "media_communication"
+    },
+    {
+      "department_id": "dept_17bb4a41dc9efcc0d144e96e",
+      "university_name": "중앙대학교",
+      "campus": "서울",
+      "region": "서울",
+      "department_name": "미디어커뮤니케이션학부",
+      "college_name": "사회과학대학",
+      "admission_unit": "사회과학대학",
+      "department_status": "EXISTING",
+      "source_svy_year": 2025,
+      "source_url": "https://www.academyinfo.go.kr/",
       "canonical_major_id": "media_communication"
     }
   ]

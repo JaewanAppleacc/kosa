@@ -66,6 +66,8 @@ from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
 from src.memory.session_store import InMemorySessionStore
+from src.repositories.department_repository import JsonlDepartmentRepository
+from src.services.major_exploration_service import MajorExplorationService
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
 from src.tracing.settings import TracingSettingsError, load_tracing_settings, tracing_enabled
@@ -172,6 +174,20 @@ if tracing_enabled():
     except TracingSettingsError as exc:
         print(f"[warn] LANGSMITH_TRACING=true이지만 설정이 불완전합니다: {exc}")
 _tracer = Tracer(_trace_client)
+
+# 2026-08-22 7차: 학과 탐색 1단계 통합 — C의 JsonlDepartmentRepository를 앱 시작 시점에
+# 한 번만 읽는다(요청마다 파일을 다시 열지 않는다). 파일 누락·형식 오류를 조용히 Mock
+# 데이터로 대체하지 않는다 — JsonlDepartmentRepository()가 형식 오류는 그대로 예외로
+# 던지고(원인 은폐 금지), 파일이 아예 없으면 빈 목록으로 초기화되므로 그 경우만 여기서
+# 명시적으로 경고한다(LLM/LangSmith와 같은 "설정 없음은 조용히 넘어간다" 패턴과 달리,
+# 학과 데이터는 이 서비스의 핵심 기능이라 비어 있으면 원인을 바로 알 수 있어야 한다).
+_department_repository = JsonlDepartmentRepository()
+if len(_department_repository) == 0:
+    print(
+        "[warn] JsonlDepartmentRepository가 비어 있습니다 — "
+        "data/master/departments.jsonl 경로·형식을 확인하세요."
+    )
+_major_exploration_service = MajorExplorationService(_department_repository)
 
 
 def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
@@ -609,7 +625,15 @@ def get_majors(session_id: str) -> MajorsResponse:
 
 @app.get("/departments/{major_id}", response_model=DepartmentsResponse)
 def get_departments(major_id: str) -> DepartmentsResponse:
-    return DepartmentsResponse(major_id=major_id, departments=mock_data.mock_departments(major_id))
+    """2026-08-22 7차: 학과 탐색 1단계 통합 — 더 이상 mock_data.mock_departments()를
+    쓰지 않는다. FastAPI는 요청·응답 변환만 하고, 어떤 학과를 어떤 순서로 보여줄지는
+    MajorExplorationService(노출 정책)가, 실제 데이터 조회는 JsonlDepartmentRepository
+    (C 소유)가 담당한다. 매칭되는 학과가 없거나 major_id가 미등록이면 기존 UX 계약대로
+    오류가 아니라 200 + 빈 목록을 반환한다(list_departments_for_major가 이미 그렇게
+    동작한다 — 여기서 별도 분기가 필요 없다)."""
+
+    departments = _major_exploration_service.list_departments_for_major(major_id)
+    return DepartmentsResponse(major_id=major_id, departments=departments)
 
 
 @app.get("/subjects/{session_id}", response_model=SubjectsResponse)

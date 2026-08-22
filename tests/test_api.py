@@ -528,6 +528,83 @@ class InterestRatingValidationTest(unittest.TestCase):
         self.assertEqual(state.interest_ratings, {"game": 5, "media": 5, "school_life": 4})
 
 
+class DepartmentsEndpointTest(unittest.TestCase):
+    """2026-08-22 7차: 학과 탐색 1단계 통합 — GET /departments/{major_id}가 더 이상
+    mock_data.mock_departments()가 아니라 실제 MajorExplorationService·
+    JsonlDepartmentRepository·data/master/departments.jsonl 경로를 탄다."""
+
+    def test_returns_real_repository_departments_for_a_mapped_major(self) -> None:
+        r = client.get("/departments/computer_science")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["major_id"], "computer_science")
+        # data/master/departments.jsonl 실측: computer_science에 매핑된 학과 10개.
+        self.assertEqual(len(body["departments"]), 10)
+        for dept in body["departments"]:
+            self.assertEqual(dept["canonical_major_id"], "computer_science")
+
+    def test_response_contains_no_mock_department_id(self) -> None:
+        r = client.get("/departments/media_communication")
+        body_text = r.text
+        self.assertNotIn("dept_mock", body_text)
+
+    def test_response_contains_no_mock_university_name(self) -> None:
+        r = client.get("/departments/media_communication")
+        self.assertNotIn("예시대학교", r.text)
+
+    def test_response_contains_no_mock_source_url(self) -> None:
+        r = client.get("/departments/media_communication")
+        self.assertNotIn("example.ac.kr", r.text)
+
+    def test_unmapped_major_id_returns_200_with_empty_list(self) -> None:
+        r = client.get("/departments/no_such_major_id_at_all")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"major_id": "no_such_major_id_at_all", "departments": []})
+
+    def test_response_schema_matches_existing_departments_response_contract(self) -> None:
+        r = client.get("/departments/computer_science")
+        body = r.json()
+        self.assertEqual(set(body.keys()), {"major_id", "departments"})
+        dept = body["departments"][0]
+        self.assertEqual(
+            set(dept.keys()),
+            {
+                "department_id", "university_name", "campus", "region", "department_name",
+                "college_name", "admission_unit", "department_status", "source_svy_year",
+                "source_url", "canonical_major_id",
+            },
+        )
+
+    def test_other_endpoints_in_the_same_session_are_unaffected(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        self.assertEqual(r.status_code, 200)
+        r = client.get(f"/majors/{session_id}")
+        self.assertEqual(r.status_code, 200)
+        r = client.get(f"/profile/{session_id}")
+        self.assertIn(r.status_code, (200, 422))  # EVIDENCE_NOT_READY도 정상 계약이다.
+
+        # 이 요청들 사이에 실제 학과 조회를 끼워 넣어도 나머지 흐름에 영향이 없어야 한다.
+        r = client.get("/departments/computer_science")
+        self.assertEqual(r.status_code, 200)
+
+    def test_departments_endpoint_does_not_touch_llm_langsmith_or_embedding_clients(self) -> None:
+        """이 Endpoint는 JsonlDepartmentRepository(순수 JSONL 읽기)만 거친다 — LLM·
+        LangSmith·Embedding Client가 전부 비활성(None)이어도(로컬 .env에 실제 API Key가
+        있더라도 테스트에서는 이 값들을 명시적으로 꺼서) 정상 동작해야 한다."""
+
+        with patch.object(main_module, "_llm_client", None), patch.object(
+            main_module, "_trace_client", None
+        ), patch.object(main_module, "_tracer", main_module.Tracer(client=None)):
+            r = client.get("/departments/computer_science")
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(len(r.json()["departments"]), 10)
+
+
 class TracingFailOpenIntegrationTest(unittest.TestCase):
     """§24: "LangSmith 장애는 로컬 로그만 남기고 사용자 Session을 중단하지 않는다"를
     API 레벨에서 확인한다 — Trace 기록이 매번 실패해도 전체 흐름이 그대로 끝까지 돈다."""

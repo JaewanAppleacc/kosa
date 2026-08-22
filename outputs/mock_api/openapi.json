@@ -299,6 +299,7 @@
     "/departments/{major_id}": {
       "get": {
         "summary": "Get Departments",
+        "description": "2026-08-22 7차: 학과 탐색 1단계 통합 — 더 이상 mock_data.mock_departments()를\n쓰지 않는다. FastAPI는 요청·응답 변환만 하고, 어떤 학과를 어떤 순서로 보여줄지는\nMajorExplorationService(노출 정책)가, 실제 데이터 조회는 JsonlDepartmentRepository\n(C 소유)가 담당한다. 매칭되는 학과가 없거나 major_id가 미등록이면 기존 UX 계약대로\n오류가 아니라 200 + 빈 목록을 반환한다(list_departments_for_major가 이미 그렇게\n동작한다 — 여기서 별도 분기가 필요 없다).",
         "operationId": "get_departments_departments__major_id__get",
         "parameters": [
           {

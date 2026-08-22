@@ -165,3 +165,30 @@ python scripts/check_no_worker_claude.py   # PR 직전 확인 — 지금은 실�
 1. PR 직전에 `worker-c`에서 루트 `CLAUDE.md`를 지우는 마무리 커밋을 추가한다.
 2. A가 구현 커밋만 골라 Cherry-pick 한다 — 구현은 `feat(worker-c): C 담당 모듈 전체 구현`
    커밋 하나에 모여 있다.
+
+---
+
+## 7. A의 통합 결정 — 2026-08-22 (`main` 병합 이후 1단계)
+
+C의 구현이 `main`에 병합된 뒤, A가 실제 서비스에 처음 연결한 범위와 그 과정에서 확정한
+결정을 남긴다. C가 작성한 위 1~6번 내용은 그대로 두고 여기에만 덧붙인다.
+
+- **연결한 범위**: `GET /departments/{major_id}` 하나만 실제 경로로 교체했다
+  (`FastAPI → MajorExplorationService → DepartmentRepository Protocol →
+  JsonlDepartmentRepository → data/master/departments.jsonl`). 입결(D4)·RAG(D5)·
+  Subject–Trait Matching·MCP 호출 Workflow는 이번 단계에 포함하지 않았다 — 한 번에
+  다 연결하지 않고 Vertical Slice 하나씩 늘려가는 방향을 유지한다.
+- **D1(`find_comparable()`)**: 이번 단계에서는 입결 API 자체를 연결하지 않아 답을
+  당장 확정할 필요가 없었다 — 결정 보류. 다음 통합 단계(입결 연결)에서 정한다.
+- **D4(`schl_id`/`department_id` 임시값)**: 그대로 따른다. `MajorExplorationService`는
+  Repository가 돌려준 `department_id`를 응답으로만 내보내고, `AssessmentState`(장기
+  Profile Store 대상)에는 어디에도 저장하지 않는다.
+- **새 통합 원칙 하나 추가**: Department 조회 결과(canonical_major_id 매칭 결과 포함)를
+  다시 Assessment 질문이나 Career Profile 계산에 되먹임하지 않는다 — Matching(§16)이
+  이미 확정한 대표 전공을 조회하는 조회 전용 단방향 흐름이다.
+- **표시 정책**: `department_status`가 `MERGED`/`SPLIT`/`ABOLISHED`인 학과, 그리고
+  `canonical_major_id`가 아직 `None`(REVIEW_REQUIRED)인 학과는 일반 탐색 결과에서
+  제외한다 — Repository는 그대로 두고 새로 추가한 `src/services/
+  major_exploration_service.py`(A 소유)에서 이 노출 정책만 담당한다.
+- **다음 후보**: 입결 연결(D1 확정 필요), RAG를 학과 상세 화면에 연결, 전국 학과 Master로
+  확장(`DATA_GO_KR_SERVICE_KEY` 발급 이후).
