@@ -152,11 +152,14 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
 
     def test_knowledge_subgraph_extractor_counts_are_preserved(self) -> None:
         """2026-08-28 19차 리뷰 §10: Knowledge Subgraph Extractor Stage가 남기는 개수
-        요약 메타데이터만 허용한다."""
+        요약 메타데이터만 허용한다. 2026-08-29 19차 후속 보완: has_confirmed_course_profile
+        (Confirm 여부)과 has_subject_nodes(과목 Node 존재 여부)는 서로 다른 사실이라
+        별도 필드로 나뉘었다."""
 
         attributes = {
             "node_count": 12, "edge_count": 20, "trait_node_count": 4, "major_node_count": 2,
-            "department_node_count": 3, "subject_node_count": 2, "has_confirmed_course_profile": True,
+            "department_node_count": 3, "subject_node_count": 2,
+            "has_confirmed_course_profile": True, "has_subject_nodes": True,
         }
         self.assertEqual(sanitize_trace_attributes(attributes), attributes)
 
@@ -165,12 +168,21 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
         self.assertEqual(sanitize_trace_attributes({"node_count": 1.5}), {})
         self.assertEqual(sanitize_trace_attributes({"node_count": "12"}), {})
 
-    def test_has_confirmed_course_profile_only_accepts_bool(self) -> None:
-        self.assertEqual(
-            sanitize_trace_attributes({"has_confirmed_course_profile": False}),
-            {"has_confirmed_course_profile": False},
-        )
-        self.assertEqual(sanitize_trace_attributes({"has_confirmed_course_profile": "true"}), {})
+    def test_has_confirmed_course_profile_and_has_subject_nodes_strictly_accept_bool_only(self) -> None:
+        """2026-08-29 19차 후속 보완: Python은 bool이 int의 하위 타입이라 `1==True`가
+        성립하지만, Sanitizer는 `isinstance(value, bool)`로 엄격히 검사해 `1`/`0` 같은
+        정수를 bool로 오인해 통과시키지 않는다."""
+
+        for key in ("has_confirmed_course_profile", "has_subject_nodes"):
+            with self.subTest(key=key):
+                self.assertEqual(sanitize_trace_attributes({key: True}), {key: True})
+                self.assertEqual(sanitize_trace_attributes({key: False}), {key: False})
+                self.assertEqual(sanitize_trace_attributes({key: "true"}), {})
+                self.assertEqual(sanitize_trace_attributes({key: 1}), {})
+                self.assertEqual(sanitize_trace_attributes({key: 0}), {})
+                self.assertEqual(sanitize_trace_attributes({key: None}), {})
+                self.assertEqual(sanitize_trace_attributes({key: []}), {})
+                self.assertEqual(sanitize_trace_attributes({key: {}}), {})
 
     def test_session_id_and_raw_answer_text_have_no_allowlisted_key(self) -> None:
         """session_id/학생 답변 원문/질문 원문은 Key 자체가 Allowlist에 없어 어떤 값을

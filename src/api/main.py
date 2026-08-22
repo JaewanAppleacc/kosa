@@ -875,6 +875,17 @@ def get_subgraph(session_id: str) -> SubgraphResponse:
             detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
         ) from exc
 
+    # 2026-08-29 19차 후속 보완: "has_confirmed_course_profile"은 원래 "과목 Node가
+    # 하나라도 있는가"로 계산했는데, 이건 실제로 다른 질문이다 — CoursePlanningStore가
+    # upload_status="CONFIRMED"인데 confirmed_subject_ids=[]라서 HighSchoolSubject
+    # Node가 0개인 상태도 있을 수 있다("확정은 했다"와 "확정된 과목이 있다"는 다른
+    # 사실). 이 둘을 각각 정확한 이름으로 나눈다. Store 조회는 순수 읽기다 — 추천을
+    # 다시 계산하거나 상태를 바꾸지 않는다(KnowledgeSubgraphService.build()가 이미
+    # 내부에서 필요하면 조회했다 — 여기서는 Trace 메타데이터만 위해 한 번 더 읽는다).
+    planning_state = _course_planning_store.load(session_id)
+    has_confirmed_course_profile = planning_state is not None and planning_state.upload_status == "CONFIRMED"
+    has_subject_nodes = any(n.node_type == "HighSchoolSubject" for n in nodes)
+
     _tracer.record_stage(
         trace_id=state.trace_id,
         stage_name="Knowledge Subgraph Extractor",
@@ -886,7 +897,8 @@ def get_subgraph(session_id: str) -> SubgraphResponse:
             "major_node_count": sum(1 for n in nodes if n.node_type == "CanonicalMajor"),
             "department_node_count": sum(1 for n in nodes if n.node_type == "Department"),
             "subject_node_count": sum(1 for n in nodes if n.node_type == "HighSchoolSubject"),
-            "has_confirmed_course_profile": any(n.node_type == "HighSchoolSubject" for n in nodes),
+            "has_confirmed_course_profile": has_confirmed_course_profile,
+            "has_subject_nodes": has_subject_nodes,
         },
     )
     return SubgraphResponse(session_id=session_id, nodes=nodes, edges=edges)

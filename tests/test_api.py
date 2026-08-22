@@ -644,12 +644,12 @@ class DepartmentsEndpointTest(unittest.TestCase):
             self.assertEqual(len(r.json()["departments"]), 10)
 
 
-def _drive_to_confirmed_industrial_engineering_subgraph(test_case: unittest.TestCase) -> tuple[str, dict]:
+def _drive_to_industrial_engineering_upload(test_case: unittest.TestCase) -> tuple[str, list[str]]:
     """2026-08-28 19차 리뷰: `tests/test_post_offering_full_flow_e2e.py`(17차)가 이미
     검증해 둔, industrial_engineering으로 결정론적으로 수렴하는 관심도·Context·옵션 선택
-    패턴을 그대로 재사용해 GET /subgraph가 전체 Graph(과목 Node 포함)를 반환하는 지점까지
-    끌고 간다 — 여기서는 API 계약(§9)만 확인하고, 근거 그래프의 세부 내용은 별도
-    `tests/test_subgraph_full_flow_e2e.py`가 깊게 검증한다."""
+    패턴을 그대로 재사용해 학교 편제표 업로드까지 끌고 간다 — Confirm 여부는 호출부가
+    직접 결정한다(트레이스 메타데이터 시나리오마다 confirmed_subject_ids가 달라야 하므로
+    이 함수에서 확정까지 하지 않는다). `(session_id, matched_ids)`를 반환한다."""
 
     from pathlib import Path
 
@@ -710,6 +710,16 @@ def _drive_to_confirmed_industrial_engineering_subgraph(test_case: unittest.Test
     )
     test_case.assertEqual(r.status_code, 200, r.text)
     matched_ids = sorted({c["matched_subject_id"] for c in r.json()["parsed_candidates"] if c["matched_subject_id"]})
+    return session_id, matched_ids
+
+
+def _drive_to_confirmed_industrial_engineering_subgraph(test_case: unittest.TestCase) -> tuple[str, dict]:
+    """업로드에 이어 실제 confirmed_subject_ids로 확정까지 마치고 GET /subgraph가 전체
+    Graph(과목 Node 포함)를 반환하는 지점까지 끌고 간다 — 여기서는 API 계약(§9)만
+    확인하고, 근거 그래프의 세부 내용은 별도 `tests/test_subgraph_full_flow_e2e.py`가
+    깊게 검증한다."""
+
+    session_id, matched_ids = _drive_to_industrial_engineering_upload(test_case)
     r = client.post("/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": matched_ids})
     test_case.assertEqual(r.status_code, 200, r.text)
 
@@ -842,6 +852,121 @@ class SubgraphEndpointTest(unittest.TestCase):
                 continue
             for evidence_id in edge["evidence_ids"]:
                 self.assertRegex(evidence_id, r"^ev_[0-9a-f]{32}$")
+
+
+class SubgraphTraceMetadataTest(unittest.TestCase):
+    """2026-08-29 19차 후속 보완: `has_confirmed_course_profile`(CoursePlanningStore의
+    실제 Confirm 상태)과 `has_subject_nodes`(실제 생성된 HighSchoolSubject Node 존재
+    여부)가 서로 다른 사실을 정확히 반영하는지 확인한다 — 빈 `confirmed_subject_ids=[]`
+    로도 CONFIRMED가 될 수 있어(§2), Node 개수만으로 Confirm 여부를 추론하면 틀린다."""
+
+    def setUp(self) -> None:
+        for patch_target in (
+            patch.object(main_module, "_llm_client", None),
+        ):
+            patch_target.start()
+            self.addCleanup(patch_target.stop)
+
+    def test_confirmed_with_subject_nodes(self) -> None:
+        session_id, matched_ids = _drive_to_industrial_engineering_upload(self)
+        r = client.post(
+            "/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": matched_ids}
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(matched_ids, "이 Fixture는 최소 1개 이상 매칭 후보가 있어야 한다")
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], True)
+        self.assertIs(attributes["has_subject_nodes"], True)
+
+    def test_confirmed_with_empty_subject_list_has_no_subject_nodes(self) -> None:
+        """upload_status=='CONFIRMED'인데 confirmed_subject_ids=[]라 HighSchoolSubject
+        Node가 0개인 경우 — has_confirmed_course_profile은 True, has_subject_nodes는
+        False여야 한다(둘을 혼동하면 이 경우가 (False, False)로 잘못 나온다)."""
+
+        session_id, _matched_ids = _drive_to_industrial_engineering_upload(self)
+        r = client.post("/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": []})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["course_profile"]["recommendations"], [])
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        node_types = {n["node_type"] for n in r.json()["nodes"]}
+        self.assertNotIn("HighSchoolSubject", node_types)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], True)
+        self.assertIs(attributes["has_subject_nodes"], False)
+
+    def test_not_yet_confirmed_has_neither(self) -> None:
+        session_id, _matched_ids = _drive_to_industrial_engineering_upload(self)
+        # /course/confirm을 아예 호출하지 않는다 — planning_state.upload_status는
+        # PARSED 또는 CONFIRMATION_REQUIRED로 남아 있다.
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        node_types = {n["node_type"] for n in r.json()["nodes"]}
+        self.assertNotIn("HighSchoolSubject", node_types)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], False)
+        self.assertIs(attributes["has_subject_nodes"], False)
+
+    def test_no_upload_at_all_has_neither(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        question = r.json()["question"]
+        client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question["question_id"],
+                "selected_option_id": question["options"][0]["option_id"],
+            },
+        )
+
+        with patch.object(main_module, "_tracer") as mock_tracer:
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        attributes = mock_tracer.record_stage.call_args.kwargs["attributes"]
+        self.assertIs(attributes["has_confirmed_course_profile"], False)
+        self.assertIs(attributes["has_subject_nodes"], False)
+
+    def test_langsmith_failure_does_not_break_the_subgraph_response(self) -> None:
+        """§24 fail-open을 /subgraph에서도 그대로 확인한다 — Trace 기록이 실패해도
+        200 응답과 실제 계산 결과는 그대로 나와야 한다(has_confirmed_course_profile
+        계산은 Store 조회일 뿐이라 Trace 실패와 무관하게 항상 먼저 끝난다)."""
+
+        from src.tracing.protocols import TraceError
+        from src.tracing.tracer import Tracer
+
+        class _AlwaysFailingTraceClient:
+            def record_run(self, *, trace_id, name, run_type, attributes) -> None:
+                raise TraceError("모의 LangSmith 장애")
+
+        session_id, matched_ids = _drive_to_industrial_engineering_upload(self)
+        client.post("/course/confirm", json={"session_id": session_id, "confirmed_subject_ids": matched_ids})
+
+        with patch.object(main_module, "_tracer", Tracer(client=_AlwaysFailingTraceClient())):
+            r = client.get(f"/subgraph/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertTrue(r.json()["nodes"])
 
 
 class TracingFailOpenIntegrationTest(unittest.TestCase):

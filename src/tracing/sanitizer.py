@@ -134,7 +134,13 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "major_node_count": _is_nonneg_int,
     "department_node_count": _is_nonneg_int,
     "subject_node_count": _is_nonneg_int,
+    # 2026-08-29 19차 후속 보완: "Confirm까지 마쳤는가"(CoursePlanningStore 상태 기준)와
+    # "실제로 과목 Node가 생겼는가"(Graph 생성 결과 기준)는 다른 사실이라 필드를
+    # 나눴다(빈 confirmed_subject_ids=[]로도 CONFIRMED는 가능하다) — 둘 다 `_is_bool`이라
+    # `isinstance(value, bool)`로 엄격히 검사한다(bool이 int의 하위 타입이라는 점 때문에
+    # `1`/`0`이 새지 않도록: `isinstance(1, bool)`은 False다).
     "has_confirmed_course_profile": _is_bool,
+    "has_subject_nodes": _is_bool,
 }
 
 ALLOWED_TRACE_ATTRIBUTE_KEYS: frozenset[str] = frozenset(_VALUE_VALIDATORS.keys())
