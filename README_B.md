@@ -1,6 +1,27 @@
-# B 작업자 핸드오프 — 2026-08-26 (갱신)
+# B 작업자 핸드오프 — 2026-08-27 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-27 갱신 내용 — POST_OFFERING 안정화 (17차, API Request/Response Schema 변경 없음)**:
+> 1. **`unmatched` 후보가 Confirm 이후에도 사라지지 않습니다.** 예전에는 `POST
+>    /course/confirm` 응답의 `course_profile.unresolved_candidates`가 항상 빈 배열이었는데,
+>    이제 이번 업로드에서 `matched_subject_id`가 끝내 안 잡힌(=`"unmatched"`) 후보들이 그대로
+>    담겨 옵니다. `GET /subjects`로 다시 조회해도 동일하게 유지됩니다 — 화면에서 이 목록을
+>    "추가 확인 필요"(예: 직접 검색해서 등록) 영역으로 별도 표시해주세요.
+> 2. **`high`/`low` 중 사용자가 `/course/confirm`으로 확정하지 않은 후보는 개설과목으로
+>    쓰이지 않습니다.** (기존 규칙 그대로지만, 실수로 "high면 자동 반영"으로 오해하지
+>    않도록 다시 강조합니다.)
+> 3. **`POST /course/confirm`이 이제 완전히 원자적입니다.** 추천 계산이나 내부 검증 중
+>    어디서든 실패하면 서버 상태는 확정 이전으로 그대로 남습니다 — "요청은 실패했는데
+>    다음 조회에서는 어중간하게 확정된 것처럼 보이는" 상황이 생기지 않습니다. 화면에서는
+>    `/course/confirm`이 실패(4xx)하면 안전하게 재시도할 수 있다고 가정해도 됩니다.
+> 4. **업로드 용량 제한(10MB)이 더 앞단에서 걸립니다.** 동작은 그대로지만(10MB 초과 시
+>    422 `VALIDATION_ERROR`), 이제 서버가 파일을 조금씩 읽으면서 상한을 넘는 즉시 멈춥니다
+>    — 큰 파일을 올렸을 때 응답이 더 빨리 옵니다.
+> 5. **같은 과목이 여러 번 추출됐을 때 더 확실한 쪽이 남습니다.** 예전엔 먼저 추출된
+>    후보가 무조건 남았는데, 이제 `"high"`(정확 매칭) 후보가 있으면 그게 남고 `"low"`가
+>    먼저 추출됐어도 사라지지 않습니다 — 화면 쪽 코드 변경은 필요 없습니다(순서 로직이라
+>    서버 내부에서만 바뀝니다).
 
 > **2026-08-26 갱신 내용 — POST_OFFERING(학교 실제 개설과목 기반 최종 추천) 구현 (`/course/upload`·`/course/confirm` 계약 변경, 하위 호환 아님)**:
 > 1. **`POST /course/upload`가 이제 `selected_major_id`를 함께 받습니다.** `multipart/
@@ -284,6 +305,28 @@ POST /course/confirm
 추가되지 않습니다 — 화면에서 "대체 과목 없음"을 정직하게 보여주세요(억지로 아무 과목이나
 채워 넣지 않습니다).
 
+**4) 확인 안 된 후보(`unresolved_candidates`)** — 2026-08-27(17차) 추가. 업로드에서
+`"unmatched"`로 나왔던 후보(canonical 과목을 아예 못 찾은 것들)는 Confirm을 마친 뒤에도
+`course_profile.unresolved_candidates`에 그대로 남아 있습니다(`/course/confirm` 응답과
+그 뒤 `GET /subjects` 재조회 응답 둘 다):
+
+```json
+"unresolved_candidates": [
+  {
+    "raw_text": "정체불명 과목ABC",
+    "matched_subject_id": null,
+    "confidence": "unmatched",
+    "requires_user_confirmation": true
+  }
+]
+```
+
+이 후보들은 `matched_subject_id`가 없어서 `/course/confirm`으로 확정할 방법이 구조적으로
+없습니다(임의의 과목에 갖다 붙이지 않습니다) — 화면에서는 "자동으로 인식하지 못한 과목"
+같은 별도 영역에 `raw_text`를 그대로 보여주고, 필요하면 사용자가 직접 검색해서 수동으로
+등록하는 흐름(향후 과제)을 안내하는 정도로 처리해주세요. `recommendations`에는 절대 섞여
+들어오지 않습니다.
+
 ## 5. Mock JSON (서버 안 띄워도 되는 정적 파일)
 
 `outputs/mock_api/`에 정상·오류·빈 결과 예시와 `openapi.json`이 있습니다. Schema가 바뀌면 아래 명령으로 재생성됩니다(재생성됐는지 커밋 로그로 확인하세요):
@@ -304,6 +347,8 @@ PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 
 - Session은 In-Memory라 서버 재시작하면 다 날아갑니다. 새로고침 후 복원 UI는 만들어도 되지만, 서버 재시작까지 버티는 지속성은 아직 없습니다.
 - **업로드·확정 상태(`CoursePlanningSessionState`)도 별도의 In-Memory Store입니다.** Assessment Session Store와 완전히 분리돼 있고(전공 관련 정보는 Assessment 쪽에 전혀 저장되지 않습니다), 이쪽도 서버 재시작하면 날아갑니다 — 업로드→확정까지 한 서버 프로세스 안에서 끝내야 합니다.
+- **POST_OFFERING 결과는 `/course/confirm`이 완전히 성공한 뒤에만 저장됩니다(2026-08-27, 17차).** 검증이나 추천 계산 중 어디서든 실패하면 서버 상태는 요청 이전 그대로 유지됩니다 — 화면에서 실패 응답을 받으면 "일부만 반영됐을 수도 있다"고 걱정하지 않아도 됩니다.
+- **업로드 용량 제한은 10MB이고, 넘으면 문서를 파싱하기 전에 거부됩니다.** 큰 파일을 올려도 서버가 끝까지 다 읽고 나서 뒤늦게 거부하지 않습니다.
 - B는 UI만 구현합니다. 과목명 유사도 매칭이나 POST_OFFERING 재추천 로직을 화면 쪽에서 다시 계산하지 마세요 — 전부 서버가 계산해서 내려줍니다. 화면은 받은 `confidence`(high/low/unmatched)에 따라 확인 UI를 다르게 보여주고, 사용자가 고른 `confirmed_subject_ids`만 그대로 `/course/confirm`에 전달하면 됩니다.
 - `/assessment/session`은 `user_id`를 받지 않습니다(보안상 서버가 고정) — 화면에서 이 값을 사용자가 입력하게 만들지 마세요.
 - 화면에 내부 점수(예: 84%, 0.67 같은 숫자)를 노출하는 API는 애초에 없습니다. 정성 Label만 옵니다.

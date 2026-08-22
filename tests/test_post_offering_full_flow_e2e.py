@@ -213,6 +213,22 @@ class PostOfferingFullFlowEndToEndTest(unittest.TestCase):
         for item in post_offering["recommendations"]:
             self.assertNotIn(item["subject_id"], unmatched_or_unconfirmed)
 
+        # 2026-08-27 17차 리뷰 §1: unmatched 후보(matched_subject_id가 없는 것)는
+        # Confirm 이후에도 사라지지 않고 unresolved_candidates에 그대로 남아야 한다.
+        # 이 Fixture(demo_school_offerings.xlsx)는 "정체불명 과목ABC"·"교과(군)" 등
+        # 실제 unmatched 후보를 포함하도록 만들어졌다.
+        unmatched_candidates_from_upload = [c for c in candidates if c["matched_subject_id"] is None]
+        self.assertTrue(unmatched_candidates_from_upload, "이 Fixture는 unmatched 후보를 포함해야 한다")
+        unresolved_texts = {c["raw_text"] for c in post_offering["unresolved_candidates"]}
+        self.assertEqual(unresolved_texts, {c["raw_text"] for c in unmatched_candidates_from_upload})
+        for c in post_offering["unresolved_candidates"]:
+            self.assertIsNone(c["matched_subject_id"])
+            self.assertEqual(c["confidence"], "unmatched")
+        # 확정한 high/low 후보는 unresolved에 남지 않는다.
+        unresolved_matched_ids = [c["matched_subject_id"] for c in post_offering["unresolved_candidates"]]
+        for confirmed_id in confirmed_ids:
+            self.assertNotIn(confirmed_id, unresolved_matched_ids)
+
         _assert_no_float(post_offering, "post_offering", self)
         _assert_no_float(upload_body, "upload_body", self)
 

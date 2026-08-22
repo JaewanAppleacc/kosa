@@ -390,7 +390,7 @@
     "/course/upload": {
       "post": {
         "summary": "Upload Course Document",
-        "description": "2026-08-26 16차 리뷰: 더 이상 형식만 확인하고 고정 Mock 후보를 돌려주지 않는다.\n`CourseDocumentParsingService`가 실제 Parser(`course_document_parser.py`)·Alias\n표(`data/master/subject_aliases.jsonl`)로 연결한다. 이 Handler는 요청·응답 변환과\n`UploadFile`에서 원본 bytes를 읽는 것까지만 한다 — 과목명 유사도 계산이나 파일\n경로 조립은 전부 Service 쪽에서 한다(Path Traversal 방지: 사용자가 보낸 filename을\n로컬 경로로 직접 쓰지 않는다).",
+        "description": "2026-08-26 16차 리뷰: 더 이상 형식만 확인하고 고정 Mock 후보를 돌려주지 않는다.\n`CourseDocumentParsingService`가 실제 Parser(`course_document_parser.py`)·Alias\n표(`data/master/subject_aliases.jsonl`)로 연결한다. 이 Handler는 요청·응답 변환과\n`UploadFile`에서 원본 bytes를 읽는 것까지만 한다 — 과목명 유사도 계산이나 파일\n경로 조립은 전부 Service 쪽에서 한다(Path Traversal 방지: 사용자가 보낸 filename을\n로컬 경로로 직접 쓰지 않는다).\n\n2026-08-27 17차 리뷰 §3: `await file.read()`로 전체를 한 번에 메모리에 올린 뒤\n크기를 검사하지 않는다 — `read_upload_with_limit`이 chunk 단위로 읽으면서 10MB를\n넘는 순간 그 자리에서 멈춘다(초과분을 이미 메모리에 올려버린 뒤 뒤늦게 거부하지\n않는다).",
         "operationId": "upload_course_document_course_upload_post",
         "requestBody": {
           "content": {
@@ -429,7 +429,7 @@
     "/course/confirm": {
       "post": {
         "summary": "Confirm Course Selection",
-        "description": "2026-08-26 16차 리뷰: 더 이상 어떤 ID든 받아 accepted=True만 돌려주는 Mock이\n아니다. `CourseDocumentParsingService.confirm()`이 §6의 모든 검증(정본 존재·이번\n업로드 후보에서 나온 값인지 등)을 통과시킨 뒤, 확정된 실제 개설과목 집합으로\nPOST_OFFERING CourseProfile을 함께 계산해 반환한다.",
+        "description": "2026-08-26 16차 리뷰: 더 이상 어떤 ID든 받아 accepted=True만 돌려주는 Mock이\n아니다. `CourseDocumentParsingService.confirm()`이 §6의 모든 검증(정본 존재·이번\n업로드 후보에서 나온 값인지 등)을 통과시킨 뒤, 확정된 실제 개설과목 집합으로\nPOST_OFFERING CourseProfile을 함께 계산해 반환한다.\n\n2026-08-27 17차 리뷰 §2: 검증·추천 계산·Policy Guard가 전부 성공해야만 Store가\n`CONFIRMED`로 갱신된다(원자성) — 그 판단은 전부 `CourseDocumentParsingService.\nconfirm()` 내부에서 이뤄지므로, 이 Handler는 더 이상 \"confirm 저장 → 별도로\n추천 계산\" 두 단계로 나눠 호출하지 않는다(예전에는 그 사이에 계산이 실패하면\nStore에 이미 CONFIRMED만 남는 비원자적 상태가 될 수 있었다).",
         "operationId": "confirm_course_selection_course_confirm_post",
         "requestBody": {
           "content": {

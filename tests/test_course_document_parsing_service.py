@@ -12,14 +12,16 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest.mock import patch
 from xml.sax.saxutils import escape
 
 from src.agents.course.course_document_parser import SubjectAliasIndex
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS
+from src.engines.policy_guard import PolicyViolation
 from src.memory.course_planning_store import InMemoryCoursePlanningStore
 from src.schemas.assessment_state import AssessmentState
-from src.schemas.course import SubjectProfile
+from src.schemas.course import ParsedSubjectCandidate, SubjectProfile
 from src.schemas.evidence import TraitEvidenceSummary
 from src.services.course_document_parsing_service import (
     MAX_UPLOAD_SIZE_BYTES,
@@ -31,6 +33,7 @@ from src.services.course_document_parsing_service import (
     FileTooLargeError,
     UnsupportedFileTypeError,
     _validate_suffix_and_content_type,
+    read_upload_with_limit,
 )
 from src.services.course_planning_service import CoursePlanningService
 
@@ -272,8 +275,9 @@ class CourseDocumentParsingServiceTest(unittest.TestCase):
     # --- §6 confirm 검증 ---
 
     def test_confirm_without_prior_upload_is_rejected(self) -> None:
+        never_uploaded_state = AssessmentState(session_id="sess_never_uploaded", user_id="user_test")
         with self.assertRaises(CourseUploadNotFoundError):
-            self.parsing_service.confirm("sess_never_uploaded", ["subj_offered_a"])
+            self.parsing_service.confirm(never_uploaded_state, ["subj_offered_a"])
 
     def test_confirm_rejects_subject_id_not_in_master_data(self) -> None:
         self.parsing_service.parse_upload(
@@ -281,7 +285,10 @@ class CourseDocumentParsingServiceTest(unittest.TestCase):
             "offerings.xlsx", _XLSX_CONTENT_TYPE,
         )
         with self.assertRaises(CourseConfirmValidationError):
-            self.parsing_service.confirm(self.state.session_id, ["subj_does_not_exist"])
+            self.parsing_service.confirm(self.state, ["subj_does_not_exist"])
+        planning_state = self.course_planning_store.load(self.state.session_id)
+        self.assertEqual(planning_state.upload_status, "PARSED", "실패했는데 상태가 바뀌었다")
+        self.assertEqual(planning_state.confirmed_offered_subject_ids, [])
 
     def test_confirm_rejects_subject_id_not_from_this_upload(self) -> None:
         """다른 세션·업로드에서 나온 후보를 가져와 확정할 수 없다 — subject_b는 정본에는
@@ -292,16 +299,20 @@ class CourseDocumentParsingServiceTest(unittest.TestCase):
             "offerings.xlsx", _XLSX_CONTENT_TYPE,
         )
         with self.assertRaises(CourseConfirmValidationError):
-            self.parsing_service.confirm(self.state.session_id, ["subj_offered_b"])
+            self.parsing_service.confirm(self.state, ["subj_offered_b"])
+        planning_state = self.course_planning_store.load(self.state.session_id)
+        self.assertEqual(planning_state.upload_status, "PARSED", "실패했는데 상태가 바뀌었다")
 
     def test_confirm_normalizes_duplicate_ids_in_request(self) -> None:
         self.parsing_service.parse_upload(
             self.state, "industrial_engineering", _build_xlsx_bytes(["확률과 통계"]),
             "offerings.xlsx", _XLSX_CONTENT_TYPE,
         )
-        planning_state = self.parsing_service.confirm(
-            self.state.session_id, ["subj_offered_a", "subj_offered_a"]
+        course_profile = self.parsing_service.confirm(
+            self.state, ["subj_offered_a", "subj_offered_a"]
         )
+        self.assertEqual(course_profile.source, "POST_OFFERING")
+        planning_state = self.course_planning_store.load(self.state.session_id)
         self.assertEqual(planning_state.confirmed_offered_subject_ids, ["subj_offered_a"])
         self.assertEqual(planning_state.upload_status, "CONFIRMED")
 
@@ -310,9 +321,239 @@ class CourseDocumentParsingServiceTest(unittest.TestCase):
             self.state, "industrial_engineering", _build_xlsx_bytes(["확률과 통계"]),
             "offerings.xlsx", _XLSX_CONTENT_TYPE,
         )
-        planning_state = self.parsing_service.confirm(self.state.session_id, [])
+        course_profile = self.parsing_service.confirm(self.state, [])
+        self.assertEqual(course_profile.recommendations, [])
+        planning_state = self.course_planning_store.load(self.state.session_id)
         self.assertEqual(planning_state.confirmed_offered_subject_ids, [])
         self.assertEqual(planning_state.upload_status, "CONFIRMED")
+
+    # --- 2026-08-27 17차 리뷰 §1: unresolved_candidates 보존 ---
+
+    def test_confirm_preserves_unmatched_candidates_in_course_profile(self) -> None:
+        content = _build_xlsx_bytes(["확률과 통계", "정체불명 과목ABC"])
+        self.parsing_service.parse_upload(
+            self.state, "industrial_engineering", content, "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        course_profile = self.parsing_service.confirm(self.state, ["subj_offered_a"])
+        self.assertEqual(len(course_profile.unresolved_candidates), 1)
+        self.assertIsNone(course_profile.unresolved_candidates[0].matched_subject_id)
+        self.assertEqual(course_profile.unresolved_candidates[0].confidence, "unmatched")
+        # 확정한 high 후보는 unresolved에 남지 않는다.
+        self.assertNotIn(
+            "subj_offered_a",
+            [c.matched_subject_id for c in course_profile.unresolved_candidates],
+        )
+
+    def test_get_course_profile_after_confirm_keeps_unmatched_candidates(self) -> None:
+        content = _build_xlsx_bytes(["확률과 통계", "정체불명 과목ABC"])
+        self.parsing_service.parse_upload(
+            self.state, "industrial_engineering", content, "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        confirmed = self.parsing_service.confirm(self.state, ["subj_offered_a"])
+        refetched = self.course_planning_service.get_course_profile(
+            self.state, "industrial_engineering"
+        )
+        self.assertEqual(refetched.model_dump(), confirmed.model_dump())
+        self.assertEqual(len(refetched.unresolved_candidates), 1)
+
+    # --- 2026-08-27 17차 리뷰 §2: Confirm 원자성 ---
+
+    def test_confirm_failure_in_recommendation_computation_keeps_previous_state(self) -> None:
+        self.parsing_service.parse_upload(
+            self.state, "industrial_engineering", _build_xlsx_bytes(["확률과 통계"]),
+            "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        before = self.course_planning_store.load(self.state.session_id)
+        with patch.object(
+            self.course_planning_service,
+            "build_post_offering_course_profile",
+            side_effect=RuntimeError("추천 계산 중 예상하지 못한 오류"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.parsing_service.confirm(self.state, ["subj_offered_a"])
+        after = self.course_planning_store.load(self.state.session_id)
+        self.assertEqual(after.upload_status, before.upload_status)
+        self.assertEqual(after.confirmed_offered_subject_ids, before.confirmed_offered_subject_ids)
+
+    def test_confirm_failure_in_policy_guard_keeps_previous_state(self) -> None:
+        self.parsing_service.parse_upload(
+            self.state, "industrial_engineering", _build_xlsx_bytes(["확률과 통계"]),
+            "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        before = self.course_planning_store.load(self.state.session_id)
+        with patch.object(
+            self.course_planning_service,
+            "build_post_offering_course_profile",
+            side_effect=PolicyViolation("의도적으로 재현한 Policy Guard 위반"),
+        ):
+            with self.assertRaises(PolicyViolation):
+                self.parsing_service.confirm(self.state, ["subj_offered_a"])
+        after = self.course_planning_store.load(self.state.session_id)
+        self.assertEqual(after.upload_status, before.upload_status)
+        self.assertNotEqual(after.upload_status, "CONFIRMED")
+
+    def test_confirm_success_does_not_affect_other_sessions(self) -> None:
+        other_state = AssessmentState(
+            session_id="sess_other", user_id="user_other", trait_summaries=self.state.trait_summaries
+        )
+        self.parsing_service.parse_upload(
+            self.state, "industrial_engineering", _build_xlsx_bytes(["확률과 통계"]),
+            "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        self.parsing_service.parse_upload(
+            other_state, "industrial_engineering", _build_xlsx_bytes(["데이터 과학"]),
+            "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        self.parsing_service.confirm(self.state, ["subj_offered_a"])
+
+        other_planning_state = self.course_planning_store.load(other_state.session_id)
+        self.assertEqual(other_planning_state.upload_status, "PARSED")
+        self.assertEqual(other_planning_state.confirmed_offered_subject_ids, [])
+
+
+class ReadUploadWithLimitTest(unittest.IsolatedAsyncioTestCase):
+    class _FakeAsyncFile:
+        def __init__(self, data: bytes) -> None:
+            self._data = data
+            self._pos = 0
+            self.read_calls = 0
+
+        async def read(self, size: int = -1) -> bytes:
+            self.read_calls += 1
+            if size < 0:
+                chunk = self._data[self._pos:]
+                self._pos = len(self._data)
+                return chunk
+            chunk = self._data[self._pos : self._pos + size]
+            self._pos += len(chunk)
+            return chunk
+
+    async def test_exactly_at_limit_is_allowed(self) -> None:
+        data = b"a" * 10
+        result = await read_upload_with_limit(self._FakeAsyncFile(data), max_bytes=10, chunk_size=4)
+        self.assertEqual(result, data)
+
+    async def test_one_byte_over_limit_is_rejected_during_read(self) -> None:
+        data = b"a" * 11
+        with self.assertRaises(FileTooLargeError):
+            await read_upload_with_limit(self._FakeAsyncFile(data), max_bytes=10, chunk_size=4)
+
+    async def test_multi_chunk_file_is_reassembled_correctly(self) -> None:
+        data = b"0123456789" * 5  # 50 bytes, chunk_size 7이라 여러 조각으로 나뉜다.
+        result = await read_upload_with_limit(self._FakeAsyncFile(data), max_bytes=1000, chunk_size=7)
+        self.assertEqual(result, data)
+
+    async def test_empty_file_returns_empty_bytes(self) -> None:
+        result = await read_upload_with_limit(self._FakeAsyncFile(b""), max_bytes=10, chunk_size=4)
+        self.assertEqual(result, b"")
+
+    async def test_oversized_file_stops_reading_before_completion(self) -> None:
+        """§3: 초과가 확인되면 그 즉시 멈춘다 — 전체를 다 읽고 나서 검사하지 않는다."""
+
+        fake_file = self._FakeAsyncFile(b"a" * 100)
+        with self.assertRaises(FileTooLargeError):
+            await read_upload_with_limit(fake_file, max_bytes=10, chunk_size=4)
+        # 100 bytes를 chunk_size 4로 전부 읽으려면 25번 read()가 필요하다 — 상한(10)을
+        # 넘는 순간(3번째 chunk, 12 bytes 누적) 멈췄다면 훨씬 적게 호출됐어야 한다.
+        self.assertLess(fake_file.read_calls, 25)
+
+
+class DedupeCandidatesConfidencePriorityTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.subject_a = SubjectProfile(
+            subject_id="subj_offered_a", label="확률과 통계",
+            trait_vector={"causal_analysis": 1.0}, related_major_ids=["industrial_engineering"],
+            source_id="https://example.moe.go.kr/",
+        )
+        self.repository = FakeSubjectRepository([self.subject_a])
+        self.course_planning_store = InMemoryCoursePlanningStore()
+        self.course_planning_service = CoursePlanningService(
+            self.repository, major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
+            trait_definitions=_TRAIT_DEFS, course_planning_store=self.course_planning_store,
+        )
+        self.alias_index = SubjectAliasIndex(
+            [
+                {"alias": "확률과 통계", "canonical_subject_name": "확률과 통계", "subject_id": "subj_offered_a", "curriculum_code": "test"},
+                {"alias": "확률통계", "canonical_subject_name": "확률과 통계", "subject_id": "subj_offered_a", "curriculum_code": "test"},
+            ]
+        )
+        self.parsing_service = CourseDocumentParsingService(
+            self.alias_index, self.repository, self.course_planning_service, self.course_planning_store
+        )
+        self.state = _state_with_ie_evidence()
+
+    def _confidences_for(self, subject_id: str, texts: list[str]) -> list[ParsedSubjectCandidate]:
+        content = _build_xlsx_bytes(texts)
+        candidates, _warnings = self.parsing_service.parse_upload(
+            self.state, "industrial_engineering", content, "offerings.xlsx", _XLSX_CONTENT_TYPE,
+        )
+        return candidates
+
+    def test_low_then_high_keeps_high(self) -> None:
+        # "확률통계"는 alias 표에 정확히 등록돼 있어 실제로는 high로 잡힌다 — 우선순위
+        # 로직 자체를 직접 검증하기 위해 _dedupe_candidates를 단위로 호출한다.
+        from src.schemas.course import ParsedSubjectCandidate as PSC
+        from src.services.course_document_parsing_service import _dedupe_candidates
+
+        low_first = PSC(raw_text="확율과 통계", matched_subject_id="subj_offered_a", confidence="low", requires_user_confirmation=True)
+        high_second = PSC(raw_text="확률과 통계", matched_subject_id="subj_offered_a", confidence="high", requires_user_confirmation=False)
+        result = _dedupe_candidates([low_first, high_second])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].confidence, "high")
+
+    def test_high_then_low_keeps_high(self) -> None:
+        from src.schemas.course import ParsedSubjectCandidate as PSC
+        from src.services.course_document_parsing_service import _dedupe_candidates
+
+        high_first = PSC(raw_text="확률과 통계", matched_subject_id="subj_offered_a", confidence="high", requires_user_confirmation=False)
+        low_second = PSC(raw_text="확율과 통계", matched_subject_id="subj_offered_a", confidence="low", requires_user_confirmation=True)
+        result = _dedupe_candidates([high_first, low_second])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].confidence, "high")
+
+    def test_low_duplicated_keeps_first_low(self) -> None:
+        from src.schemas.course import ParsedSubjectCandidate as PSC
+        from src.services.course_document_parsing_service import _dedupe_candidates
+
+        first = PSC(raw_text="확율과 통계1", matched_subject_id="subj_offered_a", confidence="low", requires_user_confirmation=True)
+        second = PSC(raw_text="확율과 통계2", matched_subject_id="subj_offered_a", confidence="low", requires_user_confirmation=True)
+        result = _dedupe_candidates([first, second])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].raw_text, "확율과 통계1")
+
+    def test_identical_unmatched_duplicate_keeps_one(self) -> None:
+        from src.schemas.course import ParsedSubjectCandidate as PSC
+        from src.services.course_document_parsing_service import _dedupe_candidates
+
+        first = PSC(raw_text="정체불명 과목ABC", matched_subject_id=None, confidence="unmatched", requires_user_confirmation=True)
+        second = PSC(raw_text="정체불명 과목ABC", matched_subject_id=None, confidence="unmatched", requires_user_confirmation=True)
+        result = _dedupe_candidates([first, second])
+        self.assertEqual(len(result), 1)
+
+    def test_different_unmatched_both_kept(self) -> None:
+        from src.schemas.course import ParsedSubjectCandidate as PSC
+        from src.services.course_document_parsing_service import _dedupe_candidates
+
+        first = PSC(raw_text="정체불명 과목A", matched_subject_id=None, confidence="unmatched", requires_user_confirmation=True)
+        second = PSC(raw_text="정체불명 과목B", matched_subject_id=None, confidence="unmatched", requires_user_confirmation=True)
+        result = _dedupe_candidates([first, second])
+        self.assertEqual(len(result), 2)
+
+    def test_result_order_is_deterministic_across_runs(self) -> None:
+        from src.schemas.course import ParsedSubjectCandidate as PSC
+        from src.services.course_document_parsing_service import _dedupe_candidates
+
+        candidates = [
+            PSC(raw_text="정체불명 과목A", matched_subject_id=None, confidence="unmatched", requires_user_confirmation=True),
+            PSC(raw_text="확율과 통계", matched_subject_id="subj_offered_a", confidence="low", requires_user_confirmation=True),
+            PSC(raw_text="정체불명 과목B", matched_subject_id=None, confidence="unmatched", requires_user_confirmation=True),
+            PSC(raw_text="확률과 통계", matched_subject_id="subj_offered_a", confidence="high", requires_user_confirmation=False),
+        ]
+        first_run = _dedupe_candidates(candidates)
+        second_run = _dedupe_candidates(list(candidates))
+        self.assertEqual([c.raw_text for c in first_run], [c.raw_text for c in second_run])
+        self.assertEqual([c.raw_text for c in first_run], ["정체불명 과목A", "확률과 통계", "정체불명 과목B"])
+        self.assertEqual(first_run[1].confidence, "high")
 
 
 if __name__ == "__main__":

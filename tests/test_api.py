@@ -147,6 +147,32 @@ class SessionLifecycleTest(unittest.TestCase):
         )
         self.assertEqual(r.status_code, 422)
 
+    def test_course_upload_over_10mb_is_rejected_without_parsing(self) -> None:
+        """2026-08-27 17차 리뷰 §3: 실제 HTTP 경로에서도 10MB 초과 파일이 chunk 읽기
+        단계에서 거부되는지 확인한다(파일 형식과 무관하게 크기부터 걸린다)."""
+
+        from src.services.course_document_parsing_service import MAX_UPLOAD_SIZE_BYTES
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+
+        oversized = b"0" * (MAX_UPLOAD_SIZE_BYTES + 1)
+        r = client.post(
+            "/course/upload",
+            data={"session_id": session_id, "selected_major_id": "media_communication"},
+            files={
+                "file": (
+                    "big.xlsx", oversized,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                )
+            },
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+        detail_text = str(r.json()["detail"])
+        self.assertNotIn("/tmp/", detail_text)
+        self.assertNotIn("Traceback", detail_text)
+
     def test_unknown_session_returns_404_with_structured_error(self) -> None:
         r = client.get("/profile/sess_does_not_exist")
         self.assertEqual(r.status_code, 404)

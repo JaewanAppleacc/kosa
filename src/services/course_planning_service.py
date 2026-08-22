@@ -37,7 +37,7 @@ from src.engines.subject_matching_engine import (
 from src.memory.course_planning_store import CoursePlanningStore
 from src.repositories.protocols import SubjectRepository
 from src.schemas.assessment_state import AssessmentState
-from src.schemas.course import CourseProfile
+from src.schemas.course import CourseProfile, ParsedSubjectCandidate
 from src.schemas.major import MajorProfile
 from src.schemas.trait import TraitDefinition
 
@@ -162,11 +162,20 @@ class CoursePlanningService:
         state: AssessmentState,
         selected_major_id: str,
         confirmed_offered_subject_ids: set[str],
+        unresolved_candidates: list[ParsedSubjectCandidate] | None = None,
     ) -> CourseProfile:
-        """2026-08-26 16차 리뷰 §7/§8. `selected_major_id`는 여기서도 다시 검증한다
-        (POST /course/confirm 시점의 학생 Evidence·전공 추천 결과가 업로드 시점과 달라질
-        일은 사실상 없지만 — Evidence는 계속 누적되기만 하고 이 요청들 사이에 답변이
-        추가로 제출될 일은 없다 — 그래도 검증을 건너뛰지 않는다)."""
+        """2026-08-26 16차 리뷰 §7/§8, 2026-08-27 17차 리뷰 §1. `selected_major_id`는
+        여기서도 다시 검증한다(POST /course/confirm 시점의 학생 Evidence·전공 추천
+        결과가 업로드 시점과 달라질 일은 사실상 없지만 — Evidence는 계속 누적되기만
+        하고 이 요청들 사이에 답변이 추가로 제출될 일은 없다 — 그래도 검증을 건너뛰지
+        않는다).
+
+        `unresolved_candidates`(17차 §1)는 업로드에서 나온 unmatched 후보(canonical
+        subject_id를 아예 특정할 수 없는 것들)를 그대로 옮겨 담는다 — Confirm 요청으로도
+        이 후보들을 확정할 방법이 없으므로, 사라지지 않고 최종 결과에도 "추가 확인 필요"
+        상태로 남아야 한다. 호출부(`CourseDocumentParsingService.confirm`, `get_course_
+        profile`)가 실제 `CoursePlanningSessionState.parsed_candidates`에서 걸러 넘긴다
+        — 이 메서드 자체는 Store에 접근하지 않는다(계산만 담당)."""
 
         student_states = self.validate_selectable_major(state, selected_major_id)
 
@@ -189,7 +198,7 @@ class CoursePlanningService:
             session_id=state.session_id,
             source="POST_OFFERING",
             recommendations=recommendations,
-            unresolved_candidates=[],
+            unresolved_candidates=list(unresolved_candidates) if unresolved_candidates else [],
             unavailable_subjects=unavailable_subjects,
         )
 
@@ -200,7 +209,10 @@ class CoursePlanningService:
         POST_OFFERING 결과를, 없으면 기존 PRE_SURVEY 결과를 반환한다. 다른
         selected_major_id로 확정된 상태를 잘못 재사용하지 않는다(selected_major_id가
         정확히 일치해야만 POST_OFFERING 경로를 탄다) — 같은 입력에는 항상 같은 결과가
-        나온다(매번 다시 계산하므로 캐시 불일치가 없다)."""
+        나온다(매번 다시 계산하므로 캐시 불일치가 없다).
+
+        2026-08-27 17차 리뷰 §1: 재조회에서도 unmatched 후보가 사라지면 안 되므로,
+        Confirm 시점과 동일하게 이 세션의 unmatched 후보를 다시 걸러서 넘긴다."""
 
         planning_state = self._course_planning_store.load(state.session_id)
         if (
@@ -208,7 +220,13 @@ class CoursePlanningService:
             and planning_state.selected_major_id == selected_major_id
             and planning_state.upload_status == "CONFIRMED"
         ):
+            unresolved_candidates = [
+                c for c in planning_state.parsed_candidates if c.matched_subject_id is None
+            ]
             return self.build_post_offering_course_profile(
-                state, selected_major_id, set(planning_state.confirmed_offered_subject_ids)
+                state,
+                selected_major_id,
+                set(planning_state.confirmed_offered_subject_ids),
+                unresolved_candidates,
             )
         return self.build_pre_survey_course_profile(state, selected_major_id)

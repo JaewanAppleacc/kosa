@@ -33,6 +33,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from fastapi import UploadFile
+
 from src.agents.course.course_document_parser import SubjectAliasIndex, parse_course_document
 from src.memory.course_planning_store import CoursePlanningStore
 from src.repositories.protocols import SubjectRepository
@@ -40,6 +42,7 @@ from src.schemas.assessment_state import AssessmentState
 from src.schemas.course import (
     CoursePlanningSessionState,
     CourseParseWarning,
+    CourseProfile,
     ParsedSubjectCandidate,
 )
 from src.services.course_planning_service import CoursePlanningService
@@ -56,6 +59,10 @@ _ACCEPTED_SUFFIX_TO_CONTENT_TYPES: dict[str, set[str]] = {
     ".xlsx": {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"},
 }
 _XLS_CONTENT_TYPES = {"application/vnd.ms-excel"}
+
+# §4(17차): high > low > unmatched — 동일 subject_id가 여러 confidence로 중복 추출되면
+# 더 확실한 쪽을 대표로 남긴다(숫자는 아니고 순서만 의미 있는 우선순위).
+_CONFIDENCE_RANK: dict[str, int] = {"high": 0, "low": 1, "unmatched": 2}
 
 
 class UnsupportedFileTypeError(ValueError):
@@ -85,6 +92,34 @@ class CourseConfirmValidationError(ValueError):
     subjects.jsonl에 없는 값, 이 업로드의 Parser 후보에 없는 값 등."""
 
 
+async def read_upload_with_limit(
+    file: UploadFile, max_bytes: int, chunk_size: int = 1024 * 1024
+) -> bytes:
+    """2026-08-27 17차 리뷰 §3: 업로드를 chunk 단위로 읽어, `max_bytes`를 넘는 순간
+    더 이상 읽지 않고 즉시 실패시킨다 — `await file.read()`로 전체를 먼저 메모리에 다
+    올린 뒤 크기를 검사하면(기존 방식) 기능적으로는 초과 파일을 거부해도, 그 사이 이미
+    파일 전체가 메모리에 올라가 버려 메모리 보호 효과가 없었다.
+
+    `Content-Length` 헤더는 신뢰하지 않는다(위·변조되거나 없을 수 있다) — 실제로 읽은
+    byte 수만으로 판단한다. `max_bytes`를 인자로 받으므로 테스트에서는 굳이 수십 MB
+    데이터를 만들지 않고 작은 상한을 주입해 빠르게 검증할 수 있다."""
+
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise FileTooLargeError(
+                f"파일이 너무 큽니다(최소 {total} bytes 확인). 최대 {max_bytes} "
+                "bytes(10MB)까지 업로드할 수 있습니다."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _validate_suffix_and_content_type(filename: str, content_type: str | None) -> str:
     """Path Traversal 방지: 원본 파일명 전체를 신뢰하지 않고, 확장자(suffix)만 확인해
     화이트리스트에 있는 값으로 정규화한다 — 반환값은 임시 파일 suffix로만 쓴다."""
@@ -110,29 +145,42 @@ def _validate_suffix_and_content_type(filename: str, content_type: str | None) -
 
 
 def _dedupe_candidates(candidates: list[ParsedSubjectCandidate]) -> list[ParsedSubjectCandidate]:
-    """§5: 동일 subject_id가 여러 번 추출돼도 최종 목록에는 한 번만 남긴다(먼저 나온
-    항목을 대표로 유지 — Parser가 이미 high confidence를 먼저, low를 나중에 내보내는
-    입력 순서에 의존하지 않고, 처음 만난 것을 그대로 대표로 삼는 단순하고 결정론적인
-    규칙이다). matched_subject_id가 없는(unmatched) 후보는 원문(raw_text 정규화 기준)
-    이 같을 때만 중복으로 본다."""
+    """§5(16차)/§4(17차): 동일 subject_id가 여러 번 추출돼도 최종 목록에는 한 번만
+    남긴다. 대표로 남기는 후보는 confidence가 가장 높은 쪽이다(high > low) — 같은
+    과목이 정확 매칭(high)과 fuzzy 매칭(low)으로 둘 다 잡히면, 먼저 나온 순서와
+    무관하게 high가 대표로 남아야 한다(fuzzy가 먼저 추출됐다는 이유로 정확 매칭이
+    사라지면 안 된다). 동일 confidence끼리는 최초 등장한 것을 그대로 유지한다(승격도
+    강등도 하지 않는다 — fuzzy score를 API에 노출하지 않으므로 이 우선순위는 오직
+    high/low/unmatched 세 등급만으로 결정한다).
+
+    matched_subject_id가 없는(unmatched) 후보는 원문(raw_text 정규화 기준)이 같을
+    때만 중복으로 본다 — 서로 다른 unmatched 원문은 억지로 합치지 않는다.
+
+    출력 순서는 각 key(subject_id 또는 unmatched 정규화 원문)가 입력에서 처음 등장한
+    위치 순서를 그대로 따른다(대표 후보의 confidence가 바뀌어도 순서는 안 바뀐다) —
+    Parser 입력 순서에 의존하지 않는 결정론적 결과."""
 
     from src.agents.course.course_document_parser import normalize_subject_name
 
-    seen_subject_ids: set[str] = set()
-    seen_unmatched_keys: set[str] = set()
-    deduped: list[ParsedSubjectCandidate] = []
-    for candidate in candidates:
+    def _key(candidate: ParsedSubjectCandidate) -> tuple[str, str]:
         if candidate.matched_subject_id is not None:
-            if candidate.matched_subject_id in seen_subject_ids:
-                continue
-            seen_subject_ids.add(candidate.matched_subject_id)
-        else:
-            key = normalize_subject_name(candidate.raw_text)
-            if key in seen_unmatched_keys:
-                continue
-            seen_unmatched_keys.add(key)
-        deduped.append(candidate)
-    return deduped
+            return ("matched", candidate.matched_subject_id)
+        return ("unmatched", normalize_subject_name(candidate.raw_text))
+
+    first_index: dict[tuple[str, str], int] = {}
+    best_by_key: dict[tuple[str, str], ParsedSubjectCandidate] = {}
+    for index, candidate in enumerate(candidates):
+        key = _key(candidate)
+        if key not in first_index:
+            first_index[key] = index
+            best_by_key[key] = candidate
+            continue
+        current_best = best_by_key[key]
+        if _CONFIDENCE_RANK[candidate.confidence] < _CONFIDENCE_RANK[current_best.confidence]:
+            best_by_key[key] = candidate
+
+    ordered_keys = sorted(first_index, key=lambda k: first_index[k])
+    return [best_by_key[key] for key in ordered_keys]
 
 
 class CourseDocumentParsingService:
@@ -227,12 +275,16 @@ class CourseDocumentParsingService:
         warnings = [CourseParseWarning(stage=e.stage, message=e.message) for e in result.errors]
         return deduped_candidates, warnings
 
-    def confirm(self, session_id: str, confirmed_subject_ids: list[str]) -> CoursePlanningSessionState:
-        """§6 전체 검증. 성공하면 상태를 `CONFIRMED`로 갱신해 저장하고 반환한다 —
-        POST_OFFERING 재추천 계산은 여기서 하지 않는다(호출부인
-        `CoursePlanningService.build_post_offering_course_profile`이 담당)."""
+    def confirm(self, state: AssessmentState, confirmed_subject_ids: list[str]) -> CourseProfile:
+        """§6(16차)/§2(17차) 전체 검증 + 원자적 확정.
 
-        planning_state = self._course_planning_store.load(session_id)
+        검증 → POST_OFFERING 추천 계산(`CoursePlanningService.build_post_offering_
+        course_profile`, 이 안에서 Policy Guard까지 통과해야 한다) → 전부 성공한 뒤에만
+        Store를 `CONFIRMED`로 갱신한다. 계산이나 Guard가 실패하면 이 메서드는 Store를
+        전혀 건드리지 않은 채(=이전 상태 그대로) 예외를 그대로 전파한다 — "요청은
+        실패했는데 Store에는 CONFIRMED가 남는" 상황을 구조적으로 막는다."""
+
+        planning_state = self._course_planning_store.load(state.session_id)
         if planning_state is None:
             raise CourseUploadNotFoundError(
                 "이 세션에 먼저 POST /course/upload로 개설과목 파일을 업로드해야 합니다."
@@ -263,7 +315,27 @@ class CourseDocumentParsingService:
                 f"이번 업로드의 과목 후보에 없는 subject_id: {not_from_this_upload}"
             )
 
-        planning_state.confirmed_offered_subject_ids = deduped_requested
-        planning_state.upload_status = "CONFIRMED"
-        self._course_planning_store.save(planning_state)
-        return planning_state
+        # §1(17차): unmatched 후보(matched_subject_id가 없는 것들)는 이 Confirm 요청으로도
+        # canonical subject_id를 지정할 방법이 없으므로 최종 CourseProfile까지 계속
+        # unresolved_candidates로 넘긴다 — 임의로 어떤 과목에 연결하지 않는다.
+        unresolved_candidates = [
+            c for c in planning_state.parsed_candidates if c.matched_subject_id is None
+        ]
+
+        # 아직 Store에 아무것도 저장하지 않는다 — 추천 계산과 Policy Guard를 먼저 전부
+        # 통과시킨다(원자성, §2). 여기서 예외가 나면 그대로 전파하고 끝난다.
+        course_profile = self._course_planning_service.build_post_offering_course_profile(
+            state, planning_state.selected_major_id, set(deduped_requested), unresolved_candidates
+        )
+
+        # 여기 도달했다는 건 계산·Guard가 전부 성공했다는 뜻 — 이제서야 Store에 반영한다.
+        # planning_state는 Store.load()가 이미 방어적으로 복사해 돌려준 객체라 그대로
+        # 고쳐도 Store 원본에는 영향이 없지만, 의도를 명확히 하려고 새 객체로 만든다.
+        confirmed_state = planning_state.model_copy(
+            update={
+                "confirmed_offered_subject_ids": deduped_requested,
+                "upload_status": "CONFIRMED",
+            }
+        )
+        self._course_planning_store.save(confirmed_state)
+        return course_profile

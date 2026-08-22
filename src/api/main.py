@@ -73,6 +73,7 @@ from src.memory.session_store import InMemorySessionStore
 from src.repositories.department_repository import JsonlDepartmentRepository
 from src.repositories.subject_repository import JsonlSubjectRepository
 from src.services.course_document_parsing_service import (
+    MAX_UPLOAD_SIZE_BYTES,
     CourseConfirmValidationError,
     CourseDocumentParsingService,
     CourseParsingFailedError,
@@ -80,6 +81,7 @@ from src.services.course_document_parsing_service import (
     EmptyFileError,
     FileTooLargeError,
     UnsupportedFileTypeError,
+    read_upload_with_limit,
 )
 from src.services.course_planning_service import (
     CourseEvidenceNotReadyError,
@@ -740,10 +742,22 @@ async def upload_course_document(
     표(`data/master/subject_aliases.jsonl`)로 연결한다. 이 Handler는 요청·응답 변환과
     `UploadFile`에서 원본 bytes를 읽는 것까지만 한다 — 과목명 유사도 계산이나 파일
     경로 조립은 전부 Service 쪽에서 한다(Path Traversal 방지: 사용자가 보낸 filename을
-    로컬 경로로 직접 쓰지 않는다)."""
+    로컬 경로로 직접 쓰지 않는다).
+
+    2026-08-27 17차 리뷰 §3: `await file.read()`로 전체를 한 번에 메모리에 올린 뒤
+    크기를 검사하지 않는다 — `read_upload_with_limit`이 chunk 단위로 읽으면서 10MB를
+    넘는 순간 그 자리에서 멈춘다(초과분을 이미 메모리에 올려버린 뒤 뒤늦게 거부하지
+    않는다)."""
 
     state = _get_state_or_404(session_id)
-    content = await file.read()
+
+    try:
+        content = await read_upload_with_limit(file, MAX_UPLOAD_SIZE_BYTES)
+    except FileTooLargeError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
+        ) from exc
 
     try:
         candidates, warnings = _course_document_parsing_service.parse_upload(
@@ -783,13 +797,19 @@ def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResp
     """2026-08-26 16차 리뷰: 더 이상 어떤 ID든 받아 accepted=True만 돌려주는 Mock이
     아니다. `CourseDocumentParsingService.confirm()`이 §6의 모든 검증(정본 존재·이번
     업로드 후보에서 나온 값인지 등)을 통과시킨 뒤, 확정된 실제 개설과목 집합으로
-    POST_OFFERING CourseProfile을 함께 계산해 반환한다."""
+    POST_OFFERING CourseProfile을 함께 계산해 반환한다.
+
+    2026-08-27 17차 리뷰 §2: 검증·추천 계산·Policy Guard가 전부 성공해야만 Store가
+    `CONFIRMED`로 갱신된다(원자성) — 그 판단은 전부 `CourseDocumentParsingService.
+    confirm()` 내부에서 이뤄지므로, 이 Handler는 더 이상 "confirm 저장 → 별도로
+    추천 계산" 두 단계로 나눠 호출하지 않는다(예전에는 그 사이에 계산이 실패하면
+    Store에 이미 CONFIRMED만 남는 비원자적 상태가 될 수 있었다)."""
 
     state = _get_state_or_404(payload.session_id)
 
     try:
-        planning_state = _course_document_parsing_service.confirm(
-            payload.session_id, payload.confirmed_subject_ids
+        course_profile = _course_document_parsing_service.confirm(
+            state, payload.confirmed_subject_ids
         )
     except CourseUploadNotFoundError as exc:
         raise HTTPException(
@@ -801,12 +821,17 @@ def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResp
             status_code=422,
             detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
         ) from exc
+    except CourseEvidenceNotReadyError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+        ) from exc
+    except MajorNotSelectableError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+        ) from exc
 
-    course_profile = _course_planning_service.build_post_offering_course_profile(
-        state,
-        planning_state.selected_major_id,
-        set(planning_state.confirmed_offered_subject_ids),
-    )
     return CourseConfirmResponse(
         session_id=payload.session_id, accepted=True, course_profile=course_profile
     )
