@@ -1,13 +1,17 @@
 """FastAPI 앱 — B에게 줄 API 계약의 실행 가능한 형태.
 
-2026-08-22 리뷰 이후 상태(오래된 설명 갱신): Session 생성부터 Context 확정, Evidence·Trait
-계산, Explicit Conflict 판정(§12-1), Career Profile(§14), 전공 Matching(§16), LangSmith
-Trace(§24, `LANGSMITH_TRACING=true`일 때만) 까지 전부 실제 경로다. 질문 생성(§10)만
-`.env`의 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에 따라 실제 LLM 또는 Mock 문구로
-갈리고, 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로 동작한다 — Evidence가 전혀 없는
-세션에서 Profile을 물으면 Mock으로 얼버무리지 않고 `EVIDENCE_NOT_READY`를 반환한다.
-Postgres Profile Store·LangGraph·Contrast Context Selector·C 소유 데이터(학과 Repository·
-RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수 docstring에 개별 표시).
+2026-08-22 리뷰 이후 상태(오래된 설명 갱신): Session 생성부터 Context 확정(Contrast Context
+Selector 포함, §5-1/§6-5), Evidence·Trait 계산, Explicit Conflict 판정(§12-1), Career
+Profile(§14), 전공 Matching(§16), LangSmith Trace(§24, `LANGSMITH_TRACING=true`일 때만)
+까지 전부 실제 경로다. "학생 답변 → Evidence Update → Stop/Continue → Target Planner"와
+"Question Generator → Quality Gate → 재생성/Backup" 두 구간은 실제 LangGraph StateGraph로
+연결돼 있다(src/agents/assessment/graph/). 질문 생성(§10) 자체는 `.env`의
+`ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에 따라 실제 LLM 또는 Mock 문구로 갈리고,
+그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로 동작한다 — Evidence가 전혀 없는 세션에서
+Profile을 물으면 Mock으로 얼버무리지 않고 `EVIDENCE_NOT_READY`를 반환한다. Postgres Profile
+Store·C 소유 데이터(학과 Repository·RAG·MCP·과목 문서 파싱)는 아직 없다(각 함수 docstring에
+개별 표시). Major Exploration·Course Planning은 §5-2가 아니라 별개 Workflow(§4)라 이번
+LangGraph 연결 범위 밖이다.
 
 실행: ./.venv/bin/uvicorn src.api.main:app --reload
 OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 그 자체)
@@ -80,7 +84,9 @@ app = FastAPI(
     description=(
         "Vertical Slice API. Evidence·Trait 판정·Explicit Conflict 판정·Career Profile·"
         "전공 Matching은 실제 계산 경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). "
-        "LangSmith Trace도 LANGSMITH_TRACING=true일 때 실제로 기록된다. LangGraph는 아직 없다."
+        "LangSmith Trace도 LANGSMITH_TRACING=true일 때 실제로 기록된다. Assessment 답변·질문 "
+        "생성 루프는 LangGraph StateGraph로 연결돼 있다. Major Exploration·Course Planning "
+        "Workflow는 범위 밖이다."
     ),
 )
 

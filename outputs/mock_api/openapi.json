@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI 진로·학업설계 Agent API",
-    "description": "Vertical Slice API. Evidence·Trait 판정·Explicit Conflict 판정·Career Profile·전공 Matching은 실제 계산 경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). LangSmith Trace도 LANGSMITH_TRACING=true일 때 실제로 기록된다. LangGraph는 아직 없다.",
+    "description": "Vertical Slice API. Evidence·Trait 판정·Explicit Conflict 판정·Career Profile·전공 Matching은 실제 계산 경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). LangSmith Trace도 LANGSMITH_TRACING=true일 때 실제로 기록된다. Assessment 답변·질문 생성 루프는 LangGraph StateGraph로 연결돼 있다. Major Exploration·Course Planning Workflow는 범위 밖이다.",
     "version": "0.1.0-vertical-slice"
   },
   "paths": {

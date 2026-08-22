@@ -1,0 +1,236 @@
+"""§5-2 Assessment Graph 중 "학생 답변 → Evidence Update → Stop/Continue → Target Planner"
+구간을 실제 LangGraph StateGraph로 구현한다 — 6단계: 순수 함수(evidence_engine,
+conflict_engine, target_planner)를 LangGraph Node로 감싼다.
+
+CLAUDE.md "LangGraph는 상태 전이와 반복을 관리한다"를 그대로 따른다 — 이 파일은 어떤
+계산도 직접 하지 않는다. Node는 전부 기존 §12/§12-1/§8 순수 함수를 그대로 호출할 뿐이고,
+이 파일이 새로 추가하는 건 Node 사이의 흐름(Conditional Edge)뿐이다.
+
+`submit_answer()`는 예전 answer_processor.submit_answer와 정확히 같은 시그니처·반환
+타입·"state를 제자리에서 mutate한다" 계약을 유지한다 — main.py는 이 파일이 LangGraph를
+쓰는지 몰라도 된다(API 응답 계약 유지, 6단계 지시사항).
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+from langgraph.graph import END, START, StateGraph
+from langsmith.run_helpers import tracing_context
+
+from src.agents.assessment.target_planner import PlannerDecision, decide_next_target
+from src.engines.conflict_engine import detect_explicit_conflicts
+from src.engines.evidence_engine import decide_stop_or_continue, summarize_trait_evidence
+from src.ids import generate_evidence_id
+from src.schemas.assessment_state import AnsweredQuestion, AssessmentState
+from src.schemas.evidence import ContrastDefinition, EvidenceOrigin, EvidenceRecord
+from src.schemas.question import FinalizedQuestion
+
+
+class AnswerSubmissionResult(BaseModel):
+    accepted: bool
+    rejection_reason: str | None = None
+    stop_decision: str | None = None  # "CONTINUE" | "STOP" | None(거부됐으면 None)
+    next_planner_decision: PlannerDecision | None = None
+
+
+class AnswerGraphState(BaseModel):
+    """Graph 실행 동안만 쓰는 상태. `state` 필드 하나에 세션 전체 AssessmentState를
+    담아 넘긴다("호환 가능한 Graph State" — AssessmentState 스키마 자체를 바꾸지 않는다).
+    나머지 필드는 이번 호출의 입력값과, Node들이 서로 주고받는 중간 결과다."""
+
+    state: AssessmentState
+    question: FinalizedQuestion
+    selected_option_id: str
+    all_trait_ids: set[str]
+    contrast_definitions: list[ContrastDefinition] = Field(default_factory=list)
+    is_first_context_in_session: bool = False
+
+    # Node 간 전달용 중간 결과 — 그래프 실행이 끝나면 AnswerSubmissionResult로 변환한다.
+    accepted: bool = True
+    rejection_reason: str | None = None
+    stop_decision: str | None = None
+    next_planner_decision: PlannerDecision | None = None
+
+
+def _validate_option(g: AnswerGraphState) -> dict:
+    """§5-2 "Option 검증" — 학생이 실제로 이 질문에 제시된 선택지를 골랐는지 확인한다."""
+
+    selected = next((o for o in g.question.options if o.option_id == g.selected_option_id), None)
+    if selected is None:
+        return {
+            "accepted": False,
+            "rejection_reason": (
+                f"selected_option_id {g.selected_option_id!r}가 질문 "
+                f"{g.question.question_id!r}의 선택지 목록에 없습니다."
+            ),
+        }
+    return {"accepted": True}
+
+
+def _route_after_validate(g: AnswerGraphState) -> str:
+    return "continue" if g.accepted else "end"
+
+
+def _evidence_update(g: AnswerGraphState) -> dict:
+    """§12 Evidence Ledger 갱신 + §12-1 Explicit Conflict 판정. 기존
+    answer_processor.submit_answer의 2~3단계를 그대로 옮긴 것이다 — 계산 로직 변경 없음."""
+
+    state = g.state
+    question = g.question
+    selected_option = next(o for o in question.options if o.option_id == g.selected_option_id)
+
+    evidence = EvidenceRecord(
+        evidence_id=generate_evidence_id(),
+        answer_id=f"ans_{question.question_id}_{len(state.answers) + 1:02d}",
+        question_id=question.question_id,
+        question_frame_id=question.frame_id,
+        option_role_id=selected_option.role_id,
+        option_text=selected_option.text,
+        applied_primary_trait_delta=selected_option.primary_trait_delta,
+        evidence_origin=EvidenceOrigin.PRIMARY_BLUEPRINT,
+        context=question.context,
+        source_type="seed_question" if question.frame_id == "seed_frame" else "generated_question",
+        generator_version="v1",
+        quality_gate_status="passed",
+    )
+    state.evidence_ledger.append(evidence)
+    state.pending_next_probe = selected_option.next_probe
+    state.pending_previous_question_text = question.question_text
+    state.pending_previous_answer_text = selected_option.text
+    state.answers.append(
+        AnsweredQuestion(
+            question_id=question.question_id,
+            selected_option_id=g.selected_option_id,
+            selected_role_id=selected_option.role_id,
+        )
+    )
+
+    offered_traits: list[str] = []
+    for option in question.options:
+        offered_traits.extend(option.primary_trait_delta.keys())
+    state.offered_trait_ids_by_question[question.question_id] = offered_traits
+
+    if question.target_traits:
+        state.recent_target_trait_ids.append(question.target_traits[0])
+    state.used_frame_ids_in_current_context.append(question.frame_id)
+
+    state.questions_asked_in_current_context += 1
+
+    # §7-2: 이번이 이 Context의 Seed 답변이면, DEEPEN 테마가 참고할 Trait을 남긴다.
+    if state.questions_asked_in_current_context == 1:
+        state.current_context_seed_trait_id = sorted(selected_option.primary_trait_delta)[0]
+
+    all_offered_sets = [set(v) for v in state.offered_trait_ids_by_question.values()]
+    for trait_id in g.all_trait_ids:
+        state.trait_summaries[trait_id] = summarize_trait_evidence(
+            trait_id, state.evidence_ledger, all_offered_sets
+        )
+
+    conflict_result = detect_explicit_conflicts(state.evidence_ledger, g.contrast_definitions)
+    state.unresolved_conflict_trait_ids = conflict_result.unresolved_conflict_trait_ids
+    for trait_id, summary in state.trait_summaries.items():
+        state.trait_summaries[trait_id] = summary.model_copy(
+            update={
+                "explicit_conflict_count": conflict_result.explicit_conflict_count_by_trait.get(trait_id, 0),
+                "context_dependency_flag": conflict_result.context_dependency_flag_by_trait.get(trait_id, False),
+            }
+        )
+    return {}
+
+
+def _stop_or_continue(g: AnswerGraphState) -> dict:
+    """§5-3 Adaptive Stop Condition."""
+
+    state = g.state
+    tail_questions_asked = state.questions_asked_in_current_context - 1
+    decision = decide_stop_or_continue(
+        tail_questions_asked, state.trait_summaries, g.all_trait_ids, state.unresolved_conflict_trait_ids
+    )
+    if decision == "STOP":
+        state.stop_reason = (
+            f"tail_questions_asked={tail_questions_asked}, "
+            f"unresolved_conflicts={sorted(state.unresolved_conflict_trait_ids)}"
+        )
+    return {"stop_decision": decision}
+
+
+def _route_after_stop_check(g: AnswerGraphState) -> str:
+    return "continue" if g.stop_decision == "CONTINUE" else "end"
+
+
+def _target_planner(g: AnswerGraphState) -> dict:
+    """§8 Question Target Planner — 다음 꼬리질문의 목표 Trait·Frame을 정한다."""
+
+    state = g.state
+    tail_questions_asked = state.questions_asked_in_current_context - 1
+    next_position = tail_questions_asked + 1
+    decision = decide_next_target(
+        context_id=g.question.context,
+        position=next_position,
+        all_trait_ids=g.all_trait_ids,
+        trait_summaries=state.trait_summaries,
+        unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
+        recent_target_trait_ids=state.recent_target_trait_ids,
+        used_frame_ids_in_context=set(state.used_frame_ids_in_current_context),
+        is_first_context_in_session=g.is_first_context_in_session,
+        deepen_anchor_trait_id=state.current_context_seed_trait_id,
+    )
+    return {"next_planner_decision": decision}
+
+
+def build_answer_graph():
+    graph = StateGraph(AnswerGraphState)
+    graph.add_node("validate_option", _validate_option)
+    graph.add_node("evidence_update", _evidence_update)
+    graph.add_node("stop_or_continue", _stop_or_continue)
+    graph.add_node("target_planner", _target_planner)
+
+    graph.add_edge(START, "validate_option")
+    graph.add_conditional_edges(
+        "validate_option", _route_after_validate, {"continue": "evidence_update", "end": END}
+    )
+    graph.add_edge("evidence_update", "stop_or_continue")
+    graph.add_conditional_edges(
+        "stop_or_continue", _route_after_stop_check, {"continue": "target_planner", "end": END}
+    )
+    graph.add_edge("target_planner", END)
+    return graph.compile()
+
+
+_COMPILED_ANSWER_GRAPH = build_answer_graph()
+
+
+def submit_answer(
+    state: AssessmentState,
+    question: FinalizedQuestion,
+    selected_option_id: str,
+    all_trait_ids: set[str],
+    is_first_context_in_session: bool,
+    contrast_definitions: list[ContrastDefinition] | None = None,
+) -> AnswerSubmissionResult:
+    """예전 answer_processor.submit_answer와 시그니처·반환값·"state를 제자리 mutate"
+    계약이 동일하다 — 내부만 LangGraph 실행으로 바뀌었다."""
+
+    graph_input = AnswerGraphState(
+        state=state,
+        question=question,
+        selected_option_id=selected_option_id,
+        all_trait_ids=all_trait_ids,
+        contrast_definitions=contrast_definitions or [],
+        is_first_context_in_session=is_first_context_in_session,
+    )
+    # LangGraph/LangChain은 LANGSMITH_TRACING 환경변수만 보고 원본 Node 입출력(학생 답변
+    # 원문 포함)을 자동으로 LangSmith에 전송하려 한다 — 이건 §24 Sanitizer를 거치지 않은
+    # 경로라 CLAUDE.md("자유서술 원문을 LangSmith에 보내지 않는다")를 어긴다. 이 자동
+    # 전송을 명시적으로 끄고, main.py의 Tracer.record_stage()(Sanitizer 적용됨)만 실제
+    # 전송 경로로 쓴다.
+    with tracing_context(enabled=False):
+        result = _COMPILED_ANSWER_GRAPH.invoke(graph_input)
+
+    if not result["accepted"]:
+        return AnswerSubmissionResult(accepted=False, rejection_reason=result["rejection_reason"])
+    if result["stop_decision"] == "STOP":
+        return AnswerSubmissionResult(accepted=True, stop_decision="STOP")
+    return AnswerSubmissionResult(
+        accepted=True, stop_decision="CONTINUE", next_planner_decision=result["next_planner_decision"]
+    )
