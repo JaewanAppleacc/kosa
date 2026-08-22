@@ -27,6 +27,7 @@ def _dept(
     department_name: str = "테스트학과",
     department_status: str = "EXISTING",
     canonical_major_id: str | None = "computer_science",
+    source_url: str = "https://example.test/dept",
 ) -> Department:
     return Department(
         department_id=department_id,
@@ -38,7 +39,7 @@ def _dept(
         admission_unit=None,
         department_status=department_status,
         source_svy_year=2025,
-        source_url="https://example.test/dept",
+        source_url=source_url,
         canonical_major_id=canonical_major_id,
     )
 
@@ -173,6 +174,106 @@ class MajorExplorationServiceTest(unittest.TestCase):
         repo = _FakeDepartmentRepository([_dept("d1")])
         service = MajorExplorationService(repo)
         self.assertEqual(len(service.list_departments_for_major("computer_science")), 1)
+
+
+class _MisbehavingDepartmentRepository:
+    """DepartmentRepository Protocol을 만족하지만, 진짜 JsonlDepartmentRepository와 달리
+    검색 조건(criteria)을 완전히 무시하고 가진 것을 전부 돌려준다 — "Repository 구현이
+    교체되거나 버그가 있으면"을 재현하는 대역. `search()`가 이 상태를 흉내내면, Service의
+    마지막 노출 필터가 실제로 방어막 역할을 하는지 검증할 수 있다(정상 Fake는 이미
+    criteria를 지켜서 필터가 있으나 없으나 결과가 같아 보호막을 검증 못 한다)."""
+
+    def __init__(self, departments: list[Department]) -> None:
+        self._departments = departments
+
+    def search(self, criteria: DepartmentSearchCriteria, limit: int = 30) -> list[Department]:
+        return list(self._departments)[:limit]
+
+    def get(self, department_id: str) -> Department | None:
+        return next((d for d in self._departments if d.department_id == department_id), None)
+
+
+class MajorExplorationServiceDefendsAgainstMisbehavingRepositoryTest(unittest.TestCase):
+    """2026-08-22 8차 리뷰: Service가 Repository의 canonical_major_id 필터링을 무조건
+    신뢰하지 않고, 노출 직전에 다시 검증하는지 확인한다. 검색 조건을 지키는 정상 Fake
+    Repository로는 이 방어 로직 자체를 테스트할 수 없으므로, 일부러 조건을 무시하는
+    _MisbehavingDepartmentRepository를 쓴다."""
+
+    def test_wrong_major_department_mixed_in_by_repository_is_excluded(self) -> None:
+        repo = _MisbehavingDepartmentRepository(
+            [
+                _dept("d1", canonical_major_id="computer_science"),
+                _dept("d2", canonical_major_id="psychology"),  # Repository가 잘못 섞어 보낸 것
+            ]
+        )
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("computer_science")
+        self.assertEqual({d.department_id for d in result}, {"d1"})
+
+    def test_canonical_major_id_none_is_excluded_even_if_repository_returns_it(self) -> None:
+        repo = _MisbehavingDepartmentRepository(
+            [
+                _dept("d1", canonical_major_id="computer_science"),
+                _dept("d2", canonical_major_id=None),
+            ]
+        )
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("computer_science")
+        self.assertEqual({d.department_id for d in result}, {"d1"})
+
+    def test_empty_source_url_is_excluded(self) -> None:
+        repo = _MisbehavingDepartmentRepository(
+            [
+                _dept("d1", canonical_major_id="computer_science", source_url="https://real.example/dept"),
+                _dept("d2", canonical_major_id="computer_science", source_url=""),
+            ]
+        )
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("computer_science")
+        self.assertEqual({d.department_id for d in result}, {"d1"})
+
+    def test_whitespace_only_source_url_is_excluded(self) -> None:
+        repo = _MisbehavingDepartmentRepository(
+            [
+                _dept("d1", canonical_major_id="computer_science", source_url="https://real.example/dept"),
+                _dept("d2", canonical_major_id="computer_science", source_url="   "),
+            ]
+        )
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("computer_science")
+        self.assertEqual({d.department_id for d in result}, {"d1"})
+
+    def test_valid_department_with_correct_major_and_source_is_still_returned(self) -> None:
+        """방어 필터가 과잉 차단하지 않는지 확인 — 정상 조건을 모두 만족하는 학과는
+        Repository가 조건을 지키든 안 지키든 그대로 나와야 한다."""
+
+        repo = _MisbehavingDepartmentRepository(
+            [_dept("d1", canonical_major_id="computer_science", source_url="https://real.example/dept")]
+        )
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("computer_science")
+        self.assertEqual([d.department_id for d in result], ["d1"])
+
+    def test_status_filter_and_deterministic_sort_still_hold_against_misbehaving_repository(
+        self,
+    ) -> None:
+        repo = _MisbehavingDepartmentRepository(
+            [
+                _dept("d1", canonical_major_id="computer_science", department_status="ABOLISHED"),
+                _dept(
+                    "d2", canonical_major_id="computer_science", region="부산", university_name="B대",
+                ),
+                _dept(
+                    "d3", canonical_major_id="computer_science", region="서울", university_name="A대",
+                ),
+                _dept("d4", canonical_major_id="psychology"),
+            ]
+        )
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("computer_science")
+        self.assertEqual([d.department_id for d in result], ["d2", "d3"])
+        for d in result:
+            self.assertIn(d.department_status, VISIBLE_DEPARTMENT_STATUSES)
 
 
 if __name__ == "__main__":

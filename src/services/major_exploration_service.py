@@ -49,9 +49,11 @@ class MajorExplorationService:
         self, major_id: str, limit: int = DEFAULT_DEPARTMENT_LIMIT
     ) -> list[Department]:
         """§17: `major_id`와 `Department.canonical_major_id`가 일치하는 학과만, 그 중에서도
-        VISIBLE_DEPARTMENT_STATUSES에 속한 것만 반환한다. Mapping이 아직 REVIEW_REQUIRED라
-        `canonical_major_id`가 None인 학과는 Repository.search()가 이미 걸러낸다(criteria.
-        canonical_major_id가 채워지면 정확히 일치하는 것만 통과시키므로 None은 자동 제외).
+        VISIBLE_DEPARTMENT_STATUSES에 속하고 `source_url`이 실제로 채워진 것만 반환한다.
+        Repository.search()가 이미 이 조건 대부분을 걸러주지만, 이 메서드는 Repository
+        구현을 신뢰하지 않고(교체·버그 가능성) 마지막 노출 시점에 4가지를 전부 다시
+        검증한다 — canonical_major_id 정확히 일치, 상태 EXISTING/NEW, source_url이
+        비어 있지 않음(공백만으로 구성된 값도 제외).
 
         `major_id`가 비어 있으면 빈 목록을 반환한다 — 빈 문자열을 Repository에 그대로
         넘기면 "필터 없음"으로 해석돼(criteria.canonical_major_id가 falsy) 아무 전공과도
@@ -63,7 +65,19 @@ class MajorExplorationService:
         criteria = DepartmentSearchCriteria(canonical_major_id=major_id)
         candidates = self._department_repository.search(criteria, limit=_CANDIDATE_OVERFETCH_LIMIT)
 
-        visible = [d for d in candidates if d.department_status in VISIBLE_DEPARTMENT_STATUSES]
+        # 2026-08-22 8차 리뷰: 예전에는 Repository가 이미 canonical_major_id를 정확히
+        # 걸러준다고 신뢰하고 여기서는 상태만 다시 확인했다 — Repository 구현이 바뀌거나
+        # (JSONL → PostgreSQL 등) 버그로 다른 전공 학과가 섞여 와도 이 Service가 방어막
+        # 없이 그대로 내보내는 구조였다. Repository를 신뢰하지 않고 이 Service의 마지막
+        # 노출 시점에 4가지를 전부 다시 확인한다 — Repository 구현(C 소유)은 건드리지
+        # 않고 Service의 "사용자에게 실제로 보여줄 것" 정책만 강화한다.
+        visible = [
+            d
+            for d in candidates
+            if d.canonical_major_id == major_id
+            and d.department_status in VISIBLE_DEPARTMENT_STATUSES
+            and d.source_url.strip()
+        ]
         # 결정론적 정렬 — region → university_name → campus → department_name →
         # department_id. Repository 자체 정렬(university_name 우선)과 다른 이유는, 이건
         # "저장소 조회 순서"가 아니라 "학생에게 보여줄 노출 순서" 정책이라 Service가 정한다.

@@ -35,7 +35,7 @@ python3 -m venv .venv
 | Seed 질문(각 Context의 첫 질문) | ✅ 실제 고정 문항(§7-1) |
 | 꼬리질문(2번째 질문부터) 생성 | ✅ 실제 LLM 생성(§10) — **단, `.env`에 `ENABLE_LLM_QUESTION_GENERATION=true` + API Key가 있을 때만.** 안 켜져 있으면 자동으로 이전과 같은 Mock 문구로 동작합니다(서버가 알아서 판단 — B가 신경 쓸 필요 없음). |
 | 답변 제출 → Evidence·Trait 판정 | ✅ 실제 계산(§12/§13). LLM 연동 여부와 무관하게 항상 실제로 동작합니다. |
-| Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM 켜져 있으면 실제 문장, 꺼져 있으면 Mock 문장. `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
+| Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM을 쓸 수 있으면 실제 Evidence를 바탕으로 LLM이 문장을 생성하고, LLM이 꺼져 있거나 호출에 실패하면 **같은 학생의 같은 실제 Evidence**를 바탕으로 결정론적 Fallback 문장을 생성합니다(다른 학생의 Mock Profile을 대신 보여주지 않습니다). 어느 경로든 Trait·근거 구조는 항상 이 세션의 실제 답변에서 나옵니다. 답변이 아예 없으면 200이 아니라 `EVIDENCE_NOT_READY`입니다(아래 참고). `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
 | Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
 | Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, C가 구축한 대학 10개·학과 30개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** 매핑된 대표 전공(`computer_science` 등 8개)만 학과가 나오고, 그 외 `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
 | Subjects / Subgraph 조회 | ⚠️ 아직 고정 Mock (A의 Subject Planning 미완료) |
