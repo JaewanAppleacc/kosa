@@ -5,7 +5,12 @@ Selector 포함, §5-1/§6-5), Evidence·Trait 계산, Explicit Conflict 판정(
 Profile(§14), 전공 Matching(§16), LangSmith Trace(§24, `LANGSMITH_TRACING=true`일 때만)
 까지 전부 실제 경로다. "학생 답변 → Evidence Update → Stop/Continue → Target Planner"와
 "Question Generator → Quality Gate → 재생성/Backup" 두 구간은 실제 LangGraph StateGraph로
-연결돼 있다(src/agents/assessment/graph/). 질문 생성(§10) 자체는 `.env`의
+연결돼 있다(src/agents/assessment/graph/). 2026-08-22 리뷰 8항목: 정확히 이 두 구간만
+LangGraph이고, Context 이동·Career Profile 생성·전공 Matching 호출은 여전히 이
+FastAPI 파일의 일반 함수 orchestration이다 — "LangGraph로 Adaptive 답변 처리와 질문
+생성·재생성·Fallback Workflow를 구현했다"까지만 정확한 표현이고, "전체 진로·학업설계
+서비스가 하나의 LangGraph로 구성됐다"는 과장이다(발표·문서에서 쓰지 않는다). 질문
+생성(§10) 자체는 `.env`의
 `ENABLE_LLM_QUESTION_GENERATION` + API Key 여부에 따라 실제 LLM 또는 Mock 문구로 갈리고,
 그 외 계산은 LLM 연동 여부와 무관하게 항상 실제로 동작한다 — Evidence가 전혀 없는 세션에서
 Profile을 물으면 Mock으로 얼버무리지 않고 `EVIDENCE_NOT_READY`를 반환한다. Postgres Profile
