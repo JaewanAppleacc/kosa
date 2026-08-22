@@ -215,9 +215,16 @@ class GenerateTraceIdIsAParsableUuidTest(unittest.TestCase):
 
 class LangSmithAdapterSendsUuidTraceIdTest(unittest.TestCase):
     """실제 네트워크 호출 없이(langsmith.Client.create_run을 Mock으로 가로채서) Adapter가
-    실제로 UUID 형식 trace_id와 Sanitizer를 거친 attributes만 보내는지 확인한다."""
+    실제로 UUID 형식 trace_id와 Sanitizer를 거친 attributes만 보내는지 확인한다.
 
-    def test_create_run_receives_uuid_trace_id_and_sanitized_inputs_only(self) -> None:
+    2026-08-22 6차 리뷰: 실제 계정으로 Smoke Test(scripts/langsmith_smoke_test.py)를
+    돌려서 확인한 서버 응답 — 예전처럼 매 Stage를 독립된 평행 Run으로 trace_id만 채워
+    보내면 서버가 `400 Bad Request: dotted_order is required when trace_id is
+    provided`로 전부 거부한다(그동안 이 서비스가 실제 LangSmith에 보낸 Trace는 단 하나도
+    기록되지 않았다는 뜻). 이제 세션(trace_id)마다 Root Run 하나 + 각 Stage를 그 Root의
+    Child Run으로 묶는다(공식 RunTree가 parent_run_id·dotted_order를 자동 계산)."""
+
+    def test_first_record_run_creates_root_then_child(self) -> None:
         from src.tracing.langsmith_client import LangSmithTraceClient
 
         settings = TracingSettings(api_key="ls-fake-key-for-test", project="career-agent-test")
@@ -231,12 +238,77 @@ class LangSmithAdapterSendsUuidTraceIdTest(unittest.TestCase):
                 trace_id=trace_id, name="Evidence Update", run_type="chain", attributes=sanitized_attributes
             )
 
-        mock_create_run.assert_called_once()
-        kwargs = mock_create_run.call_args.kwargs
-        self.assertIsInstance(kwargs["trace_id"], UUID)
-        self.assertEqual(str(kwargs["trace_id"]), trace_id)
-        self.assertEqual(kwargs["inputs"], {"context_id": "game"})
-        self.assertNotIn("free_text_answer", str(kwargs["inputs"]))
+        # 이 trace_id로 처음 기록하는 Stage라 Root Run 1개 + Child Run 1개, 총 2번 전송된다.
+        self.assertEqual(mock_create_run.call_count, 2)
+        root_kwargs, child_kwargs = (call.kwargs for call in mock_create_run.call_args_list)
+
+        # Root Run: id==trace_id, trace_id==trace_id, parent_run_id 없음(최상위 Run).
+        self.assertIsInstance(root_kwargs["trace_id"], UUID)
+        self.assertEqual(str(root_kwargs["trace_id"]), trace_id)
+        self.assertEqual(root_kwargs["id"], root_kwargs["trace_id"])
+        self.assertNotIn("parent_run_id", root_kwargs)
+        self.assertEqual(root_kwargs["inputs"], {})  # Root 자체엔 학생 관련 정보를 담지 않는다.
+
+        # Child Run: Stage별 새 UUID, Root와 같은 trace_id, parent_run_id==Root.id,
+        # dotted_order는 Root의 dotted_order로 시작한다("."로 이어붙임 — 임의 문자열 아님).
+        self.assertEqual(child_kwargs["trace_id"], root_kwargs["trace_id"])
+        self.assertNotEqual(child_kwargs["id"], root_kwargs["id"])
+        self.assertEqual(child_kwargs["parent_run_id"], root_kwargs["id"])
+        self.assertTrue(child_kwargs["dotted_order"].startswith(root_kwargs["dotted_order"] + "."))
+        self.assertEqual(child_kwargs["inputs"], {"context_id": "game"})
+        self.assertNotIn("free_text_answer", str(child_kwargs["inputs"]))
+
+    def test_second_record_run_same_trace_id_reuses_root(self) -> None:
+        """같은 세션(같은 trace_id) 안에서는 Root를 한 번만 만든다 — 여러 Stage가 전부
+        같은 Root의 Child로 붙어야 한다."""
+
+        from src.tracing.langsmith_client import LangSmithTraceClient
+
+        settings = TracingSettings(api_key="ls-fake-key-for-test", project="career-agent-test")
+        with patch("langsmith.Client.create_run") as mock_create_run:
+            client = LangSmithTraceClient(settings)
+            trace_id = generate_trace_id()
+            client.record_run(trace_id=trace_id, name="Context Selector", run_type="chain", attributes={})
+            client.record_run(trace_id=trace_id, name="Evidence Update", run_type="chain", attributes={})
+            client.record_run(trace_id=trace_id, name="Target Planner", run_type="chain", attributes={})
+
+        # Root 1개(1번째 호출에서만) + Child 3개 = 총 4번 전송. Root가 다시 만들어지지 않는다.
+        self.assertEqual(mock_create_run.call_count, 4)
+        all_kwargs = [call.kwargs for call in mock_create_run.call_args_list]
+        root_kwargs = all_kwargs[0]
+        child_kwargs_list = all_kwargs[1:]
+
+        self.assertEqual(len({k["id"] for k in all_kwargs}), 4)  # id는 전부 서로 다르다(Root+Child 3개)
+        for child_kwargs in child_kwargs_list:
+            self.assertEqual(child_kwargs["trace_id"], root_kwargs["trace_id"])
+            self.assertEqual(child_kwargs["parent_run_id"], root_kwargs["id"])
+            self.assertTrue(child_kwargs["dotted_order"].startswith(root_kwargs["dotted_order"] + "."))
+
+    def test_different_trace_ids_get_different_roots(self) -> None:
+        """서로 다른 세션(서로 다른 trace_id)은 서로 다른 Root를 써야 한다 — 한 세션의
+        Child가 다른 세션의 Root 밑에 잘못 묶이면 안 된다."""
+
+        from src.tracing.langsmith_client import LangSmithTraceClient
+
+        settings = TracingSettings(api_key="ls-fake-key-for-test", project="career-agent-test")
+        with patch("langsmith.Client.create_run") as mock_create_run:
+            client = LangSmithTraceClient(settings)
+            trace_id_a = generate_trace_id()
+            trace_id_b = generate_trace_id()
+            client.record_run(trace_id=trace_id_a, name="Evidence Update", run_type="chain", attributes={})
+            client.record_run(trace_id=trace_id_b, name="Evidence Update", run_type="chain", attributes={})
+
+        # 각 trace_id마다 Root+Child가 새로 생기므로 총 4번 전송(Root 2개 + Child 2개).
+        self.assertEqual(mock_create_run.call_count, 4)
+        all_kwargs = [call.kwargs for call in mock_create_run.call_args_list]
+        root_a, child_a, root_b, child_b = all_kwargs
+
+        self.assertNotEqual(root_a["id"], root_b["id"])
+        self.assertEqual(str(root_a["trace_id"]), trace_id_a)
+        self.assertEqual(str(root_b["trace_id"]), trace_id_b)
+        self.assertEqual(child_a["parent_run_id"], root_a["id"])
+        self.assertEqual(child_b["parent_run_id"], root_b["id"])
+        self.assertNotEqual(child_a["parent_run_id"], child_b["parent_run_id"])
 
     def test_invalid_trace_id_raises_trace_error_instead_of_silently_failing(self) -> None:
         from src.tracing.langsmith_client import LangSmithTraceClient
@@ -247,6 +319,27 @@ class LangSmithAdapterSendsUuidTraceIdTest(unittest.TestCase):
             client.record_run(
                 trace_id="not-a-uuid", name="Evidence Update", run_type="chain", attributes={}
             )
+
+    def test_root_creation_failure_is_not_cached_and_retried_next_call(self) -> None:
+        """Root를 처음 만들 때(.post()) 네트워크 실패로 예외가 나면, 그 실패한 Root를
+        캐시에 남겨두지 않아야 한다 — 다음 호출이 다시 Root 생성을 시도할 수 있어야
+        한다(예전 실패가 이후 모든 Trace를 영구히 막으면 안 된다)."""
+
+        from src.tracing.langsmith_client import LangSmithTraceClient
+
+        settings = TracingSettings(api_key="ls-fake-key-for-test", project="career-agent-test")
+        client = LangSmithTraceClient(settings)
+        trace_id = generate_trace_id()
+
+        with patch("langsmith.Client.create_run", side_effect=RuntimeError("모의 네트워크 장애")):
+            with self.assertRaises(TraceError):
+                client.record_run(trace_id=trace_id, name="Evidence Update", run_type="chain", attributes={})
+
+        self.assertNotIn(trace_id, client._roots)
+
+        with patch("langsmith.Client.create_run") as mock_create_run:
+            client.record_run(trace_id=trace_id, name="Evidence Update", run_type="chain", attributes={})
+        self.assertEqual(mock_create_run.call_count, 2)  # 이번엔 Root+Child가 정상적으로 다시 만들어진다
 
 
 if __name__ == "__main__":

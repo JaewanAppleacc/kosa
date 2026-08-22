@@ -10,13 +10,17 @@
 2. `LANGSMITH_API_KEY`/`LANGSMITH_PROJECT`가 `.env` 또는 환경변수에 실제로 설정돼 있음
    (`src.tracing.settings.load_tracing_settings()`가 이미 쓰는 것과 동일한 필수값 검사)
 
-무엇을 확인하는가(CLAUDE.md §24 + 2026-08-22 3차 리뷰 요구사항):
-  A. 한 세션의 모든 Stage(Context Selector → Evidence Update → Stop/Continue →
-     Target Planner → Profile Summary Generator → Question Generator)가 실제로 같은
-     Trace로 묶여 LangSmith에서 조회되는가.
-  B. 지금 구현(src/tracing/langsmith_client.py)처럼 매 Run을 `trace_id`만 공유하는
-     평행 Run으로 기록하는 방식이 실제로 "그룹핑"되는지, 아니면 `parent_run_id`/
-     `dotted_order`가 있어야 LangSmith UI/조회 API가 부모-자식 트리로 보여주는지.
+무엇을 확인하는가(CLAUDE.md §24 + 2026-08-22 3차/6차 리뷰 요구사항):
+  A. 한 세션의 Root Run(Assessment Session) + 6개 Stage(Context Selector →
+     Evidence Update → Stop/Continue → Target Planner → Profile Summary Generator →
+     Question Generator) Child Run, 총 7개 Run이 실제로 같은 Trace(trace_id)로 묶여
+     LangSmith에서 조회되는가.
+  B. 2026-08-22 6차 리뷰로 확인된 사실: 예전처럼 매 Run을 `trace_id`만 채운 평행 Run으로
+     보내면 서버가 `400 Bad Request(dotted_order is required when trace_id is
+     provided)`로 거부한다 — 그래서 지금은 공식 `RunTree`로 세션마다 Root Run 1개를
+     만들고 각 Stage를 그 Root의 Child Run으로 기록한다(src/tracing/langsmith_client.py).
+     이 스크립트는 그 결과가 실제 서버에서도 Root/Child 트리(parent_run_id가 Root.id를
+     가리키고, dotted_order가 Root의 dotted_order로 시작함)로 조회되는지 확인한다.
   C. Sanitizer(§24)를 거치지 않은 원문(예: 학생 자유서술 텍스트)이 실제로 전송되지
      않는지 — 이 스크립트가 일부러 허용되지 않은 필드를 섞어 보내고, 서버에서
      읽어온 결과에 그 원문이 없는지 직접 대조한다.
@@ -129,12 +133,13 @@ def main() -> int:
         print(f"[D 실패] record_stage()가 예외를 세션 밖으로 던졌습니다(fail-open 위반): {exc!r}")
         return 1
 
-    # --- A/B/C. 실제 세션 하나를 흉내내 6개 Stage를 같은 trace_id로 기록하고, 서버에서
-    # 다시 읽어와 실제 그룹핑·오염 여부를 확인한다.
+    # --- A/B/C. 실제 세션 하나를 흉내내 Root Run(Assessment Session) + 6개 Stage
+    # Child Run을 같은 trace_id로 기록하고, 서버에서 다시 읽어와 실제 그룹핑·트리
+    # 구조·오염 여부를 확인한다.
     real_client = LangSmithTraceClient(settings)
     tracer = Tracer(real_client)
     trace_id = generate_trace_id()
-    print(f"[정보] 이번 Smoke Test trace_id={trace_id}")
+    print(f"[정보] 이번 Smoke Test trace_id={trace_id}(Root Run.id와 동일해야 함)")
 
     for stage_name in _REAL_STAGE_NAMES:
         attributes = dict(_SAFE_ATTRIBUTES[stage_name])
@@ -143,7 +148,9 @@ def main() -> int:
         attributes["student_free_text_should_be_stripped"] = _FORBIDDEN_MARKER
         tracer.record_stage(trace_id=trace_id, stage_name=stage_name, attributes=attributes)
 
-    print("[정보] 6개 Stage 전송 완료. LangSmith 서버 인덱싱 대기 중(5초)...")
+    expected_run_count = 1 + len(_REAL_STAGE_NAMES)  # Root 1개 + Stage 6개
+    print(f"[정보] Root 1개 + Stage {len(_REAL_STAGE_NAMES)}개 전송 완료. "
+          f"LangSmith 서버 인덱싱 대기 중(5초)...")
     time.sleep(5)
 
     try:
@@ -156,27 +163,44 @@ def main() -> int:
         print("계정에서 직접 LangSmith 웹 UI로 trace_id를 검색해 A/B/C 항목을 눈으로 확인하세요.")
         return 0
 
-    print(f"\n=== 조회 결과: trace_id={trace_id}로 {len(fetched)}개 Run 발견 ===")
-    if len(fetched) != len(_REAL_STAGE_NAMES):
+    print(f"\n=== 조회 결과: trace_id={trace_id}로 {len(fetched)}개 Run 발견(기대값 {expected_run_count}) ===")
+    if len(fetched) != expected_run_count:
         print(
-            f"[A 주의] 보낸 Stage는 {len(_REAL_STAGE_NAMES)}개인데 조회된 Run은 {len(fetched)}개입니다 "
-            "— 인덱싱 지연일 수도, 그룹핑이 실패했을 수도 있습니다(재조회 권장)."
+            f"[A 주의] Root+Stage는 {expected_run_count}개인데 조회된 Run은 {len(fetched)}개입니다 "
+            "— 인덱싱 지연일 수도, 일부 전송이 실패했을 수도 있습니다(재조회 권장)."
         )
     else:
-        print(f"[A 확인] 보낸 {len(_REAL_STAGE_NAMES)}개 Stage가 전부 같은 trace_id로 조회됩니다.")
+        print(f"[A 확인] Root 1개 + Stage {len(_REAL_STAGE_NAMES)}개가 전부 같은 trace_id로 조회됩니다.")
 
-    parent_run_ids = {str(getattr(r, "parent_run_id", None)) for r in fetched}
-    dotted_orders = [getattr(r, "dotted_order", None) for r in fetched]
-    print(f"[B 확인] parent_run_id 값 집합: {parent_run_ids}")
-    print(f"[B 확인] dotted_order 값들: {dotted_orders}")
-    if parent_run_ids == {"None"}:
+    # --- B: Root/Child 트리 구조 확인. Root는 자기 id가 곧 trace_id이고 parent_run_id가
+    # 없다(None) — 그 Root의 id를 parent_run_id로 가리키는 나머지가 전부 Child여야 한다.
+    trace_uuid = UUID(trace_id)
+    roots = [r for r in fetched if getattr(r, "id", None) == trace_uuid]
+    children = [r for r in fetched if r not in roots]
+    print(f"[B 확인] Root로 식별된 Run: {len(roots)}개, Child로 식별된 Run: {len(children)}개")
+    if len(roots) != 1:
         print(
-            "[B 결론] 지금 구현은 parent_run_id를 전혀 설정하지 않는다 — 모든 Run이 "
-            "형제(flat) 관계로 조회된다. LangSmith UI에서 이 trace_id를 열어 트리 형태로 "
-            "묶여 보이는지 직접 확인 필요. 묶여 보이지 않는다면 answer_graph.py/"
-            "question_generation_graph.py Node 실행 시점에 상위 Run(예: 'Assessment Session')을 "
-            "하나 만들고 각 Stage를 그 자식으로 record해야 한다(§24 최소 변경, Sanitizer 경로는 유지)."
+            f"[B 실패] Root Run(id==trace_id)이 정확히 1개여야 하는데 {len(roots)}개입니다 — "
+            "langsmith_client.py의 Root 생성 로직을 점검하세요."
         )
+        return 1
+    root = roots[0]
+    print(f"[B 확인] Root.parent_run_id={getattr(root, 'parent_run_id', None)} (None이어야 함)")
+    mismatched_parent = [c for c in children if getattr(c, "parent_run_id", None) != root.id]
+    mismatched_dotted_order = [
+        c for c in children
+        if not str(getattr(c, "dotted_order", "")).startswith(str(getattr(root, "dotted_order", "")) + ".")
+    ]
+    if mismatched_parent or mismatched_dotted_order:
+        print(
+            f"[B 실패] Child 중 parent_run_id 불일치 {len(mismatched_parent)}개, "
+            f"dotted_order가 Root로 시작하지 않는 것 {len(mismatched_dotted_order)}개 발견."
+        )
+        return 1
+    print(
+        "[B 확인] 모든 Child Run의 parent_run_id==Root.id이고, dotted_order가 "
+        "Root.dotted_order로 시작합니다 — 실제 서버에서도 Root/Child 트리로 묶입니다."
+    )
 
     leaked = [r for r in fetched if _FORBIDDEN_MARKER in str(getattr(r, "inputs", {}))]
     if leaked:
