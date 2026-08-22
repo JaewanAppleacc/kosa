@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_sports_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "sports",
+  "context_label": "스포츠",
+  "seed_question": {
+    "question_id": "sports_seed_01",
+    "context": "sports",
+    "question_text": "운동을 하거나 경기를 볼 때, 어떤 쪽에 더 관심이 가나요?",
+    "options": [
+      {
+        "option_id": "sports_seed_01_o1",
+        "text": "반복되는 흐름이나 팀의 패턴을 찾아내는 것",
+        "role_id": "reading_the_game",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": "여러 경기를 비교해 규칙을 찾는 편인지 확인",
+        "preferred_frames": [
+          "longest_focus",
+          "problem_check"
+        ]
+      },
+      {
+        "option_id": "sports_seed_01_o2",
+        "text": "일단 몸으로 부딪혀 보면서 감을 잡는 것",
+        "role_id": "body_first",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": "새로운 종목을 만났을 때 먼저 하는 행동 확인",
+        "preferred_frames": [
+          "first_action",
+          "new_tool"
+        ]
+      },
+      {
+        "option_id": "sports_seed_01_o3",
+        "text": "팀원과 호흡을 맞춰 같이 만들어 가는 것",
+        "role_id": "playing_together",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": "팀에서 맡고 싶은 역할 확인",
+        "preferred_frames": [
+          "team_role",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "sports_seed_01_o4",
+        "text": "진 경기에서 무엇 때문에 그렇게 됐는지 짚어보는 것",
+        "role_id": "why_we_lost",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": "결과가 나빴을 때 무엇부터 확인하는지 확인",
+        "preferred_frames": [
+          "problem_check",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "sports_seed_01_o5",
+        "text": "상대가 달라지면 전술을 바꿔 맞추는 것",
+        "role_id": "switching_tactics",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": "상황이 바뀔 때 어떻게 대응하는지 확인",
+        "preferred_frames": [
+          "unexpected_result",
+          "new_tool"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "sports_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "reading_the_game",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "body_first",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "playing_together",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "why_we_lost",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "switching_tactics",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "reading_the_game": {
+      "trait_id": "pattern_finding",
+      "why": "반복되는 흐름이나 팀의 패턴을 찾아내는 것"
+    },
+    "body_first": {
+      "trait_id": "immediate_execution",
+      "why": "일단 몸으로 부딪혀 보면서 감을 잡는 것"
+    },
+    "playing_together": {
+      "trait_id": "collaboration_preference",
+      "why": "팀원과 호흡을 맞춰 같이 만들어 가는 것"
+    },
+    "why_we_lost": {
+      "trait_id": "causal_analysis",
+      "why": "진 경기에서 무엇 때문에 그렇게 됐는지 짚어보는 것"
+    },
+    "switching_tactics": {
+      "trait_id": "change_adaptation",
+      "why": "상대가 달라지면 전술을 바꿔 맞추는 것"
+    }
+  }
+}

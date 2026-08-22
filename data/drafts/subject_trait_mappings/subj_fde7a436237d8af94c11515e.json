@@ -1,0 +1,40 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_fde7a436237d8af94c11515e",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_fde7a436237d8af94c11515e",
+  "label": "확률과 통계",
+  "subject_group": "수학",
+  "subject_category": "일반선택",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "pattern_finding": 3,
+    "information_comparison": 2
+  },
+  "rationale": "자료에서 규칙과 분포를 읽어내는 활동이 중심이라 패턴 탐색 3.",
+  "related_major_ids": [
+    "psychology",
+    "business_administration",
+    "life_science"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_fde7a436237d8af94c11515e",
+    "label": "확률과 통계",
+    "trait_vector": {
+      "pattern_finding": 1.0,
+      "information_comparison": 0.67
+    },
+    "related_major_ids": [
+      "psychology",
+      "business_administration",
+      "life_science"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

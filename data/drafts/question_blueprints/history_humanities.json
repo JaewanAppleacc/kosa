@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_history_humanities_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "history_humanities",
+  "context_label": "역사·인문학",
+  "seed_question": {
+    "question_id": "history_humanities_seed_01",
+    "context": "history_humanities",
+    "question_text": "역사나 인문학 주제를 볼 때, 어떤 질문이 먼저 떠오르나요?",
+    "options": [
+      {
+        "option_id": "history_humanities_seed_01_o1",
+        "text": "그 일이 왜 그렇게 흘러갔는지",
+        "role_id": "why_it_happened",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": "설명이 엇갈릴 때 무엇부터 확인하는지 확인",
+        "preferred_frames": [
+          "problem_check",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "history_humanities_seed_01_o2",
+        "text": "다른 기록은 뭐라고 하는지",
+        "role_id": "comparing_records",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": "자료가 상충할 때의 판단 기준 확인",
+        "preferred_frames": [
+          "conflicting_opinions",
+          "limited_time_priority"
+        ]
+      },
+      {
+        "option_id": "history_humanities_seed_01_o3",
+        "text": "비슷한 일이 다른 시대에도 있었는지",
+        "role_id": "recurring_patterns",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": "사례를 어떻게 묶는지 확인",
+        "preferred_frames": [
+          "longest_focus",
+          "problem_check"
+        ]
+      },
+      {
+        "option_id": "history_humanities_seed_01_o4",
+        "text": "그때 사람들은 어떤 심정이었는지",
+        "role_id": "people_of_the_time",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": "타인의 입장을 어떻게 추론하는지 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "team_role"
+        ]
+      },
+      {
+        "option_id": "history_humanities_seed_01_o5",
+        "text": "대립하던 양쪽 주장을 어떻게 조율했는지",
+        "role_id": "both_sides",
+        "primary_trait_delta": {
+          "opinion_mediation": 1
+        },
+        "next_probe": "충돌 상황의 판단 기준 확인",
+        "preferred_frames": [
+          "conflicting_opinions",
+          "others_reaction"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "history_humanities_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "why_it_happened",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "comparing_records",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "recurring_patterns",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "people_of_the_time",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "both_sides",
+        "primary_trait_delta": {
+          "opinion_mediation": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "why_it_happened": {
+      "trait_id": "causal_analysis",
+      "why": "그 일이 왜 그렇게 흘러갔는지"
+    },
+    "comparing_records": {
+      "trait_id": "information_comparison",
+      "why": "다른 기록은 뭐라고 하는지"
+    },
+    "recurring_patterns": {
+      "trait_id": "pattern_finding",
+      "why": "비슷한 일이 다른 시대에도 있었는지"
+    },
+    "people_of_the_time": {
+      "trait_id": "emotional_interpretation",
+      "why": "그때 사람들은 어떤 심정이었는지"
+    },
+    "both_sides": {
+      "trait_id": "opinion_mediation",
+      "why": "대립하던 양쪽 주장을 어떻게 조율했는지"
+    }
+  }
+}

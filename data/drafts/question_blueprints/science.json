@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_science_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "science",
+  "context_label": "과학탐구",
+  "seed_question": {
+    "question_id": "science_seed_01",
+    "context": "science",
+    "question_text": "과학 실험이나 관찰 활동에서 가장 재미있는 부분은 무엇인가요?",
+    "options": [
+      {
+        "option_id": "science_seed_01_o1",
+        "text": "왜 그런 결과가 나왔는지 원인을 밝히는 것",
+        "role_id": "finding_the_cause",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": "예상과 다른 결과가 나왔을 때의 행동 확인",
+        "preferred_frames": [
+          "problem_check",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "science_seed_01_o2",
+        "text": "여러 번 관찰한 자료에서 규칙을 찾아내는 것",
+        "role_id": "spotting_regularity",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": "자료를 어떻게 정리하는지 확인",
+        "preferred_frames": [
+          "longest_focus",
+          "problem_check"
+        ]
+      },
+      {
+        "option_id": "science_seed_01_o3",
+        "text": "실험 기구나 장비를 직접 다루는 것",
+        "role_id": "handling_equipment",
+        "primary_trait_delta": {
+          "tool_utilization": 1
+        },
+        "next_probe": "새 장비를 만났을 때 접근 방식 확인",
+        "preferred_frames": [
+          "new_tool",
+          "first_action"
+        ]
+      },
+      {
+        "option_id": "science_seed_01_o4",
+        "text": "자료를 여러 곳에서 찾아 비교해 보는 것",
+        "role_id": "checking_sources",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": "정보가 엇갈릴 때 무엇을 믿는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "science_seed_01_o5",
+        "text": "실험 절차를 미리 설계해 두는 것",
+        "role_id": "designing_procedure",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": "시간이 부족할 때 절차를 어떻게 줄이는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "first_action"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "science_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "finding_the_cause",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "spotting_regularity",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "handling_equipment",
+        "primary_trait_delta": {
+          "tool_utilization": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "checking_sources",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "designing_procedure",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "finding_the_cause": {
+      "trait_id": "causal_analysis",
+      "why": "왜 그런 결과가 나왔는지 원인을 밝히는 것"
+    },
+    "spotting_regularity": {
+      "trait_id": "pattern_finding",
+      "why": "여러 번 관찰한 자료에서 규칙을 찾아내는 것"
+    },
+    "handling_equipment": {
+      "trait_id": "tool_utilization",
+      "why": "실험 기구나 장비를 직접 다루는 것"
+    },
+    "checking_sources": {
+      "trait_id": "information_comparison",
+      "why": "자료를 여러 곳에서 찾아 비교해 보는 것"
+    },
+    "designing_procedure": {
+      "trait_id": "planning",
+      "why": "실험 절차를 미리 설계해 두는 것"
+    }
+  }
+}

@@ -3,19 +3,37 @@
 Schema가 바뀌면 이 스크립트를 다시 돌려서 Mock JSON을 갱신한다(A 지시서 §3: "Schema 변경이
 필요하면 B와 C에게 변경 내용과 새로운 Mock JSON을 동시에 제공한다").
 
+2026-08-22 리뷰 반영: 이 스크립트는 로컬 `.env`에 `ENABLE_LLM_QUESTION_GENERATION=true`·
+`LANGSMITH_TRACING=true`가 켜져 있어도 항상 결정론적 Mock/Fallback 경로만 탄다 — 실제
+LLM·LangSmith 네트워크 호출을 절대 하지 않는다(실행할 때마다 과금되거나, 실행마다 결과가
+달라지는 문제를 막는다). `_llm_client`/`_tracer`를 강제로 비활성화하고, session_id·
+생성 시각도 고정값으로 주입해서 재실행해도 의미 없는 Diff(session_id, generated_at)가
+안 생기게 한다 — 실제 계산 결과가 바뀌었을 때만 git diff가 발생해야 리뷰하기 쉽다.
+
 실행: PYTHONPATH=. ./.venv/bin/python scripts/generate_mock_json.py
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import src.agents.assessment.profile_generator as profile_generator_module
+import src.api.main as main_module
+import src.api.mock_data as mock_data_module
 from src.api.main import app
+from src.tracing.tracer import Tracer
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "outputs" / "mock_api"
+
+# 실행마다 값이 바뀌지 않도록 고정한다 — 실제 API 응답 필드 이름·타입·계산 결과는 이
+# 값과 무관하다(session_id 자체는 어떤 계산에도 입력으로 쓰이지 않는다).
+_FIXED_SESSION_ID = "sess_00000000000000000000000000000000"
+_FIXED_GENERATED_AT = datetime(2026, 8, 22, 0, 0, 0)
 
 
 def _write(name: str, payload: dict) -> None:
@@ -26,8 +44,22 @@ def _write(name: str, payload: dict) -> None:
 
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    client = TestClient(app)
 
+    with (
+        # 로컬 .env 설정과 무관하게 강제로 끈다 — Mock 생성은 항상 Mock/Fallback 경로다.
+        patch.object(main_module, "_llm_client", None),
+        patch.object(main_module, "_tracer", Tracer(client=None)),
+        patch.object(main_module, "generate_session_id", lambda: _FIXED_SESSION_ID),
+        patch.object(profile_generator_module, "datetime") as mock_datetime,
+        patch.object(mock_data_module, "datetime") as mock_data_datetime,
+    ):
+        mock_datetime.now.return_value = _FIXED_GENERATED_AT
+        mock_data_datetime.now.return_value = _FIXED_GENERATED_AT
+        client = TestClient(app)
+        _run(client)
+
+
+def _run(client: TestClient) -> None:
     # 프론트엔드가 실제 API와 같은 계약을 기준으로 개발할 수 있도록
     # Mock 응답과 함께 현재 FastAPI 앱의 OpenAPI 명세도 항상 갱신한다.
     _write("openapi", app.openapi())
@@ -36,6 +68,7 @@ def main() -> None:
     r = client.post("/assessment/session")
     _write("session_create_normal", r.json())
     session_id = r.json()["session_id"]
+    assert session_id == _FIXED_SESSION_ID  # 고정 주입이 실제로 먹혔는지 방어적 확인
 
     r = client.post(
         "/assessment/interest-rating",
@@ -72,13 +105,14 @@ def main() -> None:
     # profile_normal·majors_normal은 답변 1개만으로는 Evidence가 거의 없어 항상 빈
     # 결과가 나온다(§16 minimum_usable_traits 미달) — B가 "실제로 다 채워진 화면"을
     # 참고할 수 있도록, 세션을 끝까지(3개 Context) 완주시킨 뒤에 이 두 Mock을 뽑는다.
-    # LLM Key 없이도(ENABLE_LLM_QUESTION_GENERATION 미설정) Mock 질문 경로로 Evidence
-    # 계산 자체는 실제로 이뤄지므로 B 환경에서 그대로 재현 가능하다.
+    # _llm_client가 강제로 None이라 질문 생성은 항상 결정론적 Mock 경로를 타지만, Evidence·
+    # Trait·Matching 계산 자체는 실제 로직이라 B 환경에서 그대로 재현 가능하다.
     #
     # 매번 같은 선택지(항상 options[0])만 고르면 Evidence가 2~3개 Trait에만 몰려서
     # §16 minimum_traits_per_vector_group(그룹당 최소 2개)를 못 채우는 그룹이 많아지고
     # majors_normal도 결국 insufficient로 끝난다 — 여러 선택지를 골고루 골라야
-    # "실제로 순위가 매겨진" 예시가 나온다.
+    # "실제로 순위가 매겨진" 예시가 나온다. (turn*2)%5는 난수가 아니라 turn의 결정론적
+    # 함수라 재실행해도 항상 같은 순서로 선택지를 고른다.
     for turn in range(30):
         r = client.post("/assessment/next-question", params={"session_id": session_id})
         body = r.json()

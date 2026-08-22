@@ -155,6 +155,10 @@ class FinalizedQuestion(BaseModel):
     frame_id: str
     question_text: str
     options: list[FinalizedOption]
+    # 2026-08-22 §12-1 확장: 이 질문이 Explicit Conflict 확인 질문이면 어떤 Contrast Pair를
+    # 확인하는지 표시한다(하위 호환 Optional — 기존 질문은 전부 None). B가 이 값을 굳이
+    # 다르게 다루지 않아도 화면은 그대로 동작한다.
+    contrast_id: str | None = None
 
     @field_validator("options")
     @classmethod

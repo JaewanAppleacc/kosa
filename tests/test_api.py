@@ -281,5 +281,392 @@ class SessionLifecycleTest(unittest.TestCase):
         self.assertIn("NextQuestionResponse", str(spec["components"]["schemas"].keys()))
 
 
+class ContextSelectionValidationTest(unittest.TestCase):
+    """2026-08-22 6항목: Contrast Context State 저장 + Context 선택·확정 입력 검증."""
+
+    def setUp(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _new_session(self) -> str:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        return session_id
+
+    def test_contrast_context_id_is_persisted_and_survives_reload(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        proposed = r.json()["contrast_context_id"]
+
+        state = main_module._store.load(session_id)
+        self.assertEqual(state.contrast_context_id, proposed)
+
+        # "복원" — 저장소에서 다시 읽어도(같은 InMemory 저장소지만 별도 조회) 같은 값이다.
+        reloaded = main_module._store.load(session_id)
+        self.assertEqual(reloaded.contrast_context_id, proposed)
+
+    def test_empty_preferred_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": []},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_duplicate_preferred_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "game"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_unknown_preferred_context_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "not_a_real_context"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_empty_final_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": []},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_duplicate_final_contexts_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "game", "media"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_final_context_not_yet_supported_by_vertical_slice_rejected(self) -> None:
+        """알려진(15개 중 하나) Context라도, Vertical Slice가 실제 질문 흐름을 아직
+        지원하지 않는 Context면 나중에 next-question에서 조용히 실패하지 않도록 여기서
+        먼저 막는다."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "business"]},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_user_can_replace_with_a_context_never_originally_selected(self) -> None:
+        """§5-1: "학생은 기존 선택 유지, 추천 수용, 다른 Context 선택 중 하나를 고른다" —
+        확정 단계가 "선호 4개 ∪ 제안된 Contrast"로만 강제되지 않는다. 처음에 game을
+        선호로 골랐어도, 최종 확정에서는 game을 아예 빼고 다른 조합으로 바꿀 수 있다."""
+
+        session_id = self._new_session()
+        select_response = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(select_response.status_code, 200)
+
+        # 처음에 선호로 고르지 않았던 조합(game 제외, school_life 포함)으로 최종 확정 —
+        # "제안받은 것만 가능"으로 강제하지 않으므로 여전히 허용돼야 한다.
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["media", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["final_context_ids"], ["media", "school_life"])
+
+    def test_interest_rating_one_candidate_is_not_silently_auto_finalized(self) -> None:
+        """관심도 1점 후보가 제안되더라도(마지막 방어선 tier), 학생이 /assessment/
+        context-confirm을 직접 호출하기 전까지는 최종 Context에 절대 포함되지 않는다
+        (HITL 확인을 거쳐야만 최종 반영됨)."""
+
+        session_id = self._new_session()
+        # game/media만 5점, 나머지는 전부 1점(관심도 낮음) → 마지막 방어선 tier로 제안됨.
+        client.post(
+            "/assessment/interest-rating",
+            json={
+                "session_id": session_id,
+                "ratings": {"game": 5, "media": 5, "school_life": 1, "business": 1, "making": 1},
+            },
+        )
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+        state = main_module._store.load(session_id)
+        # 제안은 저장됐지만(state.contrast_context_id) 최종 Context에는 아직 전혀 반영 안 됨.
+        self.assertIsNotNone(state.contrast_context_id)
+        self.assertEqual(state.final_contexts, [])
+
+
+class InterestRatingValidationTest(unittest.TestCase):
+    """2026-08-22 3차 리뷰 항목 3: `/assessment/interest-rating` 입력 검증."""
+
+    def setUp(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _new_session(self) -> str:
+        r = client.post("/assessment/session")
+        return r.json()["session_id"]
+
+    def test_scores_one_and_five_are_accepted(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 1, "media": 5}},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["accepted"])
+
+    def test_out_of_range_integer_scores_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: 0/6/-1은 타입은 맞지만(strict int) 범위(1~5) 밖 —
+        이건 여전히 핸들러의 validate_interest_ratings()가 APIError로 거부한다."""
+
+        session_id = self._new_session()
+        for bad_score in (0, 6, -1):
+            r = client.post(
+                "/assessment/interest-rating",
+                json={"session_id": session_id, "ratings": {"game": bad_score, "media": 4}},
+            )
+            self.assertEqual(r.status_code, 422, f"score={bad_score!r}이 거부되지 않았습니다.")
+            self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_numeric_string_score_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: "4"(문자열)는 예전엔 Pydantic이 조용히 int로
+        변환해 받아줬다 — StrictInt 도입 후 거부돼야 하고, 응답 형식도 다른 검증 오류와
+        동일한 APIError(VALIDATION_ERROR) 형태를 유지해야 한다(RequestValidationError
+        핸들러로 정규화)."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": "4", "media": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_non_numeric_string_score_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": "high", "media": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_float_score_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: 4.0(실수)도 예전엔 int로 조용히 잘렸다 — StrictInt는
+        실수를 거부한다."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 4.0, "media": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_boolean_score_rejected(self) -> None:
+        """2026-08-22 4차 리뷰 항목 1: 파이썬에서 bool은 int의 하위형이라(True==1) 예전
+        dict[str, int]는 true/false를 1/0으로 조용히 받아들였다 — StrictInt는 bool을
+        명시적으로 거부한다."""
+
+        session_id = self._new_session()
+        for bad_score in (True, False):
+            r = client.post(
+                "/assessment/interest-rating",
+                json={"session_id": session_id, "ratings": {"game": bad_score, "media": 4}},
+            )
+            self.assertEqual(r.status_code, 422, f"score={bad_score!r}이 거부되지 않았습니다.")
+            self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_unknown_context_id_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "not_a_real_context": 4}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_empty_ratings_rejected(self) -> None:
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {}},
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertEqual(r.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+    def test_valid_request_result_unchanged(self) -> None:
+        """검증 추가 이전과 동일하게, 유효한 입력은 그대로 저장되고 정상 응답이 나와야 한다."""
+
+        session_id = self._new_session()
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"session_id": session_id, "accepted": True})
+        state = main_module._store.load(session_id)
+        self.assertEqual(state.interest_ratings, {"game": 5, "media": 5, "school_life": 4})
+
+
+class DepartmentsEndpointTest(unittest.TestCase):
+    """2026-08-22 7차: 학과 탐색 1단계 통합 — GET /departments/{major_id}가 더 이상
+    mock_data.mock_departments()가 아니라 실제 MajorExplorationService·
+    JsonlDepartmentRepository·data/master/departments.jsonl 경로를 탄다."""
+
+    def test_returns_real_repository_departments_for_a_mapped_major(self) -> None:
+        r = client.get("/departments/computer_science")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["major_id"], "computer_science")
+        # data/master/departments.jsonl 실측: computer_science에 매핑된 학과 10개.
+        self.assertEqual(len(body["departments"]), 10)
+        for dept in body["departments"]:
+            self.assertEqual(dept["canonical_major_id"], "computer_science")
+
+    def test_response_contains_no_mock_department_id(self) -> None:
+        r = client.get("/departments/media_communication")
+        body_text = r.text
+        self.assertNotIn("dept_mock", body_text)
+
+    def test_response_contains_no_mock_university_name(self) -> None:
+        r = client.get("/departments/media_communication")
+        self.assertNotIn("예시대학교", r.text)
+
+    def test_response_contains_no_mock_source_url(self) -> None:
+        r = client.get("/departments/media_communication")
+        self.assertNotIn("example.ac.kr", r.text)
+
+    def test_unmapped_major_id_returns_200_with_empty_list(self) -> None:
+        r = client.get("/departments/no_such_major_id_at_all")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"major_id": "no_such_major_id_at_all", "departments": []})
+
+    def test_response_schema_matches_existing_departments_response_contract(self) -> None:
+        r = client.get("/departments/computer_science")
+        body = r.json()
+        self.assertEqual(set(body.keys()), {"major_id", "departments"})
+        dept = body["departments"][0]
+        self.assertEqual(
+            set(dept.keys()),
+            {
+                "department_id", "university_name", "campus", "region", "department_name",
+                "college_name", "admission_unit", "department_status", "source_svy_year",
+                "source_url", "canonical_major_id",
+            },
+        )
+
+    def test_other_endpoints_in_the_same_session_are_unaffected(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        self.assertEqual(r.status_code, 200)
+        r = client.get(f"/majors/{session_id}")
+        self.assertEqual(r.status_code, 200)
+        r = client.get(f"/profile/{session_id}")
+        self.assertIn(r.status_code, (200, 422))  # EVIDENCE_NOT_READY도 정상 계약이다.
+
+        # 이 요청들 사이에 실제 학과 조회를 끼워 넣어도 나머지 흐름에 영향이 없어야 한다.
+        r = client.get("/departments/computer_science")
+        self.assertEqual(r.status_code, 200)
+
+    def test_departments_endpoint_does_not_touch_llm_langsmith_or_embedding_clients(self) -> None:
+        """이 Endpoint는 JsonlDepartmentRepository(순수 JSONL 읽기)만 거친다 — LLM·
+        LangSmith·Embedding Client가 전부 비활성(None)이어도(로컬 .env에 실제 API Key가
+        있더라도 테스트에서는 이 값들을 명시적으로 꺼서) 정상 동작해야 한다."""
+
+        with patch.object(main_module, "_llm_client", None), patch.object(
+            main_module, "_trace_client", None
+        ), patch.object(main_module, "_tracer", main_module.Tracer(client=None)):
+            r = client.get("/departments/computer_science")
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(len(r.json()["departments"]), 10)
+
+
+class TracingFailOpenIntegrationTest(unittest.TestCase):
+    """§24: "LangSmith 장애는 로컬 로그만 남기고 사용자 Session을 중단하지 않는다"를
+    API 레벨에서 확인한다 — Trace 기록이 매번 실패해도 전체 흐름이 그대로 끝까지 돈다."""
+
+    def setUp(self) -> None:
+        from src.tracing.protocols import TraceError
+        from src.tracing.tracer import Tracer
+
+        class _AlwaysFailingTraceClient:
+            def record_run(self, *, trace_id, name, run_type, attributes) -> None:
+                raise TraceError("모의 LangSmith 장애 — 이 예외는 세션 밖으로 나가면 안 된다")
+
+        llm_patcher = patch.object(main_module, "_llm_client", None)
+        tracer_patcher = patch.object(main_module, "_tracer", Tracer(client=_AlwaysFailingTraceClient()))
+        llm_patcher.start()
+        tracer_patcher.start()
+        self.addCleanup(llm_patcher.stop)
+        self.addCleanup(tracer_patcher.stop)
+
+    def test_flow_completes_despite_every_trace_call_failing(self) -> None:
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+
+        r = client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Context Selector 계측 지점을 통과한다.
+        r = client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        r = client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Question Generator 계측 지점을 통과한다(Mock 경로여도 Tracer는 호출됨).
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        self.assertEqual(r.status_code, 200)
+        question_body = r.json()["question"]
+
+        # Evidence Update·Stop/Continue·Target Planner 계측 지점을 통과한다.
+        r = client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id,
+                "question_id": question_body["question_id"],
+                "selected_option_id": question_body["options"][0]["option_id"],
+            },
+        )
+        self.assertEqual(r.status_code, 200)
+
+        # Profile Summary Generator 계측 지점을 통과한다.
+        r = client.get(f"/profile/{session_id}")
+        self.assertEqual(r.status_code, 200)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_cooking_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "cooking",
+  "context_label": "요리·음식",
+  "seed_question": {
+    "question_id": "cooking_seed_01",
+    "context": "cooking",
+    "question_text": "요리를 할 때, 어떤 과정이 가장 재미있나요?",
+    "options": [
+      {
+        "option_id": "cooking_seed_01_o1",
+        "text": "칼질이나 조리 기구를 다루는 과정",
+        "role_id": "handling_tools",
+        "primary_trait_delta": {
+          "tool_utilization": 1
+        },
+        "next_probe": "새 조리 도구를 만났을 때의 접근 확인",
+        "preferred_frames": [
+          "new_tool",
+          "longest_focus"
+        ]
+      },
+      {
+        "option_id": "cooking_seed_01_o2",
+        "text": "레시피를 끝까지 안 보고 일단 시작하는 것",
+        "role_id": "cook_right_away",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": "중간에 막혔을 때의 행동 확인",
+        "preferred_frames": [
+          "first_action",
+          "problem_check"
+        ]
+      },
+      {
+        "option_id": "cooking_seed_01_o3",
+        "text": "여러 레시피에서 공통되는 원리를 찾아내는 것",
+        "role_id": "recipe_patterns",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": "규칙을 어떻게 정리하는지 확인",
+        "preferred_frames": [
+          "longest_focus",
+          "problem_check"
+        ]
+      },
+      {
+        "option_id": "cooking_seed_01_o4",
+        "text": "먹는 사람 입맛에 맞을지 미리 가늠해 보는 것",
+        "role_id": "guest_taste",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": "반응이 예상과 달랐을 때의 행동 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "cooking_seed_01_o5",
+        "text": "재료 손질 순서와 시간을 미리 배분하는 것",
+        "role_id": "prep_order",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": "시간이 모자랄 때 무엇을 줄이는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "first_action"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "cooking_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "handling_tools",
+        "primary_trait_delta": {
+          "tool_utilization": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "cook_right_away",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "recipe_patterns",
+        "primary_trait_delta": {
+          "pattern_finding": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "guest_taste",
+        "primary_trait_delta": {
+          "audience_response_prediction": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "prep_order",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "handling_tools": {
+      "trait_id": "tool_utilization",
+      "why": "칼질이나 조리 기구를 다루는 과정"
+    },
+    "cook_right_away": {
+      "trait_id": "immediate_execution",
+      "why": "레시피를 끝까지 안 보고 일단 시작하는 것"
+    },
+    "recipe_patterns": {
+      "trait_id": "pattern_finding",
+      "why": "여러 레시피에서 공통되는 원리를 찾아내는 것"
+    },
+    "guest_taste": {
+      "trait_id": "audience_response_prediction",
+      "why": "먹는 사람 입맛에 맞을지 미리 가늠해 보는 것"
+    },
+    "prep_order": {
+      "trait_id": "planning",
+      "why": "재료 손질 순서와 시간을 미리 배분하는 것"
+    }
+  }
+}

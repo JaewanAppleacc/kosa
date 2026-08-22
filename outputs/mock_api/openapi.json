@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI 진로·학업설계 Agent API",
-    "description": "Vertical Slice API. Evidence·Trait 판정·Career Profile·전공 Matching은 실제 계산 경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). LangGraph·LangSmith·Explicit Conflict 판정은 아직 없다.",
+    "description": "Vertical Slice API. Evidence·Trait 판정·Explicit Conflict 판정·Career Profile·전공 Matching은 실제 계산 경로다(LLM 미연동이어도 무관한 Mock으로 대체하지 않음). LangSmith Trace도 LANGSMITH_TRACING=true일 때 실제로 기록된다. Assessment 답변·질문 생성 루프는 LangGraph StateGraph로 연결돼 있다. Major Exploration·Course Planning Workflow는 범위 밖이다.",
     "version": "0.1.0-vertical-slice"
   },
   "paths": {
@@ -299,6 +299,7 @@
     "/departments/{major_id}": {
       "get": {
         "summary": "Get Departments",
+        "description": "2026-08-22 7차: 학과 탐색 1단계 통합 — 더 이상 mock_data.mock_departments()를\n쓰지 않는다. FastAPI는 요청·응답 변환만 하고, 어떤 학과를 어떤 순서로 보여줄지는\nMajorExplorationService(노출 정책)가, 실제 데이터 조회는 JsonlDepartmentRepository\n(C 소유)가 담당한다. 매칭되는 학과가 없거나 major_id가 미등록이면 기존 UX 계약대로\n오류가 아니라 200 + 빈 목록을 반환한다(list_departments_for_major가 이미 그렇게\n동작한다 — 여기서 별도 분기가 필요 없다).",
         "operationId": "get_departments_departments__major_id__get",
         "parameters": [
           {
@@ -1138,6 +1139,17 @@
             },
             "type": "array",
             "title": "Options"
+          },
+          "contrast_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast Id"
           }
         },
         "type": "object",

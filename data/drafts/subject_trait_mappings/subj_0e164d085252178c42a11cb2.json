@@ -1,0 +1,38 @@
+{
+  "draft_entry": {
+    "draft_id": "subject_trait_mapping_subj_0e164d085252178c42a11cb2",
+    "draft_type": "subject_trait_mapping",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
+    "as_of_date": "2026-08-21",
+    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+  },
+  "subject_id": "subj_0e164d085252178c42a11cb2",
+  "label": "공통국어1",
+  "subject_group": "국어",
+  "subject_category": "공통과목",
+  "curriculum_code": "2022-33",
+  "trait_grades": {
+    "information_comparison": 2,
+    "audience_response_prediction": 1
+  },
+  "rationale": "읽기·쓰기 전 영역을 다루는 공통과목이라 특정 Trait로 좁히지 않고 정보 비교만 2로 둔다.",
+  "related_major_ids": [
+    "media_communication",
+    "education"
+  ],
+  "derived_profile": {
+    "subject_id": "subj_0e164d085252178c42a11cb2",
+    "label": "공통국어1",
+    "trait_vector": {
+      "information_comparison": 0.67,
+      "audience_response_prediction": 0.33
+    },
+    "related_major_ids": [
+      "media_communication",
+      "education"
+    ],
+    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+  }
+}

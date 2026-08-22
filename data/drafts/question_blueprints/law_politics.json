@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_law_politics_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "law_politics",
+  "context_label": "법·정치·시사",
+  "seed_question": {
+    "question_id": "law_politics_seed_01",
+    "context": "law_politics",
+    "question_text": "사회 이슈나 시사 문제를 볼 때, 무엇을 먼저 하게 되나요?",
+    "options": [
+      {
+        "option_id": "law_politics_seed_01_o1",
+        "text": "문제가 생긴 원인을 따져 본다",
+        "role_id": "tracing_cause",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": "원인이 여러 개일 때 무엇부터 보는지 확인",
+        "preferred_frames": [
+          "problem_check",
+          "longest_focus"
+        ]
+      },
+      {
+        "option_id": "law_politics_seed_01_o2",
+        "text": "대립하는 주장 사이에서 접점을 찾아본다",
+        "role_id": "finding_middle",
+        "primary_trait_delta": {
+          "opinion_mediation": 1
+        },
+        "next_probe": "합의가 안 될 때의 기준 확인",
+        "preferred_frames": [
+          "conflicting_opinions",
+          "others_reaction"
+        ]
+      },
+      {
+        "option_id": "law_politics_seed_01_o3",
+        "text": "여러 매체의 보도를 찾아 견줘 본다",
+        "role_id": "checking_facts",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": "보도가 엇갈릴 때의 판단 기준 확인",
+        "preferred_frames": [
+          "conflicting_opinions",
+          "limited_time_priority"
+        ]
+      },
+      {
+        "option_id": "law_politics_seed_01_o4",
+        "text": "친구들과 이야기하며 생각을 정리한다",
+        "role_id": "discussing_it",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": "토론에서 맡는 역할 확인",
+        "preferred_frames": [
+          "team_role",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "law_politics_seed_01_o5",
+        "text": "상황이 어떻게 바뀌는지 계속 지켜본다",
+        "role_id": "watching_it_shift",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": "국면이 바뀔 때의 대응 확인",
+        "preferred_frames": [
+          "unexpected_result",
+          "new_tool"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "law_politics_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "tracing_cause",
+        "primary_trait_delta": {
+          "causal_analysis": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "finding_middle",
+        "primary_trait_delta": {
+          "opinion_mediation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "checking_facts",
+        "primary_trait_delta": {
+          "information_comparison": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "discussing_it",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "watching_it_shift",
+        "primary_trait_delta": {
+          "change_adaptation": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "tracing_cause": {
+      "trait_id": "causal_analysis",
+      "why": "문제가 생긴 원인을 따져 본다"
+    },
+    "finding_middle": {
+      "trait_id": "opinion_mediation",
+      "why": "대립하는 주장 사이에서 접점을 찾아본다"
+    },
+    "checking_facts": {
+      "trait_id": "information_comparison",
+      "why": "여러 매체의 보도를 찾아 견줘 본다"
+    },
+    "discussing_it": {
+      "trait_id": "collaboration_preference",
+      "why": "친구들과 이야기하며 생각을 정리한다"
+    },
+    "watching_it_shift": {
+      "trait_id": "change_adaptation",
+      "why": "상황이 어떻게 바뀌는지 계속 지켜본다"
+    }
+  }
+}

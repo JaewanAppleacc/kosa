@@ -44,6 +44,9 @@ class PlannerDecision(BaseModel):
     context: str
     purpose: str
     option_blueprint_id: str
+    # 2026-08-22 §12-1 확장: 값이 있으면 이 결정은 특정 Trait가 아니라 Explicit Conflict
+    # 확인 질문(고정 문항)을 가리킨다 — 하위 호환 Optional, 기존 호출자는 신경 쓸 필요 없다.
+    contrast_resolution_id: str | None = None
 
 
 def _violates_repetition_rule(trait_id: str, recent_target_trait_ids: list[str]) -> bool:
@@ -148,6 +151,7 @@ def decide_next_target(
     used_frame_ids_in_context: set[str],
     is_first_context_in_session: bool,
     deepen_anchor_trait_id: str | None = None,
+    contrast_ids_needing_resolution_question: set[str] | None = None,
 ) -> PlannerDecision:
     """position은 1-based 꼬리질문 순번(1~6)이다. Seed Question은 이 함수를 거치지 않는다.
 
@@ -158,7 +162,25 @@ def decide_next_target(
     DEEPEN 테마(위치 1, 또는 첫 Context의 위치 3 대체)에서는 이 Trait이 속한 Option
     Blueprint 안의 형제 Trait로만 후보를 제한한다 — §7-2 "Seed 답변의 관심 지점 심화"를
     Blueprint 단위로 구현한다. 완전히 같은 Trait를 강제하지는 않는다(§8 자기확증 방지).
+
+    2026-08-22 §12-1 확장: `contrast_ids_needing_resolution_question`이 있으면 위치·테마와
+    무관하게 최우선으로 Explicit Conflict 확인 질문을 낸다 — Mask된 Trait를 최대한 빨리
+    풀어야 나머지 질문 예산을 낭비하지 않는다. 여러 개면 contrast_id 알파벳 순으로
+    결정론적으로 하나씩 처리한다.
     """
+
+    contrast_ids_needing_resolution_question = contrast_ids_needing_resolution_question or set()
+    if contrast_ids_needing_resolution_question:
+        contrast_id = sorted(contrast_ids_needing_resolution_question)[0]
+        frame_id = frame_for_theme(PositionTheme.BEHAVIOR, used_frame_ids_in_context)
+        return PlannerDecision(
+            target_traits=[],
+            question_frame=frame_id,
+            context=context_id,
+            purpose="Explicit Conflict 확인 질문",
+            option_blueprint_id="",
+            contrast_resolution_id=contrast_id,
+        )
 
     theme = position_to_theme(position)
 

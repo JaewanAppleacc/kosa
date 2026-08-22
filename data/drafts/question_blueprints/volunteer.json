@@ -1,0 +1,147 @@
+{
+  "draft_entry": {
+    "draft_id": "question_blueprint_volunteer_seed_01",
+    "draft_type": "question_blueprint",
+    "author_id": "worker_c",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-21",
+    "notes": "각 선택지는 Trait Definition의 positive_indicators에 해당하는 행동 하나만 담도록 썼다. 한 선택지가 두 Trait를 동시에 가리키면 어느 쪽 근거인지 사후에 가릴 수 없다."
+  },
+  "context_id": "volunteer",
+  "context_label": "봉사·사회참여",
+  "seed_question": {
+    "question_id": "volunteer_seed_01",
+    "context": "volunteer",
+    "question_text": "봉사나 사회참여 활동을 할 때, 어떤 순간이 가장 기억에 남나요?",
+    "options": [
+      {
+        "option_id": "volunteer_seed_01_o1",
+        "text": "여러 사람과 역할을 나눠 같이 해낼 때",
+        "role_id": "teamwork_with_others",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": "함께 하는 활동에서 어떤 역할을 맡을 때 편한지 확인",
+        "preferred_frames": [
+          "team_role",
+          "conflicting_opinions"
+        ]
+      },
+      {
+        "option_id": "volunteer_seed_01_o2",
+        "text": "도움받는 사람이 실제로 뭘 필요로 하는지 알아챌 때",
+        "role_id": "reading_others_need",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": "상대의 상태를 어떻게 읽는지 구체적 상황으로 확인",
+        "preferred_frames": [
+          "others_reaction",
+          "team_role"
+        ]
+      },
+      {
+        "option_id": "volunteer_seed_01_o3",
+        "text": "활동 순서와 준비물을 미리 짜 두고 그대로 돌아갈 때",
+        "role_id": "activity_planning",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": "제한된 시간에 무엇을 먼저 잡는지 확인",
+        "preferred_frames": [
+          "limited_time_priority",
+          "first_action"
+        ]
+      },
+      {
+        "option_id": "volunteer_seed_01_o4",
+        "text": "복잡하게 생각하지 않고 일단 몸으로 돕기 시작할 때",
+        "role_id": "just_start_helping",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": "먼저 움직이는 편인지, 준비를 먼저 하는 편인지 확인",
+        "preferred_frames": [
+          "first_action",
+          "unexpected_result"
+        ]
+      },
+      {
+        "option_id": "volunteer_seed_01_o5",
+        "text": "의견이 갈릴 때 서로 받아들일 만한 선을 찾아낼 때",
+        "role_id": "settling_disagreement",
+        "primary_trait_delta": {
+          "opinion_mediation": 1
+        },
+        "next_probe": "충돌 상황에서 무엇을 기준으로 정하는지 확인",
+        "preferred_frames": [
+          "conflicting_opinions",
+          "others_reaction"
+        ]
+      }
+    ]
+  },
+  "option_blueprint": {
+    "blueprint_id": "volunteer_seed_01_blueprint",
+    "roles": [
+      {
+        "role_id": "teamwork_with_others",
+        "primary_trait_delta": {
+          "collaboration_preference": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "reading_others_need",
+        "primary_trait_delta": {
+          "emotional_interpretation": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "activity_planning",
+        "primary_trait_delta": {
+          "planning": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "just_start_helping",
+        "primary_trait_delta": {
+          "immediate_execution": 1
+        },
+        "next_probe": null
+      },
+      {
+        "role_id": "settling_disagreement",
+        "primary_trait_delta": {
+          "opinion_mediation": 1
+        },
+        "next_probe": null
+      }
+    ]
+  },
+  "trait_rationale": {
+    "teamwork_with_others": {
+      "trait_id": "collaboration_preference",
+      "why": "여러 사람과 역할을 나눠 같이 해낼 때"
+    },
+    "reading_others_need": {
+      "trait_id": "emotional_interpretation",
+      "why": "도움받는 사람이 실제로 뭘 필요로 하는지 알아챌 때"
+    },
+    "activity_planning": {
+      "trait_id": "planning",
+      "why": "활동 순서와 준비물을 미리 짜 두고 그대로 돌아갈 때"
+    },
+    "just_start_helping": {
+      "trait_id": "immediate_execution",
+      "why": "복잡하게 생각하지 않고 일단 몸으로 돕기 시작할 때"
+    },
+    "settling_disagreement": {
+      "trait_id": "opinion_mediation",
+      "why": "의견이 갈릴 때 서로 받아들일 만한 선을 찾아낼 때"
+    }
+  }
+}

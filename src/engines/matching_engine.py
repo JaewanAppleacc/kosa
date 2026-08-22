@@ -7,16 +7,22 @@ CLAUDE.md: "Assessment 단계에서 전공 추천 결과나 성적을 Planner �
 
 from __future__ import annotations
 
-import math
 from typing import Literal
 
 from pydantic import BaseModel
 
 from src.engines.evidence_engine import judge_trait_state
 from src.engines.trait_normalizer import normalize_trait_state
-from src.schemas.evidence import TraitEvidenceSummary, TraitState
+from src.schemas.evidence import ContrastResolutionRecord, TraitEvidenceSummary, TraitState
 from src.schemas.major import EvidenceSufficiencyLabel, MajorProfile, MajorRelevance, RelevanceLabel
 from src.schemas.trait import TraitDefinition
+
+# 2026-08-22 2차 리뷰: Conflict Resolution에서 "상대적으로 덜 우선"으로 밝혀진 Trait는
+# Matching에서 완전히 0으로 만들지 않고 한 단계만 완화한다(§13 등급 간격 0.33과 동일한
+# 폭 — 0.67은 STRONG(1.00)을 MODERATE(0.67) 수준으로, MODERATE를 LIMITED 수준으로 낮춘다).
+# "학생이 명확히 반대쪽을 선호한다고 답했다"는 근거가 있어도 원래 Evidence 자체가 없었던
+# 척 지우지는 않는다는 뜻이다.
+RESOLUTION_DEPRIORITIZED_DAMPING_FACTOR = 0.67
 
 # §16: "가중치는 검증된 상수가 아니며 평가셋을 통해 조정한다" — 그대로 옮긴 MVP 초기값.
 VECTOR_GROUP_WEIGHTS: dict[str, float] = {
@@ -30,21 +36,12 @@ VECTOR_GROUP_WEIGHTS: dict[str, float] = {
 MINIMUM_USABLE_TRAITS = 3
 MINIMUM_USABLE_VECTOR_GROUPS = 2
 
-# 2026-08-21 리뷰로 실제 발견한 문제: cosine similarity는 1차원(Trait 1개)에서는 항상
-# 1.0이다 — 두 양수 사이의 "각도"라는 개념 자체가 1차원에는 없어서, 크기 차이를 전혀
-# 반영하지 못한다(cos([1.0],[0.33]) == 1.0). Vertical Slice Trait Ontology는 interest·
-# environment 그룹에 Trait가 1개뿐이라 이 축퇴가 실제로 발생했다(학생 답변이 적을 때
-# 모든 전공이 1.0으로 동점 처리됨). 그래서 한 Vector 그룹은 확정 Trait가 최소 2개는
-# 있어야 유사도 계산에 포함시킨다 — MINIMUM_USABLE_TRAITS/VECTOR_GROUPS 정책 임계값과는
-# 별개로, 수학적으로 의미 없는 계산을 막기 위한 것이다.
-MINIMUM_TRAITS_PER_VECTOR_GROUP = 2
-
 INSUFFICIENT_EVIDENCE_MESSAGE = "아직 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이 필요합니다."
 
 # 2026-08-21 리뷰: 순수 상대 순위만 쓰면 후보가 1개뿐일 때 그 점수가 아무리 낮아도 무조건
-# 1등이라 "관련성 높음"이 돼버린다. cosine similarity는 입력이 전부 0 이상이라 [0, 1]
-# 범위이므로, 상대 순위 상위 구간이어도 이 절대 하한을 넘지 못하면 "관련성 높음"을 주지
-# 않는다 — §16처럼 "검증된 임계값이 아니라 MVP 초기 휴리스틱"이다.
+# 1등이라 "관련성 높음"이 돼버린다. 가중 Trait 충족도는 값이 전부 [0, 1] 범위이므로,
+# 상대 순위 상위 구간이어도 이 절대 하한을 넘지 못하면 "관련성 높음"을 주지 않는다 —
+# §16처럼 "검증된 임계값이 아니라 MVP 초기 휴리스틱"이다.
 MINIMUM_SCORE_FOR_HIGH_RELEVANCE = 0.6
 
 
@@ -59,13 +56,25 @@ class StudentTraitState(BaseModel):
     primary_vector_group: str
 
 
+def _deprioritized_trait_ids(resolutions: dict[str, ContrastResolutionRecord]) -> set[str]:
+    return {r.opposite_trait_id for r in resolutions.values() if r.opposite_trait_id}
+
+
 def compute_student_trait_states(
     trait_summaries: dict[str, TraitEvidenceSummary],
     all_trait_definitions: dict[str, TraitDefinition],
     unresolved_conflict_trait_ids: set[str],
+    resolutions: dict[str, ContrastResolutionRecord] | None = None,
 ) -> dict[str, StudentTraitState]:
     """§13 상태 판정을 전체 Trait에 대해 한 번 계산해서 재사용한다(Profile 화면과 Matching이
-    같은 판정 결과를 쓰게 하기 위함 — 서로 다른 곳에서 각자 판정하면 불일치가 생길 수 있다)."""
+    같은 판정 결과를 쓰게 하기 위함 — 서로 다른 곳에서 각자 판정하면 불일치가 생길 수 있다).
+
+    2026-08-22 2차 리뷰: `resolutions`(§12-1 확인 질문 답변)가 주어지면, 학생이 명시적으로
+    "상대적으로 덜 우선"이라고 답한 Trait의 normalized_value를 완화한다 — TraitState(state
+    필드)나 원본 Evidence 집계는 그대로 두고, Matching 입력값만 조정한다."""
+
+    resolutions = resolutions or {}
+    deprioritized = _deprioritized_trait_ids(resolutions)
 
     result: dict[str, StudentTraitState] = {}
     for trait_id, trait_def in all_trait_definitions.items():
@@ -73,23 +82,37 @@ def compute_student_trait_states(
         judgment = judge_trait_state(
             summary, trait_def.minimum_context_count, trait_id in unresolved_conflict_trait_ids
         )
+        normalized_value = normalize_trait_state(judgment.state)
+        if normalized_value is not None and trait_id in deprioritized:
+            normalized_value *= RESOLUTION_DEPRIORITIZED_DAMPING_FACTOR
         result[trait_id] = StudentTraitState(
             trait_id=trait_id,
             state=judgment.state,
-            normalized_value=normalize_trait_state(judgment.state),
+            normalized_value=normalized_value,
             context_count=summary.context_count,
             primary_vector_group=trait_def.primary_vector_group,
         )
     return result
 
 
-def _cosine_similarity(student_values: list[float], major_weights: list[float]) -> float | None:
-    dot = sum(s * m for s, m in zip(student_values, major_weights))
-    norm_s = math.sqrt(sum(s * s for s in student_values))
-    norm_m = math.sqrt(sum(m * m for m in major_weights))
-    if norm_s == 0 or norm_m == 0:
+def _weighted_trait_coverage(student_values: list[float], major_weights: list[float]) -> float | None:
+    """2026-08-21 리뷰로 cosine similarity를 교체한 공식.
+
+    cosine similarity는 크기(magnitude)를 무시하고 방향(비율)만 본다 — 학생이 [0.33, 0.33]
+    (LIMITED)이든 [1.00, 1.00](STRONG)이든 전공 [1.00, 1.00]과의 cosine은 둘 다 1.0으로
+    같았다. 실제로는 LIMITED 학생이 STRONG 학생과 같은 정도로 그 전공에 맞는다고 볼 수
+    없으므로, "전공이 중요하게 보는 Trait를 학생이 얼마나 충족하는가"를 그대로 재는 가중
+    평균(충족도)으로 바꾼다: Σ(전공 가중치 × 학생 정규화 값) ÷ Σ(전공 가중치).
+
+    이 공식은 항목이 1개뿐이어도(1차원) 의미가 있다 — 결과가 그 학생의 정규화 값 자체가
+    되므로(가중치로 나눠도 비율은 그대로), cosine처럼 "1개면 무조건 1.0" 축퇴가 없다.
+    그래서 예전의 MINIMUM_TRAITS_PER_VECTOR_GROUP(그룹당 최소 2개 Trait) 제약은 더 이상
+    필요 없어 제거했다."""
+
+    total_weight = sum(major_weights)
+    if total_weight == 0:
         return None
-    return dot / (norm_s * norm_m)
+    return sum(s * w for s, w in zip(student_values, major_weights)) / total_weight
 
 
 class MajorMatchResult(BaseModel):
@@ -105,9 +128,10 @@ class MajorMatchResult(BaseModel):
 def compute_major_match(
     student_states: dict[str, StudentTraitState], major: MajorProfile
 ) -> MajorMatchResult:
-    """§16: Vector 그룹별 cosine similarity를 가중합한다. 확정(non-Mask)된 Trait만 분모에
-    넣고, 특정 Vector에 확정 Trait가 MINIMUM_TRAITS_PER_VECTOR_GROUP개 미만이면 그
-    Vector를 제외하고 남은 가중치를 비례 재분배한다."""
+    """§16: Vector 그룹별 가중 Trait 충족도(_weighted_trait_coverage)를 다시 가중합한다.
+    전공 벡터에서 가중치가 0보다 큰 항목만, 그리고 학생 쪽에서 확정(non-Mask)된 Trait만
+    분자·분모 양쪽에 넣는다. 그룹당 최소 개수 제약은 없다 — 가중 충족도는 Trait 1개뿐인
+    그룹(Vertical Slice의 interest·environment)에서도 크기를 반영해 의미 있게 계산된다."""
 
     vector_by_group = {
         "interest": major.interest_vector,
@@ -116,27 +140,27 @@ def compute_major_match(
         "environment": major.environment_vector,
     }
 
-    group_similarities: dict[str, float] = {}
+    group_coverages: dict[str, float] = {}
     usable_trait_ids: set[str] = set()
 
     for group, major_vector in vector_by_group.items():
         shared_trait_ids = sorted(
-            t for t in major_vector
-            if t in student_states and student_states[t].normalized_value is not None
+            t for t, weight in major_vector.items()
+            if weight > 0
+            and t in student_states
+            and student_states[t].normalized_value is not None
         )
-        if len(shared_trait_ids) < MINIMUM_TRAITS_PER_VECTOR_GROUP:
-            # §16: 확정 Trait가 없는 Vector는 제외. 1개뿐이어도 제외한다 — 1차원 cosine
-            # similarity는 항상 1.0이라 크기 차이를 반영하지 못하는 수학적 축퇴 상태다.
+        if not shared_trait_ids:
             continue
         student_values = [student_states[t].normalized_value for t in shared_trait_ids]  # type: ignore[misc]
         major_weights = [major_vector[t] for t in shared_trait_ids]
-        similarity = _cosine_similarity(student_values, major_weights)
-        if similarity is None:
+        coverage = _weighted_trait_coverage(student_values, major_weights)
+        if coverage is None:
             continue
-        group_similarities[group] = similarity
+        group_coverages[group] = coverage
         usable_trait_ids.update(shared_trait_ids)
 
-    usable_vector_group_count = len(group_similarities)
+    usable_vector_group_count = len(group_coverages)
     usable_trait_count = len(usable_trait_ids)
 
     # "이 전공이 중요하게 보는 Trait"(가중치 0.67 이상, §15 "자주 활용" 이상) 중 학생이
@@ -154,8 +178,8 @@ def compute_major_match(
     if usable_trait_count < MINIMUM_USABLE_TRAITS or usable_vector_group_count < MINIMUM_USABLE_VECTOR_GROUPS:
         return MajorMatchResult(major_id=major.major_id, status="insufficient", usable_trait_count=usable_trait_count)
 
-    total_weight = sum(VECTOR_GROUP_WEIGHTS[g] for g in group_similarities)
-    score = sum(VECTOR_GROUP_WEIGHTS[g] * sim for g, sim in group_similarities.items()) / total_weight
+    total_weight = sum(VECTOR_GROUP_WEIGHTS[g] for g in group_coverages)
+    score = sum(VECTOR_GROUP_WEIGHTS[g] * cov for g, cov in group_coverages.items()) / total_weight
 
     return MajorMatchResult(
         major_id=major.major_id,
@@ -189,6 +213,14 @@ def rank_major_relevance(
     2. 절대 점수 하한(MINIMUM_SCORE_FOR_HIGH_RELEVANCE)을 추가로 요구한다. 안 그러면 후보가
        1개뿐이거나 전부 낮은 점수여도 상위 구간은 무조건 "관련성 높음"이 돼버린다.
 
+    2026-08-22 리뷰로 세 번째를 추가했다:
+    3. relevance_label과 evidence_sufficiency는 그동안 완전히 독립적으로 계산돼서,
+       "점수는 높은데 근거가 제한적"인 전공도 관련성 높음을 받을 수 있었다(usable_trait가
+       2~3개뿐이라 우연히 방향이 잘 맞은 경우 등) — 근거가 빈약한 결과를 "높은 관련성"으로
+       내보이는 건 §16 "가짜 정확도 노출 금지"의 정신과도 어긋난다. 그래서 evidence_sufficiency
+       가 "제한적"이면 점수·순위와 무관하게 "관련성 높음"을 주지 않는다(최대 "함께
+       탐색해볼 분야").
+
     반환값: (관련성 높음 목록, 나머지 목록, 전체가 insufficient일 때의 안내 메시지)."""
 
     computed = [r for r in results if r.status == "computed"]
@@ -199,7 +231,7 @@ def rank_major_relevance(
 
     unique_scores_desc = sorted({r.score for r in computed}, reverse=True)  # type: ignore[arg-type]
 
-    def relevance_label_for_score(score: float) -> RelevanceLabel:
+    def relevance_label_for(score: float, evidence_sufficiency: EvidenceSufficiencyLabel) -> RelevanceLabel:
         # 점수가 같은 후보는 항상 같은 구간(고유 점수 목록에서의 위치로 구간 결정).
         score_rank = unique_scores_desc.index(score)
         tier = (score_rank * 3) // len(unique_scores_desc)
@@ -208,18 +240,23 @@ def rank_major_relevance(
             # 상대 순위는 1등이어도 절대 유사도가 낮으면 "관련성 높음"을 주지 않는다
             # (후보가 1개뿐이거나 전부 낮은 점수인 경우의 방어).
             label = "함께 탐색해볼 분야"
+        if label == "관련성 높음" and evidence_sufficiency == "제한적":
+            # 점수·순위가 아무리 높아도 근거(Evidence)가 빈약하면 "관련성 높음"을 주지
+            # 않는다 — 동점이라도 Evidence 충분성이 다르면 서로 다른 Label을 받을 수 있다.
+            label = "함께 탐색해볼 분야"
         return label
 
     relevant: list[MajorRelevance] = []
     explore_together: list[MajorRelevance] = []
 
     for result in computed:
-        relevance = relevance_label_for_score(result.score)  # type: ignore[arg-type]
+        evidence_sufficiency = _evidence_sufficiency_label(result)
+        relevance = relevance_label_for(result.score, evidence_sufficiency)  # type: ignore[arg-type]
         item = MajorRelevance(
             major_id=result.major_id,
             label=labels_by_major_id.get(result.major_id, result.major_id),
             relevance_label=relevance,
-            evidence_sufficiency=_evidence_sufficiency_label(result),
+            evidence_sufficiency=evidence_sufficiency,
             repeated_context_count=result.max_context_count_among_notable,
         )
         if relevance == "관련성 높음":

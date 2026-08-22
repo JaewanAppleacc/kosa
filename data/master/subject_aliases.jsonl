@@ -1,0 +1,58 @@
+{"alias": "공통국어1", "canonical_subject_name": "공통국어1", "subject_id": "subj_0e164d085252178c42a11cb2", "curriculum_code": "2022-33"}
+{"alias": "국어", "canonical_subject_name": "공통국어1", "subject_id": "subj_0e164d085252178c42a11cb2", "curriculum_code": "2022-33"}
+{"alias": "공통국어", "canonical_subject_name": "공통국어1", "subject_id": "subj_0e164d085252178c42a11cb2", "curriculum_code": "2022-33"}
+{"alias": "화법과 언어", "canonical_subject_name": "화법과 언어", "subject_id": "subj_fd2661b74f5517b17f5f9d9e", "curriculum_code": "2022-33"}
+{"alias": "화법과언어", "canonical_subject_name": "화법과 언어", "subject_id": "subj_fd2661b74f5517b17f5f9d9e", "curriculum_code": "2022-33"}
+{"alias": "화법과 작문", "canonical_subject_name": "화법과 언어", "subject_id": "subj_fd2661b74f5517b17f5f9d9e", "curriculum_code": "2022-33"}
+{"alias": "주제 탐구 독서", "canonical_subject_name": "주제 탐구 독서", "subject_id": "subj_4a0628d4174f621971cb1fec", "curriculum_code": "2022-33"}
+{"alias": "주제탐구독서", "canonical_subject_name": "주제 탐구 독서", "subject_id": "subj_4a0628d4174f621971cb1fec", "curriculum_code": "2022-33"}
+{"alias": "심화국어", "canonical_subject_name": "주제 탐구 독서", "subject_id": "subj_4a0628d4174f621971cb1fec", "curriculum_code": "2022-33"}
+{"alias": "매체 의사소통", "canonical_subject_name": "매체 의사소통", "subject_id": "subj_d9e5930c60201a2739563435", "curriculum_code": "2022-33"}
+{"alias": "매체의사소통", "canonical_subject_name": "매체 의사소통", "subject_id": "subj_d9e5930c60201a2739563435", "curriculum_code": "2022-33"}
+{"alias": "언어와 매체", "canonical_subject_name": "매체 의사소통", "subject_id": "subj_d9e5930c60201a2739563435", "curriculum_code": "2022-33"}
+{"alias": "공통수학1", "canonical_subject_name": "공통수학1", "subject_id": "subj_da8f5a120c1ef5c7a2e1c693", "curriculum_code": "2022-33"}
+{"alias": "수학", "canonical_subject_name": "공통수학1", "subject_id": "subj_da8f5a120c1ef5c7a2e1c693", "curriculum_code": "2022-33"}
+{"alias": "공통수학", "canonical_subject_name": "공통수학1", "subject_id": "subj_da8f5a120c1ef5c7a2e1c693", "curriculum_code": "2022-33"}
+{"alias": "미적분Ⅱ", "canonical_subject_name": "미적분Ⅱ", "subject_id": "subj_5c42d517a0d5789f52a6cd73", "curriculum_code": "2022-33"}
+{"alias": "미적분2", "canonical_subject_name": "미적분Ⅱ", "subject_id": "subj_5c42d517a0d5789f52a6cd73", "curriculum_code": "2022-33"}
+{"alias": "미적분 II", "canonical_subject_name": "미적분Ⅱ", "subject_id": "subj_5c42d517a0d5789f52a6cd73", "curriculum_code": "2022-33"}
+{"alias": "미적분", "canonical_subject_name": "미적분Ⅱ", "subject_id": "subj_5c42d517a0d5789f52a6cd73", "curriculum_code": "2022-33"}
+{"alias": "확률과 통계", "canonical_subject_name": "확률과 통계", "subject_id": "subj_fde7a436237d8af94c11515e", "curriculum_code": "2022-33"}
+{"alias": "확률과통계", "canonical_subject_name": "확률과 통계", "subject_id": "subj_fde7a436237d8af94c11515e", "curriculum_code": "2022-33"}
+{"alias": "확통", "canonical_subject_name": "확률과 통계", "subject_id": "subj_fde7a436237d8af94c11515e", "curriculum_code": "2022-33"}
+{"alias": "통합과학1", "canonical_subject_name": "통합과학1", "subject_id": "subj_c77a94f5484a88c9d21e65f2", "curriculum_code": "2022-33"}
+{"alias": "통합과학", "canonical_subject_name": "통합과학1", "subject_id": "subj_c77a94f5484a88c9d21e65f2", "curriculum_code": "2022-33"}
+{"alias": "과학", "canonical_subject_name": "통합과학1", "subject_id": "subj_c77a94f5484a88c9d21e65f2", "curriculum_code": "2022-33"}
+{"alias": "물리학", "canonical_subject_name": "물리학", "subject_id": "subj_76fb307ec32c138a4afc1870", "curriculum_code": "2022-33"}
+{"alias": "물리", "canonical_subject_name": "물리학", "subject_id": "subj_76fb307ec32c138a4afc1870", "curriculum_code": "2022-33"}
+{"alias": "물리학I", "canonical_subject_name": "물리학", "subject_id": "subj_76fb307ec32c138a4afc1870", "curriculum_code": "2022-33"}
+{"alias": "물리학1", "canonical_subject_name": "물리학", "subject_id": "subj_76fb307ec32c138a4afc1870", "curriculum_code": "2022-33"}
+{"alias": "생명과학", "canonical_subject_name": "생명과학", "subject_id": "subj_5116ce83c048e77ada37d760", "curriculum_code": "2022-33"}
+{"alias": "생명과학I", "canonical_subject_name": "생명과학", "subject_id": "subj_5116ce83c048e77ada37d760", "curriculum_code": "2022-33"}
+{"alias": "생명과학1", "canonical_subject_name": "생명과학", "subject_id": "subj_5116ce83c048e77ada37d760", "curriculum_code": "2022-33"}
+{"alias": "생물", "canonical_subject_name": "생명과학", "subject_id": "subj_5116ce83c048e77ada37d760", "curriculum_code": "2022-33"}
+{"alias": "정보", "canonical_subject_name": "정보", "subject_id": "subj_a668a359a7a11a7fbcbbc447", "curriculum_code": "2022-33"}
+{"alias": "정보과학", "canonical_subject_name": "정보", "subject_id": "subj_a668a359a7a11a7fbcbbc447", "curriculum_code": "2022-33"}
+{"alias": "컴퓨터", "canonical_subject_name": "정보", "subject_id": "subj_a668a359a7a11a7fbcbbc447", "curriculum_code": "2022-33"}
+{"alias": "인공지능 기초", "canonical_subject_name": "인공지능 기초", "subject_id": "subj_c81192abde7d2e66adb3e1c0", "curriculum_code": "2022-33"}
+{"alias": "인공지능기초", "canonical_subject_name": "인공지능 기초", "subject_id": "subj_c81192abde7d2e66adb3e1c0", "curriculum_code": "2022-33"}
+{"alias": "AI기초", "canonical_subject_name": "인공지능 기초", "subject_id": "subj_c81192abde7d2e66adb3e1c0", "curriculum_code": "2022-33"}
+{"alias": "인공지능", "canonical_subject_name": "인공지능 기초", "subject_id": "subj_c81192abde7d2e66adb3e1c0", "curriculum_code": "2022-33"}
+{"alias": "데이터 과학", "canonical_subject_name": "데이터 과학", "subject_id": "subj_486f78700e4a5981582a75e1", "curriculum_code": "2022-33"}
+{"alias": "데이터과학", "canonical_subject_name": "데이터 과학", "subject_id": "subj_486f78700e4a5981582a75e1", "curriculum_code": "2022-33"}
+{"alias": "빅데이터", "canonical_subject_name": "데이터 과학", "subject_id": "subj_486f78700e4a5981582a75e1", "curriculum_code": "2022-33"}
+{"alias": "소프트웨어와 생활", "canonical_subject_name": "소프트웨어와 생활", "subject_id": "subj_78d6fdd5549b17807752b560", "curriculum_code": "2022-33"}
+{"alias": "소프트웨어와생활", "canonical_subject_name": "소프트웨어와 생활", "subject_id": "subj_78d6fdd5549b17807752b560", "curriculum_code": "2022-33"}
+{"alias": "SW와 생활", "canonical_subject_name": "소프트웨어와 생활", "subject_id": "subj_78d6fdd5549b17807752b560", "curriculum_code": "2022-33"}
+{"alias": "창의 공학 설계", "canonical_subject_name": "창의 공학 설계", "subject_id": "subj_9071c5223b709bf5dd6dd6ab", "curriculum_code": "2022-33"}
+{"alias": "창의공학설계", "canonical_subject_name": "창의 공학 설계", "subject_id": "subj_9071c5223b709bf5dd6dd6ab", "curriculum_code": "2022-33"}
+{"alias": "공학일반", "canonical_subject_name": "창의 공학 설계", "subject_id": "subj_9071c5223b709bf5dd6dd6ab", "curriculum_code": "2022-33"}
+{"alias": "미술 창작", "canonical_subject_name": "미술 창작", "subject_id": "subj_a8a7c87f8ee5b5e4c3e63bfd", "curriculum_code": "2022-33"}
+{"alias": "미술창작", "canonical_subject_name": "미술 창작", "subject_id": "subj_a8a7c87f8ee5b5e4c3e63bfd", "curriculum_code": "2022-33"}
+{"alias": "미술", "canonical_subject_name": "미술 창작", "subject_id": "subj_a8a7c87f8ee5b5e4c3e63bfd", "curriculum_code": "2022-33"}
+{"alias": "사회문제 탐구", "canonical_subject_name": "사회문제 탐구", "subject_id": "subj_6613f2f588dea8e90c42e5a0", "curriculum_code": "2022-33"}
+{"alias": "사회문제탐구", "canonical_subject_name": "사회문제 탐구", "subject_id": "subj_6613f2f588dea8e90c42e5a0", "curriculum_code": "2022-33"}
+{"alias": "사회탐구", "canonical_subject_name": "사회문제 탐구", "subject_id": "subj_6613f2f588dea8e90c42e5a0", "curriculum_code": "2022-33"}
+{"alias": "인간과 심리", "canonical_subject_name": "인간과 심리", "subject_id": "subj_a7b6aafe84325271f94fc237", "curriculum_code": "2022-33"}
+{"alias": "인간과심리", "canonical_subject_name": "인간과 심리", "subject_id": "subj_a7b6aafe84325271f94fc237", "curriculum_code": "2022-33"}
+{"alias": "심리학", "canonical_subject_name": "인간과 심리", "subject_id": "subj_a7b6aafe84325271f94fc237", "curriculum_code": "2022-33"}
