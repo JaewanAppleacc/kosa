@@ -1,0 +1,31 @@
+{
+  "fuzzy_threshold": {
+    "threshold": 0.82,
+    "lowest_true_positive": 1.0,
+    "highest_false_positive": 0.8,
+    "separated": true
+  },
+  "query_coverage": {
+    "threshold": 0.3,
+    "lowest_grounded": 1.0,
+    "highest_ungrounded": 0.2,
+    "separated": true
+  },
+  "chunk_size": {
+    "chunk_size": 700,
+    "lengths": [
+      236,
+      237,
+      307,
+      345,
+      458,
+      535,
+      656,
+      683,
+      688,
+      692
+    ],
+    "max_length": 692,
+    "within_limit": true
+  }
+}

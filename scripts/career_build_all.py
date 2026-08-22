@@ -28,6 +28,7 @@ STEPS: list[tuple[str, str]] = [
     ("career_build_context_trait_review.py", "Context × Trait Coverage 검토표"),
     ("career_build_persona_fixtures.py", "Persona + Hand-Calculated Fixture"),
     ("career_build_eval_fixtures.py", "RAG·Mapping 기대값, 질문 Cache"),
+    ("career_measure_thresholds.py", "임계값 근거 재측정"),
     ("career_audit_data_quality.py", "데이터 품질 검사"),
 ]
 

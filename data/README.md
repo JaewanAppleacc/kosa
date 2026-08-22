@@ -20,6 +20,9 @@ audit/          데이터 품질 검사 결과
 python scripts/career_build_all.py
 ```
 
+**이 규모와 범위를 어떤 기준으로 정했는지는 [`../RATIONALE_C.md`](../RATIONALE_C.md) §2**에
+있다 — 개수 자체가 목표가 아니라 "무엇을 확인할 수 있는 최소 집합인가"로 정했다.
+
 ## 지금 데이터의 출처 상태 — 반드시 읽을 것
 
 세 종류가 섞여 있고, 어느 것이 무엇인지 파일만 보고 구분할 수 있게 해 뒀다.
@@ -69,6 +72,7 @@ python scripts/career_build_all.py
 | `drafts/context_trait_reviews/` | `career_build_context_trait_review.py` |
 | `eval_fixtures/personas/` | `career_build_persona_fixtures.py` |
 | `eval_fixtures/rag_query_expectations.json`, `eval_fixtures/mapping_expectations.json`, `master/question_cache.jsonl` | `career_build_eval_fixtures.py` |
+| `audit/threshold_measurements.json` | `career_measure_thresholds.py` |
 | `audit/data_quality.*` | `career_audit_data_quality.py` |
 
 ## 손으로 고치는 파일

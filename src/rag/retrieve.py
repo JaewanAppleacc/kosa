@@ -20,13 +20,27 @@ from src.rag.embed import Embedder, VectorIndex, default_embedder
 from src.rag.ingest import DocumentSource, IndexedChunk, ingest, load_sources
 from src.schemas.retrieval import RetrievedDocument
 
+# BM25 표준 권장값(k1 1.2~2.0, b 0.75). 우리 코퍼스는 문서 길이 편차가 크지 않아
+# 이 값을 바꿔 얻을 게 없다 — 튜닝하려면 정답 라벨이 붙은 질의 집합이 먼저 있어야 한다.
 BM25_K1 = 1.5
 BM25_B = 0.75
 RRF_K = 60  # RRF 상수. 원 논문(Cormack et al., 2009) 권장값
+
+# 발췌 길이. 카드 UI에서 접힌 상태로 2~3줄에 들어가는 분량이고, 검토자가 "왜 이 문서가
+# 걸렸는지"를 판단하기엔 충분하다. 더 길게 주면 본문 일부가 아니라 사실상 전문 전달이 돼
+# §19의 "본문 일부" 요구에서 벗어난다.
 DEFAULT_EXCERPT_CHARS = 220
+
 # 질의어 중 몇 할이 본문에 실제로 나타나야 결과로 인정할지. BM25도 벡터 검색도 "가장 덜
 # 안 맞는 문서"를 항상 돌려주기 때문에, 바닥선이 없으면 코퍼스에 근거가 없는 질의에도
 # 그럴듯한 결과가 나간다. 상위 계층이 그걸 근거로 문장을 만들면 §27 위반이 된다.
+#
+# 0.3으로 잡은 근거 (`scripts/career_measure_thresholds.py` 실측):
+#   근거 있는 질의 4건 — 정답 문서 적중률 전부 1.00
+#   근거 없는 질의 2건 — 코퍼스 전체에서 최고 적중률 0.20
+# 두 분포가 0.20과 1.00으로 완전히 갈려 있어 그 사이면 어디든 되지만, 낮은 쪽(0.20)에
+# 붙여 뒀다. 문턱을 높이면 표현이 다른 정상 질의를 놓치는데, 놓친 결과는 사용자에게
+# "자료 없음"으로 보이는 반면 잘못 끌려온 결과는 틀린 근거로 보이기 때문이다.
 DEFAULT_MIN_QUERY_COVERAGE = 0.3
 
 

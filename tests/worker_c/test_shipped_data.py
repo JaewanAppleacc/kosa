@@ -232,6 +232,45 @@ class PersonaFixtureTest(unittest.TestCase):
                 self.assertGreaterEqual(len(expectation.calculation_notes), 15)
 
 
+class ThresholdRationaleTest(unittest.TestCase):
+    """코드에 박힌 임계값이 "지금 데이터에서도" 근거를 유지하는지 본다.
+
+    근거를 문서에만 적어 두면 데이터가 바뀐 뒤에도 옛날 주장이 그대로 남는다. 문턱을
+    정당화한 측정 자체를 테스트로 고정해, 데이터가 바뀌어 분리가 깨지면 실패하게 한다.
+    """
+
+    def setUp(self) -> None:
+        from scripts.career_measure_thresholds import run
+
+        self.measurements = run()
+
+    def test_subject_alias_threshold_separates_true_and_false_matches(self) -> None:
+        m = self.measurements["fuzzy_threshold"]
+        self.assertLess(
+            m["highest_false_positive"],
+            m["threshold"],
+            msg="다른 과목인데 문턱을 넘는 표기가 생겼다 — 잘못된 매칭이 사용자에게 제안된다",
+        )
+        self.assertLessEqual(
+            m["threshold"],
+            m["lowest_true_positive"],
+            msg="같은 과목인데 문턱에 못 미치는 표기가 생겼다",
+        )
+
+    def test_search_floor_separates_grounded_and_ungrounded_queries(self) -> None:
+        m = self.measurements["query_coverage"]
+        self.assertLess(
+            m["highest_ungrounded"],
+            m["threshold"],
+            msg="코퍼스에 근거가 없는 질의가 바닥선을 넘었다 — 근거 없는 결과가 나간다",
+        )
+        self.assertLessEqual(m["threshold"], m["lowest_grounded"])
+
+    def test_no_chunk_exceeds_the_configured_size(self) -> None:
+        m = self.measurements["chunk_size"]
+        self.assertLessEqual(m["max_length"], m["chunk_size"])
+
+
 class DataQualityAuditTest(unittest.TestCase):
     def test_audit_reports_no_error(self) -> None:
         from scripts.career_audit_data_quality import run
