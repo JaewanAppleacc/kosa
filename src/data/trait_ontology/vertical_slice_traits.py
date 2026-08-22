@@ -26,6 +26,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="ONET_STRONG",
     ),
     TraitDefinition(
         trait_id="pattern_finding",
@@ -42,6 +43,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="RIASEC_REFERENCE",
     ),
     TraitDefinition(
         trait_id="planning",
@@ -65,6 +67,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="immediate_execution",
@@ -78,6 +81,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="TEAM_DEFINED",
     ),
     TraitDefinition(
         trait_id="change_adaptation",
@@ -94,6 +98,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="collaboration_preference",
@@ -110,6 +115,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="opinion_mediation",
@@ -123,6 +129,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
+        grounding_type="TEAM_DEFINED",
     ),
     TraitDefinition(
         trait_id="emotional_interpretation",
@@ -139,6 +146,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="audience_response_prediction",
@@ -152,6 +160,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="cognitive",
+        grounding_type="TEAM_DEFINED",
     ),
     TraitDefinition(
         trait_id="visual_expression",
@@ -168,6 +177,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="domain_specific",
         minimum_context_count=1,
         primary_vector_group="interest",
+        grounding_type="ONET_STRONG",
     ),
     TraitDefinition(
         trait_id="information_comparison",
@@ -184,6 +194,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="domain_specific",
         minimum_context_count=1,
         primary_vector_group="cognitive",
+        grounding_type="ONET_PARTIAL",
     ),
     TraitDefinition(
         trait_id="tool_utilization",
@@ -199,6 +210,7 @@ VERTICAL_SLICE_TRAITS: list[TraitDefinition] = [
         trait_scope="domain_specific",
         minimum_context_count=1,
         primary_vector_group="environment",
+        grounding_type="RIASEC_REFERENCE",
     ),
 ]
 

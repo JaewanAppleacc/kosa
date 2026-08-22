@@ -29,6 +29,8 @@ from src.schemas.persona import HandCalculatedFixture, Persona
 from src.schemas.question import OptionBlueprint, SeedQuestion
 from src.schemas.review import DraftEntry
 
+from scripts.career_build_major_profiles import EVIDENCE_BASED_MAJOR_LABELS
+
 ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "data"
 
@@ -92,9 +94,16 @@ class MasterDataTest(unittest.TestCase):
             self.assertEqual(result.primary_candidate, stored[department.department_id]["primary_candidate"])
 
     def test_major_profiles_cover_all_traits(self) -> None:
+        """지시서 §3: 대표 전공 5~8개(GRADES 기반). 2026-08-22 12차 리뷰로 Vertical
+        Slice 대표 전공 3개(media_communication/hci_ux/industrial_engineering)가
+        `major_trait_mapping_evidence.jsonl` 근거 기반 Profile로 추가돼 총 10개가 됐다
+        — 그래서 전체 상한을 8+3으로 넓혔다. 근거 기반 3개는 UNMAPPED/REVIEW_REQUIRED
+        Trait를 Vector에서 의도적으로 뺀 희소 벡터라(§12 "공식 근거를 찾지 못함 ≠
+        Trait 중요도 0"), 12개 전부를 요구하지 않고 최소 1개 이상만 확인한다."""
+
         rows = read_jsonl(DATA_DIR / "master" / "major_profiles.jsonl")
         self.assertGreaterEqual(len(rows), 5)  # 지시서 §3: 대표 전공 5~8개
-        self.assertLessEqual(len(rows), 8)
+        self.assertLessEqual(len(rows), 8 + len(EVIDENCE_BASED_MAJOR_LABELS))
         for row in rows:
             profile = MajorProfile.model_validate(row)
             merged = {
@@ -103,7 +112,11 @@ class MasterDataTest(unittest.TestCase):
                 **profile.work_style_vector,
                 **profile.environment_vector,
             }
-            self.assertEqual(len(merged), 12)
+            if profile.major_id in EVIDENCE_BASED_MAJOR_LABELS:
+                self.assertGreater(len(merged), 0)
+                self.assertLessEqual(len(merged), 12)
+            else:
+                self.assertEqual(len(merged), 12)
 
     def test_subject_aliases_are_unambiguous(self) -> None:
         index = SubjectAliasIndex.load(DATA_DIR / "master" / "subject_aliases.jsonl")
@@ -194,7 +207,9 @@ class DraftTest(unittest.TestCase):
         for path in paths:
             payload = json.loads(path.read_text(encoding="utf-8"))
             entry = DraftEntry.model_validate(payload["draft_entry"])
-            self.assertEqual(entry.author_id, "worker_c")
+            # worker_c 초안(과목·문항 등)과 worker_a 초안(2026-08-22 12차 리뷰,
+            # major_trait_mapping)이 data/drafts/ 아래 함께 존재한다 — 둘 다 유효한 저자.
+            self.assertIn(entry.author_id, ("worker_c", "worker_a"))
             self.assertIsNotNone(entry.as_of_date)
 
     def test_question_blueprints_pass_lint(self) -> None:

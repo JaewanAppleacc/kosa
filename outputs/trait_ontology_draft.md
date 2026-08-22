@@ -80,6 +80,28 @@
 | information_comparison | 결정 전에 여러 정보나 선택지를 찾아보고 비교하는 경향 | 결정 전에 여러 자료·사례를 찾아보는 선택 | 정보 탐색 없이 직관적으로 바로 결정 | pattern_finding 참고 |
 | tool_utilization | 도구·장비를 다뤄 결과물을 직접 만들거나 조작하는 것을 선호하는 경향 | 아이템·장비·편집 도구 등을 직접 다루는 선택 | 도구를 다루기보다 아이디어·구상 단계에 머무름 | immediate_execution은 "언제 하는가"(타이밍), tool_utilization은 "무엇으로 하는가"(수단) |
 
+## 2-1. Trait 중복·구분 집중 검토 (2026-08-22 12차 리뷰)
+
+§2의 "유사 Trait와의 차이" 열이 구분 기준은 담고 있지만, "동시에 강하게 나타날 수 있는가"·
+"Contrast Pair로 볼 수 있는가"·"질문에서 어떻게 구분하는가"는 따로 정리돼 있지 않았다.
+아래 7개 쌍을 이 4개 축으로 다시 검토한다.
+
+| 쌍 | 공통점 | 구분 기준 | 동시에 강하게 나타날 수 있는가 | Contrast Pair로 볼 수 있는가 | 질문에서 어떻게 구분하는가 |
+|---|---|---|---|---|---|
+| causal_analysis vs pattern_finding | 둘 다 "생각하고 분석한다"는 인지적 활동 | causal_analysis는 **이번 한 결과**의 원인(왜 이렇게 됐나), pattern_finding은 **여러 사례**에 걸친 공통 규칙(무엇이 반복되나) | **예.** 원인을 캐다가 "이게 매번 같은 이유로 생기네"라며 규칙을 뽑아내는 건 자연스러운 연속 활동이다 | **아니오.** 반대 방향이 아니라 같은 방향의 서로 다른 초점이라 §12-1 Contrast 요건("동시에 존재할 수 없는 반대 쌍")에 안 맞는다 | 단발성 사건 원인을 묻는 질문(causal_analysis)과, 여러 선택지·사례를 늘어놓고 공통점을 묻는 질문(pattern_finding)으로 Frame 자체를 다르게 설계한다 |
+| planning vs immediate_execution | 둘 다 "새로운 과제·도구가 주어졌을 때" 접근 방식을 다룬다 | planning은 시작 **전에** 전체 절차를 구상, immediate_execution은 구상 없이 **바로** 시도 | **제한적.** 같은 Frame(예: "새로운 도구가 주어지면?") 안에서는 한쪽 선택만 가능하지만, Frame이 다르면(예: 익숙한 상황 vs 낯선 상황) 같은 학생이 둘 다 관찰될 수 있다 — 그래서 RESOLVED_CONTEXT_DEPENDENT 상태가 존재한다 | **예.** 이미 §3/§12-1에서 실제 ContrastDefinition(`planning_vs_execution`)으로 구현돼 있다 | 같은 "new_tool" Frame 안에서 두 선택지를 직접 대조시키는 한 문항으로 구분한다(이미 구현됨) |
+| planning vs information_comparison | 둘 다 "행동하기 전에 무언가를 먼저 한다"는 준비 단계 활동 | planning은 **절차·순서**를 구상(무엇을 언제 할지), information_comparison은 **정보·선택지**를 모아 비교(무엇을 고를지) — 계획은 "어떻게"에, 정보 비교는 "무엇을 고를 근거"에 초점 | **예.** 오히려 실전에서는 정보를 비교해서 계획에 반영하는 게 자연스러운 흐름이라 상관관계가 있을 것으로 예상된다(상충이 아니라 보완 관계) | **아니오.** 반대 방향이 아니라 준비 단계 안에서 서로 다른 하위 활동이라 Contrast 요건에 안 맞는다 | planning은 "언제·어떤 순서로 할지" 질문으로, information_comparison은 "결정 전에 자료·사례를 찾아보는지" 질문으로 구분한다 — 옵션 문구에 "순서/우선순위" 단어가 있으면 planning, "비교/찾아본다" 단어가 있으면 information_comparison 쪽 role로 설계한다 |
+| collaboration_preference vs opinion_mediation | 둘 다 "다른 사람과의 상호작용" 관련 Trait | collaboration_preference는 **함께 일하는 것 자체**에 대한 선호(협업 여부), opinion_mediation은 의견이 **충돌했을 때** 어떻게 조율하는가(협업 중 갈등 대응) | **예.** 협업을 선호하는 사람이 의견 조정도 잘할 수 있고, 반대로 협업은 선호해도 의견 충돌은 피하는 사람도 있어 독립적인 축이다 | **아니오.** 반대 성향이 아니라 "협업 여부"와 "협업 중 갈등 대응 방식"이라는 서로 다른 국면을 다룬다 | collaboration_preference는 "혼자 할지 함께 할지" 선택 질문으로, opinion_mediation은 "의견이 갈리면 무엇을 기준으로 결정하는가" 질문으로 Frame을 분리한다 |
+| emotional_interpretation vs audience_response_prediction | 둘 다 "타인의 심리 상태"를 다루는 관계 지향 Trait | emotional_interpretation은 **지금 상대가 느끼는 감정**을 이해, audience_response_prediction은 **앞으로 결과물에 대해 상대가 보일 반응**을 미리 예측 — 시점(현재 관찰 vs 미래 예측)과 대상(구체적 개인 vs 불특정 수용자)이 다르다 | **예.** 콘텐츠 제작처럼 "지금 캐릭터/사용자의 감정을 이해"하면서 동시에 "이 결과물을 볼 사람들이 어떻게 반응할지" 예측하는 경우가 흔하다 | **아니오.** 결핍/과잉의 반대 쌍이 아니라 시점이 다른 관찰이라 Contrast 요건에 안 맞는다 | emotional_interpretation은 특정 인물의 감정 변화를 언급하는 선택지로, audience_response_prediction은 "보는 사람이 어떻게 느낄지"를 기준으로 결과물을 설계하는 선택지로 구분한다 |
+| visual_expression vs tool_utilization | 둘 다 "창작·제작 활동"과 연결된 Trait | visual_expression은 **무엇을 표현하는가**(시각적 형태라는 결과물 성격), tool_utilization은 **무엇으로 하는가**(도구·장비라는 수단) — 결과물의 형태 vs 작업의 수단 | **예.** 시각적 결과물을 만들려면 대개 도구를 다뤄야 하므로 상관관계가 높을 것으로 예상되지만, 개념적으로는 "그림을 손으로 그리는 것"(도구 없이도 visual_expression은 강할 수 있음)처럼 분리도 가능하다 | **아니오.** 반대 방향이 아니라 "결과물 형태"와 "작업 수단"이라는 서로 다른 축이다 | visual_expression은 편집·구성·이미지 등 결과물 형태를 고르는 선택지로, tool_utilization은 도구·장비를 직접 다루는 행위 자체를 고르는 선택지로 구분한다 |
+| change_adaptation vs immediate_execution | 둘 다 work_style 그룹이고, 계획을 고수하지 않는다는 인상을 줄 수 있다 | immediate_execution은 **시작 시점**의 태도(계획 없이 바로 시작하는가), change_adaptation은 **진행 중** 예상과 다른 결과가 나왔을 때의 태도(방식을 바꾸는가) — "언제 계획을 안 세우는가"(시작 전)와 "언제 바꾸는가"(도중)로 시점이 다르다 | **예.** 계획을 세워 시작했더라도(immediate_execution은 낮음) 중간에 예상과 다르면 유연하게 수정하는(change_adaptation은 높음) 학생이 흔하다 — 오히려 이 조합("계획적으로 시작하되 필요하면 유연하게 수정")이 실무에서 이상적인 경우도 많아, 서로 배타적이지 않다 | **아니오.** 시작 시점과 진행 중이라는 서로 다른 국면을 다루는 독립적인 축이라 Contrast 요건("같은 조건에서 상충하는 반대 쌍")에 안 맞는다 | immediate_execution은 "새로운 과제를 처음 받았을 때" 질문으로, change_adaptation은 "진행하다가 결과가 예상과 다르면 어떻게 하는가" 질문으로 시점 자체를 다르게 설계해서 구분한다 |
+
+**결론**: 위 7개 쌍 중 실제 반대 방향 Contrast Pair 요건(§12-1 "동시에 존재할 수 없는
+반대 성향")을 만족하는 건 `planning vs immediate_execution` 하나뿐이고, 이미
+`ContrastDefinition`으로 구현돼 있다. 나머지 6개 쌍은 전부 "동시에 강하게 나타날 수
+있는 독립적이거나 보완적인 축"으로 확인돼, 새로운 Contrast Pair를 추가할 근거가 없다
+— CLAUDE.md "동시에 존재할 수 있는 특성은 Contrast Pair로 만들지 않는다"와 일치한다.
+
 ## 3. Explicit Conflict 후보 (§12-1 ContrastDefinition)
 
 Vertical Slice 단계에서 Conflict 탐지 로직 자체가 동작하는지 검증하려면 최소 1개의 Contrast Pair가 필요합니다.

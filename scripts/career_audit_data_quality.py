@@ -39,6 +39,7 @@ from src.schemas.course import SubjectProfile  # noqa: E402
 from src.schemas.major import AdmissionReference, Department, MajorProfile  # noqa: E402
 from src.schemas.retrieval import DocumentManifestEntry, DocumentManifestStatus  # noqa: E402
 from src.schemas.review import DraftEntry  # noqa: E402
+from scripts.career_build_major_profiles import EVIDENCE_BASED_MAJOR_LABELS  # noqa: E402
 
 DATA_DIR = ROOT / "data"
 AUDIT_DIR = DATA_DIR / "audit"
@@ -322,7 +323,18 @@ def audit_major_profiles(findings: Findings) -> None:
             merged.update(vector)
         missing = KNOWN_TRAIT_IDS - set(merged)
         if missing:
-            findings.add("ERROR", "trait_missing", f"등급이 빠진 Trait {sorted(missing)}", profile.major_id)
+            if profile.major_id in EVIDENCE_BASED_MAJOR_LABELS:
+                # 2026-08-22 12차 리뷰: 이 3개 대표 전공은 major_trait_mapping_evidence.jsonl
+                # 근거 기반이라, UNMAPPED/REVIEW_REQUIRED Trait는 "공식 근거를 찾지 못함 ≠
+                # Trait 중요도 0" 원칙에 따라 Vector에서 의도적으로 뺐다 — ERROR가 아니라 INFO.
+                findings.add(
+                    "INFO",
+                    "trait_unmapped_by_design",
+                    f"근거 기반 Profile — UNMAPPED/REVIEW_REQUIRED로 Vector에서 뺀 Trait {sorted(missing)}",
+                    profile.major_id,
+                )
+            else:
+                findings.add("ERROR", "trait_missing", f"등급이 빠진 Trait {sorted(missing)}", profile.major_id)
         unknown = set(merged) - KNOWN_TRAIT_IDS
         if unknown:
             findings.add("ERROR", "unknown_trait_id", f"Ontology에 없는 {sorted(unknown)}", profile.major_id)

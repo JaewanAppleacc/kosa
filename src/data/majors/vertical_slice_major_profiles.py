@@ -1,113 +1,58 @@
 """Vertical Slice 대표 전공 3개의 Major Multi-Vector — 설계안 §15.
 
-CLAUDE.md 금지 사항: "검증되지 않은 Trait·전공 Mapping을 확정 데이터로 처리"하지 않는다.
-그래서 이 3개 Profile은 `review_status="draft"`로 저장한다 — §15가 요구하는 "최소 2인
-독립 검토"(MappingReview)를 아직 거치지 않은, A가 Vertical Slice 배선을 완성하기 위해
-직접 채운 1차 초안이다. C가 실제 학과 데이터·공식 출처로 교체하기 전까지 임시로 쓴다.
+2026-08-22 12차 리뷰: 예전엔 이 파일이 Trait Vector 숫자를 직접 손으로 채운 정본이었다
+(review_status="draft", source_ids=[] — 근거 없는 A의 1차 초안). 동시에
+`data/master/major_profiles.jsonl`에도 C가 만든 별도 Profile이 존재해서, 같은 개념의
+"정본"이 두 곳에 서로 다른 값으로 있었다.
 
-Vertical Slice Trait Ontology는 12개뿐이고 vector group 분포가 고르지 않다(interest·
-environment는 각 1개 Trait뿐) — §16 계산이 이 불균형에서도 깨지지 않는지 확인하는 것도
-이 초안의 목적 중 하나다. 등급은 §15 0~3 등급을 그대로 0/.33/.67/1.00로 옮겼다.
+지금은 `data/master/major_profiles.jsonl` 하나만 정본이다 — 그 값은
+`scripts/career_build_major_profiles.py`의 `build_evidence_based_profiles()`가
+`data/master/major_trait_mapping_evidence.jsonl`(실제 학과 공식 자료 근거)에서
+결정론적으로 생성한다. 이 파일은 그 정본에서 Vertical Slice 3개(media_communication/
+hci_ux/industrial_engineering)만 걸러 읽는 얇은 Loader로 남는다 — 기존 `from
+src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES`
+호출부(main.py, tests/*)는 이 파일이 Loader로 바뀐 걸 몰라도 된다(같은 이름의
+`list[MajorProfile]` 상수를 그대로 제공).
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from pathlib import Path
 
 from src.schemas.major import MajorProfile
 
-MEDIA_COMMUNICATION_PROFILE = MajorProfile(
-    major_id="media_communication",
-    label="미디어커뮤니케이션",
-    interest_vector={
-        "visual_expression": 1.00,  # 컨텐츠 제작의 핵심 활동
-    },
-    cognitive_vector={
-        "causal_analysis": 0.33,
-        "pattern_finding": 0.67,
-        "emotional_interpretation": 1.00,  # 스토리텔링·수용자 감정 이해가 핵심 학습활동
-        "audience_response_prediction": 1.00,  # 수용자 반응 예측이 핵심 학습활동
-        "information_comparison": 0.67,
-    },
-    work_style_vector={
-        "planning": 0.67,
-        "immediate_execution": 0.67,
-        "change_adaptation": 0.67,
-        "collaboration_preference": 0.67,  # 제작은 대체로 협업 기반
-        "opinion_mediation": 0.33,
-    },
-    environment_vector={
-        "tool_utilization": 0.67,  # 촬영·편집 도구 활용
-    },
-    source_ids=[],
-    extraction_method="manual",
-    review_status="draft",
-    profile_version="major_profile_v1_draft",
-    updated_at=datetime(2026, 8, 21),
-)
+_MASTER_PATH = Path(__file__).resolve().parents[3] / "data" / "master" / "major_profiles.jsonl"
 
-HCI_UX_PROFILE = MajorProfile(
-    major_id="hci_ux",
-    label="HCI·UX",
-    interest_vector={
-        "visual_expression": 1.00,  # 인터페이스·화면 디자인이 핵심 학습활동
-    },
-    cognitive_vector={
-        "causal_analysis": 0.67,
-        "pattern_finding": 0.67,
-        "emotional_interpretation": 0.67,
-        "audience_response_prediction": 1.00,  # 사용자 반응 예측·리서치가 핵심 학습활동
-        "information_comparison": 0.67,
-    },
-    work_style_vector={
-        "planning": 0.67,
-        "immediate_execution": 0.33,  # 프로토타입 반복 검증이 즉흥 실행보다 계획적 성격
-        "change_adaptation": 0.67,
-        "collaboration_preference": 0.67,
-        "opinion_mediation": 0.67,  # 이해관계자 의견 조율이 잦음
-    },
-    environment_vector={
-        "tool_utilization": 1.00,  # 디자인·프로토타이핑 도구 활용이 핵심 학습활동
-    },
-    source_ids=[],
-    extraction_method="manual",
-    review_status="draft",
-    profile_version="major_profile_v1_draft",
-    updated_at=datetime(2026, 8, 21),
-)
+# 이 3개만 "Vertical Slice에서 실제로 추천 가능한 대표 전공"이다 — Matching Engine
+# (src/api/main.py)이 여기서 그대로 읽는다. 여기서 개수·구성을 바꾸면 곧 추천 가능한
+# 전공 자체가 바뀌므로, 이번 12차 리뷰 범위에서는 건드리지 않는다(§14 "새로운 대표
+# 전공을 추가하지 않는다").
+VERTICAL_SLICE_MAJOR_IDS: tuple[str, ...] = ("media_communication", "hci_ux", "industrial_engineering")
 
-INDUSTRIAL_ENGINEERING_PROFILE = MajorProfile(
-    major_id="industrial_engineering",
-    label="산업공학",
-    interest_vector={
-        "visual_expression": 0.33,
-    },
-    cognitive_vector={
-        "causal_analysis": 1.00,  # 원인 분석이 핵심 학습활동(공정·시스템 문제 진단)
-        "pattern_finding": 1.00,  # 데이터 패턴 탐색이 핵심 학습활동
-        "emotional_interpretation": 0.33,
-        "audience_response_prediction": 0.33,
-        "information_comparison": 1.00,  # 대안 비교·정량 분석이 핵심 학습활동
-    },
-    work_style_vector={
-        "planning": 1.00,  # 계획·최적화가 핵심 학습활동
-        "immediate_execution": 0.33,
-        "change_adaptation": 0.67,
-        "collaboration_preference": 0.67,
-        "opinion_mediation": 0.67,
-    },
-    environment_vector={
-        "tool_utilization": 0.67,
-    },
-    source_ids=[],
-    extraction_method="manual",
-    review_status="draft",
-    profile_version="major_profile_v1_draft",
-    updated_at=datetime(2026, 8, 21),
-)
 
-VERTICAL_SLICE_MAJOR_PROFILES: list[MajorProfile] = [
-    MEDIA_COMMUNICATION_PROFILE,
-    HCI_UX_PROFILE,
-    INDUSTRIAL_ENGINEERING_PROFILE,
-]
+def load_vertical_slice_major_profiles(path: Path | None = None) -> list[MajorProfile]:
+    source = path or _MASTER_PATH
+    if not source.exists():
+        raise FileNotFoundError(
+            f"{source}가 없다 — scripts/career_build_major_profiles.py를 먼저 실행해야 한다."
+        )
+    by_id: dict[str, MajorProfile] = {}
+    for line in source.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        profile = MajorProfile.model_validate_json(line)
+        if profile.major_id in VERTICAL_SLICE_MAJOR_IDS:
+            by_id[profile.major_id] = profile
+
+    missing = set(VERTICAL_SLICE_MAJOR_IDS) - set(by_id)
+    if missing:
+        raise ValueError(
+            f"{source}에 Vertical Slice 대표 전공 {sorted(missing)}의 MajorProfile이 없다 — "
+            "career_build_major_profiles.py를 다시 실행했는지 확인하세요."
+        )
+    # VERTICAL_SLICE_MAJOR_IDS 선언 순서를 그대로 따른다 — 파일 안 줄 순서에 의존하지 않는
+    # 결정론적 순서.
+    return [by_id[major_id] for major_id in VERTICAL_SLICE_MAJOR_IDS]
+
+
+VERTICAL_SLICE_MAJOR_PROFILES: list[MajorProfile] = load_vertical_slice_major_profiles()

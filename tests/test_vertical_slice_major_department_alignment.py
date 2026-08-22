@@ -231,14 +231,25 @@ class FixedPersonaEndToEndTest(unittest.TestCase):
         return relevant[0].major_id
 
     def test_persona_a_recommends_media_communication_with_real_departments(self) -> None:
+        """2026-08-22 12차 리뷰: media_communication Vector가 실제 학과 공식 자료 근거
+        기반으로 바뀌면서(경희대·고려대 미디어커뮤니케이션학과의 데이터 분석·캠페인 기획
+        중심 과목들 — §7 경고대로 영상편집 중심이 아니었다), 이제 causal_analysis·
+        pattern_finding·information_comparison·planning까지 포함하는 폭넓은 Vector가
+        됐다(hci_ux 3개 Trait를 모두 포함하고 그 위에 분석·기획·협업 Trait까지 더한
+        형태). 그래서 media_communication을 hci_ux·industrial_engineering보다 확실히
+        위로 올리려면, media_communication이 가진 8개 Trait 전부(hci_ux와 공유하는
+        시각적 표현·수용자 반응 예측 포함, media_communication만 갖는 협업 선호·계획·
+        원인 분석·패턴 탐색·정보 비교까지)를 STRONG으로 두고, industrial_engineering만
+        갖는 도구 활용은 LIMITED로 낮춘다 — 세 전공 모두 이 학생 데이터로 "관련도 계산은
+        가능"하지만(모두 usable_trait 충분), media_communication만 다른 두 전공에 없는
+        협업/기획 Trait까지 강하게 충족해 확실한 1위가 된다."""
+
         top_major_id = self._top_relevant_major_id(
             strong_traits={
-                "emotional_interpretation", "audience_response_prediction", "visual_expression",
-                "collaboration_preference",
+                "visual_expression", "audience_response_prediction", "collaboration_preference",
+                "planning", "causal_analysis", "pattern_finding", "information_comparison",
             },
-            limited_traits={
-                "tool_utilization", "causal_analysis", "pattern_finding", "information_comparison", "planning",
-            },
+            limited_traits={"tool_utilization"},
         )
         self.assertEqual(top_major_id, "media_communication")
 
