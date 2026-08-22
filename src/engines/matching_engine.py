@@ -191,6 +191,14 @@ def rank_major_relevance(
     2. 절대 점수 하한(MINIMUM_SCORE_FOR_HIGH_RELEVANCE)을 추가로 요구한다. 안 그러면 후보가
        1개뿐이거나 전부 낮은 점수여도 상위 구간은 무조건 "관련성 높음"이 돼버린다.
 
+    2026-08-22 리뷰로 세 번째를 추가했다:
+    3. relevance_label과 evidence_sufficiency는 그동안 완전히 독립적으로 계산돼서,
+       "점수는 높은데 근거가 제한적"인 전공도 관련성 높음을 받을 수 있었다(usable_trait가
+       2~3개뿐이라 우연히 방향이 잘 맞은 경우 등) — 근거가 빈약한 결과를 "높은 관련성"으로
+       내보이는 건 §16 "가짜 정확도 노출 금지"의 정신과도 어긋난다. 그래서 evidence_sufficiency
+       가 "제한적"이면 점수·순위와 무관하게 "관련성 높음"을 주지 않는다(최대 "함께
+       탐색해볼 분야").
+
     반환값: (관련성 높음 목록, 나머지 목록, 전체가 insufficient일 때의 안내 메시지)."""
 
     computed = [r for r in results if r.status == "computed"]
@@ -201,7 +209,7 @@ def rank_major_relevance(
 
     unique_scores_desc = sorted({r.score for r in computed}, reverse=True)  # type: ignore[arg-type]
 
-    def relevance_label_for_score(score: float) -> RelevanceLabel:
+    def relevance_label_for(score: float, evidence_sufficiency: EvidenceSufficiencyLabel) -> RelevanceLabel:
         # 점수가 같은 후보는 항상 같은 구간(고유 점수 목록에서의 위치로 구간 결정).
         score_rank = unique_scores_desc.index(score)
         tier = (score_rank * 3) // len(unique_scores_desc)
@@ -210,18 +218,23 @@ def rank_major_relevance(
             # 상대 순위는 1등이어도 절대 유사도가 낮으면 "관련성 높음"을 주지 않는다
             # (후보가 1개뿐이거나 전부 낮은 점수인 경우의 방어).
             label = "함께 탐색해볼 분야"
+        if label == "관련성 높음" and evidence_sufficiency == "제한적":
+            # 점수·순위가 아무리 높아도 근거(Evidence)가 빈약하면 "관련성 높음"을 주지
+            # 않는다 — 동점이라도 Evidence 충분성이 다르면 서로 다른 Label을 받을 수 있다.
+            label = "함께 탐색해볼 분야"
         return label
 
     relevant: list[MajorRelevance] = []
     explore_together: list[MajorRelevance] = []
 
     for result in computed:
-        relevance = relevance_label_for_score(result.score)  # type: ignore[arg-type]
+        evidence_sufficiency = _evidence_sufficiency_label(result)
+        relevance = relevance_label_for(result.score, evidence_sufficiency)  # type: ignore[arg-type]
         item = MajorRelevance(
             major_id=result.major_id,
             label=labels_by_major_id.get(result.major_id, result.major_id),
             relevance_label=relevance,
-            evidence_sufficiency=_evidence_sufficiency_label(result),
+            evidence_sufficiency=evidence_sufficiency,
             repeated_context_count=result.max_context_count_among_notable,
         )
         if relevance == "관련성 높음":

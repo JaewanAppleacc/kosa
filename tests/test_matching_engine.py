@@ -355,7 +355,9 @@ class RankMajorRelevanceTest(unittest.TestCase):
         from src.engines.matching_engine import MajorMatchResult
 
         results = [
-            MajorMatchResult(major_id="high", status="computed", score=0.9),
+            # 2026-08-22 리뷰: "관련성 높음"은 점수뿐 아니라 Evidence 충분성도 요구한다 —
+            # notable_strong_count>=2로 "충분"을 명시해야 이 경로가 통과한다.
+            MajorMatchResult(major_id="high", status="computed", score=0.9, notable_strong_count=2, notable_usable_count=2),
             MajorMatchResult(major_id="mid", status="computed", score=0.5),
             MajorMatchResult(major_id="low", status="computed", score=0.1),
         ]
@@ -370,7 +372,9 @@ class RankMajorRelevanceTest(unittest.TestCase):
     def test_no_internal_score_leaks_into_major_relevance(self) -> None:
         from src.engines.matching_engine import MajorMatchResult
 
-        results = [MajorMatchResult(major_id="m1", status="computed", score=0.77)]
+        results = [
+            MajorMatchResult(major_id="m1", status="computed", score=0.77, notable_strong_count=2, notable_usable_count=2)
+        ]
         relevant, _, _ = rank_major_relevance(results, {"m1": "테스트전공"})
         self.assertNotIn("score", set(type(relevant[0]).model_fields.keys()))
 
@@ -388,15 +392,57 @@ class RankMajorRelevanceTest(unittest.TestCase):
         self.assertEqual(explore[0].relevance_label, "함께 탐색해볼 분야")
 
     def test_single_high_score_candidate_can_still_be_high_relevance(self) -> None:
-        """후보가 1개여도 절대 유사도가 충분히 높으면 "관련성 높음"이어야 한다 — 위
-        테스트와 짝을 이뤄 "무조건 낮춘다"가 아니라 "점수를 실제로 본다"를 검증한다."""
+        """후보가 1개여도 절대 유사도가 충분히 높고 Evidence도 충분하면 "관련성 높음"이어야
+        한다 — 위 테스트와 짝을 이뤄 "무조건 낮춘다"가 아니라 "점수를 실제로 본다"를
+        검증한다. 2026-08-22 리뷰: Evidence 충분성 조건(notable_strong_count>=2)을 명시적으로
+        채워야 한다 — 기본값 0(제한적)인 채로는 점수가 아무리 높아도 관련성 높음이 안 된다."""
 
         from src.engines.matching_engine import MajorMatchResult
 
-        results = [MajorMatchResult(major_id="m1", status="computed", score=0.95)]
+        results = [
+            MajorMatchResult(major_id="m1", status="computed", score=0.95, notable_strong_count=2, notable_usable_count=2)
+        ]
         relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"})
         self.assertEqual([r.major_id for r in relevant], ["m1"])
         self.assertEqual(explore, [])
+
+    def test_high_score_with_limited_evidence_is_not_high_relevance(self) -> None:
+        """2026-08-22 리뷰 핵심 버그: 점수가 아무리 높아도(1등, 절대 하한 통과) Evidence
+        충분성이 "제한적"이면 "관련성 높음"을 주면 안 된다."""
+
+        from src.engines.matching_engine import MajorMatchResult
+
+        results = [MajorMatchResult(major_id="m1", status="computed", score=0.95)]  # notable_* 기본값 0 → 제한적
+        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        self.assertEqual(relevant, [])
+        self.assertEqual([r.major_id for r in explore], ["m1"])
+        self.assertEqual(explore[0].evidence_sufficiency, "제한적")
+        self.assertEqual(explore[0].relevance_label, "함께 탐색해볼 분야")
+
+    def test_high_score_with_moderate_evidence_can_be_high_relevance(self) -> None:
+        from src.engines.matching_engine import MajorMatchResult
+
+        results = [
+            MajorMatchResult(major_id="m1", status="computed", score=0.95, notable_usable_count=2)
+        ]  # notable_strong_count=0(<2) but notable_usable_count=2 → "보통"
+        relevant, _, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        self.assertEqual([r.major_id for r in relevant], ["m1"])
+
+    def test_low_score_with_sufficient_evidence_is_not_high_relevance(self) -> None:
+        """낮은 점수는 Evidence가 충분해도 여전히 "관련성 높음"이면 안 된다(순위·절대
+        하한 조건은 그대로 유지) — Evidence 조건 추가가 기존 점수 하한을 무력화하지 않는지 확인."""
+
+        from src.engines.matching_engine import MINIMUM_SCORE_FOR_HIGH_RELEVANCE, MajorMatchResult
+
+        results = [
+            MajorMatchResult(
+                major_id="m1", status="computed", score=MINIMUM_SCORE_FOR_HIGH_RELEVANCE - 0.1,
+                notable_strong_count=2, notable_usable_count=2,
+            )
+        ]
+        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        self.assertEqual(relevant, [])
+        self.assertEqual([r.major_id for r in explore], ["m1"])
 
     def test_tied_score_majors_get_the_same_relevance_label(self) -> None:
         """동점 학과 두 곳이 있으면 major_id 알파벳 순서 때문에 한쪽만 "관련성 높음"이
@@ -405,14 +451,29 @@ class RankMajorRelevanceTest(unittest.TestCase):
         from src.engines.matching_engine import MajorMatchResult
 
         results = [
-            MajorMatchResult(major_id="z_major", status="computed", score=0.9),
-            MajorMatchResult(major_id="a_major", status="computed", score=0.9),  # 동점, id만 다름
+            MajorMatchResult(major_id="z_major", status="computed", score=0.9, notable_strong_count=2, notable_usable_count=2),
+            MajorMatchResult(major_id="a_major", status="computed", score=0.9, notable_strong_count=2, notable_usable_count=2),  # 동점, id만 다름
             MajorMatchResult(major_id="low_major", status="computed", score=0.2),
         ]
         labels = {"z_major": "z전공", "a_major": "a전공", "low_major": "낮은전공"}
         relevant, explore, _ = rank_major_relevance(results, labels)
         self.assertEqual({r.major_id for r in relevant}, {"z_major", "a_major"})
         self.assertEqual([r.major_id for r in explore], ["low_major"])
+
+    def test_tied_score_but_different_evidence_sufficiency_can_get_different_labels(self) -> None:
+        """2026-08-22 리뷰: "동일 점수라도 Evidence 충분성이 다르면 서로 다른 Label을 받을
+        수 있다 — 이는 임의의 우열이 아니라 근거 충분성 차이다"를 그대로 검증한다."""
+
+        from src.engines.matching_engine import MajorMatchResult
+
+        results = [
+            MajorMatchResult(major_id="rich_evidence", status="computed", score=0.9, notable_strong_count=2, notable_usable_count=2),
+            MajorMatchResult(major_id="thin_evidence", status="computed", score=0.9),  # 동점, Evidence만 부족
+        ]
+        labels = {"rich_evidence": "근거충분전공", "thin_evidence": "근거부족전공"}
+        relevant, explore, _ = rank_major_relevance(results, labels)
+        self.assertEqual([r.major_id for r in relevant], ["rich_evidence"])
+        self.assertEqual([r.major_id for r in explore], ["thin_evidence"])
 
 
 class FixedPersonaVerticalSliceMatchingTest(unittest.TestCase):
