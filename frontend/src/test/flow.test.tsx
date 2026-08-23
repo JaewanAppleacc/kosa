@@ -71,7 +71,7 @@ describe("Context 평가 및 선택", () => {
     expect(screen.getByRole("button", { name: /다음/ })).toBeEnabled();
   });
 
-  it("선택 화면에서 모든 분야가 같은 모습으로 표시된다", async () => {
+  it("서버가 받아주지 않을 분야는 고르기 전에 막고 이유를 보여준다", async () => {
     const user = userEvent.setup();
     render(<App />);
     await startAssessment(user);
@@ -80,11 +80,12 @@ describe("Context 평가 및 선택", () => {
     await user.click(screen.getByRole("button", { name: /다음/ }));
     await screen.findByText("어떤 이야기부터 살펴볼까요?");
 
-    // 과도기 표시("준비 중")를 남기지 않는다 — 15개가 모두 고를 수 있는 상태다.
-    expect(screen.queryByText("준비 중")).not.toBeInTheDocument();
-    for (const label of ["게임", "스포츠", "법·정치·시사"]) {
-      expect(screen.getByRole("button", { name: new RegExp(label) })).toBeEnabled();
-    }
+    // 평가했고 질문도 준비된 것만 고를 수 있다.
+    expect(screen.getByRole("button", { name: /게임/ })).toBeEnabled();
+    // 질문 흐름 미지원 → 고를 수 없다(서버가 422로 거부하는 값).
+    expect(screen.getByRole("button", { name: /스포츠/ })).toBeDisabled();
+    // 지원 Context지만 관심도를 안 매김 → 역시 서버가 거부한다.
+    expect(screen.getByRole("button", { name: /학교생활/ })).toBeDisabled();
   });
 });
 

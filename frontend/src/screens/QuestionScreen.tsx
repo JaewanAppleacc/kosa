@@ -72,11 +72,24 @@ export function QuestionScreen() {
 
   const currentContextId =
     question.status === "success" ? question.data.current_context_id : null;
-  const contextIndex = currentContextId ? state.finalContextIds.indexOf(currentContextId) : -1;
+
+  // 복원한 세션은 확정 목록을 모른다 — 그때는 지금까지 마주친 Context로 레일을 채운다.
+  useEffect(() => {
+    if (currentContextId) dispatch({ type: "context_observed", contextId: currentContextId });
+  }, [currentContextId, dispatch]);
+
+  const railContextIds =
+    state.finalContextIds.length > 0 ? state.finalContextIds : state.observedContextIds;
+  const contextIndex = currentContextId ? railContextIds.indexOf(currentContextId) : -1;
+  /**
+   * 전체 Context 개수를 아는 경우에만 진행 바를 그린다. 복원한 세션에서 관찰된 개수를
+   * 분모로 쓰면 "항상 마지막 단계"처럼 보여서 거짓말이 된다.
+   */
+  const knowsTotalContexts = state.finalContextIds.length > 0;
 
   const rail = (
     <ContextRail
-      contextIds={state.finalContextIds}
+      contextIds={railContextIds}
       currentContextId={currentContextId}
       labelOf={labelOf}
     />
@@ -148,12 +161,14 @@ export function QuestionScreen() {
           Context 진행도만 채운다 — 질문 수 비율이 아니다.
           현재 Context 자신도 진행 중이라는 뜻으로 절반만 더한다.
         */}
-        <div className="mb-6">
-          <ProgressBar
-            value={contextIndex >= 0 ? contextIndex + 0.5 : 0}
-            max={Math.max(1, state.finalContextIds.length)}
-          />
-        </div>
+        {knowsTotalContexts ? (
+          <div className="mb-6">
+            <ProgressBar
+              value={contextIndex >= 0 ? contextIndex + 0.5 : 0}
+              max={state.finalContextIds.length}
+            />
+          </div>
+        ) : null}
 
         {note ? (
           <p className="mut mb-4 text-[12.5px]" aria-live="polite">

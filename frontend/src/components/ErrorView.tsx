@@ -46,7 +46,13 @@ function guidance(error: unknown): { title: string; description: string; retryab
           retryable: true,
         };
       case "VALIDATION_ERROR":
-        return { title: "입력을 다시 확인해주세요", description: error.message, retryable: false };
+        // 서버 message는 개발자용 문구(허용 목록·필드 경로 등)라 학생에게 그대로 보여주지
+        // 않는다. 화면이 미리 막지 못한 조합이 넘어간 경우이므로 앞 단계로 안내한다.
+        return {
+          title: "이 조합으로는 진행할 수 없어요",
+          description: "앞 화면으로 돌아가 다시 골라주세요.",
+          retryable: false,
+        };
       default:
         return { title: "문제가 생겼어요", description: error.message, retryable: true };
     }

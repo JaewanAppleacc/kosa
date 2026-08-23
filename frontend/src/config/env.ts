@@ -13,9 +13,18 @@ function readMode(): ApiMode {
   return "mock";
 }
 
+/**
+ * Mock 응답은 즉시 돌아와서 Loading UI가 눈에 보이지 않는다. 값을 지정하지 않은
+ * 환경(=.env.local이 없는 새 clone)에서도 실제와 비슷한 전환을 보도록 기본 지연을 준다.
+ * 0을 명시하면 지연 없이 동작한다(테스트가 이 경로를 쓴다).
+ */
+const DEFAULT_MOCK_LATENCY_MS = 400;
+
 function readLatency(): number {
-  const raw = Number(import.meta.env.VITE_MOCK_LATENCY_MS);
-  return Number.isFinite(raw) && raw >= 0 ? raw : 0;
+  const raw = import.meta.env.VITE_MOCK_LATENCY_MS;
+  if (raw === undefined || raw.trim() === "") return DEFAULT_MOCK_LATENCY_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_MOCK_LATENCY_MS;
 }
 
 export const env = {
