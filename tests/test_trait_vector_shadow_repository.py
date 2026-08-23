@@ -149,6 +149,85 @@ class RuntimeProfileWiringTest(unittest.TestCase):
         for forbidden in ("tendency_score", "evidence_confidence", "TraitVectorSnapshot", "primary_signal_sum"):
             self.assertNotIn(forbidden, body_text)
 
+    def test_shadow_computation_failure_logs_exception_type_only(self) -> None:
+        """2단계 §2: 완전히 조용한 실패가 아니라, 학생 데이터 없이 예외 종류만 로그로
+        남는지 확인한다."""
+
+        session_id = self._answer_one_seed_question()
+        with (
+            patch.object(
+                main_module, "compute_trait_vector_snapshot_all", side_effect=RuntimeError("모의 계산 실패")
+            ),
+            self.assertLogs("src.api.main", level="WARNING") as logs,
+        ):
+            r = client.get(f"/profile/{session_id}")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("RuntimeError", logs.output[0])
+        for forbidden in (session_id, "모의 계산 실패", "demo_user_01"):
+            self.assertNotIn(forbidden, logs.output[0])
+
+
+class ShadowSnapshotStructuralVsSessionStatsTest(unittest.TestCase):
+    """2단계 §1: 구조상 관찰 가능(Trait Bank 정적 구조, 학생과 무관)과 세션에서 실제
+    관찰(학생 답변에 따라 달라짐)이 서로 다른 필드로 분리돼야 한다."""
+
+    def setUp(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_structural_and_session_counts_use_independent_computations(self) -> None:
+        recorded: list[dict] = []
+        original_record_stage = main_module._tracer.record_stage
+
+        def _capture(*, trace_id, stage_name, attributes):
+            if stage_name == "Trait Vector Shadow Snapshot":
+                recorded.append(attributes)
+            return original_record_stage(trace_id=trace_id, stage_name=stage_name, attributes=attributes)
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/interest-rating",
+            json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        )
+        client.post(
+            "/assessment/context-select",
+            json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        )
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        r = client.post("/assessment/next-question", params={"session_id": session_id})
+        question = r.json()["question"]
+        with patch.object(main_module._tracer, "record_stage", side_effect=_capture):
+            client.post(
+                "/assessment/answer",
+                json={
+                    "session_id": session_id, "question_id": question["question_id"],
+                    "selected_option_id": question["options"][0]["option_id"],
+                },
+            )
+            client.get(f"/profile/{session_id}")
+
+        self.assertEqual(len(recorded), 1)
+        attrs = recorded[0]
+        # 구조적 수치는 이 세션의 답변 내용과 무관하게 항상 같은 값(정본 데이터에서 계산).
+        self.assertEqual(attrs["structurally_observable_trait_count"], len(main_module.OBSERVABLE_TRAIT_IDS))
+        self.assertEqual(attrs["structurally_not_probed_trait_count"], len(main_module.NOT_PROBED_TRAIT_IDS))
+        self.assertEqual(attrs["structurally_observable_trait_count"], 21)
+        self.assertEqual(attrs["structurally_not_probed_trait_count"], 3)
+        # 세션 수치는 실제 이 세션의 Evidence에서 나온 값 — 구조적 수치와 우연히 같을
+        # 필요가 없다(답변 1개뿐이라 구조적 19개보다 훨씬 적어야 한다).
+        self.assertLess(attrs["observed_in_session_count"], attrs["structurally_observable_trait_count"])
+        self.assertEqual(
+            attrs["observed_in_session_count"] + attrs["not_observed_in_session_count"],
+            len(main_module.CORE_TRAIT_IDS),
+        )
+        self.assertEqual(len(main_module.CORE_TRAIT_IDS), 24)
+
 
 if __name__ == "__main__":
     unittest.main()

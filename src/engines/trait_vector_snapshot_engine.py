@@ -13,22 +13,66 @@
 from __future__ import annotations
 
 from src.engines.matching_engine import StudentTraitState
-from src.schemas.evidence import EvidenceOrigin, EvidenceRecord
+from src.schemas.evidence import EvidenceOrigin, EvidenceRecord, V2ProbeOpportunity
 from src.schemas.trait_vector_snapshot import TraitVectorEntry
+
+# 2026-08-24 2단계 §9: v2 Signal의 정당한 출처는 PRIMARY_BLUEPRINT(Legacy 질문)와
+# V2_DIRECT_PROBE(신규 Trait Direct Probe 질문) 둘 다다 — Conflict Resolution만 제외한다.
+# Legacy 계산(summarize_trait_evidence 등)은 여전히 PRIMARY_BLUEPRINT만 걸러 쓰므로
+# V2_DIRECT_PROBE Evidence는 자동으로 거기서 제외된다(별도 필터가 이미 존재).
+_V2_ELIGIBLE_ORIGINS = frozenset({EvidenceOrigin.PRIMARY_BLUEPRINT, EvidenceOrigin.V2_DIRECT_PROBE})
 
 
 def _records_with_signal(
     evidence_ledger: list[EvidenceRecord], trait_id: str, signal_role: str
 ) -> list[EvidenceRecord]:
-    """§8과 동일한 필터 — PRIMARY_BLUEPRINT Origin만 본다(Conflict Resolution 답변은
-    이미 답변 처리 시점에 applied_trait_signals_v2를 비워두지만, 여기서도 한 번 더
-    방어적으로 막는다)."""
+    """v2 Signal의 정당한 출처(PRIMARY_BLUEPRINT/V2_DIRECT_PROBE)만 본다(Conflict
+    Resolution 답변은 이미 답변 처리 시점에 applied_trait_signals_v2를 비워두지만,
+    여기서도 한 번 더 방어적으로 막는다)."""
 
     return [
         r for r in evidence_ledger
-        if r.evidence_origin == EvidenceOrigin.PRIMARY_BLUEPRINT
+        if r.evidence_origin in _V2_ELIGIBLE_ORIGINS
         and any(s.trait_id == trait_id and s.signal_role == signal_role for s in r.applied_trait_signals_v2)
     ]
+
+
+def _direct_probe_status(
+    primary_records: list[EvidenceRecord], related_records: list[EvidenceRecord]
+) -> tuple[str, float, str] | None:
+    """2단계 §15 — legacy_state가 없는(=신규) Trait에 PRIMARY Evidence(대부분 Direct
+    Probe에서 나온다)가 있을 때의 판정. PRIMARY가 하나도 없으면 None을 반환해 호출자가
+    기존 promoted/related/not_probed 분기로 넘어가게 한다.
+
+    - STRONG: PRIMARY 3개 이상, 서로 다른 질문, Context 2개 이상, Frame 2개 이상
+      (Trait당 Direct Probe 최대 1개 정책 아래서는 사실상 도달 불가 — 그래도 규칙
+      자체는 올바르게 존재해야 한다, §15 "Direct Probe 한 번만으로 STRONG 금지").
+    - MODERATE: PRIMARY 2개(서로 다른 질문·Frame 또는 Context)거나, PRIMARY 1개 +
+      다른 질문에서 관찰된 RELATED(그 PRIMARY와 Context 또는 Frame이 다름).
+    - LIMITED: 그 외 PRIMARY 존재(다양성 부족)."""
+
+    if not primary_records:
+        return None
+
+    distinct_questions = {r.question_id for r in primary_records}
+    distinct_contexts = {r.context for r in primary_records}
+    distinct_frames = {r.question_frame_id for r in primary_records}
+
+    if len(distinct_questions) >= 3 and len(distinct_contexts) >= 2 and len(distinct_frames) >= 2:
+        return "STRONG", 1.00, "primary_evidence"
+
+    if len(distinct_questions) >= 2 and (len(distinct_contexts) >= 2 or len(distinct_frames) >= 2):
+        return "MODERATE", 0.67, "primary_evidence"
+
+    corroborating_related = [
+        r for r in related_records
+        if r.question_id not in distinct_questions
+        and (r.context not in distinct_contexts or r.question_frame_id not in distinct_frames)
+    ]
+    if corroborating_related:
+        return "MODERATE", 0.67, "primary_evidence"
+
+    return "LIMITED", 0.33, "primary_evidence"
 
 
 def _is_related_promoted(
@@ -62,13 +106,22 @@ def compute_trait_vector_snapshot(
     evidence_ledger: list[EvidenceRecord],
     legacy_state: StudentTraitState,
     unresolved_conflict_trait_ids: set[str],
+    v2_probe_opportunities: list[V2ProbeOpportunity] | None = None,
 ) -> TraitVectorEntry:
     """트레잇 하나의 v2 Snapshot을 계산한다. `legacy_state`는 기존
     `compute_student_trait_states()`가 이미 계산해 둔 결과를 그대로 받는다 — 이 함수가
-    §13 판정을 다시 하지 않는다(중복 계산 금지, matching_engine.py를 신뢰한다)."""
+    §13 판정을 다시 하지 않는다(중복 계산 금지, matching_engine.py를 신뢰한다).
+    `v2_probe_opportunities`는 2단계 §10 — Target Signal을 선택하지 않은 답변도
+    "질문은 받았다"는 사실을 `direct_probe_opportunity_count`로 남긴다(기본값 None이면
+    두 필드 모두 0 — 기존 호출자는 이 인자를 몰라도 된다)."""
 
     primary_records = _records_with_signal(evidence_ledger, trait_id, "PRIMARY")
     related_records = _records_with_signal(evidence_ledger, trait_id, "RELATED")
+    opportunities = v2_probe_opportunities or []
+    direct_probe_opportunity_count = sum(1 for o in opportunities if o.target_trait_id == trait_id)
+    direct_probe_primary_evidence_count = sum(
+        1 for o in opportunities if o.target_trait_id == trait_id and o.target_signal_selected
+    )
 
     primary_signal_sum = sum(
         s.weight for r in primary_records for s in r.applied_trait_signals_v2
@@ -97,6 +150,10 @@ def compute_trait_vector_snapshot(
         status = legacy_state.state.value  # type: ignore[assignment]
         tendency_score = legacy_state.normalized_value
         evidence_confidence = "primary_evidence"
+    elif (direct := _direct_probe_status(primary_records, related_records)) is not None:
+        # 2단계 §15: legacy_state가 없는(신규) Trait에 PRIMARY Evidence(Direct Probe)가
+        # 있는 경우의 판정 — LIMITED/MODERATE/STRONG 세 단계 전부 여기서 나온다.
+        status, tendency_score, evidence_confidence = direct
     elif promoted:
         # §10: "RELATED가 승격 조건을 만족하지만 PRIMARY 없음: LIMITED, tendency_score
         # 최대 0.33" — 확인된 RELATED만으로는 STRONG/MODERATE로 올라가지 않는다.
@@ -126,6 +183,8 @@ def compute_trait_vector_snapshot(
         tendency_score=tendency_score,
         evidence_confidence=evidence_confidence,
         status=status,
+        direct_probe_opportunity_count=direct_probe_opportunity_count,
+        direct_probe_primary_evidence_count=direct_probe_primary_evidence_count,
     )
 
 
@@ -134,6 +193,7 @@ def compute_trait_vector_snapshot_all(
     legacy_states: dict[str, StudentTraitState],
     unresolved_conflict_trait_ids: set[str],
     core_trait_ids: set[str],
+    v2_probe_opportunities: list[V2ProbeOpportunity] | None = None,
 ) -> dict[str, TraitVectorEntry]:
     """24개 Core Trait 전체에 대해 한 번에 계산한다(`compute_student_trait_states()`와
     같은 "전체를 한 번에 계산해서 재사용" 패턴). `legacy_states`에 없는 trait_id(예: 아직
@@ -148,6 +208,7 @@ def compute_trait_vector_snapshot_all(
             context_count=0, primary_vector_group="cognitive",
         )
         result[trait_id] = compute_trait_vector_snapshot(
-            trait_id, evidence_ledger, legacy_state, unresolved_conflict_trait_ids
+            trait_id, evidence_ledger, legacy_state, unresolved_conflict_trait_ids,
+            v2_probe_opportunities=v2_probe_opportunities,
         )
     return result

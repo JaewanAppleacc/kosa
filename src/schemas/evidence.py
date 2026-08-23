@@ -41,6 +41,14 @@ class EvidenceOrigin(str, Enum):
     # conflict_engine.py, profile_engine.py 세 곳 모두 이미 `== PRIMARY_BLUEPRINT`로
     # 걸러쓰고 있었다). Evidence Ledger에서 삭제하지 않고 그대로 남긴다 — 역추적용.
     CONFLICT_RESOLUTION = "conflict_resolution"
+    # 2026-08-24 Trait Ontology v2(2단계) §9 — 신규 Trait Direct Probe 질문(Feature Flag
+    # ON일 때만 서빙)에 대한 답변. CONFLICT_RESOLUTION과 똑같은 이유로 별도 Origin이
+    # 필요하다: Legacy summarize_trait_evidence/Explicit Conflict 탐지/Adaptive
+    # Target Planner 상태·opportunity_count는 전부 `== PRIMARY_BLUEPRINT` 필터를 이미
+    # 쓰고 있으므로, 이 값으로 분리하면 자동으로 제외된다(코드를 새로 고칠 필요 없음).
+    # v2 Trait Vector Snapshot 계산(Shadow 전용)에서는 반대로 PRIMARY_BLUEPRINT와
+    # 함께 "v2 Signal의 정당한 출처"로 포함한다(trait_vector_snapshot_engine.py).
+    V2_DIRECT_PROBE = "v2_direct_probe"
 
 
 class EvidenceRecord(BaseModel):
@@ -72,6 +80,22 @@ class EvidenceRecord(BaseModel):
     # 이라 아예 없는지) 감사·Coverage 측정용으로 남긴다. None은 이 필드가 생기기 전
     # 과거(1단계) 기록과의 하위 호환용이다 — API 응답에는 노출하지 않는다.
     trait_signal_mapping_source_v2: MappingSource | None = None
+
+
+class V2ProbeOpportunity(BaseModel):
+    """2026-08-24 Trait Ontology v2(2단계) §10 — 신규 Trait Direct Probe 질문이 학생에게
+    제시됐다는 사실 자체를 기록한다. `target_signal_selected=False`는 "이 Trait가
+    낮다"는 부정 Evidence가 절대 아니다 — "직접 질문했지만 이번 답변에서는 Target
+    Signal이 선택되지 않았다"는 사실만 담는다(Counter Evidence로 계산에 쓰지 않는다,
+    사용자 화면에도 노출하지 않는다)."""
+
+    question_id: str
+    blueprint_id: str
+    target_trait_id: str
+    context_id: str
+    frame_id: str
+    selected_option_id: str
+    target_signal_selected: bool
 
 
 class ContrastDefinition(BaseModel):

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from src.data.contexts.context_definitions import VERTICAL_SLICE_CONTEXT_IDS
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
+from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS_BY_ID
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
@@ -66,6 +67,12 @@ def _reachable_context_and_frame_ids(question_family_id: str, blueprint_id: str)
         return {_SEED_BLUEPRINT_CONTEXT[blueprint_id]}, {"seed_frame"}
     if question_family_id == "backup":
         return {_BACKUP_BLUEPRINT_CONTEXT[blueprint_id]}, {"backup"}
+    if question_family_id == "v2_direct_probe":
+        # 2026-08-24 2단계 §7: Direct Probe Blueprint는 Seed/Backup처럼 Context·Frame이
+        # 그 Blueprint 하나에 고정된다(`allowed_context_ids`/`question_frame_id`) —
+        # Tail Blueprint처럼 아무 Context·Frame에서나 쓰이는 게 아니다.
+        v2_bp = V2_DIRECT_PROBE_BLUEPRINTS_BY_ID[blueprint_id]
+        return set(v2_bp.allowed_context_ids), {v2_bp.question_frame_id}
     # "tail_blueprint" — Blueprint와 Context·Frame이 독립 축이라 구조적 상한을 그대로 쓴다.
     return set(_ALL_TAIL_CONTEXT_IDS), set(_ALL_TAIL_FRAME_IDS)
 

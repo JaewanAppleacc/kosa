@@ -185,18 +185,30 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
                 self.assertEqual(sanitize_trace_attributes({key: {}}), {})
 
     def test_trait_vector_shadow_snapshot_counts_are_preserved(self) -> None:
-        """2026-08-23 Trait Ontology v2(1.5단계) §9/§13 — Shadow Snapshot Stage가 남기는
-        12개 집계 필드만 허용한다. 학생 답변 원문·Trait Signal 세부 내용(trait_id·weight·
-        related_concept_ids)은 Key 자체가 없어 구조적으로 샐 수 없다."""
+        """2026-08-23 Trait Ontology v2(1.5단계) §9/§13, 2026-08-24 2단계 §1(구조/세션
+        필드 분리) — Shadow Snapshot Stage가 남기는 집계 필드만 허용한다. 학생 답변
+        원문·Trait Signal 세부 내용(trait_id·weight·related_concept_ids)은 Key 자체가
+        없어 구조적으로 샐 수 없다."""
 
         attributes = {
-            "core_trait_count": 24, "observable_trait_count": 19, "directly_measurable_count": 12,
-            "related_only_count": 7, "not_probed_count": 5, "observed_in_session_count": 3,
+            "core_trait_count": 24, "structurally_observable_trait_count": 19,
+            "structurally_not_probed_trait_count": 5, "directly_measurable_count": 12,
+            "related_only_count": 7, "observed_in_session_count": 3, "not_observed_in_session_count": 21,
             "hypothesis_count": 1, "promoted_related_count": 1, "conflict_count": 0,
             "mapping_source_exact_count": 3, "mapping_source_legacy_adapter_count": 0,
             "mapping_missing_count": 0,
         }
         self.assertEqual(sanitize_trace_attributes(attributes), attributes)
+
+    def test_ambiguous_1_5_stage_shadow_keys_no_longer_allowlisted(self) -> None:
+        """2026-08-24 2단계 §1: observable_trait_count/not_probed_count는 이름만으로는
+        구조적 수치인지 세션 수치인지 알 수 없었고, 실제로 두 필드가 같은 값(len(observed))을
+        재사용하는 계산 버그를 숨겼다 — 완전히 제거됐는지 회귀 확인."""
+
+        self.assertNotIn("observable_trait_count", ALLOWED_TRACE_ATTRIBUTE_KEYS)
+        self.assertNotIn("not_probed_count", ALLOWED_TRACE_ATTRIBUTE_KEYS)
+        self.assertEqual(sanitize_trace_attributes({"observable_trait_count": 19}), {})
+        self.assertEqual(sanitize_trace_attributes({"not_probed_count": 5}), {})
 
     def test_trait_vector_shadow_snapshot_counts_reject_negative_or_non_int(self) -> None:
         for key in ("core_trait_count", "mapping_source_exact_count", "conflict_count"):

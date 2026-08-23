@@ -47,14 +47,32 @@ class CoverageClassificationTest(unittest.TestCase):
     def test_all_12_legacy_traits_are_directly_measurable(self) -> None:
         self.assertTrue(VERTICAL_SLICE_TRAIT_IDS <= DIRECTLY_MEASURABLE_TRAIT_IDS)
 
-    def test_no_new_trait_is_directly_measurable_this_round(self) -> None:
-        """1.5단계는 신규 Trait용 실제 PRIMARY 질문을 서빙하지 않으므로(§12, Gap 문서만
-        작성), 신규 12개 중 DIRECTLY_MEASURABLE은 0개여야 한다 — Registry에 PRIMARY로
-        등록된 신규 Trait이 하나라도 있으면 §16 금지("신규 Trait 질문 Runtime 등록")를
-        어긴 것이다."""
+    def test_exactly_the_7_direct_probe_traits_are_now_directly_measurable(self) -> None:
+        """2026-08-24 2단계 §5/§16: "구조상 직접 측정 가능"(structurally_directly_
+        measurable)은 Trait당 Direct Probe Blueprint 2개(서로 다른 Context/Frame)가
+        Registry에 등록되면 성립한다 — 실제로 서빙되는지와는 별개다(Feature Flag OFF에서도
+        구조적으로는 참이다). 이번 단계에서 Blueprint를 만든 7개 신규 Trait만 여기
+        새로 포함되고, 나머지 5개(aesthetic_sensitivity/challenge_seeking/novelty_seeking/
+        personal_goal_priority/verbal_expression)는 여전히 아니어야 한다."""
 
+        from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_TARGET_TRAIT_IDS
+
+        self.assertEqual(len(V2_DIRECT_PROBE_TARGET_TRAIT_IDS), 7)
+        self.assertTrue(V2_DIRECT_PROBE_TARGET_TRAIT_IDS <= DIRECTLY_MEASURABLE_TRAIT_IDS)
         new_trait_ids = CORE_TRAIT_IDS - VERTICAL_SLICE_TRAIT_IDS
-        self.assertEqual(new_trait_ids & DIRECTLY_MEASURABLE_TRAIT_IDS, set())
+        still_not_directly_measurable = new_trait_ids - V2_DIRECT_PROBE_TARGET_TRAIT_IDS
+        self.assertEqual(still_not_directly_measurable & DIRECTLY_MEASURABLE_TRAIT_IDS, set())
+        self.assertEqual(len(still_not_directly_measurable), 5)
+
+    def test_legacy_runtime_active_is_unaffected_by_direct_probe_blueprints(self) -> None:
+        """Direct Probe Blueprint를 아무리 추가해도 Adaptive Target Planner가 실제로
+        쓰는 집합(LEGACY_RUNTIME_ACTIVE_TRAIT_IDS)은 여전히 기존 12개 그대로여야 한다
+        — "구조적으로 측정 가능"과 "Planner가 실제로 이 Trait를 목표로 삼는다"는 이번
+        단계에서도 여전히 다른 개념이다(§20 "Planner를 24개 Trait 기준으로 전환하지
+        않는다")."""
+
+        self.assertEqual(LEGACY_RUNTIME_ACTIVE_TRAIT_IDS, set(VERTICAL_SLICE_TRAIT_IDS))
+        self.assertEqual(len(LEGACY_RUNTIME_ACTIVE_TRAIT_IDS), 12)
 
     def test_related_only_traits_are_not_mislabeled_as_active(self) -> None:
         """§7 핵심 요구사항: RELATED만 있는 신규 Trait를 Active(=DIRECTLY_MEASURABLE)로
@@ -69,13 +87,23 @@ class CoverageClassificationTest(unittest.TestCase):
         """1단계의 "role_id 2개 ≈ Frame/Context 2개" 가정이 깨졌음을 구조적으로 확인한다:
         RELATED_ONLY Trait 중 하나를 골라 실제로는 PRIMARY가 전혀 없는데도 여러 Blueprint에
         걸쳐 RELATED만 존재한다는 걸 보여준다(role_id/Blueprint 다양성이 있어도
-        DIRECTLY_MEASURABLE이 되지 않는다)."""
+        DIRECTLY_MEASURABLE이 되지 않는다). 2단계에서 systems_thinking은 Direct Probe
+        Blueprint가 생겨 DIRECTLY_MEASURABLE로 승격됐으므로, 이 사례는 여전히
+        RELATED_ONLY로 남은 aesthetic_sensitivity로 든다."""
 
-        self.assertIn("systems_thinking", RELATED_ONLY_TRAIT_IDS)
-        cap = TRAIT_PROBE_CAPABILITIES["systems_thinking"]
+        self.assertIn("aesthetic_sensitivity", RELATED_ONLY_TRAIT_IDS)
+        cap = TRAIT_PROBE_CAPABILITIES["aesthetic_sensitivity"]
         self.assertEqual(cap.primary_probe_count, 0)
         self.assertGreaterEqual(len(cap.blueprint_ids), 2)
-        self.assertNotIn("systems_thinking", DIRECTLY_MEASURABLE_TRAIT_IDS)
+        self.assertNotIn("aesthetic_sensitivity", DIRECTLY_MEASURABLE_TRAIT_IDS)
+
+    def test_systems_thinking_promoted_to_directly_measurable_via_direct_probe(self) -> None:
+        """2단계 신규: Direct Probe Blueprint 2개(서로 다른 Context·Frame)가 생기면서
+        PRIMARY Signal Blueprint 다양성 조건을 실제로 만족하게 됐는지 확인한다."""
+
+        self.assertIn("systems_thinking", DIRECTLY_MEASURABLE_TRAIT_IDS)
+        cap = TRAIT_PROBE_CAPABILITIES["systems_thinking"]
+        self.assertGreaterEqual(cap.primary_probe_count, 2)
 
 
 class TraitProbeCapabilityFieldsTest(unittest.TestCase):

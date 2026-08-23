@@ -146,17 +146,23 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     # (trait_id·weight·related_concept_ids 등)은 애초에 이 Allowlist에 Key 자체가
     # 없으므로 구조적으로 샐 수 없다(Subgraph Stage와 같은 원칙).
     "core_trait_count": _is_nonneg_int,
-    "observable_trait_count": _is_nonneg_int,
     "directly_measurable_count": _is_nonneg_int,
     "related_only_count": _is_nonneg_int,
-    "not_probed_count": _is_nonneg_int,
-    "observed_in_session_count": _is_nonneg_int,
     "hypothesis_count": _is_nonneg_int,
     "promoted_related_count": _is_nonneg_int,
     "conflict_count": _is_nonneg_int,
     "mapping_source_exact_count": _is_nonneg_int,
     "mapping_source_legacy_adapter_count": _is_nonneg_int,
     "mapping_missing_count": _is_nonneg_int,
+    # 2026-08-24 Trait Ontology v2(2단계) §1: "구조상 관찰 가능한가"(질문 Bank 자체의
+    # 정적 구조, 학생과 무관하게 항상 같은 값)와 "이 학생 세션에서 실제로 관찰됐는가"
+    # (세션마다 다른 값)를 이름으로도 명확히 구분한다 — 1.5단계의 observable_trait_count/
+    # not_probed_count는 이름만으로는 어느 쪽인지 알 수 없어서 실제로 값 계산 버그(둘 다
+    # len(observed) 재사용)를 숨겼다. 두 필드를 완전히 제거하고 아래 네 필드로 교체한다.
+    "structurally_observable_trait_count": _is_nonneg_int,
+    "structurally_not_probed_trait_count": _is_nonneg_int,
+    "observed_in_session_count": _is_nonneg_int,
+    "not_observed_in_session_count": _is_nonneg_int,
 }
 
 ALLOWED_TRACE_ATTRIBUTE_KEYS: frozenset[str] = frozenset(_VALUE_VALIDATORS.keys())

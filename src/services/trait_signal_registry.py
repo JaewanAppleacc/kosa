@@ -32,6 +32,7 @@ from __future__ import annotations
 from pydantic import ValidationError
 
 from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS
+from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
 from src.schemas.question import seed_question_to_blueprint
@@ -488,6 +489,28 @@ for _backup_list in VERTICAL_SLICE_BACKUP_QUESTIONS.values():
             _BACKUP_SIGNALS_BY_QUESTION_ID[_backup.question_id],
             known_role_ids={o.role_id for o in _backup.options},
         )
+
+
+# --- V2 Direct Probe Blueprint 14개 × Role 5개 ---
+#
+# 2026-08-24 2단계 §5/§8/§13: 5개 Role 전부 자기 Blueprint의 `primary_trait_delta`와
+# 정확히 같은 PRIMARY Signal을 그대로 등록한다(Target Role뿐 아니라 나머지 4개 Role도
+# 등록한다 — Direct Probe는 어떤 선택지를 답해도 EXACT_BLUEPRINT여야 하고
+# LEGACY_PRIMARY_ADAPTER에 의존하면 안 된다, §13). RELATED Signal은 추가하지 않는다 —
+# 근거 없이 Target Trait를 여러 선택지에 걸치게 만들지 않기 위해서다(§8).
+for _v2_bp in V2_DIRECT_PROBE_BLUEPRINTS:
+    _v2_role_signals = {
+        role.role_id: [
+            TraitSignal(trait_id=next(iter(role.primary_trait_delta)), signal_role="PRIMARY", weight=1.0)
+        ]
+        for role in _v2_bp.blueprint.roles
+    }
+    _register(
+        "v2_direct_probe",
+        _v2_bp.blueprint.blueprint_id,
+        _v2_role_signals,
+        known_role_ids={r.role_id for r in _v2_bp.blueprint.roles},
+    )
 
 
 def validate_role_signals(

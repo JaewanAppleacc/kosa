@@ -59,16 +59,18 @@ class RegistryStructureTest(unittest.TestCase):
     def test_registry_is_not_empty(self) -> None:
         self.assertTrue(_REGISTRY)
 
-    def test_registry_has_seed_tail_and_backup_entries(self) -> None:
-        """1.5단계 §2/§4: Backup Question도 이제 Registry에 등록돼 있어야 한다(1단계에서는
-        전혀 등록돼 있지 않았다 — §1 감사에서 발견한 원인 중 하나)."""
+    def test_registry_has_seed_tail_backup_and_v2_direct_probe_entries(self) -> None:
+        """1.5단계 §2/§4: Backup Question도 Registry에 등록돼 있어야 한다(1단계에서는
+        전혀 등록돼 있지 않았다 — §1 감사에서 발견한 원인 중 하나). 2단계 §5/§8: 신규
+        Trait Direct Probe Blueprint도 별도 계열("v2_direct_probe")로 등록돼 있어야
+        한다."""
 
         families = {key.question_family_id for key in _REGISTRY}
-        self.assertEqual(families, {"seed", "tail_blueprint", "backup"})
+        self.assertEqual(families, {"seed", "tail_blueprint", "backup", "v2_direct_probe"})
 
-    def test_registry_has_exactly_60_composite_keys(self) -> None:
-        # (Seed 3 + Tail Blueprint 3 + Backup 6) × Role 5개 = 60.
-        self.assertEqual(len(_REGISTRY), 60)
+    def test_registry_has_exactly_130_composite_keys(self) -> None:
+        # (Seed 3 + Tail Blueprint 3 + Backup 6 + V2 Direct Probe 14) × Role 5개 = 130.
+        self.assertEqual(len(_REGISTRY), 130)
 
     def test_full_registry_passes_validation(self) -> None:
         validate_full_registry(_KNOWN_TRAIT_IDS, _KNOWN_CONCEPT_IDS)  # 예외 없으면 통과

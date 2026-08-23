@@ -9,11 +9,12 @@ CLAUDE.md 아키텍처 불변식: "Assessment 단계에서 전공 추천 결과�
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from src.ids import generate_trace_id
-from src.schemas.evidence import ContrastResolutionRecord, EvidenceRecord, TraitEvidenceSummary
+from src.schemas.evidence import ContrastResolutionRecord, EvidenceRecord, TraitEvidenceSummary, V2ProbeOpportunity
 from src.schemas.question import FinalizedQuestion
 
 
@@ -25,6 +26,14 @@ class AssessmentPhase(str, Enum):
     QUESTION_LOOP = "QUESTION_LOOP"
     PROFILE_GENERATION = "PROFILE_GENERATION"
     DONE = "DONE"
+
+
+# 2026-08-24 Trait Ontology v2(2단계) §3 — 기존 `AssessmentPhase`(위 Enum, Legacy §5-1~
+# §5-3 전체 흐름을 가리킴)와 이름이 겹치지 않도록 별도 타입으로 둔다. Legacy 질문 흐름은
+# 여전히 `AssessmentPhase.QUESTION_LOOP` 하나로 표현되고, 이 값은 그 QUESTION_LOOP
+# "내부"에서 Legacy 검사가 끝난 뒤 v2 Direct Probe로 넘어갈지를 가리키는 서버 내부 전용
+# 하위 상태다 — 공개 API에는 절대 노출하지 않는다(§3/§19).
+V2ProbeSubPhase = Literal["LEGACY_ASSESSMENT", "V2_DIRECT_PROBE", "COMPLETE"]
 
 
 class AnsweredQuestion(BaseModel):
@@ -129,6 +138,21 @@ class AssessmentState(BaseModel):
     # 따른다). Seed·LLM·Backup 질문 모두 next_question() Handler가 이 두 필드를 채운다.
     current_question_family_id: str | None = None
     current_question_blueprint_id: str | None = None
+
+    # 2026-08-24 Trait Ontology v2(2단계) §3/§4 — Feature Flag가 꺼져 있으면 이 필드들은
+    # 전부 기본값 그대로 남고, 기존 세션 흐름·Fixture·복원에 어떤 영향도 주지 않는다.
+    v2_probe_phase: V2ProbeSubPhase = "LEGACY_ASSESSMENT"
+    # 후보 Trait 우선순위 큐 — V2_DIRECT_PROBE 진입 시 한 번 계산해서 채우고,
+    # 질문을 하나 낼 때마다 그 Trait를 꺼내 쓴다(§11 우선순위 공식은
+    # src/engines/v2_direct_probe_selector.py가 순수 함수로 계산한다).
+    pending_v2_probe_trait_ids: list[str] = []
+    v2_probe_questions_asked: int = 0
+    v2_probed_trait_ids: list[str] = []
+    current_v2_probe_target_trait_id: str | None = None
+    current_v2_probe_blueprint_id: str | None = None
+    # §10 — Target Signal을 선택하지 않았어도 "질문은 제시했다"는 사실 자체를 남긴다
+    # (Counter Evidence로 쓰지 않는다, 사용자 화면에 노출하지 않는다).
+    v2_probe_opportunities: list[V2ProbeOpportunity] = []
 
     @property
     def current_context_id(self) -> str | None:

@@ -42,6 +42,21 @@ FORBIDDEN_PHRASES: tuple[str, ...] = (
     "적성에 맞",
 )
 
+# 2026-08-24 Trait Ontology v2(2단계) §14 — Direct Probe 질문은 Trait Label을 문장에
+# 직접 노출하는 자기평가 문항이면 안 된다(§6 "당신은 구조적으로 사고하는 편인가요?" 같은
+# 나쁜 예 금지). run_quality_gate()의 `forbidden_trait_label_phrases`로 넘겨 검사한다 —
+# 팀 검토로 계속 보강해야 하는 시작 단계 목록이다(FORBIDDEN_PHRASES와 같은 성격).
+V2_DIRECT_PROBE_TRAIT_LABEL_PHRASES: tuple[str, ...] = (
+    "구조적 사고", "구조적으로 사고", "체계적으로 사고", "시스템적으로 사고",
+    "세부 지향", "detail_orientation",
+    "지속력", "완수력", "끈기 있게",
+    "불확실성 감내", "uncertainty_tolerance",
+    "의견 표명", "opinion_expression",
+    "창의적 발상", "creative_ideation",
+    "독립적 판단", "독립적으로 판단하는 편", "independent_judgment",
+    "systems_thinking", "persistence_completion",
+)
+
 
 class QuestionQualityGateResult(BaseModel):
     passed: bool
@@ -51,6 +66,7 @@ class QuestionQualityGateResult(BaseModel):
 def run_quality_gate(
     question: FinalizedQuestion,
     previous_question_texts: list[str] | None = None,
+    forbidden_trait_label_phrases: tuple[str, ...] | None = None,
 ) -> QuestionQualityGateResult:
     failures: list[str] = []
     previous_question_texts = previous_question_texts or []
@@ -72,6 +88,9 @@ def run_quality_gate(
     for phrase in FORBIDDEN_PHRASES:
         if phrase in all_text:
             failures.append(f"금지 표현 포함: {phrase!r}")
+    for phrase in forbidden_trait_label_phrases or ():
+        if phrase in all_text:
+            failures.append(f"Trait Label 직접 노출: {phrase!r}")
 
     if question.question_text.strip() in {t.strip() for t in previous_question_texts}:
         failures.append("이전 질문과 문구가 동일함(반복 금지, §10 생성 원칙)")

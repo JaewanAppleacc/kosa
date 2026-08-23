@@ -44,6 +44,12 @@ class TraitVectorEntry(BaseModel):
         "no_evidence", "explicit_conflict",
     ]
     status: TraitVectorStatus
+    # 2026-08-24 2단계 §10 — Target Trait 질문이 제시된 횟수와, 그중 실제로 Target
+    # Signal이 선택된 횟수. `target_signal_selected=False`는 부정 Evidence가 아니다 —
+    # "직접 질문했지만 이 답변에서는 확인 안 됨"이라는 사실만 담는다. 기본값 0이라
+    # Direct Probe를 모르는 기존 호출자는 이 필드를 몰라도 된다.
+    direct_probe_opportunity_count: int = 0
+    direct_probe_primary_evidence_count: int = 0
 
 
 class TraitVectorSnapshot(BaseModel):

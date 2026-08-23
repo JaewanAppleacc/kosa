@@ -24,6 +24,7 @@ OpenAPI 문서: http://127.0.0.1:8000/docs (자동 생성, B에게 줄 명세 �
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -38,6 +39,7 @@ from src.agents.assessment.answer_processor import submit_answer as process_answ
 from src.agents.assessment.profile_generator import generate_career_profile
 from src.agents.assessment.graph.question_generation_graph import classify_generation_failure
 from src.agents.assessment.question_generator import generate_tail_question
+from src.agents.assessment.v2_direct_probe_generator import generate_v2_direct_probe_question
 from src.api import mock_data
 from src.data.conflicts.vertical_slice_contrast_definitions import VERTICAL_SLICE_CONTRAST_DEFINITIONS
 from src.data.conflicts.vertical_slice_conflict_resolution_questions import (
@@ -54,6 +56,7 @@ from src.data.trait_ontology.trait_probe_capabilities_v2 import (
     CORE_TRAIT_IDS,
     DIRECTLY_MEASURABLE_TRAIT_IDS,
     NOT_PROBED_TRAIT_IDS,
+    OBSERVABLE_TRAIT_IDS,
     RELATED_ONLY_TRAIT_IDS,
 )
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
@@ -75,7 +78,8 @@ from src.engines.matching_engine import (
     rank_major_relevance,
 )
 from src.engines.trait_vector_snapshot_engine import compute_trait_vector_snapshot_all
-from src.ids import generate_question_id, generate_session_id
+from src.engines.v2_direct_probe_selector import select_blueprint_for_trait, select_v2_probe_candidates
+from src.ids import generate_evidence_id, generate_question_id, generate_session_id
 from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
 from src.llm.settings import LLMSettingsError, llm_generation_enabled, load_chat_llm_settings
@@ -106,8 +110,10 @@ from src.services.knowledge_subgraph_service import (
     SubgraphEvidenceNotReadyError,
 )
 from src.services.major_exploration_service import MajorExplorationService
+from src.services.feature_flags import MAX_V2_DIRECT_PROBE_QUESTIONS, trait_vector_v2_direct_probes_enabled
 from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
 from src.services.subject_trait_mapping_evidence import load_subject_trait_mapping_evidence
+from src.services.trait_signal_registry import resolve_trait_signals
 from src.services.trait_vector_shadow_repository import InMemoryTraitVectorShadowRepository
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
@@ -140,9 +146,16 @@ from src.schemas.api import (
     SubgraphResponse,
     SubjectsResponse,
 )
-from src.schemas.assessment_state import AssessmentPhase, AssessmentState
-from src.schemas.evidence import EvidenceOrigin
+from src.schemas.assessment_state import AnsweredQuestion, AssessmentPhase, AssessmentState
+from src.schemas.evidence import AppliedTraitSignal, EvidenceOrigin, EvidenceRecord, V2ProbeOpportunity
 from src.schemas.trait_vector_snapshot import TraitVectorSnapshot
+
+# 2026-08-24 Trait Ontology v2(2단계) §2 — Shadow 계산 실패는 계속 Fail-Open이지만
+# 완전히 조용하지는 않는다: 예외 "종류"만(원인 파악용) 내부 로그에 남긴다. 학생 데이터
+# (user_id/session_id/답변·질문·선택지 원문/Trait Vector 전체값/API Key/Trace 원본)는
+# 로그 인자에 절대 넣지 않는다 — 아래 handler의 logger.warning() 호출이 예외 타입
+# 이름(exc.__class__.__name__)만 %s로 넘기는지 코드 리뷰·테스트로 고정한다.
+_logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AI 진로·학업설계 Agent API",
@@ -315,6 +328,225 @@ def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
         return True
     state.phase = AssessmentPhase.PROFILE_GENERATION
     return False
+
+
+def _compute_v2_snapshot(state: AssessmentState) -> dict:
+    """Legacy 판정(`compute_student_trait_states`)과 v2 Trait Vector Snapshot을 한 번에
+    계산하는 공용 헬퍼 — `/profile`의 Shadow 기록과 V2 Direct Probe 후보 선택·종료 조건
+    판단이 똑같은 계산을 중복 구현하지 않게 한다(§9 "동일 Evidence로 재계산하면 동일
+    결과"를 자연히 만족한다 — 계산 로직이 한 곳뿐이므로)."""
+
+    legacy_states = compute_student_trait_states(
+        state.trait_summaries, TRAIT_DEFINITIONS_BY_ID,
+        unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
+        resolutions=state.contrast_resolutions,
+    )
+    return compute_trait_vector_snapshot_all(
+        state.evidence_ledger, legacy_states, state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS,
+        v2_probe_opportunities=state.v2_probe_opportunities,
+    )
+
+
+def _v2_probe_should_continue(state: AssessmentState) -> bool:
+    """2단계 §12 종료 조건: 안전 상한(MAX_V2_DIRECT_PROBE_QUESTIONS) 도달, 후보 Trait
+    없음, 준비된 Blueprint 없음(Context 불일치) 중 하나라도 해당하면 종료한다. 순수하게
+    현재 State에서 다시 계산한다 — 별도 캐시를 유지하지 않는다(Legacy Planner와 같은
+    "매번 다시 계산" 패턴)."""
+
+    if state.v2_probe_questions_asked >= MAX_V2_DIRECT_PROBE_QUESTIONS:
+        return False
+    v2_snapshot = _compute_v2_snapshot(state)
+    candidates = select_v2_probe_candidates(v2_snapshot, set(state.v2_probed_trait_ids))
+    used_frame_ids = {o.frame_id for o in state.v2_probe_opportunities}
+    return any(
+        select_blueprint_for_trait(trait_id, state.final_contexts, used_frame_ids) is not None
+        for trait_id in candidates
+    )
+
+
+def _enter_v2_direct_probe_phase_if_applicable(state: AssessmentState) -> bool:
+    """2단계 §3/§4/§6 — Legacy 검사가 방금 끝난 시점에만 호출된다. Feature Flag가
+    꺼져 있으면 아무것도 건드리지 않고 즉시 False를 반환한다(기존 동작 완전 유지가
+    최우선이라, State 필드 하나도 건드리지 않는 편이 "OFF에서는 기존 결과가 완전히
+    유지돼야 한다"는 완료 조건을 가장 단순하게 보증한다)."""
+
+    if not trait_vector_v2_direct_probes_enabled():
+        return False
+    if _v2_probe_should_continue(state):
+        state.v2_probe_phase = "V2_DIRECT_PROBE"
+        return True
+    state.v2_probe_phase = "COMPLETE"
+    return False
+
+
+def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestionResponse":
+    """2단계 §5/§7/§11/§13 — 다음 V2 Direct Probe 질문을 낸다. 후보·Blueprint가 더 이상
+    없으면 그 자리에서 세션을 완료 처리한다(§12)."""
+
+    v2_snapshot = _compute_v2_snapshot(state)
+    candidates = select_v2_probe_candidates(v2_snapshot, set(state.v2_probed_trait_ids))
+    used_frame_ids = {o.frame_id for o in state.v2_probe_opportunities}
+    state.pending_v2_probe_trait_ids = candidates
+
+    chosen_trait_id: str | None = None
+    chosen_blueprint = None
+    if state.v2_probe_questions_asked < MAX_V2_DIRECT_PROBE_QUESTIONS:
+        for trait_id in candidates:
+            blueprint = select_blueprint_for_trait(trait_id, state.final_contexts, used_frame_ids)
+            if blueprint is not None:
+                chosen_trait_id, chosen_blueprint = trait_id, blueprint
+                break
+
+    if chosen_blueprint is None:
+        # §12: 후보 Trait 없음 / 준비된 Blueprint 없음 / 안전 상한 도달 — 전부 여기로 모인다.
+        state.v2_probe_phase = "COMPLETE"
+        state.phase = AssessmentPhase.PROFILE_GENERATION
+        state.current_question = None
+        _store.save(state)
+        return NextQuestionResponse(
+            session_id=state.session_id,
+            status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED,
+            question=None,
+            current_context_id=None,
+            questions_asked_in_current_context=state.questions_asked_in_current_context,
+            assessment_complete=True,
+        )
+
+    question_context = next(c for c in chosen_blueprint.allowed_context_ids if c in state.final_contexts)
+    question_id = generate_question_id(question_context, "v2_probe", state.v2_probe_questions_asked + 1)
+    outcome = generate_v2_direct_probe_question(
+        question_id=question_id,
+        context_definition=CONTEXT_DEFINITIONS_BY_ID[question_context],
+        blueprint=chosen_blueprint,
+        llm_client=_llm_client,
+    )
+    question = outcome.question
+    state.current_question = question
+    state.current_question_family_id = "v2_direct_probe"
+    state.current_question_blueprint_id = chosen_blueprint.blueprint.blueprint_id
+    state.current_v2_probe_target_trait_id = chosen_trait_id
+    state.current_v2_probe_blueprint_id = chosen_blueprint.blueprint.blueprint_id
+    _store.save(state)
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="V2 Direct Probe Question Generator",
+        attributes={
+            "graph_node": "v2_direct_probe_question_generator",
+            "context_id": question_context,
+            "frame_id": chosen_blueprint.question_frame_id,
+            "blueprint_id": chosen_blueprint.blueprint.blueprint_id,
+            "source": outcome.source,
+        },
+    )
+
+    return NextQuestionResponse(
+        session_id=state.session_id,
+        status=QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED,
+        question=question,
+        current_context_id=question_context,
+        questions_asked_in_current_context=state.questions_asked_in_current_context,
+        assessment_complete=False,
+    )
+
+
+def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: str) -> "AnswerResponse":
+    """2단계 §9/§10 — Direct Probe 답변은 Legacy `process_answer_submission`을 절대
+    거치지 않는다(Legacy Evidence·Conflict·Stop Condition·Planner 상태·Coverage 카운터
+    전부 미오염, §9 금지 목록). `resolve_trait_signals()`가 항상 `EXACT_BLUEPRINT`를
+    반환해야 한다 — Direct Probe Blueprint는 5개 Role 전부 Registry에 등록돼 있다
+    (§13 "LEGACY_PRIMARY_ADAPTER에 의존하지 마세요")."""
+
+    question = state.current_question
+    selected = next((o for o in question.options if o.option_id == selected_option_id), None)
+    if selected is None:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=f"selected_option_id {selected_option_id!r}가 질문 {question.question_id!r}의 선택지 목록에 없습니다.",
+            ).model_dump(),
+        )
+
+    resolution = resolve_trait_signals(
+        question_family_id="v2_direct_probe",
+        blueprint_id=state.current_question_blueprint_id or "",
+        role_id=selected.role_id,
+        legacy_primary_trait_delta=selected.primary_trait_delta,
+        is_resolution_question=False,
+    )
+    applied_signals = [
+        AppliedTraitSignal(
+            trait_id=s.trait_id, signal_role=s.signal_role, weight=s.weight,
+            related_concept_ids=s.related_concept_ids,
+        )
+        for s in resolution.signals
+    ]
+
+    evidence = EvidenceRecord(
+        evidence_id=generate_evidence_id(),
+        answer_id=f"ans_{question.question_id}_{len(state.answers) + 1:02d}",
+        question_id=question.question_id,
+        question_frame_id=question.frame_id,
+        option_role_id=selected.role_id,
+        option_text=selected.text,
+        applied_primary_trait_delta=selected.primary_trait_delta,
+        applied_trait_signals_v2=applied_signals,
+        trait_signal_mapping_source_v2=resolution.mapping_source,
+        evidence_origin=EvidenceOrigin.V2_DIRECT_PROBE,
+        context=question.context,
+        source_type="v2_direct_probe_question",
+        generator_version="v1",
+        quality_gate_status="passed",
+    )
+    state.evidence_ledger.append(evidence)
+    state.answers.append(
+        AnsweredQuestion(
+            question_id=question.question_id, selected_option_id=selected.option_id,
+            selected_role_id=selected.role_id,
+        )
+    )
+
+    target_trait_id = state.current_v2_probe_target_trait_id or ""
+    target_signal_selected = any(
+        s.trait_id == target_trait_id and s.signal_role == "PRIMARY" for s in resolution.signals
+    )
+    state.v2_probe_opportunities.append(
+        V2ProbeOpportunity(
+            question_id=question.question_id,
+            blueprint_id=state.current_question_blueprint_id or "",
+            target_trait_id=target_trait_id,
+            context_id=question.context,
+            frame_id=question.frame_id,
+            selected_option_id=selected.option_id,
+            target_signal_selected=target_signal_selected,
+        )
+    )
+    state.v2_probe_questions_asked += 1
+    if target_trait_id:
+        state.v2_probed_trait_ids.append(target_trait_id)
+    state.current_v2_probe_target_trait_id = None
+    state.current_v2_probe_blueprint_id = None
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="V2 Direct Probe Evidence Update",
+        attributes={
+            "graph_node": "v2_direct_probe_evidence_update",
+            "context_id": evidence.context,
+            "role_id": evidence.option_role_id,
+        },
+    )
+
+    if _v2_probe_should_continue(state):
+        next_action = "NEXT_QUESTION"
+    else:
+        state.v2_probe_phase = "COMPLETE"
+        state.phase = AssessmentPhase.PROFILE_GENERATION
+        next_action = "ASSESSMENT_COMPLETE"
+
+    _store.save(state)
+    return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
 
 def _get_state_or_404(session_id: str) -> AssessmentState:
@@ -509,6 +741,15 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
 @app.post("/assessment/next-question", response_model=NextQuestionResponse)
 def next_question(session_id: str) -> NextQuestionResponse:
     state = _get_state_or_404(session_id)
+
+    # 2026-08-24 Trait Ontology v2(2단계) §3: Legacy Context 반복이 모두 끝난 뒤에만
+    # 이 Phase로 들어온다 — Feature Flag가 꺼져 있으면 이 Phase에 절대 진입하지 않으므로
+    # (submit_answer의 _enter_v2_direct_probe_phase_if_applicable), 이 분기 자체가
+    # OFF에서는 죽은 코드나 마찬가지다. `state.current_context_id`가 이미 범위 밖(None)
+    # 이라 아래 일반 분기보다 먼저 확인해야 한다.
+    if state.v2_probe_phase == "V2_DIRECT_PROBE":
+        return _serve_next_v2_direct_probe_question(state)
+
     current_context = state.current_context_id
     if current_context is None:
         raise HTTPException(
@@ -606,6 +847,11 @@ def next_question(session_id: str) -> NextQuestionResponse:
             # 뜻이라 조용히 넘기지 않고 상태를 남긴다.
             has_next_context = _advance_to_next_context_or_complete(state)
             state.current_question = None
+            assessment_complete = not has_next_context
+            # 2026-08-24 2단계 §3: 이 Context 조기 종료가 마지막 Legacy Context였다면,
+            # 일반 STOP 경로와 동일하게 v2 Direct Probe 진입 여부를 확인한다.
+            if not has_next_context and _enter_v2_direct_probe_phase_if_applicable(state):
+                assessment_complete = False
             _store.save(state)
             return NextQuestionResponse(
                 session_id=session_id,
@@ -613,7 +859,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
                 question=None,
                 current_context_id=state.current_context_id,
                 questions_asked_in_current_context=state.questions_asked_in_current_context,
-                assessment_complete=not has_next_context,
+                assessment_complete=assessment_complete,
             )
         question = outcome.question
         state.generated_question_texts_in_current_context.append(question.question_text)
@@ -681,6 +927,10 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
             ).model_dump(),
         )
 
+    # 2026-08-24 2단계 §9: Direct Probe 질문 답변은 Legacy 파이프라인을 완전히 우회한다.
+    if state.current_question_family_id == "v2_direct_probe":
+        return _submit_v2_direct_probe_answer(state, payload.selected_option_id)
+
     is_first_context_in_session = state.current_context_index == 0
     result = process_answer_submission(
         state,
@@ -720,7 +970,16 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
 
     if result.stop_decision == "STOP":
         has_next_context = _advance_to_next_context_or_complete(state)
-        next_action = "CONTEXT_COMPLETE" if has_next_context else "ASSESSMENT_COMPLETE"
+        if has_next_context:
+            next_action = "CONTEXT_COMPLETE"
+        elif _enter_v2_direct_probe_phase_if_applicable(state):
+            # 2026-08-24 2단계 §3/§4: Legacy가 방금 끝났고 Feature Flag가 켜져 있으며
+            # 실제로 서빙 가능한 v2 후보가 있을 때만 여기로 온다 — B는 그냥 다음
+            # next-question을 호출하면 된다(§19 "B가 v2 Phase를 알아야만 동작하는
+            # 구조를 만들지 않는다").
+            next_action = "NEXT_QUESTION"
+        else:
+            next_action = "ASSESSMENT_COMPLETE"
     else:
         decision = result.next_planner_decision
         state.pending_target_traits = decision.target_traits if decision else []
@@ -802,31 +1061,34 @@ def _compute_and_store_trait_vector_shadow_snapshot(state: AssessmentState) -> N
     건너뛴다 — 세션 진행에는 영향이 없다."""
 
     try:
-        legacy_states = compute_student_trait_states(
-            state.trait_summaries,
-            TRAIT_DEFINITIONS_BY_ID,
-            unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
-            resolutions=state.contrast_resolutions,
-        )
-        entries = compute_trait_vector_snapshot_all(
-            state.evidence_ledger, legacy_states, state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS
-        )
+        entries = _compute_v2_snapshot(state)
         snapshot = TraitVectorSnapshot(entries=entries)
         _trait_vector_shadow_repository.save(state.session_id, snapshot)
 
-        observed = [e for e in entries.values() if e.evidence_confidence != "no_evidence"]
-        primary_records = [r for r in state.evidence_ledger if r.evidence_origin == EvidenceOrigin.PRIMARY_BLUEPRINT]
+        # 2026-08-24 2단계 §1: "구조상 관찰 가능한가"(질문 Bank 자체의 정적 구조,
+        # OBSERVABLE_TRAIT_IDS/NOT_PROBED_TRAIT_IDS — 학생과 무관하게 항상 같은 값)와
+        # "이 학생 세션에서 실제로 관찰됐는가"(evidence_confidence 기준, 세션마다 다름)는
+        # 서로 다른 질문이다. 1.5단계는 이 둘을 같은 값(len(observed))으로 잘못 채웠다 —
+        # 네 필드로 명확히 분리한다.
+        observed_in_session = [e for e in entries.values() if e.evidence_confidence != "no_evidence"]
+        # mapping_source 집계는 PRIMARY_BLUEPRINT(Legacy)와 V2_DIRECT_PROBE(신규 Trait)
+        # 둘 다 "일반 질문"이다 — Conflict Resolution만 제외한다.
+        primary_records = [
+            r for r in state.evidence_ledger
+            if r.evidence_origin in (EvidenceOrigin.PRIMARY_BLUEPRINT, EvidenceOrigin.V2_DIRECT_PROBE)
+        ]
         _tracer.record_stage(
             trace_id=state.trace_id,
             stage_name="Trait Vector Shadow Snapshot",
             attributes={
                 "graph_node": "trait_vector_shadow_snapshot",
                 "core_trait_count": len(CORE_TRAIT_IDS),
-                "observable_trait_count": len(observed),
+                "structurally_observable_trait_count": len(OBSERVABLE_TRAIT_IDS),
+                "structurally_not_probed_trait_count": len(NOT_PROBED_TRAIT_IDS),
                 "directly_measurable_count": len(DIRECTLY_MEASURABLE_TRAIT_IDS),
                 "related_only_count": len(RELATED_ONLY_TRAIT_IDS),
-                "not_probed_count": len(NOT_PROBED_TRAIT_IDS),
-                "observed_in_session_count": len(observed),
+                "observed_in_session_count": len(observed_in_session),
+                "not_observed_in_session_count": len(CORE_TRAIT_IDS) - len(observed_in_session),
                 "hypothesis_count": sum(1 for e in entries.values() if e.status == "HYPOTHESIS"),
                 "promoted_related_count": sum(
                     1 for e in entries.values() if e.evidence_confidence == "promoted_related_signal"
@@ -843,11 +1105,13 @@ def _compute_and_store_trait_vector_shadow_snapshot(state: AssessmentState) -> N
                 ),
             },
         )
-    except Exception:
+    except Exception as exc:
         # Fail-Open — Shadow 계산·기록 실패가 Career Profile 응답에 영향을 주면 안 된다.
         # 이미 위에서 `profile`을 계산·반환하기로 확정한 뒤에만 이 함수를 호출하므로,
-        # 여기서 무엇이 실패해도 되돌릴 결과가 없다(부수 효과만 실패할 뿐이다).
-        pass
+        # 여기서 무엇이 실패해도 되돌릴 결과가 없다(부수 효과만 실패할 뿐이다). 다만
+        # 2단계 §2: 완전히 조용히 삼키지 않는다 — 예외 "종류"만 로그로 남긴다(학생 데이터·
+        # session_id·Trait Vector 값은 절대 로그 인자에 넣지 않는다).
+        _logger.warning("trait vector shadow calculation failed: %s", type(exc).__name__)
 
 
 @app.get("/majors/{session_id}", response_model=MajorsResponse)
