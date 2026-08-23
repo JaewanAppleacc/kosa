@@ -118,14 +118,15 @@ class OpenAIEmbedder:
 
 
 def default_embedder() -> Embedder:
-    """환경변수가 갖춰졌으면 OpenAI, 아니면 오프라인 기본값.
+    """명시적 opt-in과 환경변수가 모두 갖춰졌으면 OpenAI, 아니면 오프라인 기본값.
 
     §10 질문 생성이 `ENABLE_LLM_QUESTION_GENERATION`으로 실수 호출을 막는 것과 같은
     이유로, Key가 없으면 조용히 오프라인 임베더로 떨어진다 — 테스트가 네트워크를
     치지 않게 하려는 안전장치다.
     """
 
-    if os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_EMBEDDING_MODEL"):
+    enabled = os.getenv("ENABLE_OPENAI_EMBEDDING", "").strip().lower() in {"1", "true", "yes"}
+    if enabled and os.getenv("OPENAI_API_KEY") and os.getenv("OPENAI_EMBEDDING_MODEL"):
         try:
             return OpenAIEmbedder()
         except Exception:  # noqa: BLE001 — 임베더 하나 못 만든 걸로 파이프라인을 멈추지 않는다

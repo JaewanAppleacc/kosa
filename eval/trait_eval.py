@@ -54,6 +54,9 @@ def build_evidence_records(
                 question_id=answer.question_id,
                 question_frame_id=answer.question_frame_id,
                 option_role_id=answer.selected_role_id,
+                # PersonaAnswer(§26 Fixture)는 실제 선택지 문장을 담지 않는다 — 손계산
+                # 검증용 자리표시자임을 명시한다.
+                option_text=f"[Fixture] {answer.selected_role_id}",
                 applied_primary_trait_delta=role.primary_trait_delta,
                 evidence_origin=EvidenceOrigin.PRIMARY_BLUEPRINT,
                 context=answer.context_id,

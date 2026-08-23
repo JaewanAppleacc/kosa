@@ -57,11 +57,44 @@ _XLSX_NAMESPACE = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 _FUZZY_THRESHOLD = 0.82
 
 # 편제표에서 과목명 칸이 아닌 게 확실한 값들. 이걸 후보로 올리면 확인 UI가 쓰레기로 찬다.
+# 2026-08-28 18차 리뷰: 실제 편제표는 "교과(군)"처럼 괄호로 보조표기를 붙이거나
+# "이수 단위"처럼 띄어 쓴 열 제목을 쓴다 — 여기 적힌 값은 원형(괄호·공백 없는 형태)
+# 이고, 실제 비교는 `_NORMALIZED_NON_SUBJECT_TOKENS`(아래, `normalize_table_header_token`
+# 을 통과시킨 값)로 한다. 일부 항목(예: "교과(군)")은 정규화하면 이미 있는 항목(
+# "교과군")과 같아져 중복이지만, 실제 문서에 흔한 표기를 그대로 남겨 이 목록만 봐도
+# 무엇을 막으려는지 알 수 있게 했다.
 _NON_SUBJECT_TOKENS = {
-    "교과", "교과군", "과목", "과목명", "구분", "학년", "학기", "단위", "이수단위",
-    "이수", "계", "합계", "소계", "비고", "필수", "선택", "공통", "일반선택",
-    "진로선택", "융합선택", "전문교과", "학점", "총계", "학년도", "학교",
+    "교과", "교과군", "교과(군)", "과목", "과목명", "과목(명)", "구분", "학년", "학기",
+    "단위", "이수단위", "이수 단위", "이수(단위)", "이수", "계", "합계", "소계", "비고",
+    "필수", "선택", "선택구분", "선택 구분", "공통", "일반선택", "진로선택", "융합선택",
+    "전문교과", "학점", "학점수", "학점 수", "총계", "학년도", "학교", "학년학기",
+    "학년(학기)", "학년/학기", "개설학기", "개설 학기",
     "1학년", "2학년", "3학년", "1학기", "2학기",
+}
+
+
+def normalize_table_header_token(value: str) -> str:
+    """편제표 셀이 "표 제목"인지 판정할 때만 쓰는 보수적인 정규화(2026-08-28 18차 리뷰).
+
+    `normalize_subject_name()`(Canonical 과목명 비교용)과는 목적이 다르다 — 로마숫자
+    변환이나 Alias Matching에는 절대 쓰지 않는다. "교과(군)" 같은 실제 열 제목이 예전엔
+    원문 그대로 `_NON_SUBJECT_TOKENS`와 비교돼(`교과군`과 다른 문자열이라) 제외되지
+    않고 그대로 unmatched 후보로 노출됐다 — 이 함수가 그 틈을 메운다.
+
+    처리 범위: Unicode NFKC 정규화 → 앞뒤 공백 제거 → 괄호 `()` 안의 짧은 보조표기를
+    본문에 그대로 붙임("교과(군)" → "교과군", "이수(단위)" → "이수단위") → 내부에 남은
+    공백을 전부 제거("이수 단위" → "이수단위"). 슬래시(`/`) 등 다른 구분자는 건드리지
+    않는다 — "학년/학기"처럼 실제로 쓰이는 표기는 `_NON_SUBJECT_TOKENS`에 그 형태 그대로
+    등록해 대응한다(추측성 일반화를 하지 않는다)."""
+
+    text = unicodedata.normalize("NFKC", value).strip()
+    text = re.sub(r"\s*\(([^()]*)\)", r"\1", text)
+    text = re.sub(r"\s+", "", text)
+    return text
+
+
+_NORMALIZED_NON_SUBJECT_TOKENS = {
+    normalize_table_header_token(value) for value in _NON_SUBJECT_TOKENS
 }
 _NUMBER_ONLY = re.compile(r"^[\d\s./%()-]+$")
 # 로마숫자 접미 → 아라비아 숫자. **긴 것부터** 대조해야 한다 — "II"를 "I"로 먼저 잘라내면
@@ -169,7 +202,15 @@ def _looks_like_subject(text: str) -> bool:
     stripped = text.strip()
     if len(stripped) < 2 or len(stripped) > 30:
         return False
+    # 2026-08-28 18차 리뷰: 원문 그대로("교과(군)")와 표 제목 정규화 결과("교과군") 둘 다
+    # 확인한다 — `_NORMALIZED_NON_SUBJECT_TOKENS`가 정규화된 상위집합이라 뒤 검사만으로도
+    # 충분하지만, 원문 직접 비교를 남겨 기존 동작을 그대로 보존한다. 전체 문자열이 표
+    # 제목 토큰과 "정확히" 일치할 때만 제외한다 — 부분 문자열 포함 여부로는 절대 거르지
+    # 않는다("정체불명 과목ABC" 같은 실제 확인 필요 값이 "과목"을 포함한다는 이유로
+    # 사라지면 안 된다).
     if stripped in _NON_SUBJECT_TOKENS:
+        return False
+    if normalize_table_header_token(stripped) in _NORMALIZED_NON_SUBJECT_TOKENS:
         return False
     if _NUMBER_ONLY.match(stripped):
         return False

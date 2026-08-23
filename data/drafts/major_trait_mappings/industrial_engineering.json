@@ -1,0 +1,39 @@
+{
+  "draft_entry": {
+    "draft_id": "major_trait_mapping_industrial_engineering_v1",
+    "draft_type": "major_trait_mapping",
+    "author_id": "worker_a",
+    "review_stage": "DRAFT",
+    "source_url": null,
+    "as_of_date": "2026-08-22",
+    "notes": "실제 학과 공식 자료(교육목표·교과과정) 근거는 data/master/major_trait_mapping_evidence.jsonl 참고. EVIDENCED/NO_DIRECT_EVIDENCE Trait만 Vector에 반영했고, UNMAPPED/REVIEW_REQUIRED Trait는 Vector Key 자체에서 뺐다."
+  },
+  "major_id": "industrial_engineering",
+  "label": "산업공학",
+  "source": "major_trait_mapping_evidence.jsonl (Evidence 기반, A 소유)",
+  "derived_profile": {
+    "major_id": "industrial_engineering",
+    "label": "산업공학",
+    "interest_vector": {},
+    "cognitive_vector": {
+      "causal_analysis": 1.0,
+      "pattern_finding": 0.67,
+      "information_comparison": 1.0
+    },
+    "work_style_vector": {
+      "planning": 1.0
+    },
+    "environment_vector": {
+      "tool_utilization": 0.67
+    },
+    "source_ids": [
+      "https://ie.khu.ac.kr/",
+      "https://ie.korea.ac.kr/",
+      "https://iise.ssu.ac.kr/"
+    ],
+    "extraction_method": "rule",
+    "review_status": "draft",
+    "profile_version": "major_trait_mapping_v1",
+    "updated_at": "2026-08-22T00:00:00Z"
+  }
+}

@@ -2,39 +2,66 @@
   "draft_entry": {
     "draft_id": "subject_trait_mapping_subj_d9e5930c60201a2739563435",
     "draft_type": "subject_trait_mapping",
-    "author_id": "worker_c",
+    "author_id": "worker_a",
     "review_stage": "DRAFT",
-    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
-    "as_of_date": "2026-08-21",
-    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+    "source_url": null,
+    "as_of_date": "2026-08-24",
+    "notes": "실제 2022 개정 교육과정(교육부 고시 제2022-33호) 공식 성취기준 근거는 data/master/subject_trait_mapping_evidence.jsonl, 전공 연결 근거는 data/master/subject_major_link_evidence.jsonl 참고. UNMAPPED/REVIEW_REQUIRED Trait·전공은 Vector·related_major_ids에서 뺐다(공식 근거를 찾지 못함 ≠ 중요도 0/관련 없음)."
   },
   "subject_id": "subj_d9e5930c60201a2739563435",
   "label": "매체 의사소통",
   "subject_group": "국어",
   "subject_category": "융합선택",
   "curriculum_code": "2022-33",
-  "trait_grades": {
-    "audience_response_prediction": 3,
-    "visual_expression": 2,
-    "change_adaptation": 2
-  },
-  "rationale": "매체 수용자와 매체 변화 자체를 다루므로 반응 예측 3, 변화 대응 2.",
+  "trait_evidence_summary": [
+    {
+      "trait_id": "audience_response_prediction",
+      "mapping_status": "EVIDENCED",
+      "grade": 3
+    },
+    {
+      "trait_id": "change_adaptation",
+      "mapping_status": "UNMAPPED",
+      "grade": null
+    },
+    {
+      "trait_id": "information_comparison",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "visual_expression",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    }
+  ],
+  "major_link_summary": [
+    {
+      "major_id": "hci_ux",
+      "link_status": "REVIEW_REQUIRED"
+    },
+    {
+      "major_id": "media_communication",
+      "link_status": "RELATED"
+    }
+  ],
   "related_major_ids": [
-    "media_communication",
-    "design"
+    "design",
+    "media_communication"
   ],
   "derived_profile": {
     "subject_id": "subj_d9e5930c60201a2739563435",
     "label": "매체 의사소통",
     "trait_vector": {
       "audience_response_prediction": 1.0,
-      "visual_expression": 0.67,
-      "change_adaptation": 0.67
+      "information_comparison": 0.67,
+      "visual_expression": 0.67
     },
     "related_major_ids": [
-      "media_communication",
-      "design"
+      "design",
+      "media_communication"
     ],
-    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+    "activity_summary": "매체 자료의 재현 방식과 생산자 의도를 분석하는 활동"
   }
 }

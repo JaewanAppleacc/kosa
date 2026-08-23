@@ -6,9 +6,10 @@ import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from src.rag.chunk import chunk_document, deduplicate, find_section_title, split_text
-from src.rag.embed import HashingEmbedder, VectorIndex, cosine_similarity
+from src.rag.embed import HashingEmbedder, OpenAIEmbedder, VectorIndex, cosine_similarity, default_embedder
 from src.rag.ingest import (
     DocumentManifest,
     DocumentSource,
@@ -101,6 +102,29 @@ class ChunkTest(unittest.TestCase):
 
 
 class EmbedTest(unittest.TestCase):
+    def test_default_embedder_requires_explicit_network_opt_in(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {"OPENAI_API_KEY": "configured", "OPENAI_EMBEDDING_MODEL": "configured"},
+            clear=True,
+        ):
+            self.assertIsInstance(default_embedder(), HashingEmbedder)
+
+    def test_default_embedder_uses_openai_only_when_explicitly_enabled(self) -> None:
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "OPENAI_API_KEY": "configured",
+                    "OPENAI_EMBEDDING_MODEL": "configured",
+                    "ENABLE_OPENAI_EMBEDDING": "true",
+                },
+                clear=True,
+            ),
+            patch.object(OpenAIEmbedder, "__init__", return_value=None),
+        ):
+            self.assertIsInstance(default_embedder(), OpenAIEmbedder)
+
     def test_embedding_is_deterministic_and_normalized(self) -> None:
         embedder = HashingEmbedder(dimension=64)
         first = embedder.embed(["컴퓨터공학부"])[0]

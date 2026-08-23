@@ -1,54 +1,60 @@
 {
-  "session_id": "sess_2abcb37e7f5941d4bae13df3341c33f6",
+  "session_id": "sess_00000000000000000000000000000000",
   "status": "GENERATED",
   "question": {
     "question_id": "game_seed_01",
     "context": "game",
     "target_traits": [],
     "frame_id": "seed_frame",
-    "question_text": "게임을 할 때 가장 흥미를 느끼는 부분은 무엇인가요?",
+    "question_text": "게임을 할 때 가장 재미있다고 느끼는 순간은 언제인가요?",
     "options": [
       {
         "option_id": "game_seed_01_o1",
         "role_id": "strategy_analysis",
-        "text": "왜 이 전략이 통하는지 원리를 파악하는 것",
+        "text": "왜 이런 결과가 나왔는지 이유와 원리를 알아가는 순간",
         "primary_trait_delta": {
           "causal_analysis": 1
-        }
+        },
+        "next_probe": "원인 분석을 더 깊이 파고드는 경향인지 확인"
       },
       {
         "option_id": "game_seed_01_o2",
         "role_id": "quick_execution",
-        "text": "일단 해보면서 방법을 찾아가는 것",
+        "text": "직접 여러 방법을 시도하면서 새로운 방법을 찾는 순간",
         "primary_trait_delta": {
           "immediate_execution": 1
-        }
+        },
+        "next_probe": "즉시 실행 성향이 새로운 상황에서도 이어지는지 확인"
       },
       {
         "option_id": "game_seed_01_o3",
         "role_id": "team_coordination",
-        "text": "같이 하는 사람들과 역할을 맞춰가는 것",
+        "text": "친구들과 역할을 나누고 함께 해결해가는 순간",
         "primary_trait_delta": {
           "collaboration_preference": 1
-        }
+        },
+        "next_probe": "협업 상황에서 역할 분담 방식을 더 확인"
       },
       {
         "option_id": "game_seed_01_o4",
         "role_id": "pattern_recognition",
-        "text": "여러 상황이나 상대의 행동에서 반복되는 패턴을 찾아내는 것",
+        "text": "상대의 행동이나 게임 속 규칙을 발견하는 순간",
         "primary_trait_delta": {
           "pattern_finding": 1
-        }
+        },
+        "next_probe": "패턴 탐색이 다른 상황에서도 이어지는지 확인"
       },
       {
         "option_id": "game_seed_01_o5",
         "role_id": "tool_mastery",
-        "text": "아이템이나 장비를 직접 다루고 활용하는 것",
+        "text": "새로운 아이템이나 기능을 활용하는 방법을 알아가는 순간",
         "primary_trait_delta": {
           "tool_utilization": 1
-        }
+        },
+        "next_probe": "도구·장비 활용이 다른 상황에서도 나타나는지 확인"
       }
-    ]
+    ],
+    "contrast_id": null
   },
   "current_context_id": "game",
   "questions_asked_in_current_context": 0,

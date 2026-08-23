@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 import uuid
 from typing import Literal
 
@@ -42,6 +43,18 @@ def generate_session_id() -> str:
     return f"sess_{uuid.uuid4().hex}"
 
 
+def generate_trace_id() -> str:
+    """§24 LangSmith Observability: "PostgreSQL의 session_id와 LangSmith의 trace_id를
+    매핑하되, LangSmith에는 익명화된 식별자만 전달한다" — session_id와 별개의 무작위
+    식별자를 만들어, LangSmith 쪽에는 이 값만 보내고 session_id 원문은 보내지 않는다.
+
+    2026-08-22 리뷰 반영: 예전엔 "trace_" 접두사를 붙인 문자열이었는데, 설치된 LangSmith
+    SDK의 Run.trace_id는 UUID 타입이다 — 접두사가 붙으면 `uuid.UUID(trace_id)` 파싱이
+    실패해 실제 LangSmith 서버에서 거부될 수 있었다(fail-open이라 서비스는 멀쩡해 보이지만
+    Trace는 하나도 안 쌓이는 조용한 실패). 순수 UUID 문자열로 바꾼다."""
+    return str(uuid.uuid4())
+
+
 def generate_evidence_id() -> str:
     return f"ev_{uuid.uuid4().hex}"
 
@@ -59,3 +72,13 @@ def generate_department_id(schl_id: str, department_name: str, college_name: str
 def generate_subject_id(curriculum_code: str, canonical_subject_name: str) -> str:
     """raw 과목명이 아니라 Alias 정규화를 마친 canonical_subject_name을 넣어야 한다."""
     return f"subj_{_sha256_prefix(curriculum_code, canonical_subject_name)}"
+
+
+def generate_university_id(university_name: str) -> str:
+    """Knowledge Subgraph(2026-08-28 19차)의 University Node id. `hash()`는 프로세스마다
+    Salt가 달라(PYTHONHASHSEED) 같은 대학명이 실행할 때마다 다른 id를 받으므로 쓰지
+    않는다 — department_id/subject_id와 같은 안정적 SHA-256 해시 방식을 그대로 따른다.
+    앞뒤 공백만 정리하고(NFKC) 대학명 표기 자체는 원문 그대로 해시한다."""
+
+    normalized = unicodedata.normalize("NFKC", university_name).strip()
+    return f"univ_{_sha256_prefix(normalized)}"

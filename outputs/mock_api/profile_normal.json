@@ -1,70 +1,122 @@
 {
-  "session_id": "sess_2abcb37e7f5941d4bae13df3341c33f6",
+  "session_id": "sess_00000000000000000000000000000000",
   "user_id": "demo_user_01",
-  "title": "구조를 읽고 사람의 반응까지 생각하는 탐색형 설계자",
+  "title": "지금까지의 답변을 바탕으로 한 요약",
   "highlights": [
     {
-      "text": "복잡한 내용에서 핵심과 흐름을 찾아 정리하는 데 흥미를 느껴요.",
-      "supporting_trait_ids": [
-        "pattern_finding"
-      ]
-    },
-    {
-      "text": "단순히 감상하기보다 왜 이런 구조가 되었는지 생각하는 편이에요.",
-      "supporting_trait_ids": [
-        "causal_analysis"
-      ]
-    },
-    {
-      "text": "결과물을 만들 때 보는 사람이 어떻게 받아들일지도 중요하게 생각해요.",
+      "text": "결과물·행동에 대해 다른 사람이 어떻게 받아들일지 미리 고려하는 경향",
       "supporting_trait_ids": [
         "audience_response_prediction"
       ]
     },
     {
-      "text": "기존 방식을 그대로 따르기보다 순서나 구성을 바꿔보는 것을 좋아해요.",
+      "text": "혼자보다 다른 사람과 함께 일하는 것을 선호하는 경향",
+      "supporting_trait_ids": [
+        "collaboration_preference"
+      ]
+    },
+    {
+      "text": "결과나 현상이 발생한 이유를 파고들어 확인하려는 경향",
+      "supporting_trait_ids": [
+        "causal_analysis"
+      ]
+    },
+    {
+      "text": "예상과 다른 상황이 생겼을 때 유연하게 대응 방식을 바꾸는 경향",
       "supporting_trait_ids": [
         "change_adaptation"
       ]
     },
     {
-      "text": "아이디어에 머무르기보다 도구로 직접 시험해보려는 경향이 있어요.",
+      "text": "이번 답변에서는 타인의 감정 해석이(가) 충분히 확인되지 않았어요.",
       "supporting_trait_ids": [
-        "immediate_execution"
-      ]
-    },
-    {
-      "text": "여러 선택지를 비교한 뒤 납득할 수 있는 기준으로 결정하는 편이에요.",
-      "supporting_trait_ids": [
-        "information_comparison"
-      ]
-    },
-    {
-      "text": "협업 방식은 아직 Evidence가 적어 추가 탐색이 필요해요.",
-      "supporting_trait_ids": [
-        "collaboration_preference"
+        "emotional_interpretation"
       ]
     }
   ],
   "hashtags": [
-    "#구조화",
-    "#사용자관점",
-    "#패턴탐색",
-    "#콘텐츠기획",
-    "#직접실행"
+    "#사용자 반응 예측",
+    "#협업 선호",
+    "#원인 분석",
+    "#변화 대응",
+    "#타인의 감정 해석"
   ],
   "disclaimer": "현재 답변을 바탕으로 만든 요약이며 새로운 경험과 답변에 따라 달라질 수 있습니다.",
   "detailed_evidence_by_dimension": {
     "분석과 구조화": [
       {
-        "context_id": "media",
-        "description": "장면 순서를 바꿔 이해하기 쉽게 만드는 활동 선택"
+        "context_id": "game",
+        "description": "왜 이런 결과가 나왔는지 이유와 원리를 알아가는 순간"
       },
       {
         "context_id": "game",
-        "description": "여러 전략을 조건별로 비교하는 방식 선택"
+        "description": "[Mock] causal_analysis 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "media",
+        "description": "[Mock] causal_analysis 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "school_life",
+        "description": "[Mock] causal_analysis 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      }
+    ],
+    "계획과 실행": [
+      {
+        "context_id": "game",
+        "description": "[Mock] change_adaptation 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "media",
+        "description": "[Mock] change_adaptation 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "school_life",
+        "description": "[Mock] change_adaptation 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      }
+    ],
+    "인간과 관계 탐구": [
+      {
+        "context_id": "game",
+        "description": "[Mock] emotional_interpretation 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      }
+    ],
+    "사용자·타인 관점": [
+      {
+        "context_id": "game",
+        "description": "[Mock] audience_response_prediction 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "media",
+        "description": "사람들이 이 콘텐츠를 어떻게 받아들이고 반응할지 생각하는 것"
+      },
+      {
+        "context_id": "media",
+        "description": "[Mock] audience_response_prediction 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "school_life",
+        "description": "[Mock] audience_response_prediction 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      }
+    ],
+    "협업과 조정": [
+      {
+        "context_id": "game",
+        "description": "[Mock] collaboration_preference 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "media",
+        "description": "[Mock] collaboration_preference 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
+      },
+      {
+        "context_id": "school_life",
+        "description": "조별 활동에서 역할을 나누고 함께 결과물을 만들어가는 것"
+      },
+      {
+        "context_id": "school_life",
+        "description": "[Mock] collaboration_preference 관련 선택지 — 실제 LLM 문구 생성(§10) 전까지의 자리표시자"
       }
     ]
   },
-  "generated_at": "2026-08-21T11:13:08.634506"
+  "generated_at": "2026-08-22T00:00:00"
 }

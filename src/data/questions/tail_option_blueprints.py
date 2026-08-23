@@ -114,6 +114,14 @@ TAIL_OPTION_BLUEPRINTS: list[OptionBlueprint] = [
     PLANNING_AND_EXECUTION_BLUEPRINT,
 ]
 
+# Planner(§8)가 결정한 option_blueprint_id로 바로 조회하기 위한 역방향 조회 — 2026-08-21
+# 리뷰: target_trait만으로 Blueprint를 다시 찾으면(blueprint_for_target_trait) causal_analysis
+# 처럼 여러 Blueprint에 걸친 Trait에서 Planner가 고른 Blueprint와 다른 Blueprint가 뽑힐 수
+# 있었다. Planner가 이미 확정한 blueprint_id를 그대로 조회하면 이 모호함이 없다.
+TAIL_OPTION_BLUEPRINTS_BY_ID: dict[str, OptionBlueprint] = {
+    bp.blueprint_id: bp for bp in TAIL_OPTION_BLUEPRINTS
+}
+
 
 def blueprint_for_target_trait(target_trait: str) -> OptionBlueprint:
     """target_trait을 Role 중 하나로 다루는 첫 Blueprint를 결정론적으로 반환한다

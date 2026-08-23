@@ -2,22 +2,35 @@
   "draft_entry": {
     "draft_id": "subject_trait_mapping_subj_5c42d517a0d5789f52a6cd73",
     "draft_type": "subject_trait_mapping",
-    "author_id": "worker_c",
+    "author_id": "worker_a",
     "review_stage": "DRAFT",
-    "source_url": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do",
-    "as_of_date": "2026-08-21",
-    "notes": "2022 개정 교육과정 과목 성취기준 서술을 근거로 C가 매긴 등급 초안."
+    "source_url": null,
+    "as_of_date": "2026-08-24",
+    "notes": "실제 2022 개정 교육과정(교육부 고시 제2022-33호) 공식 성취기준 근거는 data/master/subject_trait_mapping_evidence.jsonl, 전공 연결 근거는 data/master/subject_major_link_evidence.jsonl 참고. UNMAPPED/REVIEW_REQUIRED Trait·전공은 Vector·related_major_ids에서 뺐다(공식 근거를 찾지 못함 ≠ 중요도 0/관련 없음)."
   },
   "subject_id": "subj_5c42d517a0d5789f52a6cd73",
   "label": "미적분Ⅱ",
   "subject_group": "수학",
   "subject_category": "진로선택",
   "curriculum_code": "2022-33",
-  "trait_grades": {
-    "causal_analysis": 3,
-    "pattern_finding": 2
-  },
-  "rationale": "변화율로 현상을 설명하는 과목이라 원인 분석 3.",
+  "trait_evidence_summary": [
+    {
+      "trait_id": "causal_analysis",
+      "mapping_status": "EVIDENCED",
+      "grade": 2
+    },
+    {
+      "trait_id": "pattern_finding",
+      "mapping_status": "EVIDENCED",
+      "grade": 1
+    }
+  ],
+  "major_link_summary": [
+    {
+      "major_id": "industrial_engineering",
+      "link_status": "REVIEW_REQUIRED"
+    }
+  ],
   "related_major_ids": [
     "mechanical_engineering",
     "computer_science",
@@ -27,14 +40,15 @@
     "subject_id": "subj_5c42d517a0d5789f52a6cd73",
     "label": "미적분Ⅱ",
     "trait_vector": {
-      "causal_analysis": 1.0,
-      "pattern_finding": 0.67
+      "causal_analysis": 0.67,
+      "pattern_finding": 0.33
     },
     "related_major_ids": [
       "mechanical_engineering",
       "computer_science",
       "life_science"
     ],
-    "source_id": "https://ncic.re.kr/mobile.kri.org4.inventoryList.do"
+    "source_id": "https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458",
+    "activity_summary": "변화 현상을 수학적으로 해석하는 활동"
   }
 }

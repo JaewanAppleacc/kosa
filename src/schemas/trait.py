@@ -10,6 +10,13 @@ from src.ids import is_valid_slug
 
 TraitScope = Literal["shared", "domain_specific"]
 VectorGroup = Literal["interest", "cognitive", "work_style", "environment"]
+# 2026-08-22 12차 리뷰: source_references는 자유 텍스트라 "강함/보통/팀 정의"를 사람이
+# 매번 다시 읽어야 했다 — grounding_type으로 기계가 검사할 수 있는 값을 따로 둔다.
+# ONET_STRONG: 공식 정의문까지 직접 대조 확인. ONET_PARTIAL: 항목명은 확인했지만 정의문은
+# 구버전 인용이거나 미확인. RIASEC_REFERENCE: Holland 유형 설명 수준(항목 단위 대응 아님).
+# TEAM_DEFINED: O*NET/Holland 공식 대응 항목을 찾지 못해 팀이 직접 정의(발표에서 O*NET
+# 근거라고 과장하지 않는다).
+GroundingType = Literal["ONET_STRONG", "ONET_PARTIAL", "RIASEC_REFERENCE", "TEAM_DEFINED"]
 
 
 class TraitDefinition(BaseModel):
@@ -24,6 +31,10 @@ class TraitDefinition(BaseModel):
     trait_scope: TraitScope
     minimum_context_count: int
     primary_vector_group: VectorGroup
+    # 기본값 TEAM_DEFINED — 가장 보수적인 값("공식 근거를 확인하지 않았다면 팀 정의로
+    # 취급")이라, 이 필드를 모르는 기존 테스트 Fixture(tests/test_*.py의 손으로 만든
+    # TraitDefinition)가 실수로 더 강한 근거를 주장하게 되지 않는다.
+    grounding_type: GroundingType = "TEAM_DEFINED"
 
     @field_validator("trait_id")
     @classmethod

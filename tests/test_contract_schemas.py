@@ -127,6 +127,7 @@ class CourseRecommendationOfferedFlagTest(unittest.TestCase):
     def test_offered_flag_is_explicit(self) -> None:
         item = CourseRecommendationItem(
             subject_id="subj_abc",
+            label="테스트 과목",
             category="core",
             is_actually_offered=True,
             reason="Trait 관련도 상위",
