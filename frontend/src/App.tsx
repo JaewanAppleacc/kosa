@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppStateProvider, useAppState } from "@/session/AppState";
-import { loadSessionId } from "@/session/sessionStorage";
+import { clearSessionId, loadSessionId } from "@/session/sessionStorage";
 import { ContextSelectScreen } from "@/screens/ContextSelectScreen";
 import { ContrastProposalScreen } from "@/screens/ContrastProposalScreen";
 import { InterestRatingScreen } from "@/screens/InterestRatingScreen";
@@ -38,7 +39,13 @@ function Router() {
 export default function App() {
   return (
     <AppStateProvider>
-      <Router />
+      {/*
+        Provider 안쪽에 둔다 — 화면 하나가 터져도 세션 상태는 살아 있어야 "다시 시도"가
+        의미가 있다. 복구가 안 되면 저장된 session_id를 버리고 처음부터 시작한다.
+      */}
+      <ErrorBoundary onReset={() => clearSessionId()}>
+        <Router />
+      </ErrorBoundary>
     </AppStateProvider>
   );
 }

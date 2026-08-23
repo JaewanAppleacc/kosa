@@ -10,6 +10,7 @@ const base: AppState = {
   preferredContextIds: [],
   contrast: null,
   finalContextIds: [],
+  observedContextIds: [],
   selectedMajorId: null,
   hasConfirmedCourses: false,
 };

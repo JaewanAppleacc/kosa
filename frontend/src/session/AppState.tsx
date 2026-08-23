@@ -31,6 +31,11 @@ export interface AppState {
   finalContextIds: string[];
   /** 학생이 "이 전공으로 과목 추천받기"를 명시적으로 누른 전공. 자동으로 채우지 않는다. */
   selectedMajorId: string | null;
+  /**
+   * 질문을 받으면서 실제로 마주친 Context. 복원(session_restored)한 세션은
+   * finalContextIds를 알 수 없어서(`GET /session`이 안 돌려준다) 이 목록으로 대신한다.
+   */
+  observedContextIds: string[];
   /** 이 세션에서 /course/confirm까지 마쳤는지. 과목·그래프 화면의 안내 문구가 달라진다. */
   hasConfirmedCourses: boolean;
 }
@@ -44,6 +49,7 @@ const initialState: AppState = {
   preferredContextIds: [],
   contrast: null,
   finalContextIds: [],
+  observedContextIds: [],
   selectedMajorId: null,
   hasConfirmedCourses: false,
 };
@@ -58,6 +64,7 @@ export type AppAction =
   | { type: "contexts_selected"; contrast: ContextSelectResponse }
   | { type: "contrast_replaced"; contextId: string }
   | { type: "contexts_confirmed"; finalContextIds: string[] }
+  | { type: "context_observed"; contextId: string }
   | { type: "assessment_completed" }
   | { type: "result_tab_changed"; tab: ResultTab }
   | { type: "major_selected"; majorId: string }
@@ -106,7 +113,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "contexts_confirmed":
-      return { ...state, finalContextIds: action.finalContextIds, step: "question" };
+      return {
+        ...state,
+        finalContextIds: action.finalContextIds,
+        observedContextIds: action.finalContextIds,
+        step: "question",
+      };
+
+    case "context_observed":
+      if (state.observedContextIds.includes(action.contextId)) return state;
+      return { ...state, observedContextIds: [...state.observedContextIds, action.contextId] };
 
     case "assessment_completed":
       return { ...state, step: "result", resultTab: "profile" };
