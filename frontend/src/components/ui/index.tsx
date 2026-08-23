@@ -7,7 +7,7 @@
  * · 캐릭터·얼굴은 쓰지 않는다. 선의 굵기와 색만 바꿔 쓴다.
  */
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Logo } from "@/components/brand/Logo";
+import { Logo, Wordmark } from "@/components/brand/Logo";
 
 type PillVariant = "primary" | "secondary" | "outline" | "ghost";
 
@@ -134,13 +134,8 @@ export function TopBar({ right }: { right?: ReactNode }) {
   return (
     <div className="nav2">
       <span className="flex items-center gap-2.5">
-        <Logo size={30} animate={false} />
-        <span
-          className="text-[18px] font-semibold"
-          style={{ fontFamily: "var(--font-heading)", letterSpacing: "0.15em" }}
-        >
-          TRAIL
-        </span>
+        <Logo size={32} animate={false} />
+        <Wordmark />
       </span>
       <span className="ml-auto flex items-center gap-3.5">{right}</span>
     </div>
