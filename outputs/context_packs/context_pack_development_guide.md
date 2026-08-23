@@ -70,18 +70,64 @@ Registry가 별도로 걸러낼 수 있다는 뜻이다. `registry.ontology_erro
 
 ## 5. 활성화 배치
 
-Pack이 merge되고 검수(APPROVED)까지 끝나야 `assessment_supported`가 true가 된다
-(`ContextPackRegistry.assessment_supported_context_ids()`, Fail-Closed). 배치 순서
-(`src/services/context_pack_registry.py::CONTEXT_ACTIVATION_BATCHES`):
+**2026-08-24 갱신 — 2.8/2.9단계에서 아래 "2.7단계 시점 한계"는 이미 해소됐다.**
+`ContextPackRegistry`/`ContextPackRuntime`은 더 이상 대기 중인 계산기가 아니라
+`src/api/main.py`의 실제 Assessment 질문 흐름(`/contexts`, `/assessment/
+context-select`, `/assessment/context-confirm`, `/assessment/next-question`,
+`/assessment/answer`)에 실제로 연결돼 있다(`main.py`의 `_effective_supported_
+context_ids()`·`_context_pack_runtime`·`_serve_pack_context_question()` 참고). 이
+문서는 이제 그 실제 배선을 그대로 서술한다 — Context 제작 에이전트가 코드를 다시
+읽지 않고도 정확한 그림을 가질 수 있도록.
+
+배치 순서 정본은 `src/data/contexts/context_activation_batches.py::
+CONTEXT_ACTIVATION_BATCHES`다(`src/services/context_pack_registry.py`가 같은 이름으로
+재노출하므로 기존 `from src.services.context_pack_registry import
+CONTEXT_ACTIVATION_BATCHES` 호출부도 그대로 동작한다 — 순환 참조를 피하려고 2.9단계에서
+정의 위치만 옮겼다):
 
 - 1차: business, science, sports
 - 2차: making, volunteer, writing, travel
 - 3차: art_design, cooking, fashion_beauty, history_humanities, law_politics
 
-**2.7단계 시점 한계**: `assessment_supported_context_ids()`는 준비돼 있지만 아직
-`main.py`의 실제 질문 흐름 게이트(`/assessment/context-select`,
-`/assessment/context-confirm`, Context Vector/Trait Coverage Matrix 기반 Contrast
-선택)에는 배선되지 않았다 — 그 게이트들은 `VERTICAL_SLICE_CONTEXT_IDS`(3개 고정)를
-그대로 쓴다. 새 Context가 실제로 서빙되려면 Context Vector·Trait Coverage Matrix
-확장(A 소유)이 먼저 필요하다. Pack을 먼저 만들어 두는 것은 안전하다 — Registry가
-Fail-Closed이므로 Pack이 있어도 검수 전에는 무엇도 자동으로 활성화되지 않는다.
+**실제 활성화 조건(전부 AND, Fail-Closed — 하나라도 안 맞으면 그 Context는 존재하지
+않는 것처럼 취급된다)**:
+
+1. **Feature Flag OFF(`ENABLE_CONTEXT_PACK_RUNTIME` 기본값)면 위 12개 Context는
+   전혀 관여하지 않는다.** `/contexts`·`/assessment/context-select`·
+   `/assessment/context-confirm`이 지원한다고 답하는 Context는 기존
+   `VERTICAL_SLICE_CONTEXT_IDS`(game/media/school_life) 3개뿐이다 — 새 Pack이 몇 개
+   merge·승인됐든 그대로다.
+2. **Feature Flag가 ON이어도, 그 Pack이 검수 승인(APPROVED)되지 않았으면 여전히
+   지원 목록에 없다.** `ContextPackRegistry.assessment_supported_context_ids()`가
+   `is_pack_review_approved()`(§1의 검수 Key 11개 전부 APPROVED)를 만족하는 Pack만
+   Fail-Closed로 추가한다 — merge 자체는 활성화를 의미하지 않는다.
+3. **질문 흐름 구조는 Routing → Anchor 선택 → Seed → Adaptive Tail(최소 4개·최대
+   6개) → (후보 소진 시) Anchor Backup 순이다.** `/assessment/next-question`이 이
+   Context에 처음 진입하면 `ContextPackRuntime.get_routing_question()`을 먼저 내고,
+   학생이 고른 Option으로 Anchor 하나를 확정한 뒤에만 그 Anchor의 Seed를 낸다. 그
+   다음부터는 `context_pack_adaptive_planner`가 Evidence Coverage를 보고 Native/
+   Shared Direct Probe 후보 중 하나를 고르되, LLM이 꺼져 있거나 재생성까지 실패하면
+   (신규 Pack Context는 `allow_base_question_fallback=False`라 Legacy 원본 문구를
+   대신 노출하지 않는다) 그 Anchor의 검수된 Backup으로 넘어가고, Backup도 소진되면
+   Context가 조기 종료된다.
+4. **승인되지 않은 Pack뿐 아니라, 승인된 Pack 안의 개별 Signal도 별도로
+   Fail-Closed 게이트를 한 번 더 거친다.** `src/services/trait_signal_review_gate.py`
+   가 Seed/Anchor Backup/Native Direct Probe Evidence를 Pack 자체 검수 상태로,
+   공용 Adaptive Probe Evidence를 `(blueprint_id, context_id, anchor_id)` 단위
+   검수 상태로 각각 다시 확인한다 — 검수가 REVISE/HOLD/TBD로 되돌아가면 이미 쌓인
+   Evidence Ledger는 그대로 두되 Career Profile·전공 매칭 같은 Primary 계산에서만
+   조용히 제외된다(Ledger 원본은 절대 지우지 않는다).
+5. **실제 서비스에서 이 12개가 학생에게 보이려면, 배치 단위로 사람이 직접 검수
+   페이지(`src/review_ui/`)에서 각 질문을 APPROVE해야 한다.** Claude나 이 Harness류
+   진단 도구가 그 판정을 대신 채우지 않는다 — `data/reviews/context_packs/
+   <context_id>_review_status.json`은 Pack이 merge된 시점에 전부 `reviewer_1_status:
+   "TBD"`로 시작하고, 실제 사람이 배치 순서대로 검토를 끝내기 전까지는 계속 그
+   상태로 남는다.
+
+이 다섯 조건을 `eval/context_pack_matrix_diagnostics.py`(2026-08-24,
+`a/contextpack-matrix-eval`)가 임시 Fixture로 직접 검증했다 — 실제 12개 Pack 모두
+Routing 1·Anchor 5·Seed 5·Backup 5·검수 Key 11개 구조를 갖췄고, 실제 검수 파일은
+전부 TBD이며, Flag OFF와 "Flag ON이지만 미승인" 두 경우 모두 지원 Context가 기존
+3개로 그대로 유지됨을 확인했다(`outputs/evaluation/context_pack_matrix_report.md`
+참고). Pack을 먼저 만들어 두는 것은 여전히 안전하다 — 위 Fail-Closed 조건들 때문에
+merge와 검수 사이에는 아무것도 자동으로 활성화되지 않는다.
