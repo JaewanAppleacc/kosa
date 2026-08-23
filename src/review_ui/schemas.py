@@ -145,6 +145,28 @@ class RoutingQuestionListResponse(BaseModel):
     option_review_revision: str
 
 
+class AnchorPreviewOptionView(BaseModel):
+    role_id: str
+    text: str
+    primary_trait_delta: dict[str, int]
+
+
+class AnchorPreviewResponse(BaseModel):
+    """2026-08-23 Trait Ontology v2(2.5.1단계) §11 — Routing 질문에서 Anchor 하나를
+    고르면 실제로 나오는 첫 후속 질문(Seed Anchor Variant)을 그대로 보여준다.
+    `preview_question_text`/`preview_options`는 UI 전용 가짜 데이터가 아니라
+    `src.api.mock_data.seed_question_as_finalized()`(실제 Runtime이 Seed를 낼 때 쓰는
+    바로 그 함수)를 그대로 호출한 결과다."""
+
+    context_id: str
+    anchor_id: str
+    anchor_label: str
+    preferred_scenarios: list[str]
+    forbidden_assumptions: list[str]
+    preview_question_text: str
+    preview_options: list[AnchorPreviewOptionView]
+
+
 class UpdateQuestionReviewRequest(BaseModel):
     reviewer: ReviewerSlot
     status: ReviewerStatus

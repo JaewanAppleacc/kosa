@@ -72,7 +72,14 @@ def run_quality_gate(
     question: FinalizedQuestion,
     previous_question_texts: list[str] | None = None,
     forbidden_trait_label_phrases: tuple[str, ...] | None = None,
+    forbidden_anchor_assumption_phrases: tuple[str, ...] | None = None,
 ) -> QuestionQualityGateResult:
+    """2026-08-23 Trait Ontology v2(2.5.1단계) §6: `forbidden_anchor_assumption_phrases`는
+    호출자가 현재 Context Anchor의 `forbidden_assumptions`를 그대로 넘길 때만 검사한다
+    (Anchor가 없으면 이 검사는 그냥 건너뛴다) — Anchor 자체가 Trait를 결정하지 않으므로
+    이 목록은 Trait Mapping과 무관하게 "이 Anchor를 고른 학생에게 전제하면 안 되는 상황"
+    만 다룬다."""
+
     failures: list[str] = []
     previous_question_texts = previous_question_texts or []
 
@@ -96,6 +103,9 @@ def run_quality_gate(
     for phrase in forbidden_trait_label_phrases or ():
         if phrase in all_text:
             failures.append(f"Trait Label 직접 노출: {phrase!r}")
+    for phrase in forbidden_anchor_assumption_phrases or ():
+        if phrase in all_text:
+            failures.append(f"Anchor 금지 전제 포함: {phrase!r}")
 
     if question.question_text.strip() in {t.strip() for t in previous_question_texts}:
         failures.append("이전 질문과 문구가 동일함(반복 금지, §10 생성 원칙)")

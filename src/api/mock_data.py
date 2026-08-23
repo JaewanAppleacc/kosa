@@ -9,6 +9,7 @@ from datetime import date, datetime
 
 from src.data.contexts.context_definitions import VERTICAL_SLICE_CONTEXT_IDS
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
+from src.data.questions.seed_anchor_variants import SEED_ANCHOR_VARIANTS_BY_KEY
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
 from src.ids import generate_option_id
@@ -18,21 +19,31 @@ from src.schemas.question import FinalizedOption, FinalizedQuestion, SeedQuestio
 from src.schemas.retrieval import RetrievedDocument
 
 
-def seed_question_as_finalized(seed: SeedQuestion) -> FinalizedQuestion:
+def seed_question_as_finalized(seed: SeedQuestion, anchor_id: str | None = None) -> FinalizedQuestion:
     """실제 확정된 Seed Question(§7-1)을 B가 받는 FinalizedQuestion 모양으로 바꾼다.
-    target_traits/frame_id는 Seed에 없는 개념이라(Adaptive 전용) 빈 값·"seed_frame"으로 채운다."""
+    target_traits/frame_id는 Seed에 없는 개념이라(Adaptive 전용) 빈 값·"seed_frame"으로 채운다.
+
+    2026-08-23 Trait Ontology v2(2.5.1단계) §4/§5 — `anchor_id`가 주어지고 그
+    (context, anchor_id)에 등록된 `SeedAnchorVariant`가 있으면 question_text와 각
+    옵션의 text를 그 Variant 문구로 바꾼다. `option_id`/`role_id`/`primary_trait_delta`/
+    `next_probe`는 항상 원본 SeedQuestion 값을 그대로 쓴다 — Anchor는 표현만 바꿀 뿐
+    Trait Mapping을 전혀 건드리지 않는다(§2). Variant가 없으면(미등록 Anchor, Anchor
+    미선택) 기존 중립 문구를 그대로 쓴다(§13 "Anchor가 없어도 기존 중립 질문 가능")."""
+
+    variant = SEED_ANCHOR_VARIANTS_BY_KEY.get((seed.context, anchor_id)) if anchor_id else None
+    question_text = variant.question_text if variant else seed.question_text
 
     return FinalizedQuestion(
         question_id=seed.question_id,
         context=seed.context,
         target_traits=[],
         frame_id="seed_frame",
-        question_text=seed.question_text,
+        question_text=question_text,
         options=[
             FinalizedOption(
                 option_id=o.option_id,
                 role_id=o.role_id,
-                text=o.text,
+                text=variant.option_text_by_role_id[o.role_id] if variant else o.text,
                 primary_trait_delta=o.primary_trait_delta,
                 next_probe=o.next_probe,
             )
@@ -75,12 +86,18 @@ def tail_question_from_planner_decision(
     )
 
 
-def next_mock_question(context_id: str, questions_asked_in_current_context: int) -> FinalizedQuestion:
+def next_mock_question(
+    context_id: str, questions_asked_in_current_context: int, anchor_id: str | None = None,
+) -> FinalizedQuestion:
     """이 Context에서 첫 질문(0개 답변)이면 실제 Seed를, 그 이후엔 여전히 Mock 꼬리질문을
-    반환한다 — 실제 Adaptive 질문 생성(§10)은 아직 없다."""
+    반환한다 — 실제 Adaptive 질문 생성(§10)은 아직 없다.
+
+    2.5.1단계 §5: `anchor_id`는 Seed(첫 질문)에만 적용한다 — Tail(`mock_finalized_question`)은
+    아직 실제 LLM 연동이 없는 자리표시자 Mock이라 Anchor 반영 대상이 아니다(§24에
+    한계로 명시)."""
 
     if questions_asked_in_current_context == 0 and context_id in VERTICAL_SLICE_SEED_QUESTIONS:
-        return seed_question_as_finalized(VERTICAL_SLICE_SEED_QUESTIONS[context_id])
+        return seed_question_as_finalized(VERTICAL_SLICE_SEED_QUESTIONS[context_id], anchor_id=anchor_id)
     return mock_finalized_question(context_id, questions_asked_in_current_context)
 
 

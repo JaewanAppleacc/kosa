@@ -46,6 +46,7 @@ from src.data.conflicts.vertical_slice_conflict_resolution_questions import (
     VERTICAL_SLICE_RESOLUTION_QUESTION_BUILDERS,
     VERTICAL_SLICE_RESOLUTION_SPECS,
 )
+from src.data.contexts.context_anchor_presentations import CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_IDS, VERTICAL_SLICE_CONTEXT_IDS
 from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
@@ -451,11 +452,18 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
 
     question_context = next(c for c in chosen_blueprint.allowed_context_ids if c in state.final_contexts)
     question_id = generate_question_id(question_context, "v2_probe", state.v2_probe_questions_asked + 1)
+    # 2.5.1단계 §6: 이 Context에서 학생이 고른 Anchor가 있으면 LLM Prompt에 전달한다.
+    chosen_anchor_id = state.context_anchor_choices.get(question_context)
+    anchor = (
+        CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY.get((question_context, chosen_anchor_id))
+        if chosen_anchor_id else None
+    )
     outcome = generate_v2_direct_probe_question(
         question_id=question_id,
         context_definition=CONTEXT_DEFINITIONS_BY_ID[question_context],
         blueprint=chosen_blueprint,
         llm_client=_llm_client,
+        anchor=anchor,
     )
     question = outcome.question
     status = QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED
@@ -963,7 +971,12 @@ def next_question(session_id: str) -> NextQuestionResponse:
 
     if state.questions_asked_in_current_context == 0:
         # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
-        question = mock_data.next_mock_question(current_context, 0)
+        # 2.5.1단계 §4/§5: 이 Context에서 학생이 고른 Anchor가 있으면(Routing을 이미
+        # 답했으면) Seed 문구를 그 Anchor Variant로 낸다 — "최소 첫 번째 후속 질문은
+        # Anchor를 반영해야 한다"는 요구를 이 지점에서 충족한다.
+        question = mock_data.next_mock_question(
+            current_context, 0, anchor_id=state.context_anchor_choices.get(current_context),
+        )
         # 2026-08-23 Trait Ontology v2(1.5단계) §3: Seed의 Blueprint id는
         # `seed_question_to_blueprint()`와 동일한 명명 규칙("{question_id}_blueprint")을
         # 그대로 따른다 — trait_signal_registry.py가 Seed를 등록할 때 이 함수로 직접

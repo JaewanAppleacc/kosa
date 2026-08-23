@@ -14,11 +14,16 @@ import os
 import tempfile
 from pathlib import Path
 
+from src.api.mock_data import seed_question_as_finalized
+from src.data.contexts.context_anchor_presentations import CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
 from src.data.questions.context_routing_blueprints import CONTEXT_ROUTING_BLUEPRINTS
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
 from src.engines.v2_direct_probe_quality_checks import question_level_flags, worksheet_row_flags
 from src.review_ui.schemas import (
+    AnchorPreviewOptionView,
+    AnchorPreviewResponse,
     MappingSignalView,
     OptionItem,
     OptionReviewView,
@@ -103,6 +108,11 @@ class UnknownRoleError(ReviewServiceError):
 
 class InvalidReviewStatusError(ReviewServiceError):
     pass
+
+
+class UnknownAnchorError(ReviewServiceError):
+    """2.5.1단계 §11 — Preview 요청의 (context_id, anchor_id)가 실제 Anchor Presentation
+    레지스트리에 없을 때."""
 
 
 class StaleRevisionError(ReviewServiceError):
@@ -268,6 +278,33 @@ def build_routing_question_list(
         questions=questions,
         question_review_revision=_file_revision(question_path),
         option_review_revision=_file_revision(option_path),
+    )
+
+
+def build_anchor_preview(context_id: str, anchor_id: str) -> AnchorPreviewResponse:
+    """2.5.1단계 §11 — Routing 질문에서 Anchor 하나를 고르면 실제로 나오는 첫 후속
+    질문을 그대로 보여준다. `seed_question_as_finalized()`를 직접 호출한다 — 실제
+    Runtime(`src/api/main.py`)이 Seed를 낼 때 쓰는 바로 그 함수이고, UI 전용 가짜
+    질문을 별도로 만들지 않는다(§11 요구사항)."""
+
+    presentation = CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY.get((context_id, anchor_id))
+    if presentation is None:
+        raise UnknownAnchorError(f"({context_id}, {anchor_id})가 Anchor Presentation 레지스트리에 없다")
+    if context_id not in VERTICAL_SLICE_SEED_QUESTIONS:
+        raise UnknownAnchorError(f"{context_id}: Seed Question이 없어 Preview를 만들 수 없다")
+
+    seed = VERTICAL_SLICE_SEED_QUESTIONS[context_id]
+    finalized = seed_question_as_finalized(seed, anchor_id=anchor_id)
+
+    return AnchorPreviewResponse(
+        context_id=context_id, anchor_id=anchor_id, anchor_label=presentation.label,
+        preferred_scenarios=presentation.preferred_scenarios,
+        forbidden_assumptions=presentation.forbidden_assumptions,
+        preview_question_text=finalized.question_text,
+        preview_options=[
+            AnchorPreviewOptionView(role_id=o.role_id, text=o.text, primary_trait_delta=o.primary_trait_delta)
+            for o in finalized.options
+        ],
     )
 
 

@@ -540,6 +540,51 @@ function renderRoutingOptionCard(option, question) {
   ]);
 }
 
+/* 2.5.1단계 §11 — Anchor Preview 패널. 실제 Runtime 함수(seed_question_as_finalized)를
+ * 그대로 호출한 서버 결과만 렌더링한다 — 여기서 질문 문구를 스스로 만들지 않는다. */
+function renderAnchorPreviewPanel(question) {
+  const panel = el("div", { class: "anchor-preview-panel" }, [
+    el("h4", {}, "Anchor Preview — 실제 첫 후속 질문 미리보기"),
+    el("div", { class: "anchor-preview-buttons" },
+      question.options.map((o) =>
+        el("button", {
+          type: "button", class: "anchor-preview-btn",
+          onclick: () => loadAnchorPreview(question.context_id, o.context_anchor, resultBox),
+        }, o.anchor_label)
+      ),
+    ),
+  ]);
+  const resultBox = el("div", { class: "anchor-preview-result" }, "위에서 Anchor를 선택하면 실제 첫 후속 질문이 여기 표시됩니다.");
+  panel.appendChild(resultBox);
+  return panel;
+}
+
+async function loadAnchorPreview(contextId, anchorId, resultBox) {
+  resultBox.replaceChildren(el("p", {}, "불러오는 중…"));
+  try {
+    const preview = await apiGet(
+      `${API_BASE}/anchor-preview?context_id=${encodeURIComponent(contextId)}&anchor_id=${encodeURIComponent(anchorId)}`,
+    );
+    resultBox.replaceChildren(
+      el("div", {}, [el("strong", {}, `선택한 Anchor: ${preview.anchor_label} (${preview.anchor_id})`)]),
+      el("div", {}, `선호 장면: ${preview.preferred_scenarios.join(", ") || "-"}`),
+      el("div", {}, `금지 전제: ${preview.forbidden_assumptions.join(", ") || "(없음)"}`),
+      el("div", { class: "question-text" }, preview.preview_question_text),
+      el("ul", { class: "option-list" }, preview.preview_options.map((o) =>
+        el("li", { class: "option-card" }, [
+          el("div", { class: "option-text" }, o.text),
+          el("div", { class: "option-meta" }, [
+            el("span", {}, `role_id: ${o.role_id}`),
+            el("span", {}, `공통 Trait Mapping: ${JSON.stringify(o.primary_trait_delta)}`),
+          ]),
+        ])
+      )),
+    );
+  } catch (err) {
+    resultBox.replaceChildren(el("p", { class: "inline-msg err" }, `Preview 실패: ${err.message}`));
+  }
+}
+
 function renderRoutingQuestionCard(question) {
   const meta = el("div", { class: "meta" }, [
     el("span", { class: "student-hint", text: `Context: ${question.context_label}` }),
@@ -570,6 +615,7 @@ function renderRoutingQuestionCard(question) {
     meta,
     el("div", { class: "question-text", text: question.question_text }),
     guaranteePanel,
+    renderAnchorPreviewPanel(question),
     questionReviewPanel,
     optionList,
   ]);

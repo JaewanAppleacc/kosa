@@ -892,7 +892,7 @@ class NoSignalMappingTest(unittest.TestCase):
                 for signal in mapping.trait_signals:
                     self.assertNotIn(signal.trait_id, sentinel_ids)
 
-    def test_14_no_signal_options_exist_and_are_never_the_target(self) -> None:
+    def test_15_no_signal_options_exist_and_are_never_the_target(self) -> None:
         no_signal_count = 0
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
             for mapping in bp.option_mappings:
@@ -904,7 +904,11 @@ class NoSignalMappingTest(unittest.TestCase):
                     )
         # 2.5단계 §7: do_visual_check(detail_orientation_media_v1)가 미디어 재정의로
         # NO_SIGNAL에서 TRAIT_SIGNAL(visual_expression)로 바뀌었다(14 → 13).
-        self.assertEqual(no_signal_count, 13)
+        # 2.5.1단계 §10-A/§10-C: do_visual_check를 다시 NO_SIGNAL로 되돌리고(13 → 14,
+        # "관심·감상"은 "직접 표현"의 근거가 아니라는 이유), independent_judgment_
+        # school_life_v1의 ij_adapt_role도 change_adaptation에서 "다수 추종" NO_SIGNAL로
+        # 바꿨다(14 → 15).
+        self.assertEqual(no_signal_count, 15)
 
     def test_no_signal_options_public_primary_trait_delta_is_empty_dict(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:

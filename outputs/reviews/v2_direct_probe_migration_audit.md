@@ -128,6 +128,53 @@
 | ij_speak_role | 내가 생각한 기준을 다른 사람들에게 먼저 말한다 (opinion_expression) | 내가 느낀 걱정이나 생각을 친구에게 솔직하게 말한다 (opinion_expression, 유지) | 새 시나리오에 맞춤 |
 | ij_adapt_role | 상황이 바뀌면 그때그때 기준을 바꾼다 (change_adaptation) | 친구가 먼저 다르게 대하면 그에 맞춰 내 태도도 바로 바꾼다 (change_adaptation, 유지) | 〃 |
 
+## 2.5.1단계 §10 — Mapping 수정 3건
+
+2.5단계 이후 검수에서 발견된 Mapping 문제 3건을 추가로 수정했다. 이번에도
+`blueprint_id`/`role_id`는 전부 그대로 유지했다.
+
+### media — detail_orientation_media_v1 / do_visual_check (§10-A)
+
+| 항목 | 수정 전 | 수정 후 |
+|---|---|---|
+| 문구 | 화면 구도나 무대·음악 연출이 인상 깊었던 순간을 떠올린다 | (문구 변경 없음) |
+| Mapping | visual_expression (TRAIT_SIGNAL) | NO_SIGNAL |
+
+이유: "화면 구도·연출이 인상 깊었던 순간을 떠올린다"는 시각·음향 연출에 대한 관심과
+감상을 보여줄 뿐, 학생이 직접 시각적으로 "표현"했다는 근거는 아니다(작업 지시문
+지적). 새 Trait를 즉시 추가하지 않고 더 정직한 NO_SIGNAL로 되돌렸다. 이 수정으로
+NO_SIGNAL 전체 개수가 13 → 14로 바뀌었다.
+
+### school_life — uncertainty_tolerance_school_life_v1 / ut_decide_now (§10-B)
+
+| 항목 | 수정 전 | 수정 후 |
+|---|---|---|
+| 문구 | 확실한 정보가 없어도 불안해하지 않고 지금 아는 것만으로 신청한다 | 확인하지 못한 부분이 남아 있어도 지금까지 확인된 정보만으로 신청한다 |
+| Mapping | uncertainty_tolerance (TRAIT_SIGNAL, 유지) | uncertainty_tolerance (TRAIT_SIGNAL, 유지) |
+
+이유: 기존 문구는 감정 상태("불안해하지 않고")와 행동("신청한다")을 한 문장에 묶고
+있었고, "불안해하지 않고"가 사회적으로 바람직해 보이는 표현이라 이 선택지만 유독
+성숙한 답처럼 읽힐 위험이 있었다(작업 지시문 지적). 감정 어휘를 빼고 행동 하나만
+남겼다.
+
+### school_life — independent_judgment_school_life_v1 (§10-C, 전면 재설계)
+
+| role_id | 수정 전(2.5단계) | 수정 후(2.5.1단계) | Mapping 변경 |
+|---|---|---|---|
+| (질문) | 친한 친구의 말이나 행동이 평소와 달라졌는데 이유를 확실히 알 수 없다면, 다음 행동의 기준을 어떻게 정하나요? | 친구들이 추천하는 선택과목이나 동아리가 내가 원래 관심 있던 것과 다를 때, 무엇을 기준으로 결정하나요? | — |
+| ij_set_own_standard | 다른 설명을 듣기 전에 내가 상황을 보고 판단한 기준대로 행동한다 | 친구들의 추천과 상관없이, 원래 내가 관심 있던 기준대로 정한다 | independent_judgment(TARGET, 유지) |
+| ij_ask_clarify | 친구에게 무슨 일 있는지 직접 물어본다 (NO_SIGNAL) | 친구들이 왜 그 과목·동아리를 추천하는지 이유를 물어본다 (NO_SIGNAL, 유지) | 변경 없음 |
+| ij_plan_role | 내가 할 수 있는 것과 기다려야 하는 것을 나눠서 계획을 세운다 (planning) | 내 관심사와 친구들의 추천을 각각 장단점으로 정리해서 비교해본다 (information_comparison) | **planning → information_comparison** |
+| ij_speak_role | 내가 느낀 걱정이나 생각을 친구에게 솔직하게 말한다 (opinion_expression) | 원래 어떤 과목·동아리에 관심 있었는지 친구들에게 솔직하게 말한다 (opinion_expression, 유지) | 변경 없음 |
+| ij_adapt_role | 친구가 먼저 다르게 대하면 그에 맞춰 내 태도도 바로 바꾼다 (change_adaptation) | 친구들 대부분이 추천하는 쪽으로 따라간다 (NO_SIGNAL, "다수 추종") | **change_adaptation → NO_SIGNAL** |
+
+이유: "친한 친구의 말이나 행동이 평소와 달라졌는데 이유를 확실히 알 수 없다면"은
+독립적 판단이 무심하거나 성급한 행동처럼 읽힐 위험이 있었다(작업 지시문 지적).
+선택과목·동아리를 친구 추천과 다르게 정하는 더 중립적인 상황으로 바꾸고, 5개
+선택지가 독립적 판단(Target)·정보 비교·의견 표현·다수 추종(NO_SIGNAL)을 각각
+대표하도록 재설계했다. 이 수정으로 NO_SIGNAL 전체 개수가 14 → 15로 바뀌었다(§10-A와
+합쳐 13 → 15).
+
 ## 상태
 
 이 문서에 나열된 모든 Blueprint의 `review_status`는 코드에서 여전히 `"draft"`다

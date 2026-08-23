@@ -80,6 +80,10 @@ def _build(
 
 _ASK_INFO_REASON = "정보를 묻거나 확인하는 행동일 뿐, 역할을 나눠 함께 해결하는 협업 행동이라는 근거가 약하다"
 _ASK_FEEDBACK_REASON = "의견이나 반응을 구하는 행동으로, 협업 선호인지 단순한 반응 확인인지 문맥만으로 구분하기 어렵다"
+# 2026-08-23 Trait Ontology v2(2.5.1단계) §10-A: 시청각 연출에 대한 관심·감상은 보여주지만,
+# 학생이 직접 시각적으로 "표현"했다는 Evidence는 아니다(visual_expression은 산출 행동을
+# 요구하는 Trait다). 새 Trait를 즉시 만들지 않고, 더 정직하게 NO_SIGNAL로 되돌렸다.
+_VISUAL_APPRECIATION_REASON = "시각·음향 연출에 대한 관심이나 감상을 보여줄 뿐, 학생이 직접 시각적으로 표현하거나 만들었다는 근거는 아니다"
 
 # --- 1. systems_thinking ---
 
@@ -165,7 +169,7 @@ DETAIL_ORIENTATION_MEDIA_V1 = _build(
         ("do_ask_feedback", "같이 본 사람과 어떤 장면이 좋았는지 이야기를 나눈다", None, _ASK_FEEDBACK_REASON),
         (
             "do_visual_check", "화면 구도나 무대·음악 연출이 인상 깊었던 순간을 떠올린다",
-            "visual_expression", None,
+            None, _VISUAL_APPRECIATION_REASON,
         ),
         ("do_compare_ref", "비슷한 장르의 다른 작품과 어떤 점이 다른지 비교해본다", "information_comparison", None),
     ],
@@ -290,8 +294,13 @@ UNCERTAINTY_TOLERANCE_SCHOOL_LIFE_V1 = _build(
         "아직 충분히 찾지 못했다면 어떻게 하나요?"
     ),
     rows=[
+        # 2.5.1단계 §10-B: 기존 문구("확실한 정보가 없어도 불안해하지 않고 지금 아는
+        # 것만으로 신청한다")는 감정 상태("불안해하지 않고")와 행동(신청한다)을 한
+        # 문장에 묶고 있었고, "불안해하지 않고"가 사회적으로 바람직해 보이는 표현이라
+        # 이 선택지만 유독 성숙한 답처럼 읽힐 위험이 있었다. 감정 어휘를 빼고
+        # "확인된 정보를 기준으로 선택한다"는 행동 하나만 남겼다.
         (
-            "ut_decide_now", "확실한 정보가 없어도 불안해하지 않고 지금 아는 것만으로 신청한다",
+            "ut_decide_now", "확인하지 못한 부분이 남아 있어도 지금까지 확인된 정보만으로 신청한다",
             "uncertainty_tolerance", None,
         ),
         (
@@ -426,22 +435,38 @@ INDEPENDENT_JUDGMENT_SCHOOL_LIFE_V1 = _build(
     # 2.5단계 §8: 조별·그룹 편중을 줄이려고 "팀의 지시" 전제를 없애고 "친구 관계"
     # 영역(학교생활 분포 기준)으로 옮겼다 — 조별·그룹활동은 opinion_expression_
     # school_life_v1 하나로 제한한다.
+    #
+    # 2.5.1단계 §10-C: "친한 친구의 말이나 행동이 평소와 달라졌는데 이유를 확실히 알
+    # 수 없다면"은 독립적 판단이 마치 무심하거나 성급한 행동처럼 읽힐 위험이 있었다
+    # (사용자 지적). 더 중립적인 현실 상황(선택과목·동아리를 친구 추천과 다르게
+    # 정하는 것)으로 바꿨다 — 이 상황에서는 "친구에게 묻는다"가 도덕적 정답처럼
+    # 보이지 않고, 5개 선택지가 전부 같은 결정 시점(신청 전)에 동시에 존재하며,
+    # 독립적 판단·정보 비교·의견 표현·다수 추종을 서로 다른 role로 구분한다(ij_plan_role은
+    # planning에서 information_comparison으로, ij_adapt_role은 change_adaptation에서
+    # "다수 추종" NO_SIGNAL로 Trait를 바꿨다 — role_id는 유지해 기존 검수 Key를
+    # 보존한다).
     question_text=(
-        "친한 친구의 말이나 행동이 평소와 달라졌는데 이유를 확실히 알 수 없다면, "
-        "다음 행동의 기준을 어떻게 정하나요?"
+        "친구들이 추천하는 선택과목이나 동아리가 내가 원래 관심 있던 것과 다를 때, "
+        "무엇을 기준으로 결정하나요?"
     ),
     rows=[
         (
-            "ij_set_own_standard", "다른 설명을 듣기 전에 내가 상황을 보고 판단한 기준대로 행동한다",
+            "ij_set_own_standard", "친구들의 추천과 상관없이, 원래 내가 관심 있던 기준대로 정한다",
             "independent_judgment", None,
         ),
         (
-            "ij_ask_clarify", "친구에게 무슨 일 있는지 직접 물어본다", None,
-            "직접 물어보고 확인하는 행동으로, 협업 선호가 직접 드러난다고 보기보다는 단순한 확인 행동에 가깝다",
+            "ij_ask_clarify", "친구들이 왜 그 과목·동아리를 추천하는지 이유를 물어본다", None,
+            "추천 이유를 확인하는 행동일 뿐, 그 자체로 독립적 판단인지 다수 추종인지는 구분되지 않는다",
         ),
-        ("ij_plan_role", "내가 할 수 있는 것과 기다려야 하는 것을 나눠서 계획을 세운다", "planning", None),
-        ("ij_speak_role", "내가 느낀 걱정이나 생각을 친구에게 솔직하게 말한다", "opinion_expression", None),
-        ("ij_adapt_role", "친구가 먼저 다르게 대하면 그에 맞춰 내 태도도 바로 바꾼다", "change_adaptation", None),
+        (
+            "ij_plan_role", "내 관심사와 친구들의 추천을 각각 장단점으로 정리해서 비교해본다",
+            "information_comparison", None,
+        ),
+        ("ij_speak_role", "원래 어떤 과목·동아리에 관심 있었는지 친구들에게 솔직하게 말한다", "opinion_expression", None),
+        (
+            "ij_adapt_role", "친구들 대부분이 추천하는 쪽으로 따라간다", None,
+            "친구들 다수의 의견을 그대로 따르는 행동으로, 독립적 판단과 구분되는 다수 추종 행동이다",
+        ),
     ],
 )
 

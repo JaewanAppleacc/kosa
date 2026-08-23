@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
+    AnchorPreviewResponse,
     QuestionListResponse,
     RoutingQuestionListResponse,
     SummaryResponse,
@@ -140,6 +141,19 @@ def patch_routing_option(blueprint_id: str, role_id: str, payload: UpdateOptionR
     except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
         raise _http_error(422, str(exc)) from exc
     return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+# 2.5.1단계 §11 — Anchor Preview. Routing 질문에서 Anchor 하나를 고르면 실제 첫
+# 후속 질문(Seed Anchor Variant)을 그대로 보여준다. 읽기 전용(GET)이라 검수 상태
+# 파일을 전혀 건드리지 않는다.
+
+
+@app.get("/internal/review/v2/anchor-preview", response_model=AnchorPreviewResponse)
+def get_anchor_preview(context_id: str, anchor_id: str) -> AnchorPreviewResponse:
+    try:
+        return rs.build_anchor_preview(context_id, anchor_id)
+    except rs.UnknownAnchorError as exc:
+        raise _http_error(422, str(exc)) from exc
 
 
 @app.get("/")

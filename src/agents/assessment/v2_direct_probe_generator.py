@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from src.engines.question_quality_gate import V2_DIRECT_PROBE_TRAIT_LABEL_PHRASES, run_quality_gate
 from src.llm.protocols import ChatLLMClient, LLMCallError
 from src.schemas.context import ContextDefinition
+from src.schemas.context_anchor_presentation import ContextAnchorPresentation
 from src.schemas.question import FinalizedQuestion, QuestionGenerationResult
 from src.schemas.v2_direct_probe import V2DirectProbeBlueprint, finalize_v2_probe_question
 
@@ -40,12 +41,29 @@ V2_DIRECT_PROBE_SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문�
 - target_traits와 frame_id는 입력으로 주어진 값을 그대로 반환합니다."""
 
 
-def _build_user_prompt(*, context_definition: ContextDefinition, blueprint: V2DirectProbeBlueprint) -> str:
+def _build_user_prompt(
+    *, context_definition: ContextDefinition, blueprint: V2DirectProbeBlueprint,
+    anchor: ContextAnchorPresentation | None = None,
+) -> str:
     role_list = "\n".join(f"- {mapping.role_id}" for mapping in blueprint.option_mappings)
     reference_lines = "\n".join(f"- {opt.role_id}: {opt.text}" for opt in blueprint.base_question.options)
+    anchor_block = ""
+    if anchor is not None:
+        # 2026-08-23 Trait Ontology v2(2.5.1단계) §6 — Anchor는 "상황 배경"만 조정하는
+        # 정보다. 여기서 role_id·Trait를 언급하지 않는다 — LLM이 Anchor에서 새 Trait를
+        # 추론할 실마리를 아예 주지 않기 위해서다.
+        anchor_block = f"""
+
+[학생이 고른 세부 상황(Anchor) — 질문의 배경 설정에만 참고할 것, 여기서 새로운 성향을
+추론하지 말 것]
+상황 이름: {anchor.label}
+상황에서 쓸 수 있는 표현: {", ".join(anchor.situation_terms)}
+선호하는 장면: {", ".join(anchor.preferred_scenarios)}
+절대 전제하면 안 되는 것: {", ".join(anchor.forbidden_assumptions) if anchor.forbidden_assumptions else "(없음)"}"""
     return f"""[Context — 질문의 행동 무대는 항상 이 안에 있어야 함]
 label: {context_definition.label}
 description: {context_definition.description}
+{anchor_block}
 
 [참고용 기준 질문 — 그대로 베끼지 말고, 같은 상황·같은 Role 구성을 자연스러운 다른 표현으로 바꿔 쓸 것]
 질문: {blueprint.base_question.question_text}
@@ -70,20 +88,31 @@ def generate_v2_direct_probe_question(
     blueprint: V2DirectProbeBlueprint,
     llm_client: ChatLLMClient | None,
     max_regenerations: int = 1,
+    anchor: ContextAnchorPresentation | None = None,
 ) -> V2DirectProbeGenerationOutcome:
     """LLM이 결정하면 안 되는 것(target_trait_id/Blueprint ID/Option Role/Trait
     Signal/weight/Related Concept/질문 종료 여부/다음 Trait 선택) 중 이 함수가 다루는
     부분(Option Role)은 `finalize_v2_probe_question()`이 이미 강제한다 — LLM이 반환한
     role_id가 `blueprint.option_mappings`에 없으면 거부한다. LLM은 NO_SIGNAL/TRAIT_SIGNAL
     구분 자체를 아예 모른다(프롬프트에 role_id와 참고 문구만 전달한다) — role마다 문장
-    표현만 자연스럽게 바꿀 뿐이므로 Mapping을 다른 Trait 행동으로 바꿔치기할 수 없다."""
+    표현만 자연스럽게 바꿀 뿐이므로 Mapping을 다른 Trait 행동으로 바꿔치기할 수 없다.
+
+    2026-08-23 Trait Ontology v2(2.5.1단계) §6/§10 — `anchor`는 이 Context에서 학생이
+    고른 Anchor 정보다(없으면 기존과 동일하게 중립 문구로 생성). Anchor가 있으면
+    `forbidden_assumptions`가 생성된 문장에 남아 있는지도 Quality Gate로 추가 검사하고,
+    걸리면 재생성한다 — 재생성도 실패하면 Anchor를 반영하지 않은 중립
+    Fallback(`blueprint.base_question`)을 그대로 쓴다(§6 "재생성 실패 시 ... 중립
+    Fallback 사용"). Fallback 자체는 Anchor별로 미리 써 둔 문구가 아니다 — 14개
+    Blueprint × 5개 Anchor로 Mapping을 늘리지 않기 위한 의도적 선택이다(§2 금지 구조,
+    한계는 §24에 기록)."""
 
     fallback = blueprint.base_question.model_copy(update={"question_id": question_id})
 
     if llm_client is None:
         return V2DirectProbeGenerationOutcome(question=fallback, source="backup")
 
-    user_prompt = _build_user_prompt(context_definition=context_definition, blueprint=blueprint)
+    user_prompt = _build_user_prompt(context_definition=context_definition, blueprint=blueprint, anchor=anchor)
+    forbidden_anchor_phrases = tuple(anchor.forbidden_assumptions) if anchor is not None else ()
     attempt = 0
     while attempt <= max_regenerations:
         attempt += 1
@@ -99,7 +128,10 @@ def generate_v2_direct_probe_question(
         except ValueError:
             continue
         finalized = finalized.model_copy(update={"target_traits": []})
-        gate = run_quality_gate(finalized, forbidden_trait_label_phrases=V2_DIRECT_PROBE_TRAIT_LABEL_PHRASES)
+        gate = run_quality_gate(
+            finalized, forbidden_trait_label_phrases=V2_DIRECT_PROBE_TRAIT_LABEL_PHRASES,
+            forbidden_anchor_assumption_phrases=forbidden_anchor_phrases,
+        )
         if gate.passed:
             return V2DirectProbeGenerationOutcome(question=finalized, source="llm")
 
