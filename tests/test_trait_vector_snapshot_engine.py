@@ -92,7 +92,7 @@ class PromotionByDiversityTest(unittest.TestCase):
 
 class PromotionByPrimaryElsewhereTest(unittest.TestCase):
     def test_related_plus_primary_elsewhere_promotes_even_with_single_related(self) -> None:
-        """2026-08-24 2단계 §15 반영: legacy_state가 없는(신규) Trait에 실제 PRIMARY
+        """2026-08-23 2단계 §15 반영: legacy_state가 없는(신규) Trait에 실제 PRIMARY
         Evidence가 하나라도 있으면 이제 `_direct_probe_status()`가 먼저 판정한다 — 이
         사례(PRIMARY 1개, RELATED 1개, 둘 다 같은 Context·Frame)는 다양성 조건을
         만족하지 못해 여전히 LIMITED이지만, "실제 PRIMARY Evidence가 있다"는 사실을
@@ -192,7 +192,7 @@ class ComputeAllTest(unittest.TestCase):
 
 
 class DirectProbeStatusRulesTest(unittest.TestCase):
-    """2026-08-24 2단계 §15 — 신규 Trait Snapshot 판정 규칙. V2_DIRECT_PROBE Origin도
+    """2026-08-23 2단계 §15 — 신규 Trait Snapshot 판정 규칙. V2_DIRECT_PROBE Origin도
     v2 Signal의 정당한 출처로 포함되는지(§9 필터 확장)까지 함께 확인한다."""
 
     def test_v2_direct_probe_origin_evidence_is_included_in_v2_calculation(self) -> None:

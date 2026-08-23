@@ -1,4 +1,4 @@
-"""Feature Flag 로더 — 2026-08-24 Trait Ontology v2(2단계) §4.
+"""Feature Flag 로더 — 2026-08-23 Trait Ontology v2(2단계) §4.
 
 `src/llm/settings.py::llm_generation_enabled()`와 같은 패턴이다 — 명시적 opt-in
 플래그이고, `.env`에 값이 있어도 이 함수가 꺼져 있으면 항상 OFF로 취급한다. OFF일 때는

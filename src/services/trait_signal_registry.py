@@ -493,7 +493,7 @@ for _backup_list in VERTICAL_SLICE_BACKUP_QUESTIONS.values():
 
 # --- V2 Direct Probe Blueprint 14개 × Role 5개 ---
 #
-# 2026-08-24 2단계 §5/§8/§13: 5개 Role 전부 자기 Blueprint의 `primary_trait_delta`와
+# 2026-08-23 2단계 §5/§8/§13: 5개 Role 전부 자기 Blueprint의 `primary_trait_delta`와
 # 정확히 같은 PRIMARY Signal을 그대로 등록한다(Target Role뿐 아니라 나머지 4개 Role도
 # 등록한다 — Direct Probe는 어떤 선택지를 답해도 EXACT_BLUEPRINT여야 하고
 # LEGACY_PRIMARY_ADAPTER에 의존하면 안 된다, §13). RELATED Signal은 추가하지 않는다 —

@@ -68,7 +68,7 @@ def _reachable_context_and_frame_ids(question_family_id: str, blueprint_id: str)
     if question_family_id == "backup":
         return {_BACKUP_BLUEPRINT_CONTEXT[blueprint_id]}, {"backup"}
     if question_family_id == "v2_direct_probe":
-        # 2026-08-24 2단계 §7: Direct Probe Blueprint는 Seed/Backup처럼 Context·Frame이
+        # 2026-08-23 2단계 §7: Direct Probe Blueprint는 Seed/Backup처럼 Context·Frame이
         # 그 Blueprint 하나에 고정된다(`allowed_context_ids`/`question_frame_id`) —
         # Tail Blueprint처럼 아무 Context·Frame에서나 쓰이는 게 아니다.
         v2_bp = V2_DIRECT_PROBE_BLUEPRINTS_BY_ID[blueprint_id]

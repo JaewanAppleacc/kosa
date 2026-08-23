@@ -56,7 +56,7 @@ class TraitSignal(BaseModel):
 
 # 질문 계열 — Conflict Resolution은 이 Registry에 아예 등록하지 않는다(항상
 # NONE_CONFLICT_RESOLUTION으로 조회된다), 그래서 여기 나열하지 않는다.
-# 2026-08-24 2단계 §8: "v2_direct_probe"를 추가한다 — 신규 Trait Direct Probe 질문
+# 2026-08-23 2단계 §8: "v2_direct_probe"를 추가한다 — 신규 Trait Direct Probe 질문
 # 전용 계열이다. 이 값은 서버 내부 Registry Key에서만 쓰이고 API에는 노출하지 않는다.
 QuestionFamilyId = Literal["seed", "tail_blueprint", "backup", "mock_placeholder", "v2_direct_probe"]
 

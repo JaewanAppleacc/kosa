@@ -150,7 +150,7 @@ from src.schemas.assessment_state import AnsweredQuestion, AssessmentPhase, Asse
 from src.schemas.evidence import AppliedTraitSignal, EvidenceOrigin, EvidenceRecord, V2ProbeOpportunity
 from src.schemas.trait_vector_snapshot import TraitVectorSnapshot
 
-# 2026-08-24 Trait Ontology v2(2단계) §2 — Shadow 계산 실패는 계속 Fail-Open이지만
+# 2026-08-23 Trait Ontology v2(2단계) §2 — Shadow 계산 실패는 계속 Fail-Open이지만
 # 완전히 조용하지는 않는다: 예외 "종류"만(원인 파악용) 내부 로그에 남긴다. 학생 데이터
 # (user_id/session_id/답변·질문·선택지 원문/Trait Vector 전체값/API Key/Trace 원본)는
 # 로그 인자에 절대 넣지 않는다 — 아래 handler의 logger.warning() 호출이 예외 타입
@@ -356,10 +356,18 @@ def _v2_probe_should_continue(state: AssessmentState) -> bool:
     if state.v2_probe_questions_asked >= MAX_V2_DIRECT_PROBE_QUESTIONS:
         return False
     v2_snapshot = _compute_v2_snapshot(state)
-    candidates = select_v2_probe_candidates(v2_snapshot, set(state.v2_probed_trait_ids))
     used_frame_ids = {o.frame_id for o in state.v2_probe_opportunities}
+    candidates = select_v2_probe_candidates(
+        v2_snapshot, set(state.v2_probed_trait_ids),
+        final_contexts=state.final_contexts, used_v2_probe_frame_ids=used_frame_ids,
+    )
     return any(
-        select_blueprint_for_trait(trait_id, state.final_contexts, used_frame_ids) is not None
+        select_blueprint_for_trait(
+            trait_id,
+            related_context_ids=v2_snapshot[trait_id].related_context_ids if trait_id in v2_snapshot else set(),
+            preferred_context_ids=state.selected_preferred_contexts,
+            final_contexts=state.final_contexts, used_v2_probe_frame_ids=used_frame_ids,
+        ) is not None
         for trait_id in candidates
     )
 
@@ -384,15 +392,23 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
     없으면 그 자리에서 세션을 완료 처리한다(§12)."""
 
     v2_snapshot = _compute_v2_snapshot(state)
-    candidates = select_v2_probe_candidates(v2_snapshot, set(state.v2_probed_trait_ids))
     used_frame_ids = {o.frame_id for o in state.v2_probe_opportunities}
+    candidates = select_v2_probe_candidates(
+        v2_snapshot, set(state.v2_probed_trait_ids),
+        final_contexts=state.final_contexts, used_v2_probe_frame_ids=used_frame_ids,
+    )
     state.pending_v2_probe_trait_ids = candidates
 
     chosen_trait_id: str | None = None
     chosen_blueprint = None
     if state.v2_probe_questions_asked < MAX_V2_DIRECT_PROBE_QUESTIONS:
         for trait_id in candidates:
-            blueprint = select_blueprint_for_trait(trait_id, state.final_contexts, used_frame_ids)
+            blueprint = select_blueprint_for_trait(
+                trait_id,
+                related_context_ids=v2_snapshot[trait_id].related_context_ids if trait_id in v2_snapshot else set(),
+                preferred_context_ids=state.selected_preferred_contexts,
+                final_contexts=state.final_contexts, used_v2_probe_frame_ids=used_frame_ids,
+            )
             if blueprint is not None:
                 chosen_trait_id, chosen_blueprint = trait_id, blueprint
                 break
@@ -742,7 +758,7 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
 def next_question(session_id: str) -> NextQuestionResponse:
     state = _get_state_or_404(session_id)
 
-    # 2026-08-24 Trait Ontology v2(2단계) §3: Legacy Context 반복이 모두 끝난 뒤에만
+    # 2026-08-23 Trait Ontology v2(2단계) §3: Legacy Context 반복이 모두 끝난 뒤에만
     # 이 Phase로 들어온다 — Feature Flag가 꺼져 있으면 이 Phase에 절대 진입하지 않으므로
     # (submit_answer의 _enter_v2_direct_probe_phase_if_applicable), 이 분기 자체가
     # OFF에서는 죽은 코드나 마찬가지다. `state.current_context_id`가 이미 범위 밖(None)
@@ -848,7 +864,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             has_next_context = _advance_to_next_context_or_complete(state)
             state.current_question = None
             assessment_complete = not has_next_context
-            # 2026-08-24 2단계 §3: 이 Context 조기 종료가 마지막 Legacy Context였다면,
+            # 2026-08-23 2단계 §3: 이 Context 조기 종료가 마지막 Legacy Context였다면,
             # 일반 STOP 경로와 동일하게 v2 Direct Probe 진입 여부를 확인한다.
             if not has_next_context and _enter_v2_direct_probe_phase_if_applicable(state):
                 assessment_complete = False
@@ -927,7 +943,7 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
             ).model_dump(),
         )
 
-    # 2026-08-24 2단계 §9: Direct Probe 질문 답변은 Legacy 파이프라인을 완전히 우회한다.
+    # 2026-08-23 2단계 §9: Direct Probe 질문 답변은 Legacy 파이프라인을 완전히 우회한다.
     if state.current_question_family_id == "v2_direct_probe":
         return _submit_v2_direct_probe_answer(state, payload.selected_option_id)
 
@@ -973,7 +989,7 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
         if has_next_context:
             next_action = "CONTEXT_COMPLETE"
         elif _enter_v2_direct_probe_phase_if_applicable(state):
-            # 2026-08-24 2단계 §3/§4: Legacy가 방금 끝났고 Feature Flag가 켜져 있으며
+            # 2026-08-23 2단계 §3/§4: Legacy가 방금 끝났고 Feature Flag가 켜져 있으며
             # 실제로 서빙 가능한 v2 후보가 있을 때만 여기로 온다 — B는 그냥 다음
             # next-question을 호출하면 된다(§19 "B가 v2 Phase를 알아야만 동작하는
             # 구조를 만들지 않는다").
@@ -1065,7 +1081,7 @@ def _compute_and_store_trait_vector_shadow_snapshot(state: AssessmentState) -> N
         snapshot = TraitVectorSnapshot(entries=entries)
         _trait_vector_shadow_repository.save(state.session_id, snapshot)
 
-        # 2026-08-24 2단계 §1: "구조상 관찰 가능한가"(질문 Bank 자체의 정적 구조,
+        # 2026-08-23 2단계 §1: "구조상 관찰 가능한가"(질문 Bank 자체의 정적 구조,
         # OBSERVABLE_TRAIT_IDS/NOT_PROBED_TRAIT_IDS — 학생과 무관하게 항상 같은 값)와
         # "이 학생 세션에서 실제로 관찰됐는가"(evidence_confidence 기준, 세션마다 다름)는
         # 서로 다른 질문이다. 1.5단계는 이 둘을 같은 값(len(observed))으로 잘못 채웠다 —

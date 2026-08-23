@@ -1,4 +1,4 @@
-"""신규 Trait Direct Probe Blueprint 14개 — 2026-08-24 Trait Ontology v2(2단계) §5/§6/§7.
+"""신규 Trait Direct Probe Blueprint 14개 — 2026-08-23 Trait Ontology v2(2단계) §5/§6/§7.
 
 7개 신규 Trait(systems_thinking/detail_orientation/persistence_completion/
 uncertainty_tolerance/opinion_expression/creative_ideation/independent_judgment) ×
@@ -92,8 +92,11 @@ SYSTEMS_THINKING_SCHOOL_LIFE_V1 = V2DirectProbeBlueprint(
         "systems_thinking_school_life_v1_base", "school_life", "unexpected_result",
         "조별 프로젝트에서 한 사람의 역할이나 일정이 갑자기 바뀌면 무엇을 가장 먼저 생각하나요?",
         [
-            ("st_map_impact", "systems_thinking", "이 변화가 다른 역할이나 전체 일정에 어떻게 이어질지 짚어본다"),
-            ("st_replan", "planning", "전체 일정을 다시 짠다"),
+            (
+                "st_map_impact", "systems_thinking",
+                "이 변화가 다른 사람의 역할과 어떻게 서로 얽혀 영향을 주는지 짚어본다",
+            ),
+            ("st_replan", "planning", "남은 일정과 순서를 처음부터 다시 짠다"),
             ("st_adapt_now", "change_adaptation", "일단 상황에 맞게 바로 대응한다"),
             ("st_check_mood", "emotional_interpretation", "역할이 바뀐 친구의 기분을 먼저 살핀다"),
             ("st_state_view", "opinion_expression", "내 생각을 팀에 분명하게 말한다"),
@@ -121,7 +124,10 @@ DETAIL_ORIENTATION_MEDIA_V1 = V2DirectProbeBlueprint(
         "영상이나 자료를 편집해서 제출하기 전에 무엇부터 확인하나요?",
         [
             ("do_scan_errors", "detail_orientation", "작은 오탈자나 어긋난 부분까지 하나하나 짚어본다"),
-            ("do_overall_flow", "pattern_finding", "전체 흐름이 자연스러운지 훑어본다"),
+            (
+                "do_overall_flow", "pattern_finding",
+                "예전에 만들었던 것과 비슷하게 반복되는 편집 패턴이 있는지 확인한다",
+            ),
             ("do_ask_feedback", "collaboration_preference", "친구에게 먼저 보여주고 의견을 듣는다"),
             ("do_visual_check", "visual_expression", "화면 구성과 배치를 다시 살펴본다"),
             ("do_compare_ref", "information_comparison", "참고했던 자료와 다시 비교해본다"),
@@ -174,9 +180,12 @@ PERSISTENCE_COMPLETION_GAME_V1 = V2DirectProbeBlueprint(
         "persistence_completion_game_v1_base", "game", "unexpected_result",
         "어려운 스테이지나 목표에서 계속 실패할 때 무엇을 하나요?",
         [
-            ("pc_keep_going", "persistence_completion", "포기하지 않고 방법을 바꿔가며 계속 도전한다"),
+            (
+                "pc_keep_going", "persistence_completion",
+                "결과가 잘 안 나와도 그 목표는 그대로 두고 끝까지 시도를 이어간다",
+            ),
             ("pc_analyze_fail", "causal_analysis", "왜 계속 실패하는지 원인을 분석한다"),
-            ("pc_take_break", "change_adaptation", "잠깐 다른 걸 하다가 다시 돌아온다"),
+            ("pc_take_break", "change_adaptation", "그 목표 대신 지금 상황에 맞는 다른 목표로 바꾼다"),
             ("pc_watch_others", "information_comparison", "다른 사람들은 어떻게 하는지 찾아본다"),
             ("pc_ask_help", "collaboration_preference", "같이 하는 친구에게 도움을 요청한다"),
         ],
@@ -228,8 +237,14 @@ UNCERTAINTY_TOLERANCE_GAME_V1 = V2DirectProbeBlueprint(
         "uncertainty_tolerance_game_v1_base", "game", "new_tool",
         "결과를 전혀 예측할 수 없는 새로운 선택지가 주어지면 어떻게 하나요?",
         [
-            ("ut_proceed_calm", "uncertainty_tolerance", "결과를 몰라도 크게 신경 쓰지 않고 진행한다"),
-            ("ut_try_now", "immediate_execution", "일단 빠르게 시도해본다"),
+            (
+                "ut_proceed_calm", "uncertainty_tolerance",
+                "결과가 어떻게 나올지 몰라도 그 상태를 그대로 받아들이고 계속 진행한다",
+            ),
+            (
+                "ut_try_now", "immediate_execution",
+                "정보가 충분히 모이기 전이라도 일단 지금 바로 움직인다",
+            ),
             ("ut_research_first", "information_comparison", "먼저 관련 정보를 찾아본다"),
             ("ut_ask_others", "collaboration_preference", "다른 사람 의견을 먼저 들어본다"),
             ("ut_plan_ahead", "planning", "결과를 예상할 수 있는 익숙한 방법을 미리 계획해서 고른다"),
@@ -302,17 +317,17 @@ OPINION_EXPRESSION_SCHOOL_LIFE_V1 = V2DirectProbeBlueprint(
         ],
     ),
     allowed_context_ids=["school_life"],
-    question_frame_id="team_role",
+    question_frame_id="others_reaction",
     purpose="opinion_expression Direct Probe(의견 표명 여부 관찰)",
     base_question=_finalized(
-        "opinion_expression_school_life_v1_base", "school_life", "team_role",
-        "팀 활동에서 내 생각이 다른 사람들과 다르면 어떤 역할을 맡고 싶나요?",
+        "opinion_expression_school_life_v1_base", "school_life", "others_reaction",
+        "조별 활동에서 내 생각이 다른 사람들과 다르면 실제로 어떻게 하나요?",
         [
-            ("oe_speak_role", "opinion_expression", "생각이 있으면 먼저 나서서 말하는 역할을 맡는다"),
-            ("oe_listen_role", "emotional_interpretation", "다른 사람 의견을 듣고 이해하는 역할을 맡는다"),
-            ("oe_organize_role", "planning", "전체 진행을 정리하는 역할을 맡는다"),
-            ("oe_bridge_role", "opinion_mediation", "의견을 조율하는 역할을 맡는다"),
-            ("oe_support_role", "collaboration_preference", "정해진 방향에 맞춰 지원하는 역할을 맡는다"),
+            ("oe_speak_role", "opinion_expression", "내 생각을 먼저 분명하게 말한다"),
+            ("oe_listen_role", "emotional_interpretation", "다른 사람이 왜 그렇게 생각하는지 먼저 들어본다"),
+            ("oe_organize_role", "planning", "전체 의견을 정리해서 다음 단계를 계획한다"),
+            ("oe_bridge_role", "opinion_mediation", "서로 다른 의견을 절충할 지점을 찾는다"),
+            ("oe_support_role", "collaboration_preference", "일단 다수가 정한 방향에 맞춘다"),
         ],
     ),
 )
@@ -362,7 +377,10 @@ CREATIVE_IDEATION_GAME_V1 = V2DirectProbeBlueprint(
         "creative_ideation_game_v1_base", "game", "new_tool",
         "새로운 게임 규칙이나 콘텐츠를 직접 만들 수 있다면 무엇을 하고 싶나요?",
         [
-            ("ci_invent_rule", "creative_ideation", "아직 아무도 안 써본 새로운 규칙을 스스로 떠올려본다"),
+            (
+                "ci_invent_rule", "creative_ideation",
+                "여러 요소를 새롭게 엮어서 지금까지와 다른 방식을 스스로 만들어본다",
+            ),
             ("ci_improve_existing", "pattern_finding", "기존 규칙 중 반복되는 부분을 찾아 다듬는다"),
             ("ci_test_it", "immediate_execution", "일단 만들어서 바로 실험해본다"),
             ("ci_visual_design", "visual_expression", "어떻게 보여줄지 화면 디자인부터 생각한다"),
@@ -410,17 +428,17 @@ INDEPENDENT_JUDGMENT_SCHOOL_LIFE_V1 = V2DirectProbeBlueprint(
         ],
     ),
     allowed_context_ids=["school_life"],
-    question_frame_id="team_role",
+    question_frame_id="problem_check",
     purpose="independent_judgment Direct Probe(판단 주체 관찰)",
     base_question=_finalized(
-        "independent_judgment_school_life_v1_base", "school_life", "team_role",
-        "지시가 명확하지 않은 활동을 맡았을 때 어떤 역할을 맡고 싶나요?",
+        "independent_judgment_school_life_v1_base", "school_life", "problem_check",
+        "선생님이나 팀의 지시가 명확하지 않을 때, 다음 행동의 기준을 어떻게 정하나요?",
         [
-            ("ij_set_own_standard", "independent_judgment", "스스로 기준을 세워서 판단하고 진행하는 역할을 맡는다"),
-            ("ij_ask_clarify", "collaboration_preference", "먼저 다른 사람에게 물어보고 맞추는 역할을 맡는다"),
-            ("ij_plan_role", "planning", "전체 순서를 계획하는 역할을 맡는다"),
-            ("ij_speak_role", "opinion_expression", "내 생각을 적극적으로 말하는 역할을 맡는다"),
-            ("ij_adapt_role", "change_adaptation", "상황이 바뀌면 바로 맞춰서 조정하는 역할을 맡는다"),
+            ("ij_set_own_standard", "independent_judgment", "스스로 판단한 기준으로 다음 행동을 정한다"),
+            ("ij_ask_clarify", "collaboration_preference", "다른 사람에게 먼저 물어보고 기준을 맞춘다"),
+            ("ij_plan_role", "planning", "전체 일정과 순서부터 다시 계획한다"),
+            ("ij_speak_role", "opinion_expression", "내가 생각한 기준을 다른 사람들에게 먼저 말한다"),
+            ("ij_adapt_role", "change_adaptation", "상황이 바뀌면 그때그때 기준을 바꾼다"),
         ],
     ),
 )
@@ -445,3 +463,31 @@ for _b in V2_DIRECT_PROBE_BLUEPRINTS:
     V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT.setdefault(_b.trait_id, []).append(_b)
 
 V2_DIRECT_PROBE_TARGET_TRAIT_IDS: frozenset[str] = frozenset(V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT)
+
+
+def _validate_cross_blueprint_uniqueness_and_ontology() -> None:
+    """2.1단계 §6 — 개별 Blueprint 자체 정합성은 `V2DirectProbeBlueprint`의
+    model_validator가 이미 검사한다(Import 시 Pydantic이 즉시 Fail-Fast). 여기서는
+    Blueprint "여러 개 사이"의 정합성(전역 ID 중복)과 외부 Ontology 존재 여부만
+    추가로 검사한다 — Schema 계층이 서비스 계층(trait_ontology_v2)을 몰라도 되게
+    분리했다."""
+
+    blueprint_ids = [b.blueprint.blueprint_id for b in V2_DIRECT_PROBE_BLUEPRINTS]
+    if len(blueprint_ids) != len(set(blueprint_ids)):
+        raise ValueError(f"V2 Direct Probe blueprint_id 중복: {blueprint_ids}")
+
+    question_ids = [b.base_question.question_id for b in V2_DIRECT_PROBE_BLUEPRINTS]
+    if len(question_ids) != len(set(question_ids)):
+        raise ValueError(f"V2 Direct Probe base_question.question_id 중복: {question_ids}")
+
+    from src.services.trait_ontology_v2 import load_trait_ontology_v2
+
+    known_trait_ids = {t.trait_id for t in load_trait_ontology_v2()}
+    for b in V2_DIRECT_PROBE_BLUEPRINTS:
+        if b.trait_id not in known_trait_ids:
+            raise ValueError(
+                f"{b.blueprint.blueprint_id}: trait_id {b.trait_id!r}가 Core Trait Ontology에 없다"
+            )
+
+
+_validate_cross_blueprint_uniqueness_and_ontology()

@@ -16,7 +16,7 @@ from src.engines.matching_engine import StudentTraitState
 from src.schemas.evidence import EvidenceOrigin, EvidenceRecord, V2ProbeOpportunity
 from src.schemas.trait_vector_snapshot import TraitVectorEntry
 
-# 2026-08-24 2단계 §9: v2 Signal의 정당한 출처는 PRIMARY_BLUEPRINT(Legacy 질문)와
+# 2026-08-23 2단계 §9: v2 Signal의 정당한 출처는 PRIMARY_BLUEPRINT(Legacy 질문)와
 # V2_DIRECT_PROBE(신규 Trait Direct Probe 질문) 둘 다다 — Conflict Resolution만 제외한다.
 # Legacy 계산(summarize_trait_evidence 등)은 여전히 PRIMARY_BLUEPRINT만 걸러 쓰므로
 # V2_DIRECT_PROBE Evidence는 자동으로 거기서 제외된다(별도 필터가 이미 존재).
@@ -139,6 +139,15 @@ def compute_trait_vector_snapshot(
     context_count = len({r.context for r in observed_records})
     frame_count = len({r.question_frame_id for r in observed_records})
     question_count = len({r.question_id for r in observed_records})
+    # 2.1단계 §4: 후보 우선순위 정렬은 PRIMARY와 섞이지 않은 RELATED 전용 다양성만 써야
+    # 한다 — 위 context_count/frame_count/question_count(PRIMARY+RELATED 합산, 기존
+    # 유지)와 별도로 다시 센다.
+    related_context_ids = {r.context for r in related_records}
+    related_question_count = len({r.question_id for r in related_records})
+    related_frame_count = len({r.question_frame_id for r in related_records})
+    v2_direct_primary_evidence_count = len(
+        [r for r in primary_records if r.evidence_origin == EvidenceOrigin.V2_DIRECT_PROBE]
+    )
 
     if trait_id in unresolved_conflict_trait_ids:
         status = "CONFLICTING"
@@ -185,6 +194,11 @@ def compute_trait_vector_snapshot(
         status=status,
         direct_probe_opportunity_count=direct_probe_opportunity_count,
         direct_probe_primary_evidence_count=direct_probe_primary_evidence_count,
+        related_question_count=related_question_count,
+        related_context_count=len(related_context_ids),
+        related_frame_count=related_frame_count,
+        related_context_ids=related_context_ids,
+        v2_direct_primary_evidence_count=v2_direct_primary_evidence_count,
     )
 
 

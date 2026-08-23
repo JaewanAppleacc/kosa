@@ -40,9 +40,14 @@ FORBIDDEN_PHRASES: tuple[str, ...] = (
     "재능이 있",
     "능력이 뛰어나",
     "적성에 맞",
+    # 2026-08-23 2.1단계 §11 — "~한 편인가요?", "어떤 사람인가요?" 같은 성향 자기평가
+    # 문항 일반을 넓게 잡는다("잘하는 편인가"보다 더 넓은 패턴 — 어떤 형용사가 와도
+    # "편인가요"로 끝나면 자기평가 질문이다).
+    "편인가요",
+    "어떤 사람인가요",
 )
 
-# 2026-08-24 Trait Ontology v2(2단계) §14 — Direct Probe 질문은 Trait Label을 문장에
+# 2026-08-23 Trait Ontology v2(2단계) §14 — Direct Probe 질문은 Trait Label을 문장에
 # 직접 노출하는 자기평가 문항이면 안 된다(§6 "당신은 구조적으로 사고하는 편인가요?" 같은
 # 나쁜 예 금지). run_quality_gate()의 `forbidden_trait_label_phrases`로 넘겨 검사한다 —
 # 팀 검토로 계속 보강해야 하는 시작 단계 목록이다(FORBIDDEN_PHRASES와 같은 성격).

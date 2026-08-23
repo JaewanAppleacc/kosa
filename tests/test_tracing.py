@@ -185,7 +185,7 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
                 self.assertEqual(sanitize_trace_attributes({key: {}}), {})
 
     def test_trait_vector_shadow_snapshot_counts_are_preserved(self) -> None:
-        """2026-08-23 Trait Ontology v2(1.5단계) §9/§13, 2026-08-24 2단계 §1(구조/세션
+        """2026-08-23 Trait Ontology v2(1.5단계) §9/§13, 2026-08-23 2단계 §1(구조/세션
         필드 분리) — Shadow Snapshot Stage가 남기는 집계 필드만 허용한다. 학생 답변
         원문·Trait Signal 세부 내용(trait_id·weight·related_concept_ids)은 Key 자체가
         없어 구조적으로 샐 수 없다."""
@@ -201,7 +201,7 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
         self.assertEqual(sanitize_trace_attributes(attributes), attributes)
 
     def test_ambiguous_1_5_stage_shadow_keys_no_longer_allowlisted(self) -> None:
-        """2026-08-24 2단계 §1: observable_trait_count/not_probed_count는 이름만으로는
+        """2026-08-23 2단계 §1: observable_trait_count/not_probed_count는 이름만으로는
         구조적 수치인지 세션 수치인지 알 수 없었고, 실제로 두 필드가 같은 값(len(observed))을
         재사용하는 계산 버그를 숨겼다 — 완전히 제거됐는지 회귀 확인."""
 

@@ -48,7 +48,7 @@ class CoverageClassificationTest(unittest.TestCase):
         self.assertTrue(VERTICAL_SLICE_TRAIT_IDS <= DIRECTLY_MEASURABLE_TRAIT_IDS)
 
     def test_exactly_the_7_direct_probe_traits_are_now_directly_measurable(self) -> None:
-        """2026-08-24 2단계 §5/§16: "구조상 직접 측정 가능"(structurally_directly_
+        """2026-08-23 2단계 §5/§16: "구조상 직접 측정 가능"(structurally_directly_
         measurable)은 Trait당 Direct Probe Blueprint 2개(서로 다른 Context/Frame)가
         Registry에 등록되면 성립한다 — 실제로 서빙되는지와는 별개다(Feature Flag OFF에서도
         구조적으로는 참이다). 이번 단계에서 Blueprint를 만든 7개 신규 Trait만 여기

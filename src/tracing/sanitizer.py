@@ -154,7 +154,7 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "mapping_source_exact_count": _is_nonneg_int,
     "mapping_source_legacy_adapter_count": _is_nonneg_int,
     "mapping_missing_count": _is_nonneg_int,
-    # 2026-08-24 Trait Ontology v2(2단계) §1: "구조상 관찰 가능한가"(질문 Bank 자체의
+    # 2026-08-23 Trait Ontology v2(2단계) §1: "구조상 관찰 가능한가"(질문 Bank 자체의
     # 정적 구조, 학생과 무관하게 항상 같은 값)와 "이 학생 세션에서 실제로 관찰됐는가"
     # (세션마다 다른 값)를 이름으로도 명확히 구분한다 — 1.5단계의 observable_trait_count/
     # not_probed_count는 이름만으로는 어느 쪽인지 알 수 없어서 실제로 값 계산 버그(둘 다

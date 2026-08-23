@@ -44,12 +44,22 @@ class TraitVectorEntry(BaseModel):
         "no_evidence", "explicit_conflict",
     ]
     status: TraitVectorStatus
-    # 2026-08-24 2단계 §10 — Target Trait 질문이 제시된 횟수와, 그중 실제로 Target
+    # 2026-08-23 2단계 §10 — Target Trait 질문이 제시된 횟수와, 그중 실제로 Target
     # Signal이 선택된 횟수. `target_signal_selected=False`는 부정 Evidence가 아니다 —
     # "직접 질문했지만 이 답변에서는 확인 안 됨"이라는 사실만 담는다. 기본값 0이라
     # Direct Probe를 모르는 기존 호출자는 이 필드를 몰라도 된다.
     direct_probe_opportunity_count: int = 0
     direct_probe_primary_evidence_count: int = 0
+    # 2026-08-23 2단계 후속(2.1단계) §4 — 후보 우선순위는 PRIMARY와 섞이지 않은
+    # RELATED 전용 다양성만 봐야 한다(PRIMARY가 섞이면 "이미 Direct Probe로 확인된
+    # 것"과 "아직 RELATED뿐인 것"을 같은 지표로 잘못 비교하게 된다). 아래 4개 필드는
+    # `context_count`/`frame_count`/`question_count`(PRIMARY+RELATED 합산, 기존 유지)와
+    # 별도로 RELATED만 다시 센 값이다 — 전부 내부 진단 전용, API 미노출.
+    related_question_count: int = 0
+    related_context_count: int = 0
+    related_frame_count: int = 0
+    related_context_ids: set[str] = Field(default_factory=set)
+    v2_direct_primary_evidence_count: int = 0
 
 
 class TraitVectorSnapshot(BaseModel):

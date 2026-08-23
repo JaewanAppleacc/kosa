@@ -1,4 +1,4 @@
-"""V2 Direct Probe 질문 생성 — 2026-08-24 Trait Ontology v2(2단계) §13.
+"""V2 Direct Probe 질문 생성 — 2026-08-23 Trait Ontology v2(2단계) §13.
 
 검토된 Direct Probe Blueprint → LLM은 Context에 맞게 문장 표현만 생성 → Structured
 Output → Quality Gate → 실패 시 재생성 → 계속 실패하면 `blueprint.base_question`(사람이
