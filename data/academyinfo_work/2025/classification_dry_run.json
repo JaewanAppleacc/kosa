@@ -1,0 +1,160 @@
+{
+  "survey_year": 2025,
+  "included_department_total": 25389,
+  "classified_total": 25389,
+  "mapping_status_breakdown": {
+    "UNMAPPED": 3799,
+    "AUTO_CANDIDATE": 21590
+  },
+  "auto_candidate_rate": 0.8504,
+  "eligibility_breakdown": {
+    "APPROVED": 17268,
+    "EXCLUDED_ARTS_SPORTS": 3667,
+    "REVIEW_REQUIRED": 4454
+  },
+  "official_small_series_distribution": {
+    "N.C.E.": 3520,
+    "경영학": 1031,
+    "체육": 874,
+    "디자인": 802,
+    "전산학·컴퓨터공학": 764,
+    "행정학": 650,
+    "사회복지학": 551,
+    "생명과학": 550,
+    "정보·통신공학": 500,
+    "기계공학": 455,
+    "무역·유통학": 427,
+    "관광학": 417,
+    "응용소프트웨어공학": 412,
+    "전자공학": 393,
+    "영어·영문학": 342,
+    "국어·국문학": 336,
+    "토목공학": 305,
+    "건축학": 294,
+    "경제학": 287,
+    "법학": 271,
+    "언론·방송·매체학": 253,
+    "화학공학": 251,
+    "중국어·문학": 233,
+    "식품영양학": 231,
+    "국제지역학": 228,
+    "화학": 221,
+    "순수미술": 219,
+    "재활치료": 218,
+    "임상보건": 218,
+    "건축공학": 216
+  },
+  "unclassified_nce_count": 3657,
+  "multi_group_conflict_count": 0,
+  "canonical_group_count": 40,
+  "departments_per_canonical_group": {
+    "경영학": 1424,
+    "컴퓨터·소프트웨어·AI": 1315,
+    "미술·디자인": 1285,
+    "전기·전자·정보통신": 1202,
+    "건축·토목·환경": 1170,
+    "기계·자동차·항공·조선": 1112,
+    "외국어·언어학": 1109,
+    "체육·무용": 955,
+    "무역·유통·관광": 922,
+    "교육학": 821,
+    "사회복지·아동가족": 681,
+    "생활과학(식품·의류·주거)": 670,
+    "행정·정책": 650,
+    "철학·역사·종교": 606,
+    "생명과학": 598,
+    "보건·재활": 588,
+    "정치외교·국제학": 525,
+    "농림·수산": 522,
+    "화학공학·에너지": 503,
+    "연극·영화·영상콘텐츠": 500,
+    "음악": 498,
+    "반도체·신소재": 408,
+    "국어국문·문예창작": 373,
+    "미디어·광고": 352,
+    "산업공학·안전": 343,
+    "경제학": 287,
+    "수학·통계": 286,
+    "생명공학·의공학": 276,
+    "법학": 271,
+    "지구·지리·환경": 259,
+    "화학": 221,
+    "간호학": 205,
+    "심리학": 180,
+    "물리·천문": 160,
+    "사회학·문헌정보": 128,
+    "약학": 96,
+    "의학": 48,
+    "한의학": 17,
+    "수의학": 13,
+    "치의학": 11
+  },
+  "empty_canonical_groups": [],
+  "computer_science_samples": [
+    {
+      "university": "서울대학교",
+      "department": "컴퓨터공학부",
+      "candidates": [
+        "computer_science"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "서울대학교",
+      "department": "전기공학부·컴퓨터공학부군",
+      "candidates": [
+        "electrical_electronic"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "고려대학교",
+      "department": "컴퓨터학과",
+      "candidates": [
+        "computer_science"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "고려대학교",
+      "department": "컴퓨터교육과",
+      "candidates": [
+        "education"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "고려대학교",
+      "department": "인공지능학과",
+      "candidates": [
+        "computer_science"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "고려대학교",
+      "department": "컴퓨터학과",
+      "candidates": [
+        "computer_science"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "고려대학교",
+      "department": "컴퓨터·통신공학부",
+      "candidates": [
+        "electrical_electronic"
+      ],
+      "status": "AUTO_CANDIDATE"
+    },
+    {
+      "university": "연세대학교",
+      "department": "컴퓨터과학과",
+      "candidates": [
+        "computer_science"
+      ],
+      "status": "AUTO_CANDIDATE"
+    }
+  ],
+  "note": "전부 draft다. 사람 검토 없이 학생 화면용 Mapping으로 승격하지 않는다."
+}

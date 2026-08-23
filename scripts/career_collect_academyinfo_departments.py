@@ -31,6 +31,10 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 
 from scripts.career_console import use_utf8_stdout  # noqa: E402
+from src.data_sources.academyinfo_year import (  # noqa: E402
+    PUBLIC_API_METADATA_MODIFIED_AT,
+    select_survey_year,
+)
 from src.data_sources.academyinfo_client import (  # noqa: E402
     ACADEMYINFO_DATASET_URL,
     CODE_TABLES,
@@ -81,11 +85,16 @@ def write_jsonl_gz(path: Path, rows: Iterable[dict[str, Any]]) -> int:
     # mtime=0 + filename="": gzip 헤더에는 기본적으로 수집 시각과 **파일명**이 들어간다.
     # 그대로 두면 같은 내용을 다른 경로에 쓰거나 파일명을 바꾸기만 해도 Hash가 달라져,
     # §10 "동일 입력 재빌드 Byte-identical" 검사가 내용이 아니라 경로를 검사하게 된다.
-    with path.open("wb") as fh:
+    # 임시 파일에 다 쓰고 나서 교체한다. 대상 파일에 바로 쓰면 그 순간 프로세스가 죽었을 때
+    # **잘린 gz가 남고**, Checkpoint는 '여기까지 완료'라는데 파일은 못 읽는 상태가 된다 —
+    # --resume이 그 파일을 읽다 EOFError로 죽는다. 실제 수집 중 이 상태를 관측했다.
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("wb") as fh:
         with gzip.GzipFile(fileobj=fh, mode="wb", mtime=0, filename="") as raw:
             for row in rows:
                 raw.write((_canonical_json(row) + "\n").encode("utf-8"))
                 count += 1
+    tmp.replace(path)
     return count
 
 
@@ -308,7 +317,14 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
 
     parser = argparse.ArgumentParser(description="대학알리미 전국 학과 수집")
-    parser.add_argument("--survey-year", type=int, default=int(os.getenv("ACADEMYINFO_SURVEY_YEAR") or 2025))
+    # 기본값을 두지 않는다 — 연도를 코드에 박으면 새 공시가 열려도 옛 데이터를 계속 받는다.
+    # 지정하지 않으면 getComparisonPubYear에 직접 물어 최신 지원연도를 쓴다 (A 지시 §1).
+    parser.add_argument(
+        "--survey-year",
+        type=int,
+        default=(int(os.getenv("ACADEMYINFO_SURVEY_YEAR")) if os.getenv("ACADEMYINFO_SURVEY_YEAR") else None),
+        help="생략하면 API 지원연도 중 최신값을 자동 선택한다",
+    )
     parser.add_argument("--page-size", type=int, default=100)
     parser.add_argument("--max-universities", type=int, default=None, help="시범 수집용 상한")
     parser.add_argument("--request-delay-ms", type=int, default=100)
@@ -328,21 +344,27 @@ def main(argv: list[str] | None = None) -> int:
         print("DATA_GO_KR_SERVICE_KEY가 없습니다. .env에 Decoding 키를 넣으세요.", file=sys.stderr)
         return 2
 
-    paths = Paths.for_year(args.survey_year, args.output_dir)
     client = AcademyInfoClient(
         service_key,
         request_delay_ms=args.request_delay_ms,
         retry=RetryPolicy(),
     )
 
+    # 조사연도를 API에 직접 물어본다. 실패하면 기본값으로 넘어가지 않고 멈춘다.
+    selection = select_survey_year(client, requested=args.survey_year)
+    survey_year = selection.selected_year
+    paths = Paths.for_year(survey_year, args.output_dir)
+
     started_at = _now_iso()
-    print(f"대학알리미 수집 시작 — 조사연도 {args.survey_year}{' (dry-run)' if args.dry_run else ''}")
+    print(f"대학알리미 수집 시작 — 조사연도 {survey_year}{' (dry-run)' if args.dry_run else ''}")
+    print(f"  [연도] 지원 {selection.supported_years} · 선택 {survey_year} · 직전 {selection.previous_year}")
+    print(f"  [연도] {selection.reason}")
 
     code_counts: dict[str, int] = {}
     if not args.skip_code_tables:
-        code_counts = collect_code_tables(client, paths, args.survey_year, dry_run=args.dry_run)
+        code_counts = collect_code_tables(client, paths, survey_year, dry_run=args.dry_run)
 
-    universities = collect_universities(client, paths, args.survey_year, dry_run=args.dry_run)
+    universities = collect_universities(client, paths, survey_year, dry_run=args.dry_run)
 
     # 대학 목록에서 schlId를 뽑는다. 4년제 필터는 여기서 하지 않는다 —
     # 원본을 다 받아 두고 판정은 정규화 단계에서 근거를 남기며 한다(§7).
@@ -366,13 +388,20 @@ def main(argv: list[str] | None = None) -> int:
         school_ids = school_ids[: args.max_universities]
 
     dept_count, failed = collect_departments(
-        client, paths, args.survey_year, school_ids, dry_run=args.dry_run, resume=args.resume
+        client, paths, survey_year, school_ids, dry_run=args.dry_run, resume=args.resume
     )
 
     manifest = {
         "collector_version": COLLECTOR_VERSION,
-        "git_sha": _git_sha(),
-        "survey_year": args.survey_year,
+        "collector_git_sha": _git_sha(),
+        # 수정일과 조사연도를 구분해 함께 남긴다 — 나중에 "포털엔 2026이라 적혀 있었는데
+        # 왜 2025를 받았나"를 이 기록만으로 되짚을 수 있어야 한다 (A 지시 §1).
+        "public_api_metadata_modified_at": PUBLIC_API_METADATA_MODIFIED_AT,
+        "supported_survey_years": selection.supported_years,
+        "selected_survey_year": survey_year,
+        "selected_year_reason": selection.reason,
+        "previous_survey_year": selection.previous_year,
+        "survey_year": survey_year,
         "collected_at": started_at,
         "finished_at": _now_iso(),
         "endpoint_base_url": "https://apis.data.go.kr/B340014",

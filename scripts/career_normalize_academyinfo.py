@@ -35,6 +35,12 @@ from src.data_sources.academyinfo_codes import (  # noqa: E402
     is_series_unclassified,
     undergraduate_scope_reason,
 )
+from src.data_sources.academyinfo_identity import (  # noqa: E402
+    build_lineage,
+    build_resolution_review_queue,
+    generate_source_record_id,
+    retention_stats,
+)
 from src.ids import generate_department_id  # noqa: E402
 
 ACADEMYINFO_DATASET_NAME = "한국대학교육협의회 대학알리미 대학 기본 정보 (data.go.kr B340014)"
@@ -88,7 +94,11 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
     college_name = (raw.get("clgNm") or "").strip()
 
     return {
-        # 기존 Raw Schema (§6) — 이름을 바꾸지 않는다.
+        # A 지시 §5: 원본 행 식별자와 학과 실체 식별자를 분리한다.
+        # source_record_id는 연도를 포함하고, department_id는 포함하지 않는다.
+        "source_record_id": generate_source_record_id(
+            schl_id, (raw.get("schlMjrId") or "").strip(), raw.get("svyYr") or 0
+        ),
         "department_id": generate_department_id(schl_id, department_name, college_name),
         "schl_id": schl_id,
         "university_name": (raw.get("korSchlNm") or "").strip(),
@@ -248,7 +258,28 @@ def main(argv: list[str] | None = None) -> int:
 
     write_jsonl(work_dir / "departments.normalized.jsonl", included)
     write_jsonl(work_dir / "excluded_records.jsonl", excluded)
+
+    # A 지시 §5: 중복은 자동으로 한 행을 고르지 않고 검토 대기열로 넘긴다.
+    review_queue = build_resolution_review_queue(included)
+    write_jsonl(work_dir / "department_resolution_review_queue.jsonl", review_queue)
+
+    # A 지시 §4: 직전 지원연도가 이미 수집돼 있으면 연도 간 lineage를 만든다.
+    lineage: list[dict] = []
+    retention: dict = {}
+    prev_year = args.survey_year - 1
+    prev_path = args.data_dir / "academyinfo_work" / str(prev_year) / "departments.normalized.jsonl"
+    if prev_path.exists():
+        prev_rows = [json.loads(l) for l in prev_path.read_text(encoding="utf-8").splitlines() if l.strip()]
+        lineage = build_lineage(included, prev_rows)
+        retention = retention_stats(lineage)
+        write_jsonl(work_dir / "department_lineage.jsonl", lineage)
+        print(f"  Lineage: {prev_year} → {args.survey_year} · schlMjrId 유지율 "
+              f"{retention.get('schl_mjr_id_retention_rate')}")
+    else:
+        print(f"  Lineage: 직전연도({prev_year}) 정규화 결과가 없어 비교를 건너뜁니다.")
     report = build_report(included, excluded, args.survey_year)
+    report["review_queue_count"] = len(review_queue)
+    report["lineage"] = retention or None
     (work_dir / "normalization_report.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
