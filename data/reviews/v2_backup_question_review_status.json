@@ -1,50 +1,50 @@
 [
   {
-    "blueprint_id": "game_backup_01",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "사용자 검수 결과 Backup 질문이 전반적으로 부자연스러워 재작성이 필요함.",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "game_backup_01"
   },
   {
-    "blueprint_id": "game_backup_02",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "사용자 검수 결과 Backup 질문이 전반적으로 부자연스러워 재작성이 필요함.",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "game_backup_02"
   },
   {
-    "blueprint_id": "media_backup_01",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "사용자 검수 결과 Backup 질문이 전반적으로 부자연스러워 재작성이 필요함.",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "media_backup_01"
   },
   {
-    "blueprint_id": "media_backup_02",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "사용자 검수 결과 Backup 질문이 전반적으로 부자연스러워 재작성이 필요함.",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "media_backup_02"
   },
   {
-    "blueprint_id": "school_life_backup_01",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "사용자 검수 결과 Backup 질문이 전반적으로 부자연스러워 재작성이 필요함.",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_01"
   },
   {
-    "blueprint_id": "school_life_backup_02",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "사용자 검수 결과 Backup 질문이 전반적으로 부자연스러워 재작성이 필요함.",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_02"
   }
 ]
