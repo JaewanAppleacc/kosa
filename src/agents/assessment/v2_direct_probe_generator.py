@@ -77,8 +77,12 @@ frame_id 필드에는 "{blueprint.question_frame_id}"를 그대로 넣어 반환
 
 
 class V2DirectProbeGenerationOutcome(BaseModel):
-    question: FinalizedQuestion
-    source: str  # "llm" | "backup"
+    # 2026-08-23 Trait Ontology v2(2.9.1단계) §4: `allow_base_question_fallback=False`로
+    # 호출했는데 LLM이 끝내 실패하면 question이 None이다 — 호출부가 다른 대체 경로
+    # (Pack Anchor Backup)를 찾아야 한다는 신호다. Legacy 호출(allow_base_question_
+    # fallback=True, 기본값)에서는 여전히 None이 되지 않는다(회귀 없음).
+    question: FinalizedQuestion | None
+    source: str  # "llm" | "backup" | "fallback_disallowed"
 
 
 def generate_v2_direct_probe_question(
@@ -89,6 +93,7 @@ def generate_v2_direct_probe_question(
     llm_client: ChatLLMClient | None,
     max_regenerations: int = 1,
     anchor: ContextAnchorPresentation | None = None,
+    allow_base_question_fallback: bool = True,
 ) -> V2DirectProbeGenerationOutcome:
     """LLM이 결정하면 안 되는 것(target_trait_id/Blueprint ID/Option Role/Trait
     Signal/weight/Related Concept/질문 종료 여부/다음 Trait 선택) 중 이 함수가 다루는
@@ -104,11 +109,22 @@ def generate_v2_direct_probe_question(
     Fallback(`blueprint.base_question`)을 그대로 쓴다(§6 "재생성 실패 시 ... 중립
     Fallback 사용"). Fallback 자체는 Anchor별로 미리 써 둔 문구가 아니다 — 14개
     Blueprint × 5개 Anchor로 Mapping을 늘리지 않기 위한 의도적 선택이다(§2 금지 구조,
-    한계는 §24에 기록)."""
+    한계는 §24에 기록).
+
+    2026-08-23 Trait Ontology v2(2.9.1단계) §4: `allow_base_question_fallback=False`면
+    LLM이 꺼져 있거나 재생성까지 전부 실패했을 때 `blueprint.base_question`을 절대
+    돌려주지 않는다(question=None, source="fallback_disallowed") — ContextPack 공용
+    Adaptive Probe의 `base_question`은 Legacy game/media/school_life 문구를 그대로
+    복제한 것이라(§5, `context_pack_shared_probe_blueprints.py`), 신규 Context 학생에게
+    노출하면 안 되는 원본 그대로다. Legacy 3-Context 호출은 기본값 True를 그대로 쓰므로
+    이 함수의 기존 Fallback 동작(LLM OFF에서도 EXACT_BLUEPRINT로 완주)은 회귀하지
+    않는다."""
 
     fallback = blueprint.base_question.model_copy(update={"question_id": question_id})
 
     if llm_client is None:
+        if not allow_base_question_fallback:
+            return V2DirectProbeGenerationOutcome(question=None, source="fallback_disallowed")
         return V2DirectProbeGenerationOutcome(question=fallback, source="backup")
 
     user_prompt = _build_user_prompt(context_definition=context_definition, blueprint=blueprint, anchor=anchor)
@@ -135,4 +151,6 @@ def generate_v2_direct_probe_question(
         if gate.passed:
             return V2DirectProbeGenerationOutcome(question=finalized, source="llm")
 
+    if not allow_base_question_fallback:
+        return V2DirectProbeGenerationOutcome(question=None, source="fallback_disallowed")
     return V2DirectProbeGenerationOutcome(question=fallback, source="backup")

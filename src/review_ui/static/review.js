@@ -40,6 +40,12 @@ const state = {
   anchorBackupQuestionRevision: null,
   anchorBackupOptionRevision: null,
   anchorBackupCurrentIndex: 0,
+  // 2026-08-24 Trait Ontology v2(2.9.1단계) §5 — ContextPack 공용 Adaptive Probe 탭
+  // 전용 상태. Blueprint → Context → Anchor 3단 구조라 다른 탭의 "질문 하나 = Pager
+  // 한 칸" 모델을 그대로 쓰지 않는다 — 사이드바에서 Blueprint를 고르면 그 Blueprint의
+  // 12개 Context 행이 전부 펼쳐져 보인다.
+  sharedProbes: [],
+  sharedProbeCurrentBlueprintId: null,
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -1187,6 +1193,149 @@ function renderCurrentAnchorBackupQuestion() {
   document.getElementById("next-btn").disabled = state.anchorBackupCurrentIndex >= state.anchorBackupQuestions.length - 1;
 }
 
+/* ---- 2026-08-24 2.9.1단계 §5: ContextPack 공용 Adaptive Probe 탭 ----
+ *
+ * 실제 Runtime 변환 함수(ContextPackRegistry.is_shared_probe_approved_for_anchor,
+ * run_quality_gate)를 그대로 호출한 값만 보여준다 — 이 파일이 직접 승인 여부나
+ * forbidden assumption 결과를 계산하지 않는다(서버 응답을 그대로 렌더링할 뿐이다).
+ * 이 탭은 어떤 항목도 자동으로 APPROVE하지 않는다 — 사람이 체크박스로 고른 Anchor
+ * 목록만 그대로 서버에 보낸다. */
+
+async function loadSharedProbesAll() {
+  const resp = await apiGet(`${API_BASE}/context-packs/shared-probes`);
+  state.sharedProbes = resp.probes;
+  if (state.sharedProbeCurrentBlueprintId == null && state.sharedProbes.length > 0) {
+    state.sharedProbeCurrentBlueprintId = state.sharedProbes[0].blueprint_id;
+  }
+  renderSharedProbesSidebarList();
+  renderCurrentSharedProbe();
+}
+
+function renderSharedProbesSidebarList() {
+  const list = document.getElementById("shared-probe-nav-list");
+  list.innerHTML = "";
+  state.sharedProbes.forEach((probe) => {
+    const approvedContexts = probe.contexts.filter((c) => c.is_runtime_usable).length;
+    const item = el("li", {
+      class: probe.blueprint_id === state.sharedProbeCurrentBlueprintId ? "active" : "",
+      onclick: () => {
+        state.sharedProbeCurrentBlueprintId = probe.blueprint_id;
+        renderSharedProbesSidebarList();
+        renderCurrentSharedProbe();
+      },
+    }, [
+      el("div", { text: probe.blueprint_id }),
+      el("div", { class: "meta", text: `${probe.trait_label} · 사용 가능 Context ${approvedContexts}/${probe.contexts.length}` }),
+    ]);
+    list.appendChild(item);
+  });
+}
+
+function renderSharedProbeAnchorCard(probe, contextRow, anchor) {
+  const approveBox = el("input", { type: "checkbox" });
+  approveBox.checked = anchor.is_approved;
+  const excludeBox = el("input", { type: "checkbox" });
+  excludeBox.checked = anchor.is_excluded;
+
+  const failureList = anchor.forbidden_assumption_failures.length
+    ? el("ul", { class: "shared-probe-failure-list" }, anchor.forbidden_assumption_failures.map((f) => el("li", { text: f })))
+    : el("div", { class: "routing-check-ok", text: "forbidden assumption 위반 없음" });
+
+  const saveAnchorBtn = el("button", { type: "button", text: "이 Anchor 판정 저장" });
+  saveAnchorBtn.addEventListener("click", async () => {
+    const approvedIds = new Set(contextRow.anchors.filter((a) => (a.anchor_id === anchor.anchor_id ? approveBox.checked : a.is_approved)).map((a) => a.anchor_id));
+    const excludedIds = new Set(contextRow.anchors.filter((a) => (a.anchor_id === anchor.anchor_id ? excludeBox.checked : a.is_excluded)).map((a) => a.anchor_id));
+    // 2026-08-24 2.9.1단계 §1-3: 이 버튼은 Anchor 목록만 바꾼다 — status/comment는
+    // 아예 보내지 않는다(요청에서 생략 = 서버가 None으로 받아 기존 값 유지). 예전엔
+    // 여기서 TBD를 "APPROVE"로 암묵적으로 승격시켜 보냈다 — Anchor 하나 승인이 곧
+    // Context 전체 승인으로 새는 버그였다. Context의 reviewer_1_status는 아래
+    // "Context 상태 저장" 버튼으로 사람이 select에서 명시적으로 고를 때만 바뀐다.
+    await saveSharedProbeContextReview(probe.blueprint_id, contextRow.context_id, {
+      approved_anchor_ids: Array.from(approvedIds),
+      excluded_anchor_ids: Array.from(excludedIds),
+    });
+  });
+
+  return el("div", { class: "option-card" }, [
+    el("div", { class: "option-text", text: `${anchor.label} (${anchor.anchor_id})` }),
+    el("div", { class: "option-meta", text: `상황 표현: ${anchor.situation_terms.join(", ")}` }),
+    el("div", { class: "option-meta", text: `선호 장면: ${anchor.preferred_scenarios.join(", ")}` }),
+    el("div", { class: "option-meta", text: `금지 전제: ${anchor.forbidden_assumptions.join(", ") || "(없음)"}` }),
+    failureList,
+    el("label", { class: "shared-probe-anchor-toggle" }, [approveBox, " 이 Anchor 승인"]),
+    el("label", { class: "shared-probe-anchor-toggle" }, [excludeBox, " 이 Anchor 제외"]),
+    saveAnchorBtn,
+  ]);
+}
+
+function renderSharedProbeContextRow(probe, contextRow) {
+  const commentBox = el("textarea", { rows: "2", placeholder: "사용자 메모" });
+  commentBox.value = contextRow.review.reviewer_1_comment;
+
+  const statusSelect = el("select", {}, ["TBD", "APPROVE", "REVISE", "HOLD"].map((s) => el("option", { value: s, text: s })));
+  statusSelect.value = contextRow.review.reviewer_1_status;
+
+  const saveContextBtn = el("button", { type: "button", text: "Context 상태 저장" });
+  saveContextBtn.addEventListener("click", async () => {
+    await saveSharedProbeContextReview(probe.blueprint_id, contextRow.context_id, {
+      status: statusSelect.value, comment: commentBox.value,
+      approved_anchor_ids: null, excluded_anchor_ids: null,
+    });
+  });
+
+  return el("div", { class: "question-card" }, [
+    el("div", { class: "meta" }, [
+      el("strong", { text: contextRow.context_label }),
+      ` (${contextRow.context_id}) — `,
+      statusPill(contextRow.review.final_status),
+      contextRow.is_runtime_usable ? el("span", { class: "routing-check-ok", text: " · Runtime 사용 가능" }) : el("span", { class: "routing-check-manual", text: " · 아직 사용 불가(Anchor 미승인)" }),
+    ]),
+    el("div", {}, [statusSelect, saveContextBtn]),
+    commentBox,
+    el("div", { class: "option-list" }, contextRow.anchors.map((a) => renderSharedProbeAnchorCard(probe, contextRow, a))),
+  ]);
+}
+
+function renderCurrentSharedProbe() {
+  const container = document.getElementById("shared-probe-container");
+  container.innerHTML = "";
+  const probe = state.sharedProbes.find((p) => p.blueprint_id === state.sharedProbeCurrentBlueprintId);
+  if (!probe) {
+    container.appendChild(el("div", { text: "공용 Adaptive Probe가 없습니다." }));
+    return;
+  }
+
+  const traitPanel = el("div", { class: "trait-panel" }, [
+    el("div", { text: `Trait: ${probe.trait_label} (${probe.trait_id})` }),
+    el("div", { class: "def", text: probe.trait_definition }),
+    el("div", { class: "mapping-rationale-draft", text: `Mapping Rationale(Blueprint purpose): ${probe.purpose}` }),
+  ]);
+
+  const optionList = el("ul", { class: "option-list" }, probe.options.map((o) => el("li", { class: "option-card" }, [
+    el("div", { class: "option-text", text: `${o.role_id}: ${o.text}` }),
+    el("div", { class: "option-meta", text: `${o.mapping_type}${o.trait_id ? ` → ${o.trait_label}(weight=${o.weight})` : ""}` }),
+  ])));
+
+  container.appendChild(el("div", { class: "question-card" }, [
+    el("div", { class: "meta", text: `Blueprint ID: ${probe.blueprint_id}` }),
+    el("div", { class: "question-text", text: probe.question_text }),
+    traitPanel,
+    optionList,
+  ]));
+
+  probe.contexts.forEach((row) => container.appendChild(renderSharedProbeContextRow(probe, row)));
+}
+
+async function saveSharedProbeContextReview(blueprintId, contextId, payload) {
+  try {
+    await apiPatch(`${API_BASE}/context-packs/shared-probes/${blueprintId}/${contextId}`, payload);
+    setSaveIndicator("저장됨", "saved");
+    await loadSharedProbesAll();
+  } catch (err) {
+    setSaveIndicator(`저장 실패: ${err.message}`, "error");
+  }
+}
+
 async function setTab(tab) {
   if (tab === state.tab) return;
   if (!confirmDiscardIfDirty()) return;
@@ -1196,13 +1345,29 @@ async function setTab(tab) {
   document.body.classList.toggle("tab-seed_anchor", tab === "seed_anchor");
   document.body.classList.toggle("tab-backup", tab === "backup");
   document.body.classList.toggle("tab-anchor_backup", tab === "anchor_backup");
+  document.body.classList.toggle("tab-shared_probes", tab === "shared_probes");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
   document.getElementById("tab-backup-btn").classList.toggle("active", tab === "backup");
   document.getElementById("tab-anchor-backup-btn").classList.toggle("active", tab === "anchor_backup");
+  document.getElementById("tab-shared-probes-btn").classList.toggle("active", tab === "shared_probes");
+  // 공용 Adaptive Probe 탭은 "질문 하나 = Pager 한 칸" 모델이 아니라 사이드바
+  // 클릭으로만 이동한다 — 이전/다음 버튼은 이 탭에서 의미가 없으므로 숨긴다.
+  document.getElementById("pager-bar").style.display = tab === "shared_probes" ? "none" : "flex";
 
-  if (tab === "routing") {
+  if (tab === "shared_probes") {
+    if (state.sharedProbes.length === 0) {
+      try {
+        await loadSharedProbesAll();
+      } catch (err) {
+        setSaveIndicator(`공용 Adaptive Probe 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderSharedProbesSidebarList();
+      renderCurrentSharedProbe();
+    }
+  } else if (tab === "routing") {
     if (state.routingQuestions.length === 0) {
       try {
         await loadRoutingAll();
@@ -1277,8 +1442,10 @@ function setupControls() {
   document.getElementById("tab-seed-anchor-btn").addEventListener("click", () => setTab("seed_anchor"));
   document.getElementById("tab-backup-btn").addEventListener("click", () => setTab("backup"));
   document.getElementById("tab-anchor-backup-btn").addEventListener("click", () => setTab("anchor_backup"));
+  document.getElementById("tab-shared-probes-btn").addEventListener("click", () => setTab("shared_probes"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
+    if (state.tab === "shared_probes") return; // 이 탭은 사이드바 클릭으로만 이동한다.
     if (state.tab === "routing") stepRoutingQuestion(-1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
@@ -1286,6 +1453,7 @@ function setupControls() {
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
+    if (state.tab === "shared_probes") return;
     if (state.tab === "routing") stepRoutingQuestion(1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
@@ -1334,6 +1502,7 @@ function setupControls() {
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
+    if (state.tab === "shared_probes") return; // 이 탭은 화살표 키 이동을 쓰지 않는다.
     if (e.key === "ArrowLeft") {
       if (state.tab === "routing") stepRoutingQuestion(-1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);

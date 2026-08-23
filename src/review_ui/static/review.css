@@ -247,6 +247,23 @@ body.tab-seed_anchor .tab-only-seed_anchor { display: block; }
 body.tab-backup .tab-only-backup { display: block; }
 .tab-only-anchor_backup { display: none; }
 body.tab-anchor_backup .tab-only-anchor_backup { display: block; }
+.tab-only-shared_probes { display: none; }
+body.tab-shared_probes .tab-only-shared_probes { display: block; }
+
+/* 2026-08-24 2.9.1단계 §5 — ContextPack 공용 Adaptive Probe 탭 전용. */
+.shared-probe-failure-list {
+  margin: 6px 0;
+  padding-left: 18px;
+  color: var(--status-hold);
+  font-size: 0.9em;
+}
+.shared-probe-anchor-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 14px;
+  font-size: 0.9em;
+}
 
 .anchor-gate-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .anchor-gate-chip {

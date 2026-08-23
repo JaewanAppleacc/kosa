@@ -363,17 +363,40 @@ class SharedProbeOptionView(BaseModel):
     weight: float | None
 
 
+class SharedProbeAnchorPreviewView(BaseModel):
+    """2026-08-23 Trait Ontology v2(2.9.1단계) §5 — 이 Context의 실제 Anchor 5개 각각에
+    대한 Preview. `forbidden_assumption_failures`는 UI 전용 가짜 판정이 아니라 실제
+    `question_quality_gate.run_quality_gate()`를 그 Anchor의 `forbidden_assumptions`로
+    돌린 결과다. `is_approved`/`is_excluded`는 지금 저장된 검수 상태를 그대로 보여줄
+    뿐 이 화면이 계산해서 만든 값이 아니다."""
+
+    anchor_id: str
+    label: str
+    situation_terms: list[str]
+    preferred_scenarios: list[str]
+    forbidden_assumptions: list[str]
+    forbidden_assumption_failures: list[str]
+    is_approved: bool
+    is_excluded: bool
+
+
+class SharedProbeContextRow(BaseModel):
+    context_id: str
+    context_label: str
+    review: QuestionReviewView
+    anchors: list[SharedProbeAnchorPreviewView]
+    is_runtime_usable: bool  # 이 Context에서 실제로 이 Blueprint가 최소 1개 Anchor에 쓰일 수 있는가.
+
+
 class SharedProbeReviewItem(BaseModel):
     blueprint_id: str
     trait_id: str
     trait_label: str
     trait_definition: str
-    purpose: str
-    allowed_context_ids: list[str]
+    purpose: str  # Mapping Rationale에 해당 — Blueprint 자체가 이미 갖고 있는 값을 그대로 노출한다.
     question_text: str
     options: list[SharedProbeOptionView]
-    review: QuestionReviewView
-    is_active: bool  # 실제로 reviewer_1 APPROVED인가(= Runtime이 이 Blueprint를 쓸 수 있는가).
+    contexts: list[SharedProbeContextRow]  # 신규 12개 Context 각각의 검수 상태 + Anchor Preview.
 
 
 class SharedProbeListResponse(BaseModel):
@@ -381,6 +404,14 @@ class SharedProbeListResponse(BaseModel):
 
 
 class UpdateSharedProbeReviewRequest(BaseModel):
-    status: ReviewerStatus
-    comment: str = ""
+    # 2026-08-24 2.9.1단계 §1-3: status/comment도 None이면 기존 값을 그대로 둔다 —
+    # "이 Anchor 판정 저장" 버튼은 Context의 reviewer_1_status를 절대 암묵적으로
+    # 바꾸면 안 되므로 둘 다 아예 안 보낼 수 있어야 한다(이전에는 status가 필수라
+    # 화면이 TBD를 APPROVE로 승격시켜 보낼 수밖에 없었다 — 그 버그의 근본 수정).
+    status: ReviewerStatus | None = None
+    comment: str | None = None
+    # None이면 기존 목록을 그대로 유지한다 — 전달하면 그 목록으로 완전히 교체한다
+    # (부분 추가/삭제가 아니라 매 저장마다 검토자가 다시 확정한 전체 목록).
+    approved_anchor_ids: list[str] | None = None
+    excluded_anchor_ids: list[str] | None = None
     resolution_note: str | None = None

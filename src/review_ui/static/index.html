@@ -32,6 +32,7 @@
     <button id="tab-seed-anchor-btn" data-tab="seed_anchor" type="button">Seed Anchor Variant (15)</button>
     <button id="tab-backup-btn" data-tab="backup" type="button">Backup Question (6, REVISE)</button>
     <button id="tab-anchor-backup-btn" data-tab="anchor_backup" type="button">Anchor Backup (15)</button>
+    <button id="tab-shared-probes-btn" data-tab="shared_probes" type="button">공용 Probe · Anchor 적용 검수 (14)</button>
   </div>
 
   <span id="save-indicator" class="save-indicator">불러오는 중…</span>
@@ -92,15 +93,21 @@
       <h3>Anchor Backup 목록</h3>
       <ul class="question-nav-list" id="anchor-backup-nav-list"></ul>
     </div>
+
+    <div class="filter-group tab-only-shared_probes">
+      <h3>공용 Probe — Anchor 적용 가능성 검수 목록</h3>
+      <ul class="question-nav-list" id="shared-probe-nav-list"></ul>
+    </div>
   </aside>
 
   <section class="content">
-    <div class="pager">
+    <div class="pager" id="pager-bar">
       <button id="prev-btn" type="button">← 이전 (←)</button>
       <span id="pager-label"></span>
       <button id="next-btn" type="button">다음 (→) →</button>
     </div>
     <div id="question-container"></div>
+    <div id="shared-probe-container" class="tab-only-shared_probes"></div>
   </section>
 </main>
 

@@ -52,7 +52,7 @@ class ContextPackRuntimeTest(unittest.TestCase):
         self.assertIsNone(runtime.get_anchor_presentation("game", "anchor_a"))
         self.assertIsNone(runtime.get_seed_question("game", "anchor_a"))
         self.assertEqual(runtime.get_backup_candidates("game", "anchor_a"), [])
-        self.assertEqual(runtime.get_direct_probe_candidates("game"), [])
+        self.assertEqual(runtime.get_direct_probe_candidates("game", "anchor_a"), [])
 
     def test_flag_off_pack_context_returns_none_even_if_approved(self) -> None:
         self._approve_all()

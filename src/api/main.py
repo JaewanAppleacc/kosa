@@ -460,7 +460,7 @@ def _compute_v2_primary_snapshot(
         unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
         resolutions=state.contrast_resolutions,
     )
-    primary_evidence = filter_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+    primary_evidence = filter_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices, _context_pack_registry)
     entries = compute_trait_vector_snapshot_all(
         primary_evidence, legacy_states, state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS,
         v2_probe_opportunities=state.v2_probe_opportunities,
@@ -740,6 +740,16 @@ def _pack_context_used_blueprint_ids(state: AssessmentState, current_context: st
     }
 
 
+def _pack_context_try_backup(state: AssessmentState, current_context: str, anchor_id: str) -> "FinalizedQuestion | None":
+    """이 Anchor의 미사용 Backup을 하나 돌려준다(없으면 None) — Adaptive 후보 자체가
+    없을 때와, 후보는 있었지만 LLM 생성이 최종 실패했을 때 둘 다 여기로 모인다
+    (2026-08-23 2.9.1단계 §4)."""
+
+    backups = _context_pack_runtime.get_backup_candidates(current_context, anchor_id)
+    unused = [b for b in backups if b.question_id not in state.used_backup_question_ids]
+    return unused[0] if unused else None
+
+
 def _serve_pack_context_question(state: AssessmentState, current_context: str) -> "NextQuestionResponse":
     """2026-08-23 Trait Ontology v2(2.9단계) §4/§5/§7/§9 — 신규 ContextPack Context
     전용 질문 서빙. Legacy Tail Option Blueprint(12-Trait 전용)는 전혀 쓰지 않는다 —
@@ -769,7 +779,9 @@ def _serve_pack_context_question(state: AssessmentState, current_context: str) -
         status = QuestionDeliveryStatus.GENERATED
     else:
         tail_count = state.questions_asked_in_current_context - 1
-        pack_candidates = _context_pack_runtime.get_direct_probe_candidates(current_context)
+        # 2026-08-23 2.9.1단계 §3: Anchor 단위 검수를 반영하려면 후보 조회 자체가 이
+        # Anchor를 알아야 한다(Context 단위 승인만으로는 부족하다).
+        pack_candidates = _context_pack_runtime.get_direct_probe_candidates(current_context, anchor_id)
         candidate_trait_ids = {bp.trait_id for bp in pack_candidates}
         trait_summaries = compute_pack_context_trait_summaries(
             state.evidence_ledger, state.offered_trait_ids_by_question,
@@ -791,29 +803,41 @@ def _serve_pack_context_question(state: AssessmentState, current_context: str) -
         if chosen is not None:
             question_id = generate_question_id(current_context, "v2_probe", tail_count + 1)
             anchor_presentation = _context_pack_runtime.get_anchor_presentation(current_context, anchor_id)
+            # 2026-08-23 2.9.1단계 §4: 공용 Adaptive Probe의 base_question은 Legacy
+            # game/media/school_life 문구를 그대로 복제한 것이다 — LLM이 꺼져 있거나
+            # 재생성까지 실패하면 그 원본을 신규 Context 학생에게 노출하는 대신
+            # (allow_base_question_fallback=False) 이 Anchor의 검수된 Backup으로
+            # 넘어간다. Legacy 3-Context 호출(main.py 위쪽 `_serve_next_v2_direct_
+            # probe_question`)은 기본값 True를 그대로 써서 회귀하지 않는다.
             outcome = generate_v2_direct_probe_question(
                 question_id=question_id, context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
                 blueprint=chosen.blueprint, llm_client=_llm_client, anchor=anchor_presentation,
+                allow_base_question_fallback=False,
             )
-            # 공용 Adaptive Probe Blueprint는 Fallback base_question에 자리표시자
-            # Context가 박혀 있다(schema 요구사항 — allowed_context_ids 중 하나여야
-            # 함). LLM 경로는 이미 실제 current_context를 돌려주지만, Fallback 경로는
-            # 여기서 명시적으로 덮어써야 Evidence.context가 실제 Context와 어긋나지
-            # 않는다.
-            question = outcome.question.model_copy(update={"context": current_context})
-            status = QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED
-            question_family_id = "pack_direct_probe"
-            question_blueprint_id = chosen.blueprint.blueprint_id
-            state.current_v2_probe_target_trait_id = chosen.trait_id
-            state.current_v2_probe_blueprint_id = chosen.blueprint.blueprint_id
+            if outcome.question is not None:
+                # LLM 경로는 이미 실제 current_context를 돌려주지만, 혹시 모를 불일치를
+                # 방어적으로 한 번 더 맞춘다 — Evidence.context가 실제 Context와
+                # 어긋나지 않아야 한다.
+                question = outcome.question.model_copy(update={"context": current_context})
+                status = QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED
+                question_family_id = "pack_direct_probe"
+                question_blueprint_id = chosen.blueprint.blueprint_id
+                state.current_v2_probe_target_trait_id = chosen.trait_id
+                state.current_v2_probe_blueprint_id = chosen.blueprint.blueprint_id
+            else:
+                backup = _pack_context_try_backup(state, current_context, anchor_id)
+                if backup is None:
+                    return _pack_context_early_terminate(state, f"STOP_GENERATION_EXHAUSTED tail_count={tail_count}")
+                question = backup
+                question_family_id, question_blueprint_id = "pack_backup", question.question_id
+                status = QuestionDeliveryStatus.BACKUP_USED
         elif stop_decision == "CONTINUE" and tail_count < 4:
             # §9: 후보가 바닥났지만 아직 최소 4개도 못 채웠다 — 이때만 Anchor Backup을
             # "실패 대체"로 쓴다(정상 후보가 있는 한 Backup은 절대 선택되지 않는다).
-            backups = _context_pack_runtime.get_backup_candidates(current_context, anchor_id)
-            unused_backups = [b for b in backups if b.question_id not in state.used_backup_question_ids]
-            if not unused_backups:
+            backup = _pack_context_try_backup(state, current_context, anchor_id)
+            if backup is None:
                 return _pack_context_early_terminate(state, f"STOP_CANDIDATE_EXHAUSTED tail_count={tail_count}")
-            question = unused_backups[0]
+            question = backup
             question_family_id, question_blueprint_id = "pack_backup", question.question_id
             status = QuestionDeliveryStatus.BACKUP_USED
         else:
@@ -1666,7 +1690,7 @@ def get_profile(session_id: str) -> ProfileResponse:
             llm_client=_llm_client,
             resolutions=state.contrast_resolutions,
         )
-        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices, _context_pack_registry)
         _tracer.record_stage(
             trace_id=state.trace_id,
             stage_name="Profile Summary Generator",
@@ -1800,7 +1824,7 @@ def get_majors(session_id: str) -> MajorsResponse:
         relevant_v2, explore_together_v2, insufficient_message_v2 = rank_major_relevance_v2(
             results_v2, labels_by_major_id_v2, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
         )
-        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices, _context_pack_registry)
         _tracer.record_stage(
             trace_id=state.trace_id,
             stage_name="Major Matching",
@@ -1913,7 +1937,7 @@ def get_subjects(
                 status_code=422,
                 detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
             ) from exc
-        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices, _context_pack_registry)
         _tracer.record_stage(
             trace_id=state.trace_id,
             stage_name="Subject Matching",

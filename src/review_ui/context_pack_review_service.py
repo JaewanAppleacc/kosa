@@ -10,8 +10,12 @@ T·S·L이 `src/data/context_packs/`에 새 Pack 파일을 추가하기만 하�
 
 from __future__ import annotations
 
+from pydantic import ValidationError as PydanticValidationError
+
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.engines.question_quality_gate import run_quality_gate
 from src.schemas.context_pack import ContextPack
+from src.schemas.context_pack_shared_probe_review import SharedProbeContextReview
 from src.schemas.question import FinalizedOption, FinalizedQuestion
 from src.schemas.trait import TraitDefinition
 from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
@@ -35,6 +39,8 @@ from src.review_ui.schemas import (
     ContextPackReviewQuestionView,
     QuestionReviewView,
     ReviewerStatus,
+    SharedProbeAnchorPreviewView,
+    SharedProbeContextRow,
     SharedProbeListResponse,
     SharedProbeOptionView,
     SharedProbeReviewItem,
@@ -213,17 +219,30 @@ def build_context_pack_list(
     )
 
 
+def _shared_probe_review_view(entry: SharedProbeContextReview | None) -> QuestionReviewView:
+    entry = entry or SharedProbeContextReview(blueprint_id="", context_id="")
+    return QuestionReviewView(
+        reviewer_1_status=entry.reviewer_1_status, reviewer_1_comment=entry.reviewer_1_comment,
+        reviewer_2_status=entry.reviewer_2_status, reviewer_2_comment=entry.reviewer_2_comment,
+        final_status=entry.final_status, resolution_note=entry.resolution_note,
+    )
+
+
 def build_shared_probe_list(
-    shared_pool: list[V2DirectProbeBlueprint], trait_definitions: dict[str, TraitDefinition],
+    registry: ContextPackRegistry, shared_pool: list[V2DirectProbeBlueprint],
+    trait_definitions: dict[str, TraitDefinition],
 ) -> SharedProbeListResponse:
-    """2026-08-23 Trait Ontology v2(2.9단계) §11 — ContextPack 공용 Adaptive Probe
-    Blueprint(`context_pack_shared_probe_blueprints.py`)를 그대로 보여준다. 원본 14개
-    Legacy Blueprint의 role_id·Trait Signal을 그대로 복사한 것이라 실제 Runtime
-    변환과 다른 가짜 Preview가 아니다."""
+    """2026-08-23 Trait Ontology v2(2.9/2.9.1단계) §5/§11 — ContextPack 공용 Adaptive
+    Probe Blueprint(`context_pack_shared_probe_blueprints.py`)를 Blueprint → Context
+    → Anchor 3단으로 보여준다(2.9.1단계 §3 — Context+Anchor 단위 검수로 세분화됐으므로
+    화면도 그 단위를 그대로 반영해야 한다). Anchor Preview는 실제 그 Context Pack의
+    `anchor_presentations`(Registry가 실제로 발견한 Pack)를 그대로 쓰고,
+    forbidden_assumption 검사는 실제 `run_quality_gate()`를 호출한 결과다 — 둘 다
+    UI 전용 가짜 데이터가 아니다. `is_approved`는 실제 Runtime이 쓰는 바로 그 함수
+    (`registry.is_shared_probe_approved_for_anchor`)를 그대로 호출한다."""
 
     trait_labels = {t.trait_id: t.label for t in trait_definitions.values()}
     trait_defs = {t.trait_id: t.definition for t in trait_definitions.values()}
-    review_entries = {e.blueprint_id: e for e in load_shared_probe_review_entries()}
 
     items: list[SharedProbeReviewItem] = []
     for bp in shared_pool:
@@ -238,15 +257,42 @@ def build_shared_probe_list(
                     weight=1.0 if mapping.mapping_type == "TRAIT_SIGNAL" else None,
                 )
             )
-        entry = review_entries.get(bp.blueprint_id)
+
+        context_rows: list[SharedProbeContextRow] = []
+        for context_id in sorted(bp.allowed_context_ids):
+            pack = registry.get_pack(context_id)
+            if pack is None:
+                continue  # 아직 그 Context Pack 자체가 발견되지 않았다 — 가짜 행을 만들지 않는다.
+            entry = registry.get_shared_probe_context_review(bp.blueprint_id, context_id)
+            anchor_views = []
+            any_usable = False
+            for anchor in pack.anchor_presentations:
+                gate = run_quality_gate(
+                    bp.base_question, forbidden_anchor_assumption_phrases=tuple(anchor.forbidden_assumptions),
+                )
+                is_approved = registry.is_shared_probe_approved_for_anchor(bp.blueprint_id, context_id, anchor.anchor_id)
+                is_excluded = entry is not None and anchor.anchor_id in entry.excluded_anchor_ids
+                any_usable = any_usable or is_approved
+                anchor_views.append(
+                    SharedProbeAnchorPreviewView(
+                        anchor_id=anchor.anchor_id, label=anchor.label, situation_terms=anchor.situation_terms,
+                        preferred_scenarios=anchor.preferred_scenarios, forbidden_assumptions=anchor.forbidden_assumptions,
+                        forbidden_assumption_failures=gate.failures, is_approved=is_approved, is_excluded=is_excluded,
+                    )
+                )
+            context_rows.append(
+                SharedProbeContextRow(
+                    context_id=context_id, context_label=_CONTEXT_LABEL_BY_ID.get(context_id, context_id),
+                    review=_shared_probe_review_view(entry), anchors=anchor_views, is_runtime_usable=any_usable,
+                )
+            )
+
         items.append(
             SharedProbeReviewItem(
                 blueprint_id=bp.blueprint_id, trait_id=bp.trait_id,
                 trait_label=trait_labels.get(bp.trait_id, bp.trait_id),
                 trait_definition=trait_defs.get(bp.trait_id, ""), purpose=bp.purpose,
-                allowed_context_ids=list(bp.allowed_context_ids), question_text=bp.base_question.question_text,
-                options=options, review=_review_view(entry),
-                is_active=entry is not None and entry.final_status == "APPROVED",
+                question_text=bp.base_question.question_text, options=options, contexts=context_rows,
             )
         )
     return SharedProbeListResponse(probes=sorted(items, key=lambda i: i.blueprint_id))
@@ -256,25 +302,91 @@ class UnknownSharedProbeError(ValueError):
     pass
 
 
-def update_shared_probe_review(
-    shared_pool: list[V2DirectProbeBlueprint], blueprint_id: str, *, status: ReviewerStatus,
-    comment: str, resolution_note: str | None,
-) -> UpdateReviewResponse:
-    if blueprint_id not in {bp.blueprint_id for bp in shared_pool}:
-        raise UnknownSharedProbeError(f"blueprint_id {blueprint_id!r}가 공용 Adaptive Probe 목록에 없다")
+class UnknownSharedProbeContextError(ValueError):
+    pass
 
-    entries = load_shared_probe_review_entries()
-    by_id = {e.blueprint_id: e for e in entries}
-    existing = by_id.get(blueprint_id) or QuestionReviewEntry(blueprint_id=blueprint_id)
-    updated = existing.model_copy(
-        update={
-            "reviewer_1_status": status, "reviewer_1_comment": comment,
-            **({"resolution_note": resolution_note} if resolution_note is not None else {}),
-        }
-    )
-    by_id[blueprint_id] = updated
-    save_shared_probe_review_entries([by_id[k] for k in sorted(by_id)])
-    return UpdateReviewResponse(ok=True, final_status=updated.final_status, new_revision="")
+
+class UnknownAnchorIdError(ValueError):
+    """2026-08-23 Trait Ontology v2(2.9.1단계) §1-2 — approved_anchor_ids/
+    excluded_anchor_ids에 그 ContextPack에 실제로 존재하지 않는 Anchor ID가 있을 때.
+    오류 메시지에는 anchor_id/context_id/blueprint_id 같은 내부 식별자만 담는다 —
+    질문 원문이나 학생 답변은 이 경로에 애초에 등장하지 않는다."""
+
+
+class SharedProbeAnchorListValidationError(ValueError):
+    """2026-08-23 Trait Ontology v2(2.9.1단계) §1-2 — `SharedProbeContextReview`
+    Schema의 구조 검증(중복 Anchor ID, 공백 ID, 승인·제외 교집합)이 실패했을 때.
+    `SharedProbeContextReview.model_validate()`가 던지는 `pydantic.ValidationError`를
+    이 도메인 예외로 감싼다 — 내용은 Schema 쪽 오류 메시지 그대로이고(anchor_id 등
+    내부 식별자만 포함, 질문 원문·학생 답변 없음), 형식만 이 모듈의 다른 오류들과
+    통일한다(엔드포인트가 항상 이 모듈의 예외 타입만 잡으면 되게)."""
+
+
+def update_shared_probe_review(
+    registry: ContextPackRegistry, shared_pool: list[V2DirectProbeBlueprint], blueprint_id: str, context_id: str, *,
+    status: ReviewerStatus | None, comment: str | None, approved_anchor_ids: list[str] | None,
+    excluded_anchor_ids: list[str] | None, resolution_note: str | None,
+) -> UpdateReviewResponse:
+    """2026-08-23 Trait Ontology v2(2.9.1단계) §3/§11/§1-2/§1-3 — 최소 승인 Key
+    `(blueprint_id, context_id)` 하나만 갱신한다(나머지 11개 Context 행은 전혀
+    건드리지 않는다 — 이게 바로 2.9단계 버그의 수정 지점이다).
+
+    각 인자는 전부 "None이면 기존 값을 그대로 두고, 값이 오면 그 값으로 완전히
+    교체한다"는 같은 규칙을 따른다 — `approved_anchor_ids`/`excluded_anchor_ids`뿐
+    아니라 `status`/`comment`도 2.9.1단계 §1-3부터 이 규칙에 포함된다. Review UI의
+    "이 Anchor 판정 저장" 버튼은 `status`/`comment`를 아예 보내지 않는다(None) —
+    Anchor 목록만 바뀌어야 하고, Context의 reviewer_1_status는 "Context 상태 저장"
+    버튼으로 사용자가 명시적으로 상태를 고를 때만 바뀐다. 이전에는 화면이 TBD를
+    암묵적으로 APPROVE로 승격시켜 보냈다 — 그 버그를 여기서(계약을 Optional로 열어
+    "보내지 않을 수 있게" 만들고) 근본적으로 막는다."""
+
+    bp = next((b for b in shared_pool if b.blueprint_id == blueprint_id), None)
+    if bp is None:
+        raise UnknownSharedProbeError(f"blueprint_id {blueprint_id!r}가 공용 Adaptive Probe 목록에 없다")
+    if context_id not in bp.allowed_context_ids:
+        raise UnknownSharedProbeContextError(f"{blueprint_id!r}는 context_id {context_id!r}에 노출되지 않는다")
+
+    # §1-2: 실제 Pack 정본과 대조해야 하는 검증(미등록 Anchor ID)은 여기(Service
+    # 계층)에서 한다 — Schema(SharedProbeContextReview)는 Pack을 몰라서 이 검증을
+    # 할 수 없다.
+    pack = registry.get_pack(context_id)
+    valid_anchor_ids = {a.anchor_id for a in pack.anchor_presentations} if pack is not None else set()
+
+    review_path = registry.shared_probe_review_status_path()
+    entries = load_shared_probe_review_entries(review_path)
+    by_key = {e.key: e for e in entries}
+    key = f"{blueprint_id}::{context_id}"
+    existing = by_key.get(key) or SharedProbeContextReview(blueprint_id=blueprint_id, context_id=context_id)
+
+    merged = existing.model_dump()
+    if status is not None:
+        merged["reviewer_1_status"] = status
+    if comment is not None:
+        merged["reviewer_1_comment"] = comment
+    if approved_anchor_ids is not None:
+        merged["approved_anchor_ids"] = approved_anchor_ids
+    if excluded_anchor_ids is not None:
+        merged["excluded_anchor_ids"] = excluded_anchor_ids
+    if resolution_note is not None:
+        merged["resolution_note"] = resolution_note
+    merged["revision"] = str(int(existing.revision) + 1 if existing.revision.isdigit() else 1)
+
+    final_anchor_ids = set(merged["approved_anchor_ids"]) | set(merged["excluded_anchor_ids"])
+    unknown_anchor_ids = final_anchor_ids - valid_anchor_ids
+    if unknown_anchor_ids:
+        raise UnknownAnchorIdError(
+            f"context_id={context_id!r}의 ContextPack에 없는 Anchor ID: {sorted(unknown_anchor_ids)}"
+        )
+
+    # model_copy(update=...)는 Pydantic 재검증을 건너뛴다 — 구조 검증(중복/공백/
+    # 교집합, §1-2)이 실제로 강제되도록 항상 model_validate로 새로 만든다.
+    try:
+        updated = SharedProbeContextReview.model_validate(merged)
+    except PydanticValidationError as exc:
+        raise SharedProbeAnchorListValidationError(str(exc)) from exc
+    by_key[key] = updated
+    save_shared_probe_review_entries([by_key[k] for k in sorted(by_key)], review_path)
+    return UpdateReviewResponse(ok=True, final_status=updated.final_status, new_revision=updated.revision)
 
 
 def update_context_pack_review(

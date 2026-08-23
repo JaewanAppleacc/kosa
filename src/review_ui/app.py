@@ -356,21 +356,26 @@ def get_context_packs() -> ContextPackListResponse:
 @app.get("/internal/review/v2/context-packs/shared-probes", response_model=SharedProbeListResponse)
 def get_shared_probes() -> SharedProbeListResponse:
     trait_definitions = {t.trait_id: t for t in load_trait_ontology_v2()}
-    return cprs.build_shared_probe_list(CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS, trait_definitions)
+    return cprs.build_shared_probe_list(_context_pack_registry, CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS, trait_definitions)
 
 
 @app.patch(
-    "/internal/review/v2/context-packs/shared-probes/{blueprint_id}", response_model=UpdateReviewResponse,
+    "/internal/review/v2/context-packs/shared-probes/{blueprint_id}/{context_id}", response_model=UpdateReviewResponse,
 )
 def patch_shared_probe_review(
-    blueprint_id: str, payload: UpdateSharedProbeReviewRequest,
+    blueprint_id: str, context_id: str, payload: UpdateSharedProbeReviewRequest,
 ) -> UpdateReviewResponse:
     try:
         return cprs.update_shared_probe_review(
-            CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS, blueprint_id, status=payload.status,
-            comment=payload.comment, resolution_note=payload.resolution_note,
+            _context_pack_registry, CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS, blueprint_id, context_id,
+            status=payload.status, comment=payload.comment,
+            approved_anchor_ids=payload.approved_anchor_ids, excluded_anchor_ids=payload.excluded_anchor_ids,
+            resolution_note=payload.resolution_note,
         )
-    except cprs.UnknownSharedProbeError as exc:
+    except (
+        cprs.UnknownSharedProbeError, cprs.UnknownSharedProbeContextError,
+        cprs.UnknownAnchorIdError, cprs.SharedProbeAnchorListValidationError,
+    ) as exc:
         raise _http_error(422, str(exc)) from exc
 
 

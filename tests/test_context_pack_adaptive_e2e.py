@@ -102,8 +102,22 @@ class _PackAdaptiveTestBase(unittest.TestCase):
         os.environ["ENABLE_CONTEXT_PACK_RUNTIME"] = "true"
         self.addCleanup(os.environ.pop, "ENABLE_CONTEXT_PACK_RUNTIME", None)
 
-    def _approve_shared_probes(self, blueprints) -> None:
-        entries = [{"blueprint_id": bp.blueprint_id, "reviewer_1_status": "APPROVE"} for bp in blueprints]
+    def _approve_shared_probes(
+        self, blueprints, *, context_id: str = "business", anchor_ids: list[str] | None = None,
+    ) -> None:
+        """2026-08-23 2.9.1단계 §3 — Context+Anchor 단위 승인. 기본값은 이 합성 Pack의
+        Anchor 5개 전부를 승인한 것으로 취급한다(대부분의 테스트가 "충분히 승인된
+        상태"를 원하므로) — Anchor 격리를 직접 검증하는 테스트는 `anchor_ids`를 좁혀
+        넘긴다."""
+
+        resolved_anchor_ids = anchor_ids if anchor_ids is not None else [a.anchor_id for a in self.pack.anchor_presentations]
+        entries = [
+            {
+                "blueprint_id": bp.blueprint_id, "context_id": context_id, "reviewer_1_status": "APPROVE",
+                "approved_anchor_ids": resolved_anchor_ids, "excluded_anchor_ids": [],
+            }
+            for bp in blueprints
+        ]
         (self.review_dir / "shared.json").write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
 
     def _confirmed_session(self, final=("business", "game")) -> str:

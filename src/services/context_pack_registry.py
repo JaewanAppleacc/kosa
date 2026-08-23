@@ -35,10 +35,12 @@ from src.data import context_packs as _context_packs_package
 from src.data.contexts.context_activation_batches import ALL_BATCH_CONTEXT_IDS, CONTEXT_ACTIVATION_BATCHES
 from src.data.questions.context_pack_shared_probe_blueprints import CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS
 from src.schemas.context_pack import ContextPack
+from src.schemas.context_pack_shared_probe_review import SharedProbeContextReview
 from src.schemas.v2_direct_probe_review import QuestionReviewEntry
 from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
 from src.services.context_pack_shared_probe_review_store import (
-    load_shared_probe_review_entries,
+    load_shared_probe_review_entries_by_key,
+    shared_probe_review_path as _default_shared_probe_review_path,
 )
 from src.services.trait_ontology_v2 import load_trait_ontology_v2
 from src.services.trait_signal_registry import register_context_pack_signals, register_shared_probe_blueprint_signals
@@ -212,21 +214,48 @@ class ContextPackRegistry:
             key in entries and entries[key].final_status == "APPROVED" for key in required
         )
 
-    def shared_probe_blueprints_for_context(self, context_id: str) -> list[V2DirectProbeBlueprint]:
-        """2.9단계 §5/§6 — 검수 승인(reviewer_1 APPROVED)된 공용 Adaptive Probe
-        Blueprint 중 이 Context가 `allowed_context_ids`에 포함된 것만 Fail-Closed로
-        돌려준다. Context 이름을 하드코딩하지 않는다 — `allowed_context_ids` 멤버십과
-        단일 공유 검수 파일만으로 판단한다."""
+    def is_shared_probe_approved_for_anchor(self, blueprint_id: str, context_id: str, anchor_id: str) -> bool:
+        """2026-08-23 Trait Ontology v2(2.9.1단계) §3 — 최소 승인 Key는
+        `(blueprint_id, context_id)`다(같은 Blueprint라도 Context마다 따로 검수해야
+        한다 — 2.9단계는 blueprint_id 하나만 봐서 business 승인이 law_politics 등
+        나머지 11개로 새어나갔다). Context 단위로 APPROVED여도 그 자체만으로는 어떤
+        Anchor에도 자동으로 쓰이지 않는다 — `approved_anchor_ids`에 명시적으로 들어간
+        Anchor만 후보가 된다("미검토 Anchor는 자동 승인 금지", Fail-Closed).
+        `excluded_anchor_ids`에 있으면 `approved_anchor_ids`에 실수로 같이 들어가
+        있어도 항상 거부한다(명시적 배제가 최우선)."""
 
-        approved_ids = self._approved_shared_probe_blueprint_ids()
+        entry = self._shared_probe_context_review_by_key().get(f"{blueprint_id}::{context_id}")
+        if entry is None or entry.final_status != "APPROVED":
+            return False
+        if anchor_id in entry.excluded_anchor_ids:
+            return False
+        return anchor_id in entry.approved_anchor_ids
+
+    def _shared_probe_context_review_by_key(self) -> dict[str, SharedProbeContextReview]:
+        return load_shared_probe_review_entries_by_key(self._shared_probe_review_status_path)
+
+    def get_shared_probe_context_review(self, blueprint_id: str, context_id: str) -> SharedProbeContextReview | None:
+        """검수 UI 등 외부에서 지금 저장된 판정을 그대로 읽기 위한 공개 접근자
+        (`is_shared_probe_approved_for_anchor`의 최종 True/False뿐 아니라 원본 상태
+        전체가 필요할 때 쓴다)."""
+
+        return self._shared_probe_context_review_by_key().get(f"{blueprint_id}::{context_id}")
+
+    def shared_probe_review_status_path(self) -> Path:
+        return _default_shared_probe_review_path(self._shared_probe_review_status_path)
+
+    def shared_probe_blueprints_for_context(self, context_id: str, anchor_id: str) -> list[V2DirectProbeBlueprint]:
+        """2026-08-23 Trait Ontology v2(2.9/2.9.1단계) §5/§6/§3 — 검수 승인
+        (Context+Anchor 단위 reviewer_1 APPROVED)된 공용 Adaptive Probe Blueprint 중
+        이 Context가 `allowed_context_ids`에 포함되고, 이 Anchor가 명시적으로 승인된
+        것만 Fail-Closed로 돌려준다. Context 이름을 하드코딩하지 않는다 —
+        `allowed_context_ids` 멤버십과 단일 공유 검수 파일만으로 판단한다."""
+
         return [
             bp for bp in self._shared_probe_pool
-            if context_id in bp.allowed_context_ids and bp.blueprint_id in approved_ids
+            if context_id in bp.allowed_context_ids
+            and self.is_shared_probe_approved_for_anchor(bp.blueprint_id, context_id, anchor_id)
         ]
-
-    def _approved_shared_probe_blueprint_ids(self) -> set[str]:
-        entries = load_shared_probe_review_entries(self._shared_probe_review_status_path)
-        return {e.blueprint_id for e in entries if e.final_status == "APPROVED"}
 
     def assessment_supported_context_ids(self, base_supported_context_ids: list[str]) -> list[str]:
         """§6 — 기존 Vertical Slice 3개(game/media/school_life, Pack 없이도 항상
