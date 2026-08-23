@@ -70,6 +70,20 @@ describe("전공", () => {
     expect(screen.queryByText("관련성이 높게 나타난 전공")).not.toBeInTheDocument();
   });
 
+  it("전공 카드에 전공명 아래로 description(전공 소개)을 보여준다(A3 지시서)", async () => {
+    vi.spyOn(endpoints, "fetchMajors").mockResolvedValue(majorsNormal as unknown as MajorsResponse);
+    renderWithState(<MajorsScreen />);
+
+    await screen.findByText("관련성이 높게 나타난 전공");
+    const firstMajor = (majorsNormal as unknown as MajorsResponse).relevant_majors[0];
+    if (firstMajor === undefined) throw new Error("mock 데이터에 전공이 없다");
+    const description = await screen.findByTestId("major-description");
+    expect(description.textContent).toBe(firstMajor.description);
+    // description은 근거 문단(relevance-reason)과 별도 요소다 — 같은 문장으로 합치지 않는다.
+    const reason = screen.getAllByTestId("major-relevance-reason")[0] as HTMLElement;
+    expect(reason.textContent).not.toBe(description.textContent);
+  });
+
   it("학과가 0개여도 오류가 아니라 빈 상태로 보여준다", async () => {
     const user = userEvent.setup();
     vi.spyOn(endpoints, "fetchMajors").mockResolvedValue(majorsNormal as unknown as MajorsResponse);

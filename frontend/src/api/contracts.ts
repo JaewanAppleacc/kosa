@@ -151,6 +151,11 @@ export type EvidenceSufficiencyLabel = z.infer<typeof evidenceSufficiencyLabelSc
 export const majorRelevanceSchema = z.object({
   major_id: z.string(),
   label: z.string(),
+  // 전공이 무엇을 배우는 분야인지 설명하는 정본 문장(A3 지시서 2026-08-24). 서버가
+  // 필수로 채워 보낸다 — Optional이 아니다. 관련도 근거나 "학생에게 적합한 이유"가
+  // 아니라 전공 자체를 소개하는 문구이므로, relevance_label/evidence_sufficiency와
+  // 절대 같은 문장으로 합쳐서 보여주지 않는다.
+  description: z.string(),
   relevance_label: relevanceLabelSchema,
   evidence_sufficiency: evidenceSufficiencyLabelSchema,
   repeated_context_count: z.number().int(),
@@ -178,6 +183,10 @@ export const departmentSchema = z.object({
   source_svy_year: z.number().int(),
   source_url: z.string(),
   canonical_major_id: z.string().nullable().default(null),
+  // 학과 공식 홈페이지 URL(2026-08-24 A2 지시서, Additive). 있을 때만 "학과 홈페이지"
+  // 버튼을 보여준다 — source_url(대학알리미 출처 표시 전용)을 이 버튼에 대신 쓰지
+  // 않는다. 지금 시연 데이터는 전부 null이라 빈 상태가 정상이다.
+  department_url: z.string().nullable().default(null),
 });
 export type Department = z.infer<typeof departmentSchema>;
 

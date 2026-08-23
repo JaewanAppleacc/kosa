@@ -188,13 +188,21 @@ function MajorCard({
         </span>
 
         <div className="min-w-0 flex-1">
+          <h4 className="text-[19px] mb-1">{major.label}</h4>
+
+          {/* 전공 소개 문장(정본 description) — 관련도 근거도, "학생에게 적합한 이유"도
+              아니다. 매칭 결과 문구(아래 relevance_reason 문단)와 절대 같은 문장으로
+              합치지 않는다 — 서로 다른 <p>로 분리해서 렌더링한다. */}
+          <p className="sub mb-2" data-testid="major-description">
+            {major.description}
+          </p>
+
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h4 className="text-[19px]">{major.label}</h4>
             <Badge>{major.relevance_label}</Badge>
             <Badge tone="quiet">근거 {major.evidence_sufficiency}</Badge>
           </div>
 
-          <p className="sub mb-5">
+          <p className="sub mb-5" data-testid="major-relevance-reason">
             {major.repeated_context_count > 0
               ? `서로 다른 ${major.repeated_context_count}개 분야의 답변에서 반복해서 나타났어요.`
               : "이번 답변에서 관련된 모습이 확인됐어요."}

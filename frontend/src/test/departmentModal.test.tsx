@@ -23,6 +23,7 @@ function department(overrides: Partial<Department> & { department_id: string }):
     source_svy_year: 2025,
     source_url: "https://www.academyinfo.go.kr/",
     canonical_major_id: "media_communication",
+    department_url: null,
     ...overrides,
   };
 }
@@ -128,5 +129,79 @@ describe("학과 팝업", () => {
     const { dialog } = await openModal(user);
     await within(dialog).findByText("가나대학교 미디어학과");
     expect(dialog.textContent).not.toMatch(/\d+(\.\d+)?%|0\.\d{2}/);
+  });
+
+  it("연결된 학과가 없으면 오류가 아니라 빈 상태 화면을 보여준다", async () => {
+    const user = userEvent.setup();
+    renderMajors([]);
+
+    const { dialog } = await openModal(user);
+    await within(dialog).findByText("지금 시연 데이터에 연결된 학과가 없어요");
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("Department.department_url 표시 정책(2026-08-24 A2/A4 지시서)", () => {
+  it("department_url이 있으면 '학과 홈페이지' 버튼을 보여준다", async () => {
+    const user = userEvent.setup();
+    renderMajors([
+      department({
+        department_id: "d1",
+        university_name: "가나대학교",
+        department_url: "https://media.gana.ac.kr",
+      }),
+    ]);
+
+    const { dialog } = await openModal(user);
+    const homepageLink = await within(dialog).findByRole("link", { name: "학과 홈페이지" });
+    expect(homepageLink).toHaveAttribute("href", "https://media.gana.ac.kr");
+  });
+
+  it("department_url이 null이면 '학과 홈페이지' 버튼을 아예 숨긴다", async () => {
+    const user = userEvent.setup();
+    renderMajors([department({ department_id: "d1", department_url: null })]);
+
+    const { dialog } = await openModal(user);
+    await within(dialog).findByText("예시대학교 미디어학과");
+    expect(within(dialog).queryByRole("link", { name: "학과 홈페이지" })).not.toBeInTheDocument();
+  });
+
+  it("source_url은 학과 홈페이지 링크로 쓰지 않는다 — 출처 링크와 href가 다르다", async () => {
+    const user = userEvent.setup();
+    renderMajors([
+      department({
+        department_id: "d1",
+        source_url: "https://www.academyinfo.go.kr/",
+        department_url: "https://media.gana.ac.kr",
+      }),
+    ]);
+
+    const { dialog } = await openModal(user);
+    const homepageLink = await within(dialog).findByRole("link", { name: "학과 홈페이지" });
+    expect(homepageLink).toHaveAttribute("href", "https://media.gana.ac.kr");
+    expect(homepageLink).not.toHaveAttribute("href", "https://www.academyinfo.go.kr/");
+  });
+
+  it("출처 문구에 source_svy_year가 '대학알리미 {연도}년 공시 기준' 형태로 표시된다", async () => {
+    const user = userEvent.setup();
+    renderMajors([department({ department_id: "d1", source_svy_year: 2025 })]);
+
+    const { dialog } = await openModal(user);
+    expect(await within(dialog).findByText("대학알리미 2025년 공시 기준")).toBeInTheDocument();
+  });
+
+  it("출처 링크는 항상 source_url을 가리킨다(department_url과 별개)", async () => {
+    const user = userEvent.setup();
+    renderMajors([
+      department({
+        department_id: "d1",
+        source_url: "https://www.academyinfo.go.kr/",
+        department_url: "https://media.gana.ac.kr",
+      }),
+    ]);
+
+    const { dialog } = await openModal(user);
+    const sourceLink = await within(dialog).findByRole("link", { name: "대학알리미 2025년 공시 기준" });
+    expect(sourceLink).toHaveAttribute("href", "https://www.academyinfo.go.kr/");
   });
 });
