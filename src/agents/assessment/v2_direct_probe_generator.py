@@ -20,8 +20,8 @@ from pydantic import BaseModel
 from src.engines.question_quality_gate import V2_DIRECT_PROBE_TRAIT_LABEL_PHRASES, run_quality_gate
 from src.llm.protocols import ChatLLMClient, LLMCallError
 from src.schemas.context import ContextDefinition
-from src.schemas.question import FinalizedQuestion, QuestionGenerationResult, finalize_question
-from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
+from src.schemas.question import FinalizedQuestion, QuestionGenerationResult
+from src.schemas.v2_direct_probe import V2DirectProbeBlueprint, finalize_v2_probe_question
 
 V2_DIRECT_PROBE_SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문의 질문 생성기입니다. 다음 규칙을 반드시 지키세요.
 - 학생이 선택한 Context(관심 영역) 안에서만 질문합니다.
@@ -41,7 +41,7 @@ V2_DIRECT_PROBE_SYSTEM_PROMPT = """당신은 고등학생 진로 탐색 설문�
 
 
 def _build_user_prompt(*, context_definition: ContextDefinition, blueprint: V2DirectProbeBlueprint) -> str:
-    role_list = "\n".join(f"- {role.role_id}" for role in blueprint.blueprint.roles)
+    role_list = "\n".join(f"- {mapping.role_id}" for mapping in blueprint.option_mappings)
     reference_lines = "\n".join(f"- {opt.role_id}: {opt.text}" for opt in blueprint.base_question.options)
     return f"""[Context — 질문의 행동 무대는 항상 이 안에 있어야 함]
 label: {context_definition.label}
@@ -73,8 +73,10 @@ def generate_v2_direct_probe_question(
 ) -> V2DirectProbeGenerationOutcome:
     """LLM이 결정하면 안 되는 것(target_trait_id/Blueprint ID/Option Role/Trait
     Signal/weight/Related Concept/질문 종료 여부/다음 Trait 선택) 중 이 함수가 다루는
-    부분(Option Role)은 `finalize_question()`이 이미 강제한다 — LLM이 반환한 role_id가
-    `blueprint.blueprint`에 없으면 거부한다."""
+    부분(Option Role)은 `finalize_v2_probe_question()`이 이미 강제한다 — LLM이 반환한
+    role_id가 `blueprint.option_mappings`에 없으면 거부한다. LLM은 NO_SIGNAL/TRAIT_SIGNAL
+    구분 자체를 아예 모른다(프롬프트에 role_id와 참고 문구만 전달한다) — role마다 문장
+    표현만 자연스럽게 바꿀 뿐이므로 Mapping을 다른 Trait 행동으로 바꿔치기할 수 없다."""
 
     fallback = blueprint.base_question.model_copy(update={"question_id": question_id})
 
@@ -93,7 +95,7 @@ def generate_v2_direct_probe_question(
         except LLMCallError:
             continue
         try:
-            finalized = finalize_question(question_id, result.question, blueprint.blueprint)
+            finalized = finalize_v2_probe_question(question_id, result.question, blueprint)
         except ValueError:
             continue
         finalized = finalized.model_copy(update={"target_traits": []})

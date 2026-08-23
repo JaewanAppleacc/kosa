@@ -304,6 +304,20 @@ _knowledge_subgraph_service = KnowledgeSubgraphService(
 )
 
 
+def _clear_current_question(state: AssessmentState) -> None:
+    """2.2단계 §12/§13 — 성공적으로 처리됐거나(답변 완료) 더 이상 유효하지 않은(Context
+    조기 종료) 질문 슬롯을 비운다. 이렇게 해야 (1) 다음 `/assessment/next-question` 호출이
+    "아직 답 안 한 질문이 있다"는 재요청 멱등성 분기로 잘못 빠지지 않고, (2) 같은
+    question_id로 답변이 다시 오면 기존 "현재 세션에 제시된 질문과 question_id가
+    다릅니다" 검증이 자연히 걸려 Evidence 중복 저장을 막는다."""
+
+    state.current_question = None
+    state.current_question_family_id = None
+    state.current_question_blueprint_id = None
+    state.current_question_delivery_status = None
+    state.current_question_served_context_id = None
+
+
 def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
     """§11 Fallback: Backup Question까지 소진되면 해당 Context를 조기 종료한다.
     다음 Context가 있으면 이동 후 True, 없으면 세션을 완료 처리하고 False를 반환한다."""
@@ -360,6 +374,7 @@ def _v2_probe_should_continue(state: AssessmentState) -> bool:
     candidates = select_v2_probe_candidates(
         v2_snapshot, set(state.v2_probed_trait_ids),
         final_contexts=state.final_contexts, used_v2_probe_frame_ids=used_frame_ids,
+        preferred_context_ids=state.selected_preferred_contexts, interest_ratings=state.interest_ratings,
     )
     return any(
         select_blueprint_for_trait(
@@ -396,6 +411,7 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
     candidates = select_v2_probe_candidates(
         v2_snapshot, set(state.v2_probed_trait_ids),
         final_contexts=state.final_contexts, used_v2_probe_frame_ids=used_frame_ids,
+        preferred_context_ids=state.selected_preferred_contexts, interest_ratings=state.interest_ratings,
     )
     state.pending_v2_probe_trait_ids = candidates
 
@@ -417,7 +433,7 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
         # §12: 후보 Trait 없음 / 준비된 Blueprint 없음 / 안전 상한 도달 — 전부 여기로 모인다.
         state.v2_probe_phase = "COMPLETE"
         state.phase = AssessmentPhase.PROFILE_GENERATION
-        state.current_question = None
+        _clear_current_question(state)
         _store.save(state)
         return NextQuestionResponse(
             session_id=state.session_id,
@@ -437,11 +453,14 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
         llm_client=_llm_client,
     )
     question = outcome.question
+    status = QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED
     state.current_question = question
     state.current_question_family_id = "v2_direct_probe"
-    state.current_question_blueprint_id = chosen_blueprint.blueprint.blueprint_id
+    state.current_question_blueprint_id = chosen_blueprint.blueprint_id
+    state.current_question_delivery_status = status.value
+    state.current_question_served_context_id = question_context
     state.current_v2_probe_target_trait_id = chosen_trait_id
-    state.current_v2_probe_blueprint_id = chosen_blueprint.blueprint.blueprint_id
+    state.current_v2_probe_blueprint_id = chosen_blueprint.blueprint_id
     _store.save(state)
 
     _tracer.record_stage(
@@ -451,14 +470,14 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
             "graph_node": "v2_direct_probe_question_generator",
             "context_id": question_context,
             "frame_id": chosen_blueprint.question_frame_id,
-            "blueprint_id": chosen_blueprint.blueprint.blueprint_id,
+            "blueprint_id": chosen_blueprint.blueprint_id,
             "source": outcome.source,
         },
     )
 
     return NextQuestionResponse(
         session_id=state.session_id,
-        status=QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED,
+        status=status,
         question=question,
         current_context_id=question_context,
         questions_asked_in_current_context=state.questions_asked_in_current_context,
@@ -561,6 +580,12 @@ def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: s
         state.phase = AssessmentPhase.PROFILE_GENERATION
         next_action = "ASSESSMENT_COMPLETE"
 
+    # 2.2단계 §12/§13: Evidence·Opportunity·Counter가 전부 갱신된 뒤에만 current_question을
+    # 정리한다 — 이렇게 해야 (1) 같은 question_id로 다시 답변을 제출하면 아래 submit_answer의
+    # 기존 "현재 세션에 제시된 질문과 question_id가 다릅니다" 검사가 자연히 걸려 중복
+    # Evidence를 막고, (2) 잘못된 option_id로 거부된 답변(이 지점에 도달하지 못하고 이미
+    # 함수 앞부분에서 예외로 끝남)은 current_question이 그대로 남아 재시도할 수 있다.
+    _clear_current_question(state)
     _store.save(state)
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
@@ -758,6 +783,21 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
 def next_question(session_id: str) -> NextQuestionResponse:
     state = _get_state_or_404(session_id)
 
+    # 2.2단계 §11 — 멱등성: 아직 답하지 않은 질문이 이미 나가 있으면(Legacy/Conflict
+    # Resolution/V2 Direct Probe 전부 포함) 그 응답을 그대로 복원해서 돌려준다. LLM·
+    # Planner·Registry를 다시 부르지 않는다 — 재요청할 때마다 LLM이 다시 호출돼 비용이
+    # 중복되거나 문구가 바뀌는 문제를 없앤다. `status`/`current_context_id`는 최초
+    # 서빙 당시 저장해둔 값을 그대로 쓴다(재계산하지 않는다).
+    if state.current_question is not None:
+        return NextQuestionResponse(
+            session_id=session_id,
+            status=QuestionDeliveryStatus(state.current_question_delivery_status or "GENERATED"),
+            question=state.current_question,
+            current_context_id=state.current_question_served_context_id,
+            questions_asked_in_current_context=state.questions_asked_in_current_context,
+            assessment_complete=False,
+        )
+
     # 2026-08-23 Trait Ontology v2(2단계) §3: Legacy Context 반복이 모두 끝난 뒤에만
     # 이 Phase로 들어온다 — Feature Flag가 꺼져 있으면 이 Phase에 절대 진입하지 않으므로
     # (submit_answer의 _enter_v2_direct_probe_phase_if_applicable), 이 분기 자체가
@@ -790,6 +830,8 @@ def next_question(session_id: str) -> NextQuestionResponse:
             # 감사 목적으로 family/blueprint id도 의미 있는 값으로 남겨둔다.
             state.current_question_family_id = "conflict_resolution"
             state.current_question_blueprint_id = question.contrast_id or ""
+            state.current_question_delivery_status = QuestionDeliveryStatus.GENERATED.value
+            state.current_question_served_context_id = current_context
             _store.save(state)
             return NextQuestionResponse(
                 session_id=session_id,
@@ -862,7 +904,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             # §11 Fallback 소진 — Context 조기 종료. 남은 재생성·Backup 경로를 다 썼다는
             # 뜻이라 조용히 넘기지 않고 상태를 남긴다.
             has_next_context = _advance_to_next_context_or_complete(state)
-            state.current_question = None
+            _clear_current_question(state)
             assessment_complete = not has_next_context
             # 2026-08-23 2단계 §3: 이 Context 조기 종료가 마지막 Legacy Context였다면,
             # 일반 STOP 경로와 동일하게 v2 Direct Probe 진입 여부를 확인한다.
@@ -916,6 +958,8 @@ def next_question(session_id: str) -> NextQuestionResponse:
     state.current_question = question
     state.current_question_family_id = question_family_id
     state.current_question_blueprint_id = question_blueprint_id
+    state.current_question_delivery_status = status.value
+    state.current_question_served_context_id = current_context
     _store.save(state)
     return NextQuestionResponse(
         session_id=session_id,
@@ -1015,6 +1059,13 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
             },
         )
 
+    # 2.2단계 §12/§13: Evidence·Stop/Continue·Target Planner 상태가 전부 갱신된 뒤에만
+    # current_question을 정리한다(원자성 순서 — Evidence 저장 성공 → State 갱신 성공 →
+    # current_question 정리 → Store 저장). 이 답변이 처리 도중 예외로 실패했다면(위에서
+    # `result.accepted=False`로 이미 거부됐거나, process_answer_submission 자체가 예외를
+    # 던졌다면) 이 지점에 도달하지 못하므로 current_question은 그대로 남아 학생이
+    # 올바른 선택지로 다시 답할 수 있다.
+    _clear_current_question(state)
     _store.save(state)
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 

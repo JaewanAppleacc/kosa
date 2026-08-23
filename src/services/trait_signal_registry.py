@@ -52,6 +52,11 @@ class TraitSignalRegistryError(ValueError):
 
 
 _REGISTRY: dict[TraitSignalRegistryKey, tuple[TraitSignal, ...]] = {}
+# 2.2단계 §4: v2 Direct Probe NO_SIGNAL Role은 의도적으로 signals가 빈 목록이다 —
+# `_REGISTRY`에 빈 튜플을 넣으면 "등록은 됐지만 비어 있다"와 "등록 자체가 없다"를
+# 구분할 수 없으므로, 별도 집합으로 명시적으로 추적한다. 여기 있는 Key는 항상
+# EXACT_BLUEPRINT_NO_SIGNAL로 조회된다 — LEGACY_PRIMARY_ADAPTER로 새지 않는다.
+_NO_SIGNAL_KEYS: set[TraitSignalRegistryKey] = set()
 
 
 def _register(
@@ -75,9 +80,36 @@ def _register(
         key = TraitSignalRegistryKey(
             question_family_id=question_family_id, blueprint_id=blueprint_id, role_id=role_id
         )
-        if key in _REGISTRY:
+        if key in _REGISTRY or key in _NO_SIGNAL_KEYS:
             raise TraitSignalRegistryError(f"중복 등록(Key 충돌): {key!r}")
         _REGISTRY[key] = tuple(signals)
+
+
+def _register_no_signal(
+    question_family_id: QuestionFamilyId,
+    blueprint_id: str,
+    role_ids: set[str],
+    *,
+    known_role_ids: set[str],
+) -> None:
+    """2.2단계 §4 — v2 Direct Probe NO_SIGNAL Role 전용 등록. `_register()`와 같은
+    Fail-Fast 규칙(미지의 role_id 금지, 중복 Key 금지)을 지키되 signals를 아예 저장하지
+    않는다 — `_NO_SIGNAL_KEYS`에 존재한다는 사실 자체가 "이 Key는 의도적으로 비어
+    있다"는 뜻이다."""
+
+    unknown_roles = sorted(role_ids - known_role_ids)
+    if unknown_roles:
+        raise TraitSignalRegistryError(
+            f"{question_family_id}/{blueprint_id}: 실제 구조에 없는 role_id를 NO_SIGNAL로 등록하려 했다: "
+            f"{unknown_roles} (실제 role_id: {sorted(known_role_ids)})"
+        )
+    for role_id in role_ids:
+        key = TraitSignalRegistryKey(
+            question_family_id=question_family_id, blueprint_id=blueprint_id, role_id=role_id
+        )
+        if key in _REGISTRY or key in _NO_SIGNAL_KEYS:
+            raise TraitSignalRegistryError(f"중복 등록(Key 충돌): {key!r}")
+        _NO_SIGNAL_KEYS.add(key)
 
 
 # --- Tail Option Blueprint 3개 × Role 5개 ---
@@ -493,23 +525,24 @@ for _backup_list in VERTICAL_SLICE_BACKUP_QUESTIONS.values():
 
 # --- V2 Direct Probe Blueprint 14개 × Role 5개 ---
 #
-# 2026-08-23 2단계 §5/§8/§13: 5개 Role 전부 자기 Blueprint의 `primary_trait_delta`와
-# 정확히 같은 PRIMARY Signal을 그대로 등록한다(Target Role뿐 아니라 나머지 4개 Role도
-# 등록한다 — Direct Probe는 어떤 선택지를 답해도 EXACT_BLUEPRINT여야 하고
-# LEGACY_PRIMARY_ADAPTER에 의존하면 안 된다, §13). RELATED Signal은 추가하지 않는다 —
-# 근거 없이 Target Trait를 여러 선택지에 걸치게 만들지 않기 위해서다(§8).
+# 2026-08-23 2단계 §5/§8/§13, 2.2단계 §4: TRAIT_SIGNAL Role은 자기 Blueprint의
+# `option_mappings`와 정확히 같은 PRIMARY Signal을 그대로 등록한다(Direct Probe는 어떤
+# 선택지를 답해도 EXACT_BLUEPRINT/EXACT_BLUEPRINT_NO_SIGNAL 둘 중 하나여야 하고
+# LEGACY_PRIMARY_ADAPTER에 의존하면 안 된다, §13). NO_SIGNAL Role은 `_NO_SIGNAL_KEYS`에만
+# 등록해 signals가 항상 빈 목록임을 명시한다. RELATED Signal은 추가하지 않는다 — 근거
+# 없이 Target Trait를 여러 선택지에 걸치게 만들지 않기 위해서다(§8).
 for _v2_bp in V2_DIRECT_PROBE_BLUEPRINTS:
-    _v2_role_signals = {
-        role.role_id: [
-            TraitSignal(trait_id=next(iter(role.primary_trait_delta)), signal_role="PRIMARY", weight=1.0)
-        ]
-        for role in _v2_bp.blueprint.roles
-    }
-    _register(
-        "v2_direct_probe",
-        _v2_bp.blueprint.blueprint_id,
-        _v2_role_signals,
-        known_role_ids={r.role_id for r in _v2_bp.blueprint.roles},
+    _v2_signal_roles: dict[str, list[TraitSignal]] = {}
+    _v2_no_signal_role_ids: set[str] = set()
+    for _mapping in _v2_bp.option_mappings:
+        if _mapping.mapping_type == "NO_SIGNAL":
+            _v2_no_signal_role_ids.add(_mapping.role_id)
+        else:
+            _v2_signal_roles[_mapping.role_id] = list(_mapping.trait_signals)
+    _v2_known_role_ids = {m.role_id for m in _v2_bp.option_mappings}
+    _register("v2_direct_probe", _v2_bp.blueprint_id, _v2_signal_roles, known_role_ids=_v2_known_role_ids)
+    _register_no_signal(
+        "v2_direct_probe", _v2_bp.blueprint_id, _v2_no_signal_role_ids, known_role_ids=_v2_known_role_ids
     )
 
 
@@ -591,6 +624,14 @@ def resolve_trait_signals(
         )
     except ValidationError:
         key = None
+
+    if key is not None and key in _NO_SIGNAL_KEYS:
+        # 2.2단계 §4 — 의도적으로 "이 Role은 근거가 명확하지 않다"고 표시된 Key다.
+        # LEGACY_PRIMARY_ADAPTER로 새지 않는다(어차피 legacy_primary_trait_delta도
+        # NO_SIGNAL Option에서는 항상 {}이므로 결과 signals는 같겠지만, mapping_source를
+        # 명확히 구분해야 이 Role이 "정상 EXACT_BLUEPRINT인데 우연히 비었다"와 혼동되지
+        # 않는다).
+        return TraitSignalResolution(signals=[], mapping_source="EXACT_BLUEPRINT_NO_SIGNAL")
 
     registered = _REGISTRY.get(key) if key is not None else None
     if registered is not None:

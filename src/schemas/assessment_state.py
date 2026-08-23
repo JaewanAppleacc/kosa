@@ -138,6 +138,14 @@ class AssessmentState(BaseModel):
     # 따른다). Seed·LLM·Backup 질문 모두 next_question() Handler가 이 두 필드를 채운다.
     current_question_family_id: str | None = None
     current_question_blueprint_id: str | None = None
+    # 2.2단계 §11 — 아직 답하지 않은 `current_question`을 위해 `/assessment/next-question`
+    # 응답을 그대로 복원하는 데 필요한 최소 정보. `status`/`current_context_id`는 최초
+    # 서빙 당시 계산된 값을 그대로 재사용해야 한다(재요청마다 다시 계산하면 LLM을 다시
+    # 부르거나 문구가 바뀔 수 있다) — `questions_asked_in_current_context`는 기존 필드를
+    # 그대로 재사용한다(답변 전까지 바뀌지 않으므로 새 필드가 필요 없다). 공개 API에는
+    # 새 필드를 추가하지 않는다 — `QuestionDeliveryStatus`의 문자열 값만 그대로 담는다.
+    current_question_delivery_status: str | None = None
+    current_question_served_context_id: str | None = None
 
     # 2026-08-23 Trait Ontology v2(2단계) §3/§4 — Feature Flag가 꺼져 있으면 이 필드들은
     # 전부 기본값 그대로 남고, 기존 세션 흐름·Fixture·복원에 어떤 영향도 주지 않는다.

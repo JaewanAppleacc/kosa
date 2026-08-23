@@ -1,4 +1,5 @@
-"""V2 Direct Probe 후보 선택 — 2026-08-23 Trait Ontology v2(2단계 §11, 2.1단계 §2/§4/§5).
+"""V2 Direct Probe 후보 선택 — 2026-08-23 Trait Ontology v2(2단계 §11, 2.1단계 §2/§4/§5,
+2.2단계 §1/§2).
 
 LangGraph Node가 아니라 순수 함수다(CLAUDE.md: "계산 함수는 가능한 한 순수 함수로 만들고
 LLM·DB·네트워크 호출과 분리한다"). LLM은 다음 Trait·Context·Blueprint를 선택하지 않는다
@@ -10,7 +11,14 @@ Trait도 "우선순위 3"(탐색과 같은 급)으로 취급해 사실상 항상
 나머지 5개(systems_thinking/detail_orientation/persistence_completion/
 uncertainty_tolerance/opinion_expression)는 RELATED Evidence가 최소 1개 있어야만
 후보 "자격"이 있다. 이번 버전은 "자격이 있는가"(`_is_eligible`)와 "그중 어떤 순서로
-물을 것인가"(`_sort_key`)를 완전히 분리한다."""
+물을 것인가"(`_sort_key`)를 완전히 분리한다.
+
+2.2단계 §1/§2 버그 수정: 탐색 Trait 둘 다 RELATED Evidence가 보통 0개라 기존 정렬 기준
+(2~5번, 전부 RELATED 기반)이 항상 0으로 동률이 나서 최종적으로 trait_id 오름차순
+(`creative_ideation` < `independent_judgment`)으로만 갈렸다 — 실사용 세션에서
+`independent_judgment`가 사실상 선택될 수 없었다. 탐색 Trait끼리는 이제 학생이 실제로
+선택한 관심 Context(`EXPLORATION_CONTEXT_AFFINITY`)를 기준으로 정렬한다(무작위·Hash·
+LLM 위임 없이 결정론적으로)."""
 
 from __future__ import annotations
 
@@ -29,7 +37,76 @@ HYPOTHESIS_BASED_TRAIT_IDS: frozenset[str] = frozenset(V2_DIRECT_PROBE_TARGET_TR
 # §2: RELATED Evidence 없이도 후보가 될 수 있는 탐색 Trait. 한 학생에게 최대 1개만 제시한다.
 EXPLORATION_TRAIT_IDS: frozenset[str] = frozenset({"creative_ideation", "independent_judgment"})
 
+# 2.2단계 §2: 탐색 Trait가 어떤 Context와 자연스럽게 연결되는지 나타내는 고정 표
+# (점수가 클수록 그 Trait와 더 강하게 연결된다는 뜻 — Evidence나 학생 답변에서 유도한
+# 값이 아니라 사람이 미리 정의한 우선순위다). media는 콘텐츠를 스스로 새로 기획하는
+# 행동(creative_ideation)과, school_life는 지시가 모호할 때 스스로 기준을 정하는 행동
+# (independent_judgment)과 가장 자연스럽게 엮인다고 보고, game은 둘 다에 약하게
+# 연결된다(두 Trait의 game Blueprint가 모두 존재하므로).
+EXPLORATION_CONTEXT_AFFINITY: dict[str, dict[str, int]] = {
+    "creative_ideation": {"media": 2, "game": 1},
+    "independent_judgment": {"school_life": 2, "game": 1},
+}
+
 _ALREADY_SUFFICIENT_STATUSES = frozenset({"MODERATE", "STRONG"})
+
+
+def _exploration_best_preferred_context(
+    trait_id: str, preferred_context_ids: list[str]
+) -> tuple[str, int] | None:
+    """이 탐색 Trait의 Affinity Context 중 학생의 Preferred Context와 겹치는 것 중
+    Affinity가 가장 높은 (context_id, affinity_score)를 고른다. 여러 개가 동점이면
+    Preferred Context 목록에서 더 앞선(학생이 먼저 고른) Context를 택한다. 전혀 안
+    겹치면 None(이 Trait는 학생의 관심 Context와 직접 연결되지 않는다는 뜻)."""
+
+    affinity_map = EXPLORATION_CONTEXT_AFFINITY.get(trait_id, {})
+    candidates = [(ctx, score) for ctx, score in affinity_map.items() if ctx in preferred_context_ids]
+    if not candidates:
+        return None
+    max_score = max(score for _, score in candidates)
+    best = [ctx for ctx, score in candidates if score == max_score]
+    best.sort(key=lambda ctx: preferred_context_ids.index(ctx))
+    return best[0], max_score
+
+
+def _exploration_sort_key(
+    trait_id: str,
+    *,
+    preferred_context_ids: list[str],
+    interest_ratings: dict[str, int],
+    used_v2_probe_frame_ids: set[str],
+) -> tuple:
+    """2.2단계 §2 — 탐색 Trait 둘 사이의 우선순위. 순서대로:
+
+    1. Preferred Context와 직접 연결되는가(연결되는 쪽이 먼저)
+    2. 그 Context의 interest_rating(높을수록 먼저)
+    3. Context Affinity 점수(높을수록 먼저)
+    4. Preferred Context에서 먼저 선택한 순서(앞설수록 먼저)
+    5. 아직 사용하지 않은 Frame이 있는가(있는 쪽이 먼저)
+    6. trait_id 오름차순(최종 결정론적 Tie-break)
+
+    무작위·session_id Hash·LLM 위임을 쓰지 않는다 — 전부 이미 알려진 값만으로 계산한다."""
+
+    linked = _exploration_best_preferred_context(trait_id, preferred_context_ids)
+    has_no_preferred_link = linked is None
+    if linked is not None:
+        context_id, affinity_score = linked
+        interest_rating = interest_ratings.get(context_id, 0)
+        preferred_order_index = preferred_context_ids.index(context_id)
+    else:
+        interest_rating = 0
+        affinity_score = 0
+        preferred_order_index = len(preferred_context_ids)
+
+    frame_ids_for_trait = {
+        bp.question_frame_id for bp in V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT.get(trait_id, [])
+    }
+    all_frames_used = bool(frame_ids_for_trait) and frame_ids_for_trait <= used_v2_probe_frame_ids
+
+    return (
+        has_no_preferred_link, -interest_rating, -affinity_score,
+        preferred_order_index, all_frames_used, trait_id,
+    )
 
 
 def _is_eligible(
@@ -85,22 +162,27 @@ def select_v2_probe_candidates(
     *,
     final_contexts: list[str] | None = None,
     used_v2_probe_frame_ids: set[str] | None = None,
+    preferred_context_ids: list[str] | None = None,
+    interest_ratings: dict[str, int] | None = None,
 ) -> list[str]:
     """§2/§4 — 자격이 있는 Trait만 후보로 남기고, 아래 순서로 정렬한다:
 
     1. Tier(Hypothesis 기반 1, 탐색 2)
-    2. 서로 다른 RELATED question_id 수 — 내림차순
-    3. RELATED Context 다양성 — 내림차순
-    4. RELATED Frame 다양성 — 내림차순
-    5. RELATED Signal 합 — 내림차순
-    6. trait_id — 오름차순(결정론적 Tie-break)
+    2-6. Tier 내부 정렬:
+       - Hypothesis 기반: 서로 다른 RELATED question_id 수(내림차순) → RELATED Context
+         다양성(내림차순) → RELATED Frame 다양성(내림차순) → RELATED Signal 합(내림차순)
+         → trait_id(오름차순).
+       - 탐색(2.2단계 §2): `_exploration_sort_key()` — Preferred Context 연결 여부 →
+         interest_rating → Context Affinity → Preferred 순서 → 미사용 Frame → trait_id.
 
-    `final_contexts`/`used_v2_probe_frame_ids`를 생략하면(과거 호출 호환) Blueprint
-    가용성 검사를 건너뛴다 — 호출자가 이미 그 값을 모르는 상황(예: 순수 정렬만 보고
-    싶을 때)을 위한 것이며, 실제 서빙 경로(main.py)는 항상 두 값을 넘긴다."""
+    `final_contexts`/`used_v2_probe_frame_ids`/`preferred_context_ids`/`interest_ratings`를
+    생략하면(과거 호출 호환) 각각 안전한 기본값으로 대체한다 — 실제 서빙 경로(main.py)는
+    항상 전부 넘긴다."""
 
     final_contexts = final_contexts if final_contexts is not None else ["game", "media", "school_life"]
     used_v2_probe_frame_ids = used_v2_probe_frame_ids if used_v2_probe_frame_ids is not None else set()
+    preferred_context_ids = preferred_context_ids if preferred_context_ids is not None else []
+    interest_ratings = interest_ratings if interest_ratings is not None else {}
 
     candidates = [
         trait_id for trait_id in V2_DIRECT_PROBE_TARGET_TRAIT_IDS
@@ -112,6 +194,14 @@ def select_v2_probe_candidates(
     ]
 
     def sort_key(trait_id: str) -> tuple:
+        if trait_id in EXPLORATION_TRAIT_IDS:
+            return (
+                _tier(trait_id),
+                *_exploration_sort_key(
+                    trait_id, preferred_context_ids=preferred_context_ids,
+                    interest_ratings=interest_ratings, used_v2_probe_frame_ids=used_v2_probe_frame_ids,
+                ),
+            )
         entry = v2_snapshot.get(trait_id)
         related_question_count = entry.related_question_count if entry else 0
         related_context_count = entry.related_context_count if entry else 0
@@ -166,7 +256,7 @@ def select_blueprint_for_trait(
         no_related_evidence_here = matched_context not in related_context_ids
         not_preferred = matched_context not in preferred_context_ids
         frame_already_used = bp.question_frame_id in used_v2_probe_frame_ids
-        return (no_related_evidence_here, not_preferred, frame_already_used, bp.blueprint.blueprint_id)
+        return (no_related_evidence_here, not_preferred, frame_already_used, bp.blueprint_id)
 
     candidates.sort(key=sort_key)
     return candidates[0]

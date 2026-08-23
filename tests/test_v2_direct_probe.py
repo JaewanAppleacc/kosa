@@ -136,23 +136,23 @@ class QuestionBankStructureTest(unittest.TestCase):
 
     def test_all_blueprints_have_exactly_5_options_and_draft_status(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
-            with self.subTest(blueprint_id=bp.blueprint.blueprint_id):
-                self.assertEqual(len(bp.blueprint.roles), 5)
+            with self.subTest(blueprint_id=bp.blueprint_id):
+                self.assertEqual(len(bp.option_mappings), 5)
                 self.assertEqual(len(bp.base_question.options), 5)
                 self.assertEqual(bp.review_status, "draft")
 
     def test_no_composite_key_duplicates_across_blueprints(self) -> None:
         seen: set[tuple[str, str]] = set()
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
-            for role in bp.blueprint.roles:
-                key = (bp.blueprint.blueprint_id, role.role_id)
+            for mapping in bp.option_mappings:
+                key = (bp.blueprint_id, mapping.role_id)
                 self.assertNotIn(key, seen)
                 seen.add(key)
 
     def test_base_question_role_ids_match_blueprint_role_ids(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
-            with self.subTest(blueprint_id=bp.blueprint.blueprint_id):
-                blueprint_roles = [r.role_id for r in bp.blueprint.roles]
+            with self.subTest(blueprint_id=bp.blueprint_id):
+                blueprint_roles = [m.role_id for m in bp.option_mappings]
                 question_roles = [o.role_id for o in bp.base_question.options]
                 self.assertEqual(blueprint_roles, question_roles)
 
@@ -163,13 +163,13 @@ class QuestionBankStructureTest(unittest.TestCase):
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
             all_text = bp.base_question.question_text + " " + " ".join(o.text for o in bp.base_question.options)
             for phrase in forbidden:
-                with self.subTest(blueprint_id=bp.blueprint.blueprint_id, phrase=phrase):
+                with self.subTest(blueprint_id=bp.blueprint_id, phrase=phrase):
                     self.assertNotIn(phrase, all_text)
 
     def test_no_option_text_is_a_question(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
             for option in bp.base_question.options:
-                with self.subTest(blueprint_id=bp.blueprint.blueprint_id, role_id=option.role_id):
+                with self.subTest(blueprint_id=bp.blueprint_id, role_id=option.role_id):
                     self.assertFalse(option.text.strip().endswith("?"))
 
 
@@ -390,14 +390,14 @@ class BlueprintContextSelectionTest(unittest.TestCase):
             final_contexts=["game", "school_life"], used_v2_probe_frame_ids=set(),
         )
         # school_life에서 RELATED가 나왔으므로 game이 Preferred라도 school_life Blueprint를 고른다.
-        self.assertEqual(blueprint.blueprint.blueprint_id, "systems_thinking_school_life_v1")
+        self.assertEqual(blueprint.blueprint_id, "systems_thinking_school_life_v1")
 
     def test_falls_back_to_preferred_context_when_no_related_evidence(self) -> None:
         blueprint = select_blueprint_for_trait(
             "systems_thinking", related_context_ids=set(), preferred_context_ids=["school_life"],
             final_contexts=["game", "school_life"], used_v2_probe_frame_ids=set(),
         )
-        self.assertEqual(blueprint.blueprint.blueprint_id, "systems_thinking_school_life_v1")
+        self.assertEqual(blueprint.blueprint_id, "systems_thinking_school_life_v1")
 
     def test_prefers_unused_frame_when_context_signals_tie(self) -> None:
         blueprint = select_blueprint_for_trait(
@@ -414,7 +414,7 @@ class BlueprintContextSelectionTest(unittest.TestCase):
             "creative_ideation", related_context_ids=set(), preferred_context_ids=["game"],
             final_contexts=["game", "media"], used_v2_probe_frame_ids=set(),
         )
-        self.assertEqual(blueprint.blueprint.blueprint_id, "creative_ideation_game_v1")
+        self.assertEqual(blueprint.blueprint_id, "creative_ideation_game_v1")
 
 
 class FeatureFlagOffRegressionTest(unittest.TestCase):
@@ -625,7 +625,7 @@ class FlaggedQuestionRegressionTest(unittest.TestCase):
     사라졌는지 회귀 확인한다."""
 
     def _option_text(self, blueprint_id: str, role_id: str) -> str:
-        bp = next(b for b in V2_DIRECT_PROBE_BLUEPRINTS if b.blueprint.blueprint_id == blueprint_id)
+        bp = next(b for b in V2_DIRECT_PROBE_BLUEPRINTS if b.blueprint_id == blueprint_id)
         return next(o.text for o in bp.base_question.options if o.role_id == role_id)
 
     def test_persistence_completion_game_target_no_longer_mixes_change_adaptation(self) -> None:
@@ -646,13 +646,13 @@ class FlaggedQuestionRegressionTest(unittest.TestCase):
         self.assertIn("정보", execution_text)
 
     def test_opinion_expression_school_life_asks_behavior_not_role_preference(self) -> None:
-        bp = next(b for b in V2_DIRECT_PROBE_BLUEPRINTS if b.blueprint.blueprint_id == "opinion_expression_school_life_v1")
+        bp = next(b for b in V2_DIRECT_PROBE_BLUEPRINTS if b.blueprint_id == "opinion_expression_school_life_v1")
         self.assertNotIn("역할을 맡고 싶", bp.base_question.question_text)
 
     def test_independent_judgment_school_life_asks_behavior_not_role_preference(self) -> None:
         bp = next(
             b for b in V2_DIRECT_PROBE_BLUEPRINTS
-            if b.blueprint.blueprint_id == "independent_judgment_school_life_v1"
+            if b.blueprint_id == "independent_judgment_school_life_v1"
         )
         self.assertNotIn("역할을 맡고 싶", bp.base_question.question_text)
 
@@ -675,29 +675,48 @@ class FlaggedQuestionRegressionTest(unittest.TestCase):
 
     def test_no_blueprint_option_uses_role_preference_phrasing_anymore(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
-            self.assertNotIn("역할을 맡고 싶", bp.base_question.question_text, bp.blueprint.blueprint_id)
+            self.assertNotIn("역할을 맡고 싶", bp.base_question.question_text, bp.blueprint_id)
+
+
+def _trait_signal_mapping(role_id: str, trait_id: str):
+    from src.schemas.trait_signal import TraitSignal
+    from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+    return V2ProbeOptionMapping(
+        role_id=role_id, mapping_type="TRAIT_SIGNAL",
+        trait_signals=[TraitSignal(trait_id=trait_id, signal_role="PRIMARY", weight=1.0)],
+    )
+
+
+def _no_signal_mapping(role_id: str, reason: str = "근거가 약함"):
+    from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+    return V2ProbeOptionMapping(role_id=role_id, mapping_type="NO_SIGNAL", no_signal_reason=reason)
 
 
 class BlueprintCrossFieldValidationTest(unittest.TestCase):
-    """2.1단계 §6 — Blueprint Cross-field 검증이 실제로 Fail-Fast인지 확인한다."""
+    """2.1단계 §6, 2.2단계 §4 — Blueprint Cross-field 검증이 실제로 Fail-Fast인지 확인한다."""
 
     def test_target_option_count_must_be_exactly_one(self) -> None:
-        from src.schemas.question import FinalizedOption, FinalizedQuestion, OptionBlueprint, OptionRole
-        from src.schemas.v2_direct_probe import V2DirectProbeBlueprint, V2DirectProbeBlueprintValidationError
+        from src.schemas.question import FinalizedOption, FinalizedQuestion
+        from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
 
         # trait_id="systems_thinking"이지만 어떤 Role도 systems_thinking을 PRIMARY로
         # 갖지 않는다 — Target Option 0개 위반을 재현한다. Pydantic model_validator가
         # 던진 ValueError 하위 예외는 pydantic.ValidationError로 감싸져 나온다.
-        roles = [
-            OptionRole(role_id="r1", primary_trait_delta={"causal_analysis": 1}),
-            OptionRole(role_id="r2", primary_trait_delta={"planning": 1}),
-            OptionRole(role_id="r3", primary_trait_delta={"immediate_execution": 1}),
-            OptionRole(role_id="r4", primary_trait_delta={"information_comparison": 1}),
-            OptionRole(role_id="r5", primary_trait_delta={"collaboration_preference": 1}),
+        mappings = [
+            _trait_signal_mapping("r1", "causal_analysis"),
+            _trait_signal_mapping("r2", "planning"),
+            _trait_signal_mapping("r3", "immediate_execution"),
+            _trait_signal_mapping("r4", "information_comparison"),
+            _trait_signal_mapping("r5", "collaboration_preference"),
         ]
         options = [
-            FinalizedOption(option_id=f"q_o{i}", role_id=r.role_id, text=f"텍스트 {i}", primary_trait_delta=r.primary_trait_delta)
-            for i, r in enumerate(roles, start=1)
+            FinalizedOption(
+                option_id=f"q_o{i}", role_id=m.role_id, text=f"텍스트 {i}",
+                primary_trait_delta={m.primary_trait_id: 1},
+            )
+            for i, m in enumerate(mappings, start=1)
         ]
         question = FinalizedQuestion(
             question_id="q_test", context="game", target_traits=[], frame_id="new_tool",
@@ -705,23 +724,27 @@ class BlueprintCrossFieldValidationTest(unittest.TestCase):
         )
         with self.assertRaises(ValidationError):
             V2DirectProbeBlueprint(
-                trait_id="systems_thinking",
-                blueprint=OptionBlueprint(blueprint_id="test_bp", roles=roles),
+                trait_id="systems_thinking", blueprint_id="test_bp", option_mappings=mappings,
                 allowed_context_ids=["game"], question_frame_id="new_tool",
                 purpose="test", base_question=question,
             )
 
     def test_context_must_be_in_allowed_context_ids(self) -> None:
-        from src.schemas.question import FinalizedOption, FinalizedQuestion, OptionBlueprint, OptionRole
+        from src.schemas.question import FinalizedOption, FinalizedQuestion
         from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
 
-        roles = [OptionRole(role_id=f"r{i}", primary_trait_delta={t: 1}) for i, t in enumerate([
-            "systems_thinking", "causal_analysis", "immediate_execution",
-            "information_comparison", "collaboration_preference",
-        ], start=1)]
+        mappings = [
+            _trait_signal_mapping(f"r{i}", t) for i, t in enumerate([
+                "systems_thinking", "causal_analysis", "immediate_execution",
+                "information_comparison", "collaboration_preference",
+            ], start=1)
+        ]
         options = [
-            FinalizedOption(option_id=f"q_o{i}", role_id=r.role_id, text=f"텍스트 {i}", primary_trait_delta=r.primary_trait_delta)
-            for i, r in enumerate(roles, start=1)
+            FinalizedOption(
+                option_id=f"q_o{i}", role_id=m.role_id, text=f"텍스트 {i}",
+                primary_trait_delta={m.primary_trait_id: 1},
+            )
+            for i, m in enumerate(mappings, start=1)
         ]
         question = FinalizedQuestion(
             question_id="q_test2", context="media", target_traits=[], frame_id="new_tool",
@@ -729,8 +752,7 @@ class BlueprintCrossFieldValidationTest(unittest.TestCase):
         )
         with self.assertRaises(ValidationError):
             V2DirectProbeBlueprint(
-                trait_id="systems_thinking",
-                blueprint=OptionBlueprint(blueprint_id="test_bp2", roles=roles),
+                trait_id="systems_thinking", blueprint_id="test_bp2", option_mappings=mappings,
                 allowed_context_ids=["game"], question_frame_id="new_tool",  # media가 아니라 game만 허용
                 purpose="test", base_question=question,
             )
@@ -738,6 +760,127 @@ class BlueprintCrossFieldValidationTest(unittest.TestCase):
     def test_all_14_real_blueprints_pass_validation(self) -> None:
         # Import 시점에 이미 검증됐지만, 명시적으로 한 번 더 확인한다(회귀 고정).
         self.assertEqual(len(V2_DIRECT_PROBE_BLUEPRINTS), 14)
+
+
+class NoSignalMappingTest(unittest.TestCase):
+    """2.2단계 §4/§18 — NO_SIGNAL 전용 검증 규칙."""
+
+    def test_no_signal_requires_reason(self) -> None:
+        from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+        with self.assertRaises(ValidationError):
+            V2ProbeOptionMapping(role_id="r1", mapping_type="NO_SIGNAL")
+
+    def test_no_signal_forbids_trait_signals(self) -> None:
+        from src.schemas.trait_signal import TraitSignal
+        from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+        with self.assertRaises(ValidationError):
+            V2ProbeOptionMapping(
+                role_id="r1", mapping_type="NO_SIGNAL", no_signal_reason="근거 약함",
+                trait_signals=[TraitSignal(trait_id="planning", signal_role="PRIMARY", weight=1.0)],
+            )
+
+    def test_trait_signal_requires_at_least_one_signal(self) -> None:
+        from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+        with self.assertRaises(ValidationError):
+            V2ProbeOptionMapping(role_id="r1", mapping_type="TRAIT_SIGNAL")
+
+    def test_trait_signal_forbids_no_signal_reason(self) -> None:
+        with self.assertRaises(ValidationError):
+            from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+            from src.schemas.trait_signal import TraitSignal
+
+            V2ProbeOptionMapping(
+                role_id="r1", mapping_type="TRAIT_SIGNAL", no_signal_reason="이유 있으면 안 됨",
+                trait_signals=[TraitSignal(trait_id="planning", signal_role="PRIMARY", weight=1.0)],
+            )
+
+    def test_target_role_cannot_be_no_signal(self) -> None:
+        """Blueprint Cross-field 검증: Target Trait를 PRIMARY로 갖는 Option이 정확히
+        1개여야 하므로, Target 자리에 NO_SIGNAL을 두면 "0개" 위반으로 거부된다."""
+
+        from src.schemas.question import FinalizedOption, FinalizedQuestion
+        from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
+
+        mappings = [
+            _no_signal_mapping("r1", "Target인데 근거 불명확이라고 잘못 표시함"),
+            _trait_signal_mapping("r2", "causal_analysis"),
+            _trait_signal_mapping("r3", "immediate_execution"),
+            _trait_signal_mapping("r4", "information_comparison"),
+            _trait_signal_mapping("r5", "collaboration_preference"),
+        ]
+        options = [
+            FinalizedOption(option_id="q_o1", role_id="r1", text="텍스트 1", primary_trait_delta={}),
+            *[
+                FinalizedOption(
+                    option_id=f"q_o{i}", role_id=m.role_id, text=f"텍스트 {i}",
+                    primary_trait_delta={m.primary_trait_id: 1},
+                )
+                for i, m in enumerate(mappings[1:], start=2)
+            ],
+        ]
+        question = FinalizedQuestion(
+            question_id="q_test3", context="game", target_traits=[], frame_id="new_tool",
+            question_text="테스트 질문인가요?", options=options,
+        )
+        with self.assertRaises(ValidationError):
+            V2DirectProbeBlueprint(
+                trait_id="systems_thinking", blueprint_id="test_bp3", option_mappings=mappings,
+                allowed_context_ids=["game"], question_frame_id="new_tool",
+                purpose="test", base_question=question,
+            )
+
+    def test_no_sentinel_trait_ids_used_anywhere_in_real_blueprints(self) -> None:
+        sentinel_ids = {"no_signal", "neutral", "none", "unknown"}
+        for bp in V2_DIRECT_PROBE_BLUEPRINTS:
+            for mapping in bp.option_mappings:
+                for signal in mapping.trait_signals:
+                    self.assertNotIn(signal.trait_id, sentinel_ids)
+
+    def test_14_no_signal_options_exist_and_are_never_the_target(self) -> None:
+        no_signal_count = 0
+        for bp in V2_DIRECT_PROBE_BLUEPRINTS:
+            for mapping in bp.option_mappings:
+                if mapping.mapping_type == "NO_SIGNAL":
+                    no_signal_count += 1
+                    self.assertFalse(
+                        mapping.primary_trait_id == bp.trait_id,
+                        f"{bp.blueprint_id}/{mapping.role_id}: NO_SIGNAL이 Target일 수 없다",
+                    )
+        self.assertEqual(no_signal_count, 14)
+
+    def test_no_signal_options_public_primary_trait_delta_is_empty_dict(self) -> None:
+        for bp in V2_DIRECT_PROBE_BLUEPRINTS:
+            no_signal_role_ids = {m.role_id for m in bp.option_mappings if m.mapping_type == "NO_SIGNAL"}
+            for option in bp.base_question.options:
+                if option.role_id in no_signal_role_ids:
+                    self.assertEqual(option.primary_trait_delta, {})
+
+    def test_legacy_option_role_still_rejects_empty_delta(self) -> None:
+        """Legacy `OptionRole`(Tail Blueprint가 쓰는 타입)은 이번 라운드에도 약화하지
+        않았다 — 여전히 빈 delta를 거부해야 한다."""
+
+        from src.schemas.question import OptionRole
+
+        with self.assertRaises(ValidationError):
+            OptionRole(role_id="r1", primary_trait_delta={})
+
+    def test_resolve_trait_signals_returns_exact_blueprint_no_signal(self) -> None:
+        from src.services.trait_signal_registry import resolve_trait_signals
+
+        bp = next(b for b in V2_DIRECT_PROBE_BLUEPRINTS if any(
+            m.mapping_type == "NO_SIGNAL" for m in b.option_mappings
+        ))
+        no_signal_mapping = next(m for m in bp.option_mappings if m.mapping_type == "NO_SIGNAL")
+        resolution = resolve_trait_signals(
+            question_family_id="v2_direct_probe", blueprint_id=bp.blueprint_id,
+            role_id=no_signal_mapping.role_id, legacy_primary_trait_delta={},
+            is_resolution_question=False,
+        )
+        self.assertEqual(resolution.mapping_source, "EXACT_BLUEPRINT_NO_SIGNAL")
+        self.assertEqual(resolution.signals, [])
 
 
 class LLMDrivenDirectProbeTest(unittest.TestCase):
@@ -842,44 +985,400 @@ class LLMDrivenDirectProbeTest(unittest.TestCase):
         evidence = state.evidence_ledger[-1]
         self.assertEqual(evidence.trait_signal_mapping_source_v2, "EXACT_BLUEPRINT")
 
-    def test_diagnostic_repeated_next_question_without_answering(self) -> None:
-        """2.1단계 §13 마지막 항목 — "같은 질문을 재요청해 Blueprint/Target이 바뀌지
-        않는지 진단하세요. 문제가 발견되면 이번 범위에서 성급히 수정하지 말고 별도
-        위험으로 보고하세요." 이 테스트는 실제로 무슨 일이 일어나는지 진단하는 용도다
-        — 결과를 완료 보고 §16/§25에 그대로 옮긴다."""
+    def test_repeated_next_question_without_answering_is_now_fully_idempotent(self) -> None:
+        """2.1단계 §13에서 "재요청 시 LLM이 다시 호출되고 문구가 바뀔 수 있다"는 잔여
+        위험으로만 보고했던 문제를 2.2단계 §11에서 실제로 고쳤다 — 이제 답하지 않은
+        질문을 반복 요청하면 question_id·문구·Option까지 완전히 동일한 응답을 그대로
+        돌려주고, LLM도 다시 호출하지 않는다(FakeLLM call_count로 확인)."""
 
         session_id, first_body = self._drive_to_first_v2_probe_question(_SmartFakeLLMClient("success"))
-        first_question_id = first_body["question"]["question_id"]
         state_after_first_serve = main_module._store.load(session_id)
-        first_target = state_after_first_serve.current_v2_probe_target_trait_id
-        first_blueprint = state_after_first_serve.current_question_blueprint_id
+        fake_client = main_module._llm_client
+        call_count_after_first_serve = fake_client.call_count
 
-        # 같은 질문에 답하지 않고 next-question을 한 번 더 호출한다.
         second_response = client.post("/assessment/next-question", params={"session_id": session_id})
         second_body = second_response.json()
         state_after_second_serve = main_module._store.load(session_id)
 
-        # 이 assert들은 "안전하다"를 주장하지 않는다 — 실제 동작을 그대로 기록한다.
-        second_question_id = second_body["question"]["question_id"] if second_body.get("question") else None
-        target_changed = state_after_second_serve.current_v2_probe_target_trait_id != first_target
-        blueprint_changed = state_after_second_serve.current_question_blueprint_id != first_blueprint
-        question_id_changed = second_question_id != first_question_id
-        # 진단 결과를 완료 보고서에 그대로 옮길 수 있도록 실패시키지 않는다 — 다만 이
-        # 세 값이 전부 True(재요청마다 매번 다른 질문·Blueprint로 바뀜)라면 그 사실
-        # 자체가 남은 위험이므로, 최소한 "매번 완전히 다른 Trait로 튄다"는 최악의
-        # 경우는 아닌지만 방어적으로 확인한다(같은 Trait 후보 집합에서 결정론적으로
-        # 같은 선택이 나오는지는 select_v2_probe_candidates/_blueprint_for_trait가
-        # 이미 단위 테스트로 결정론성을 보장한다 — 여기서는 "질문 id 자체가 재요청마다
-        # 바뀐다"는 사실만 진단한다).
-        self.assertFalse(target_changed, "재요청 시 Target Trait 자체가 바뀌면 심각한 위험 — 별도 보고 필요")
-        self.assertFalse(blueprint_changed, "재요청 시 Blueprint 자체가 바뀌면 심각한 위험 — 별도 보고 필요")
-        if question_id_changed:
-            # question_id는 매번 새로 생성되므로(generate_question_id가 시퀀스 번호를
-            # 쓰지 않고 v2_probe_questions_asked+1을 그대로 쓰기 때문에, 재요청해도
-            # v2_probe_questions_asked가 안 바뀐 상태라 이론적으로 같은 번호가 나올 수
-            # 있다 — 그러나 LLM 경로는 매 호출마다 실제로 새 질문 텍스트를 생성하므로
-            # question_id 자체의 재현성은 보장되지 않는다). 이 사실을 완료 보고에 남긴다.
-            pass
+        self.assertEqual(first_body, second_body)
+        self.assertEqual(fake_client.call_count, call_count_after_first_serve)
+        self.assertEqual(
+            state_after_second_serve.current_v2_probe_target_trait_id,
+            state_after_first_serve.current_v2_probe_target_trait_id,
+        )
+        self.assertEqual(
+            state_after_second_serve.current_question_blueprint_id,
+            state_after_first_serve.current_question_blueprint_id,
+        )
+
+
+def _confirmed_session(preferred: list[str], final: tuple[str, ...] = ("game", "media", "school_life")) -> str:
+    r = client.post("/assessment/session")
+    session_id = r.json()["session_id"]
+    client.post(
+        "/assessment/interest-rating",
+        json={"session_id": session_id, "ratings": {c: 5 for c in final}},
+    )
+    client.post(
+        "/assessment/context-select",
+        json={"session_id": session_id, "selected_preferred_context_ids": preferred},
+    )
+    client.post(
+        "/assessment/context-confirm",
+        json={"session_id": session_id, "final_context_ids": list(final)},
+    )
+    return session_id
+
+
+class ExplorationContextAffinityTest(unittest.TestCase):
+    """2.2단계 §1/§2 — Exploration Trait가 더 이상 trait_id 알파벳 순서에 고정되지
+    않고, 학생의 Preferred Context·관심도에 따라 달라지는지 확인한다."""
+
+    def test_creative_ideation_wins_with_game_media_preferred(self) -> None:
+        candidates = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=["game", "media"], interest_ratings={"game": 5, "media": 5},
+        )
+        self.assertEqual(candidates[0], "creative_ideation")
+
+    def test_independent_judgment_wins_with_game_school_life_preferred(self) -> None:
+        candidates = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=["game", "school_life"], interest_ratings={"game": 5, "school_life": 5},
+        )
+        self.assertEqual(candidates[0], "independent_judgment")
+
+    def test_media_school_life_tie_broken_by_higher_interest_rating(self) -> None:
+        media_favored = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=["media", "school_life"], interest_ratings={"media": 5, "school_life": 3},
+        )
+        self.assertEqual(media_favored[0], "creative_ideation")
+        school_favored = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=["media", "school_life"], interest_ratings={"media": 3, "school_life": 5},
+        )
+        self.assertEqual(school_favored[0], "independent_judgment")
+
+    def test_media_school_life_interest_tie_broken_by_preferred_order(self) -> None:
+        media_first = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=["media", "school_life"], interest_ratings={"media": 5, "school_life": 5},
+        )
+        self.assertEqual(media_first[0], "creative_ideation")
+        school_first = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=["school_life", "media"], interest_ratings={"media": 5, "school_life": 5},
+        )
+        self.assertEqual(school_first[0], "independent_judgment")
+
+    def test_no_preferred_link_falls_back_to_deterministic_trait_id_not_random(self) -> None:
+        candidates = select_v2_probe_candidates(
+            {}, set(), final_contexts=_ALL_CONTEXTS, used_v2_probe_frame_ids=set(),
+            preferred_context_ids=[], interest_ratings={},
+        )
+        self.assertEqual(candidates[0], "creative_ideation")
+
+    def test_independent_judgment_reachable_via_real_api_session(self) -> None:
+        os.environ["ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES"] = "true"
+        self.addCleanup(os.environ.pop, "ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES", None)
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        session_id = _confirmed_session(["game", "school_life"], final=("game", "school_life", "media"))
+        for _ in range(60):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            body = r.json()
+            if body["status"] == "CONTEXT_EARLY_TERMINATED":
+                if body["assessment_complete"]:
+                    break
+                continue
+            question = body["question"]
+            ar = client.post(
+                "/assessment/answer",
+                json={"session_id": session_id, "question_id": question["question_id"],
+                      "selected_option_id": question["options"][0]["option_id"]},
+            )
+            if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+                break
+        state = main_module._store.load(session_id)
+        self.assertIn("independent_judgment", state.v2_probed_trait_ids)
+
+    def test_creative_ideation_reachable_via_real_api_session(self) -> None:
+        os.environ["ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES"] = "true"
+        self.addCleanup(os.environ.pop, "ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES", None)
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        session_id = _drive_full_session()  # 기본 Persona: preferred=[game, media]
+        state = main_module._store.load(session_id)
+        self.assertIn("creative_ideation", state.v2_probed_trait_ids)
+
+
+class NextQuestionIdempotencyTest(unittest.TestCase):
+    """2.2단계 §11 — 답하지 않은 질문을 다시 요청하면 저장된 응답을 그대로 돌려주고,
+    LLM·Planner·Registry를 다시 부르지 않는다."""
+
+    def setUp(self) -> None:
+        os.environ["ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES"] = "true"
+        self.addCleanup(os.environ.pop, "ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES", None)
+
+    def test_legacy_seed_replay_is_identical_and_does_not_advance_state(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        session_id = _confirmed_session(["game", "media"])
+
+        first = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        state_after_first = main_module._store.load(session_id)
+        second = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        state_after_second = main_module._store.load(session_id)
+
+        self.assertEqual(first, second)
+        self.assertEqual(
+            state_after_second.questions_asked_in_current_context,
+            state_after_first.questions_asked_in_current_context,
+        )
+
+    def test_legacy_llm_tail_replay_does_not_call_llm_again(self) -> None:
+        fake_client = _SmartFakeLLMClient("success")
+        patcher = patch.object(main_module, "_llm_client", fake_client)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        session_id = _confirmed_session(["game", "media"])
+
+        # Seed(1번째)에 답해서 첫 Tail 질문(LLM 경로)까지 이동한다.
+        seed_body = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        seed_question = seed_body["question"]
+        client.post(
+            "/assessment/answer",
+            json={"session_id": session_id, "question_id": seed_question["question_id"],
+                  "selected_option_id": seed_question["options"][0]["option_id"]},
+        )
+        first = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        self.assertEqual(first["status"], "GENERATED")
+        call_count_after_first = fake_client.call_count
+
+        second = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        self.assertEqual(first, second)
+        self.assertEqual(fake_client.call_count, call_count_after_first)
+
+    def test_v2_direct_probe_llm_replay_does_not_call_llm_again(self) -> None:
+        fake_client = _SmartFakeLLMClient("success")
+        patcher = patch.object(main_module, "_llm_client", fake_client)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        session_id = _confirmed_session(["game", "media"])
+
+        first_body = None
+        for _ in range(60):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            body = r.json()
+            if body["status"] == "CONTEXT_EARLY_TERMINATED":
+                continue
+            state = main_module._store.load(session_id)
+            if state.current_question_family_id == "v2_direct_probe":
+                first_body = body
+                break
+            question = body["question"]
+            ar = client.post(
+                "/assessment/answer",
+                json={"session_id": session_id, "question_id": question["question_id"],
+                      "selected_option_id": question["options"][0]["option_id"]},
+            )
+            if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+                break
+        self.assertIsNotNone(first_body, "V2 Direct Probe 질문에 도달하지 못했다")
+        call_count_after_first_serve = fake_client.call_count
+
+        second_body = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        self.assertEqual(first_body, second_body)
+        self.assertEqual(fake_client.call_count, call_count_after_first_serve)
+
+    def test_v2_direct_probe_fallback_replay_is_identical_without_llm(self) -> None:
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        session_id = _confirmed_session(["game", "media"])
+
+        first_body = None
+        for _ in range(60):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            body = r.json()
+            if body["status"] == "CONTEXT_EARLY_TERMINATED":
+                continue
+            state = main_module._store.load(session_id)
+            if state.current_question_family_id == "v2_direct_probe":
+                first_body = body
+                break
+            question = body["question"]
+            ar = client.post(
+                "/assessment/answer",
+                json={"session_id": session_id, "question_id": question["question_id"],
+                      "selected_option_id": question["options"][0]["option_id"]},
+            )
+            if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+                break
+        self.assertIsNotNone(first_body, "V2 Direct Probe 질문에 도달하지 못했다")
+        self.assertEqual(first_body["status"], "BACKUP_USED")
+
+        second_body = client.post("/assessment/next-question", params={"session_id": session_id}).json()
+        self.assertEqual(first_body, second_body)
+
+
+class DuplicateAnswerRejectionTest(unittest.TestCase):
+    """2.2단계 §13 — 같은 question_id로 답변을 두 번 제출해도 Evidence·Opportunity·
+    질문 Count가 중복되지 않는다."""
+
+    def setUp(self) -> None:
+        os.environ["ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES"] = "true"
+        self.addCleanup(os.environ.pop, "ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES", None)
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_legacy_duplicate_answer_is_rejected_with_422_and_evidence_not_duplicated(self) -> None:
+        session_id = _confirmed_session(["game", "media"])
+        question = client.post("/assessment/next-question", params={"session_id": session_id}).json()["question"]
+        payload = {
+            "session_id": session_id, "question_id": question["question_id"],
+            "selected_option_id": question["options"][0]["option_id"],
+        }
+        first = client.post("/assessment/answer", json=payload)
+        self.assertEqual(first.status_code, 200)
+        state = main_module._store.load(session_id)
+        ledger_len_after_first = len(state.evidence_ledger)
+        answers_len_after_first = len(state.answers)
+
+        second = client.post("/assessment/answer", json=payload)
+        self.assertEqual(second.status_code, 422)
+        self.assertEqual(second.json()["detail"]["error_code"], "VALIDATION_ERROR")
+
+        state_after_second = main_module._store.load(session_id)
+        self.assertEqual(len(state_after_second.evidence_ledger), ledger_len_after_first)
+        self.assertEqual(len(state_after_second.answers), answers_len_after_first)
+
+    def test_v2_direct_probe_duplicate_answer_is_rejected_with_422_and_no_duplicate_opportunity(self) -> None:
+        session_id = _confirmed_session(["game", "media"])
+        question = None
+        for _ in range(60):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            body = r.json()
+            if body["status"] == "CONTEXT_EARLY_TERMINATED":
+                continue
+            state = main_module._store.load(session_id)
+            if state.current_question_family_id == "v2_direct_probe":
+                question = body["question"]
+                break
+            q = body["question"]
+            ar = client.post(
+                "/assessment/answer",
+                json={"session_id": session_id, "question_id": q["question_id"],
+                      "selected_option_id": q["options"][0]["option_id"]},
+            )
+            if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+                break
+        self.assertIsNotNone(question, "V2 Direct Probe 질문에 도달하지 못했다")
+
+        payload = {
+            "session_id": session_id, "question_id": question["question_id"],
+            "selected_option_id": question["options"][0]["option_id"],
+        }
+        first = client.post("/assessment/answer", json=payload)
+        self.assertEqual(first.status_code, 200)
+        state = main_module._store.load(session_id)
+        opportunities_after_first = len(state.v2_probe_opportunities)
+        questions_asked_after_first = state.v2_probe_questions_asked
+        ledger_len_after_first = len(state.evidence_ledger)
+
+        second = client.post("/assessment/answer", json=payload)
+        self.assertEqual(second.status_code, 422)
+
+        state_after_second = main_module._store.load(session_id)
+        self.assertEqual(len(state_after_second.v2_probe_opportunities), opportunities_after_first)
+        self.assertEqual(state_after_second.v2_probe_questions_asked, questions_asked_after_first)
+        self.assertEqual(len(state_after_second.evidence_ledger), ledger_len_after_first)
+
+    def test_wrong_option_id_rejection_keeps_current_question_answerable(self) -> None:
+        """§12 — 잘못된 option_id로 거부된 답변은 current_question을 지우지 않는다.
+        학생이 올바른 선택지로 다시 답할 수 있어야 한다."""
+
+        session_id = _confirmed_session(["game", "media"])
+        question = client.post("/assessment/next-question", params={"session_id": session_id}).json()["question"]
+
+        bad = client.post(
+            "/assessment/answer",
+            json={"session_id": session_id, "question_id": question["question_id"], "selected_option_id": "bogus"},
+        )
+        self.assertEqual(bad.status_code, 422)
+        state = main_module._store.load(session_id)
+        self.assertIsNotNone(state.current_question)
+        self.assertEqual(state.current_question.question_id, question["question_id"])
+
+        good = client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id, "question_id": question["question_id"],
+                "selected_option_id": question["options"][0]["option_id"],
+            },
+        )
+        self.assertEqual(good.status_code, 200)
+
+
+class NoSignalAnswerFlowTest(unittest.TestCase):
+    """2.2단계 §6 — Direct Probe에서 NO_SIGNAL Option을 고르면 Evidence·Opportunity가
+    올바르게 처리되는지 실제 /assessment/answer 경로로 확인한다."""
+
+    def setUp(self) -> None:
+        os.environ["ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES"] = "true"
+        self.addCleanup(os.environ.pop, "ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES", None)
+        patcher = patch.object(main_module, "_llm_client", None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_no_signal_option_produces_empty_evidence_and_records_opportunity_only(self) -> None:
+        from src.data.questions.trait_v2_direct_probe_blueprints import SYSTEMS_THINKING_GAME_V1
+
+        session_id = _confirmed_session(["game", "media"])
+        base_question = SYSTEMS_THINKING_GAME_V1.base_question.model_copy(
+            update={"question_id": "q_test_no_signal"}
+        )
+        state = main_module._store.load(session_id)
+        state.v2_probe_phase = "V2_DIRECT_PROBE"
+        state.current_question = base_question
+        state.current_question_family_id = "v2_direct_probe"
+        state.current_question_blueprint_id = "systems_thinking_game_v1"
+        state.current_v2_probe_target_trait_id = "systems_thinking"
+        main_module._store.save(state)
+
+        no_signal_option = next(o for o in base_question.options if o.role_id == "st_ask_team")
+        response = client.post(
+            "/assessment/answer",
+            json={
+                "session_id": session_id, "question_id": base_question.question_id,
+                "selected_option_id": no_signal_option.option_id,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+
+        state = main_module._store.load(session_id)
+        evidence = state.evidence_ledger[-1]
+        self.assertEqual(evidence.evidence_origin, EvidenceOrigin.V2_DIRECT_PROBE)
+        self.assertEqual(evidence.applied_primary_trait_delta, {})
+        self.assertEqual(evidence.applied_trait_signals_v2, [])
+        self.assertEqual(evidence.trait_signal_mapping_source_v2, "EXACT_BLUEPRINT_NO_SIGNAL")
+
+        opportunity = state.v2_probe_opportunities[-1]
+        self.assertFalse(opportunity.target_signal_selected)
+        self.assertEqual(opportunity.target_trait_id, "systems_thinking")
+        self.assertEqual(state.v2_probe_questions_asked, 1)
+
+        entry = main_module._compute_v2_snapshot(state).get("systems_thinking")
+        if entry is not None:
+            self.assertEqual(entry.primary_evidence_count, 0)
+            self.assertEqual(entry.related_evidence_count, 0)
 
 
 class ApiContractRegressionTest(unittest.TestCase):

@@ -1,5 +1,5 @@
 """V2 Direct Probe LLM 생성 품질 평가(opt-in, 실제 네트워크 호출) — 2026-08-23
-Trait Ontology v2(2.1단계) §12.
+Trait Ontology v2(2.1단계 §12, 2.2단계 §16).
 
 기본 테스트 실행(`unittest discover`)에서는 이 스크립트를 부르지 않는다 — 실제 API Key로
 실제 요금이 발생하는 네트워크 호출을 한다. 명시적으로 opt-in해야만 실행된다.
@@ -69,7 +69,7 @@ def _write_report(samples: list[dict] | None, *, total_calls: int, skipped_reaso
     lines = [
         "# V2 Direct Probe LLM 생성 품질 평가 보고서",
         "",
-        "2026-08-23 Trait Ontology v2(2.1단계) §12. 학생 데이터는 전혀 쓰지 않는다 — "
+        "2026-08-23 Trait Ontology v2(2.1단계 §12, 2.2단계 §16). 학생 데이터는 전혀 쓰지 않는다 — "
         "고정 Context·Blueprint만 사용한다. API Key·요청/응답 원문은 이 보고서에 남기지 않는다.",
         "",
     ]
@@ -96,18 +96,23 @@ def _write_report(samples: list[dict] | None, *, total_calls: int, skipped_reaso
         f"**실제 opt-in 실행함.** 총 API 호출 수: {total_calls}(예산 {MAX_TOTAL_LLM_CALLS}회) — "
         f"Sample {len(samples)}개(Blueprint당 최대 {MAX_SAMPLES_PER_BLUEPRINT}개).",
         "",
-        "| trait_id | blueprint_id | sample_number | question_text | options | "
-        "Quality Gate | Fallback 여부 | Trait Label 노출 | Role 순서 일치 | "
+        "NO_SIGNAL Role은 LLM이 문구를 어떻게 바꿔도 Evidence 분류(`primary_trait_delta`)가 "
+        "절대 바뀌지 않는다 — `finalize_v2_probe_question()`이 그 값을 Blueprint의 "
+        "mapping_type에서만 가져오고 LLM 출력 텍스트를 참고하지 않는 구조적 보장이다. "
+        "문장이 실제로 다른 Trait처럼 읽히는지는 이 스크립트가 자동으로 판단하지 않는다.",
+        "",
+        "| trait_id | blueprint_id | sample_number | question_text | options(role:type:text) | "
+        "Quality Gate | Fallback 여부 | Trait Label 노출 | Role 순서 일치 | Target 길이 이상치 | "
         "문장 자연스러움 검토 | 인접 Trait 혼동 가능성 | 사람 검토 상태 |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ])
     for s in samples:
-        options_text = " / ".join(f"{r}:{t}" for r, t in s["options"])
+        options_text = " / ".join(f"{r}:{t}:{txt}" for r, txt, t in s["options"])
         lines.append(
             f"| {s['trait_id']} | {s['blueprint_id']} | {s['sample_number']} | "
             f"{s['question_text'].replace('|', chr(92) + '|')} | {options_text.replace('|', chr(92) + '|')} | "
             f"{s['quality_gate']} | {s['fallback']} | {s['trait_label_exposed']} | "
-            f"{s['role_order_match']} | TBD | TBD | TBD |"
+            f"{s['role_order_match']} | {s['target_length_outlier']} | TBD | TBD | TBD |"
         )
 
     llm_sourced = sum(1 for s in samples if s["fallback"] == "아니오")
@@ -119,9 +124,17 @@ def _write_report(samples: list[dict] | None, *, total_calls: int, skipped_reaso
         f"- Fallback(base_question)으로 넘어감: {len(samples) - llm_sourced}/{len(samples)}",
         f"- Trait Label 노출 발견: {sum(1 for s in samples if s['trait_label_exposed'] == '예')}건",
         f"- Role 순서 불일치 발견: {sum(1 for s in samples if s['role_order_match'] == '아니오')}건",
+        f"- Target 길이 이상치(다른 선택지 평균보다 10자 이상 김) 발견: "
+        f"{sum(1 for s in samples if s['target_length_outlier'] == '예')}건",
         "",
         "'문장 자연스러움 검토'/'인접 Trait 혼동 가능성'/'사람 검토 상태'는 항상 TBD다 — "
-        "이 스크립트가 자동으로 채우지 않는다(§12 자동 검사는 검토 후보 표시 용도).",
+        "이 스크립트가 자동으로 채우지 않는다(§12 자동 검사는 검토 후보 표시 용도). "
+        "Target 길이 이상치도 '편향 없음'을 확정하는 게 아니라 검토 후보 표시일 뿐이다.",
+        "",
+        "재요청 시 LLM 호출이 늘지 않는지(멱등성)는 이 스크립트가 아니라 "
+        "`tests/test_v2_direct_probe.py`의 FakeLLM 기반 단위 테스트로 검증한다 — 멱등성은 "
+        "코드 경로의 성질이라 실제 LLM 백엔드와 무관하고, 반복 검증에 실제 요금이 드는 "
+        "네트워크 호출을 쓸 이유가 없다.",
     ])
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -165,7 +178,7 @@ def main() -> None:
         for sample_number in range(1, MAX_SAMPLES_PER_BLUEPRINT + 1):
             if budgeted_client.call_count >= MAX_TOTAL_LLM_CALLS:
                 break
-            question_id = f"{blueprint.blueprint.blueprint_id}_llmreview_{sample_number:02d}"
+            question_id = f"{blueprint.blueprint_id}_llmreview_{sample_number:02d}"
             outcome = generate_v2_direct_probe_question(
                 question_id=question_id,
                 context_definition=context_by_id[context_id],
@@ -175,20 +188,42 @@ def main() -> None:
             )
             question = outcome.question
             gate = run_quality_gate(question, forbidden_trait_label_phrases=V2_DIRECT_PROBE_TRAIT_LABEL_PHRASES)
-            blueprint_role_ids = [r.role_id for r in blueprint.blueprint.roles]
+            blueprint_role_ids = [m.role_id for m in blueprint.option_mappings]
             question_role_ids = [o.role_id for o in question.options]
+            # §16: NO_SIGNAL Role은 LLM이 문구를 바꿔도 Evidence 분류가 절대 바뀌지 않는다
+            # — `finalize_v2_probe_question()`이 primary_trait_delta를 Blueprint의
+            # mapping_type에서만 가져오고 LLM 출력 텍스트는 참고하지 않기 때문이다
+            # (구조적 보장). 문장이 실제로 다른 Trait처럼 "읽히는가"는 사람이 봐야 한다.
+            no_signal_role_ids = {
+                m.role_id for m in blueprint.option_mappings if m.mapping_type == "NO_SIGNAL"
+            }
+            target_option = next(
+                (o for o in question.options if o.role_id == next(
+                    m.role_id for m in blueprint.option_mappings
+                    if m.mapping_type == "TRAIT_SIGNAL" and m.primary_trait_id == blueprint.trait_id
+                )), None,
+            )
+            other_lengths = [len(o.text) for o in question.options if o is not target_option]
+            target_length_outlier = bool(
+                target_option is not None and other_lengths
+                and len(target_option.text) > (sum(other_lengths) / len(other_lengths)) + 10
+            )
             samples.append({
                 "trait_id": blueprint.trait_id,
-                "blueprint_id": blueprint.blueprint.blueprint_id,
+                "blueprint_id": blueprint.blueprint_id,
                 "sample_number": sample_number,
                 "question_text": question.question_text,
-                "options": [(o.role_id, o.text) for o in question.options],
+                "options": [
+                    (o.role_id, o.text, "NO_SIGNAL" if o.role_id in no_signal_role_ids else "TRAIT_SIGNAL")
+                    for o in question.options
+                ],
                 "quality_gate": "통과" if gate.passed else f"실패({'; '.join(gate.failures)})",
                 "fallback": "예" if outcome.source == "backup" else "아니오",
                 "trait_label_exposed": "예" if not gate.passed and any(
                     "Trait Label" in f for f in gate.failures
                 ) else "아니오",
                 "role_order_match": "예" if blueprint_role_ids == question_role_ids else "아니오",
+                "target_length_outlier": "예" if target_length_outlier else "아니오",
             })
 
     _write_report(samples, total_calls=budgeted_client.call_count, skipped_reason=None)

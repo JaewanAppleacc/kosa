@@ -76,7 +76,16 @@ class TraitSignalRegistryKey(BaseModel):
     role_id: str
 
 
-MappingSource = Literal["EXACT_BLUEPRINT", "LEGACY_PRIMARY_ADAPTER", "NONE_CONFLICT_RESOLUTION"]
+MappingSource = Literal[
+    "EXACT_BLUEPRINT",
+    # 2.2단계 §4: v2 Direct Probe 전용 — Role이 의도적으로 "이번 질문에서는 특정 Core
+    # Trait를 직접 확인할 만큼 근거가 명확하지 않다"고 표시된 경우. `EXACT_BLUEPRINT`와
+    # 마찬가지로 사람이 직접 검토한 정본 Mapping이지만, signals가 항상 빈 목록이라는 점만
+    # 다르다 — Target Trait 저하나 반대 Trait 증거로 해석하면 안 된다.
+    "EXACT_BLUEPRINT_NO_SIGNAL",
+    "LEGACY_PRIMARY_ADAPTER",
+    "NONE_CONFLICT_RESOLUTION",
+]
 
 
 class TraitSignalResolution(BaseModel):

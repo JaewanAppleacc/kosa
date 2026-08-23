@@ -8,6 +8,7 @@ from src.schemas.trait_signal import TraitSignal, TraitSignalRegistryKey
 from src.services.related_concept_registry import load_related_concepts_v2
 from src.services.trait_ontology_v2 import load_trait_ontology_v2
 from src.services.trait_signal_registry import (
+    _NO_SIGNAL_KEYS,
     _REGISTRY,
     _register,
     TraitSignalRegistryError,
@@ -70,7 +71,15 @@ class RegistryStructureTest(unittest.TestCase):
 
     def test_registry_has_exactly_130_composite_keys(self) -> None:
         # (Seed 3 + Tail Blueprint 3 + Backup 6 + V2 Direct Probe 14) × Role 5개 = 130.
-        self.assertEqual(len(_REGISTRY), 130)
+        # 2.2단계 §4: V2 Direct Probe의 NO_SIGNAL Role(14개)은 `_REGISTRY`가 아니라
+        # `_NO_SIGNAL_KEYS`에 등록된다 — 둘을 합쳐야 전체 130개다.
+        self.assertEqual(len(_REGISTRY) + len(_NO_SIGNAL_KEYS), 130)
+
+    def test_no_signal_keys_are_all_v2_direct_probe_and_have_no_overlap_with_registry(self) -> None:
+        self.assertEqual(len(_NO_SIGNAL_KEYS), 14)
+        for key in _NO_SIGNAL_KEYS:
+            self.assertEqual(key.question_family_id, "v2_direct_probe")
+        self.assertEqual(set(_REGISTRY) & _NO_SIGNAL_KEYS, set())
 
     def test_full_registry_passes_validation(self) -> None:
         validate_full_registry(_KNOWN_TRAIT_IDS, _KNOWN_CONCEPT_IDS)  # 예외 없으면 통과
