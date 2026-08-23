@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from pydantic import ValidationError
 
+from src.data.questions.anchor_backup_questions import ANCHOR_BACKUP_QUESTIONS
 from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
@@ -520,6 +521,25 @@ for _backup_list in VERTICAL_SLICE_BACKUP_QUESTIONS.values():
             _backup.question_id,
             _BACKUP_SIGNALS_BY_QUESTION_ID[_backup.question_id],
             known_role_ids={o.role_id for o in _backup.options},
+        )
+
+# 2026-08-23 Trait Ontology v2(2.5.4단계) §3/§5 — Anchor별 Backup 15개. 기존 6개와
+# 달리 각 Option의 `primary_trait_delta`(단일 정본, anchor_backup_questions.py)에서
+# 바로 PRIMARY Signal을 뽑는다 — 근거 없는 RELATED Signal을 추가하지 않는다(§5 "약한
+# 관련 Trait를 억지로 연결하지 마세요"). `primary_trait_delta`가 비어 있으면(NO_SIGNAL)
+# `_register_no_signal()`로 등록한다.
+for _anchor_backup in ANCHOR_BACKUP_QUESTIONS:
+    _known_role_ids = {o.role_id for o in _anchor_backup.options}
+    _signal_roles = {
+        o.role_id: [TraitSignal(trait_id=next(iter(o.primary_trait_delta)), signal_role="PRIMARY", weight=PRIMARY_WEIGHT)]
+        for o in _anchor_backup.options if o.primary_trait_delta
+    }
+    _no_signal_roles = {o.role_id for o in _anchor_backup.options if not o.primary_trait_delta}
+    if _signal_roles:
+        _register("backup", _anchor_backup.question_id, _signal_roles, known_role_ids=_known_role_ids)
+    if _no_signal_roles:
+        _register_no_signal(
+            "backup", _anchor_backup.question_id, _no_signal_roles, known_role_ids=_known_role_ids,
         )
 
 

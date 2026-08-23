@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from src.data.contexts.context_definitions import VERTICAL_SLICE_CONTEXT_IDS
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
+from src.data.questions.anchor_backup_questions import ANCHOR_BACKUP_QUESTIONS
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS_BY_ID
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
@@ -60,6 +61,10 @@ _BACKUP_BLUEPRINT_CONTEXT: dict[str, str] = {
     for context_id, backups in VERTICAL_SLICE_BACKUP_QUESTIONS.items()
     for backup in backups
 }
+# 2026-08-23 Trait Ontology v2(2.5.4단계) §3 — Anchor Backup 15개도 같은 표에 더한다
+# (Backup은 항상 그 Backup이 속한 Context 1개, Frame은 항상 "backup" 1개뿐이라는
+# 규칙이 Anchor Backup에도 그대로 적용된다).
+_BACKUP_BLUEPRINT_CONTEXT.update({q.question_id: q.context for q in ANCHOR_BACKUP_QUESTIONS})
 
 
 def _reachable_context_and_frame_ids(question_family_id: str, blueprint_id: str) -> tuple[set[str], set[str]]:

@@ -69,13 +69,14 @@ class RegistryStructureTest(unittest.TestCase):
         families = {key.question_family_id for key in _REGISTRY}
         self.assertEqual(families, {"seed", "tail_blueprint", "backup", "v2_direct_probe"})
 
-    def test_registry_has_exactly_130_composite_keys(self) -> None:
-        # (Seed 3 + Tail Blueprint 3 + Backup 6 + V2 Direct Probe 14) × Role 5개 = 130.
-        # 2.2단계 §4: V2 Direct Probe의 NO_SIGNAL Role(14개)은 `_REGISTRY`가 아니라
-        # `_NO_SIGNAL_KEYS`에 등록된다 — 둘을 합쳐야 전체 130개다.
-        self.assertEqual(len(_REGISTRY) + len(_NO_SIGNAL_KEYS), 130)
+    def test_registry_has_exactly_205_composite_keys(self) -> None:
+        # (Seed 3 + Tail Blueprint 3 + Backup 6(2.5.3단계 REVISE, Runtime 제외) +
+        # Anchor Backup 15(2.5.4단계) + V2 Direct Probe 14) × Role 5개 = 205.
+        # V2 Direct Probe의 NO_SIGNAL Role, Anchor Backup의 NO_SIGNAL Role은
+        # `_REGISTRY`가 아니라 `_NO_SIGNAL_KEYS`에 등록된다 — 둘을 합쳐야 전체 205개다.
+        self.assertEqual(len(_REGISTRY) + len(_NO_SIGNAL_KEYS), 205)
 
-    def test_no_signal_keys_are_all_v2_direct_probe_and_have_no_overlap_with_registry(self) -> None:
+    def test_no_signal_keys_are_v2_direct_probe_or_backup_and_have_no_overlap_with_registry(self) -> None:
         # 2.5단계 §7: detail_orientation_media_v1의 do_visual_check가 미디어 재정의
         # (제작 → 감상)로 "화면 구도·연출을 인상 깊게 떠올린다"는 visual_expression
         # 근거를 갖는다고 보고 NO_SIGNAL에서 TRAIT_SIGNAL로 바꿨었다(14 → 13).
@@ -85,9 +86,13 @@ class RegistryStructureTest(unittest.TestCase):
         # 되돌렸다(13 → 14). 같은 라운드 §10-C에서 independent_judgment_school_life_v1의
         # ij_adapt_role도 change_adaptation(TRAIT_SIGNAL)에서 "다수 추종" NO_SIGNAL로
         # 바꿨다(14 → 15).
-        self.assertEqual(len(_NO_SIGNAL_KEYS), 15)
+        #
+        # 2.5.4단계 §5: Anchor Backup 15개 중 26개 Option이 "행동만으로는 특정 성향을
+        # 단정할 근거가 약하다"는 정직한 이유로 NO_SIGNAL이다(v2 Direct Probe와 별개로
+        # "backup" 계열도 처음으로 NO_SIGNAL을 갖는다, 15 → 41).
+        self.assertEqual(len(_NO_SIGNAL_KEYS), 41)
         for key in _NO_SIGNAL_KEYS:
-            self.assertEqual(key.question_family_id, "v2_direct_probe")
+            self.assertIn(key.question_family_id, ("v2_direct_probe", "backup"))
         self.assertEqual(set(_REGISTRY) & _NO_SIGNAL_KEYS, set())
 
     def test_full_registry_passes_validation(self) -> None:

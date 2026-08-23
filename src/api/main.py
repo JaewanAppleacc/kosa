@@ -56,6 +56,7 @@ from src.data.questions.context_routing_blueprints import (
     CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT,
     CONTEXT_ROUTING_BLUEPRINTS_BY_ID,
 )
+from src.data.questions.anchor_backup_questions import ANCHOR_BACKUP_QUESTIONS_BY_KEY
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.trait_ontology.trait_probe_capabilities_v2 import (
     CORE_TRAIT_IDS,
@@ -995,6 +996,17 @@ def next_question(session_id: str) -> NextQuestionResponse:
             CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY.get((current_context, tail_anchor_id))
             if tail_anchor_id else None
         )
+        # 2.5.4단계 §2/§6: Anchor가 있으면(v2 Anchor Runtime) 그 Anchor 전용 Backup
+        # 1개만 후보로 쓴다 — 사용자가 REVISE 판정한 기존 6개(Context 전체 공통)는
+        # v2 Anchor 흐름의 후보에서 완전히 제외한다. Anchor가 없으면(Legacy Flow,
+        # v2 기능 Flag가 꺼져 있거나 아직 Routing을 안 거친 세션) 기존 정책을 그대로
+        # 유지한다 — 이번 단계에서 Legacy 정책 자체는 바꾸지 않는다(§6 "임의 변경하지
+        # 말고 현재 동작과 위험만 보고").
+        if tail_anchor is not None:
+            anchor_backup = ANCHOR_BACKUP_QUESTIONS_BY_KEY.get((current_context, tail_anchor.anchor_id))
+            backup_candidates = [anchor_backup] if anchor_backup is not None else []
+        else:
+            backup_candidates = VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, [])
         outcome = generate_tail_question(
             question_id=question_id,
             context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
@@ -1008,7 +1020,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             previous_question_texts=state.generated_question_texts_in_current_context,
             previous_answer_text=state.pending_previous_answer_text,
             previous_next_probe=state.pending_next_probe,
-            backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
+            backup_questions=backup_candidates,
             used_backup_question_ids=set(state.used_backup_question_ids),
             anchor=tail_anchor,
         )

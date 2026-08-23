@@ -35,6 +35,11 @@ const state = {
   backupQuestionRevision: null,
   backupOptionRevision: null,
   backupCurrentIndex: 0,
+  // 2.5.4단계 §7 — Anchor Backup 탭 전용 상태(기존 Backup 탭과 완전히 분리).
+  anchorBackupQuestions: [],
+  anchorBackupQuestionRevision: null,
+  anchorBackupOptionRevision: null,
+  anchorBackupCurrentIndex: 0,
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -300,7 +305,8 @@ function renderReviewerSlotBlock({ scope, blueprintId, roleId, review, onSaved, 
 function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, blueprintId, roleId, onSaved, kind }) {
   const isRouting = kind === "routing";
   const isSeedAnchor = kind === "seed_anchor";
-  const isBackup = kind === "backup";
+  const isAnchorBackup = kind === "anchor_backup";
+  const isBackup = kind === "backup" || isAnchorBackup;
   const checklistItems = isRouting
     ? (scope === "question" ? CHECKLIST_ROUTING_QUESTION : CHECKLIST_ROUTING_OPTION)
     : isSeedAnchor
@@ -349,12 +355,15 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
     try {
       const routePrefix = isRouting ? "routing-questions"
         : isSeedAnchor ? "seed-anchor-questions"
+        : isAnchorBackup ? "anchor-backup-questions"
         : isBackup ? "backup-questions"
         : "questions";
       const revisionKey = isRouting
         ? (scope === "question" ? "routingQuestionRevision" : "routingOptionRevision")
         : isSeedAnchor
         ? (scope === "question" ? "seedAnchorQuestionRevision" : "seedAnchorOptionRevision")
+        : isAnchorBackup
+        ? (scope === "question" ? "anchorBackupQuestionRevision" : "anchorBackupOptionRevision")
         : isBackup
         ? (scope === "question" ? "backupQuestionRevision" : "backupOptionRevision")
         : (scope === "question" ? "questionRevision" : "optionRevision");
@@ -375,6 +384,7 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
       state.dirty = false;
       if (isRouting) await refreshRoutingAfterSave();
       else if (isSeedAnchor) await refreshSeedAnchorAfterSave();
+      else if (isAnchorBackup) await refreshAnchorBackupAfterSave();
       else if (isBackup) await refreshBackupAfterSave();
       else await refreshAfterSave();
       if (onSaved) onSaved();
@@ -384,6 +394,7 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
         msg.className = "inline-msg err";
         if (isRouting) await reloadRoutingAfterConflict();
         else if (isSeedAnchor) await reloadSeedAnchorAfterConflict();
+        else if (isAnchorBackup) await reloadAnchorBackupAfterConflict();
         else if (isBackup) await reloadBackupAfterConflict();
         else await reloadAfterConflict();
       } else {
@@ -998,6 +1009,184 @@ function renderCurrentBackupQuestion() {
   document.getElementById("next-btn").disabled = state.backupCurrentIndex >= state.backupQuestions.length - 1;
 }
 
+/* ---- 2.5.4단계 §7: Anchor Backup 탭 전용 렌더링/로딩(기존 Backup 탭과 완전히 분리) ---- */
+
+async function loadAnchorBackupAll() {
+  setSaveIndicator("Anchor Backup 불러오는 중…", "");
+  const resp = await apiGet(`${API_BASE}/anchor-backup-questions`);
+  state.anchorBackupQuestions = resp.questions;
+  state.anchorBackupQuestionRevision = resp.question_review_revision;
+  state.anchorBackupOptionRevision = resp.option_review_revision;
+  renderAnchorBackupSidebarList();
+  renderCurrentAnchorBackupQuestion();
+  setSaveIndicator("불러옴", "saved");
+}
+
+async function refreshAnchorBackupAfterSave() {
+  const resp = await apiGet(`${API_BASE}/anchor-backup-questions`);
+  const current = state.anchorBackupQuestions[state.anchorBackupCurrentIndex];
+  const currentId = current ? current.question_id : null;
+  state.anchorBackupQuestions = resp.questions;
+  state.anchorBackupQuestionRevision = resp.question_review_revision;
+  state.anchorBackupOptionRevision = resp.option_review_revision;
+  if (currentId) {
+    const idx = state.anchorBackupQuestions.findIndex((q) => q.question_id === currentId);
+    if (idx !== -1) state.anchorBackupCurrentIndex = idx;
+  }
+  renderAnchorBackupSidebarList();
+  renderCurrentAnchorBackupQuestion();
+}
+
+async function reloadAnchorBackupAfterConflict() {
+  if (state.dirty) {
+    const proceed = confirm("저장하지 않은 변경사항이 있습니다. 새로고침하면 사라집니다. 계속할까요?");
+    if (!proceed) return;
+  }
+  state.dirty = false;
+  await loadAnchorBackupAll();
+}
+
+function goToAnchorBackupIndex(index) {
+  if (!confirmDiscardIfDirty()) return;
+  state.anchorBackupCurrentIndex = index;
+  renderAnchorBackupSidebarList();
+  renderCurrentAnchorBackupQuestion();
+}
+
+function stepAnchorBackupQuestion(delta) {
+  if (state.anchorBackupQuestions.length === 0) return;
+  const next = Math.min(Math.max(state.anchorBackupCurrentIndex + delta, 0), state.anchorBackupQuestions.length - 1);
+  goToAnchorBackupIndex(next);
+}
+
+function renderAnchorBackupSidebarList() {
+  const list = document.getElementById("anchor-backup-nav-list");
+  list.replaceChildren();
+  state.anchorBackupQuestions.forEach((q, idx) => {
+    const item = el(
+      "li",
+      { class: idx === state.anchorBackupCurrentIndex ? "current" : "", onclick: () => goToAnchorBackupIndex(idx) },
+      [el("span", { text: `${q.context_label} · ${q.question_id}` }), statusPill(q.review.final_status)],
+    );
+    list.appendChild(item);
+  });
+}
+
+function renderAnchorBackupOptionCard(option, question) {
+  const mappingDetails = el("div", { class: "mapping-only" }, [
+    el("div", { class: "option-meta" }, [
+      el("span", { text: `role_id: ${option.role_id}` }),
+      el("span", { text: option.trait_id ? `Trait: ${option.trait_label} (${option.trait_id})` : "NO_SIGNAL" }),
+    ]),
+    option.trait_definition ? el("div", { class: "def" }, option.trait_definition) : null,
+    el("div", { class: "mapping-rationale-draft" }, `Mapping Rationale Draft(팀 초안, 검증 완료 아님): ${option.mapping_rationale_draft}`),
+  ]);
+
+  const reviewPanel = renderReviewerSlotBlock({
+    scope: "option", blueprintId: question.question_id, roleId: option.role_id, review: option.review,
+    kind: "anchor_backup",
+  });
+
+  return el("li", { class: "option-card" }, [
+    el("div", { class: "option-text", text: option.text }),
+    mappingDetails,
+    reviewPanel,
+  ]);
+}
+
+async function loadAnchorBackupAnchorPreview(question, anchorId, resultBox) {
+  resultBox.replaceChildren(el("p", {}, "불러오는 중…"));
+  try {
+    const params = new URLSearchParams({ context_id: question.context_id });
+    if (anchorId) params.set("anchor_id", anchorId);
+    const preview = await apiGet(`${API_BASE}/anchor-backup-questions/${encodeURIComponent(question.question_id)}/anchor-preview?${params}`);
+    resultBox.replaceChildren(
+      el("div", {}, [
+        el("strong", {}, `Anchor: ${anchorId || "(없음 — 중립 요청)"}`),
+        el("span", { class: `routing-check-${preview.passed ? "ok" : "manual"}`, text: preview.passed ? " ✓ 사용 가능" : " ✗ 거부됨" }),
+      ]),
+      preview.failures.length
+        ? el("ul", {}, preview.failures.map((f) => el("li", {}, f)))
+        : null,
+    );
+  } catch (err) {
+    resultBox.replaceChildren(el("p", { class: "inline-msg err" }, `Preview 실패: ${err.message}`));
+  }
+}
+
+function renderAnchorBackupAnchorPreviewPanel(question) {
+  const resultBox = el("div", { class: "anchor-preview-result" }, "위에서 Anchor를 선택하면 실제 적합성 검사 결과가 여기 표시됩니다.");
+  const anchorIds = Object.keys(question.anchor_gate_results).filter((k) => k !== "neutral");
+  const panel = el("div", { class: "anchor-preview-panel" }, [
+    el("h4", {}, "Anchor Preview — 실제 Backup 적합성 검사"),
+    el("div", { class: "anchor-preview-buttons" }, [
+      el("button", { type: "button", class: "anchor-preview-btn", onclick: () => loadAnchorBackupAnchorPreview(question, null, resultBox) }, "중립(Anchor 없음)"),
+      ...anchorIds.map((anchorId) =>
+        el("button", { type: "button", class: "anchor-preview-btn", onclick: () => loadAnchorBackupAnchorPreview(question, anchorId, resultBox) }, anchorId)
+      ),
+    ]),
+  ]);
+  panel.appendChild(resultBox);
+  return panel;
+}
+
+function renderAnchorBackupQuestionCard(question) {
+  const meta = el("div", { class: "meta" }, [
+    el("span", { class: "student-hint", text: `Context: ${question.context_label}` }),
+    el("span", { class: "mapping-only-inline", text: ` · question_id: ${question.question_id}` }),
+  ]);
+
+  const gateGrid = el("div", { class: "anchor-gate-grid mapping-only" },
+    Object.entries(question.anchor_gate_results).map(([anchorId, passed]) =>
+      el("span", { class: `anchor-gate-chip ${passed ? "pass" : "fail"}`, text: `${anchorId}: ${passed ? "통과" : "거부"}` })
+    ),
+  );
+
+  const applicabilityPanel = el("div", { class: "neutral-comparison mapping-only" }, [
+    el("div", {}, `허용 Anchor: ${question.allowed_anchor_ids ? question.allowed_anchor_ids.join(", ") : "전체(중립)"}`),
+    el("div", {}, `제외 Anchor: ${question.excluded_anchor_ids.length ? question.excluded_anchor_ids.join(", ") : "(없음)"}`),
+    el("div", { class: "mapping-rationale-draft" }, `Applicability 초안(검증 완료 아님): ${question.applicability_reason_draft}`),
+  ]);
+
+  // §2/§7 — 이전 REVISE Backup과의 관계.
+  const supersedesPanel = el("div", { class: "neutral-comparison mapping-only" },
+    `대체 대상(v2 Runtime에서 제외된 기존 REVISE Backup): ${question.superseded_question_ids.length ? question.superseded_question_ids.join(", ") : "(없음)"}`,
+  );
+
+  const optionList = el("ul", { class: "option-list" }, question.options.map((o) => renderAnchorBackupOptionCard(o, question)));
+
+  const questionReviewPanel = renderReviewerSlotBlock({
+    scope: "question", blueprintId: question.question_id, roleId: null, review: question.review, kind: "anchor_backup",
+  });
+
+  return el("div", { class: "question-card" }, [
+    meta,
+    el("div", { class: "question-text", text: question.question_text }),
+    gateGrid,
+    applicabilityPanel,
+    supersedesPanel,
+    renderAnchorBackupAnchorPreviewPanel(question),
+    questionReviewPanel,
+    optionList,
+  ]);
+}
+
+function renderCurrentAnchorBackupQuestion() {
+  const container = document.getElementById("question-container");
+  container.replaceChildren();
+  const q = state.anchorBackupQuestions[state.anchorBackupCurrentIndex];
+  if (!q) {
+    container.appendChild(el("p", { text: "표시할 Anchor Backup 질문이 없습니다." }));
+    return;
+  }
+  container.appendChild(renderAnchorBackupQuestionCard(q));
+
+  document.getElementById("pager-label").textContent =
+    `${state.anchorBackupCurrentIndex + 1} / ${state.anchorBackupQuestions.length}`;
+  document.getElementById("prev-btn").disabled = state.anchorBackupCurrentIndex <= 0;
+  document.getElementById("next-btn").disabled = state.anchorBackupCurrentIndex >= state.anchorBackupQuestions.length - 1;
+}
+
 async function setTab(tab) {
   if (tab === state.tab) return;
   if (!confirmDiscardIfDirty()) return;
@@ -1006,10 +1195,12 @@ async function setTab(tab) {
   document.body.classList.toggle("tab-routing", tab === "routing");
   document.body.classList.toggle("tab-seed_anchor", tab === "seed_anchor");
   document.body.classList.toggle("tab-backup", tab === "backup");
+  document.body.classList.toggle("tab-anchor_backup", tab === "anchor_backup");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
   document.getElementById("tab-backup-btn").classList.toggle("active", tab === "backup");
+  document.getElementById("tab-anchor-backup-btn").classList.toggle("active", tab === "anchor_backup");
 
   if (tab === "routing") {
     if (state.routingQuestions.length === 0) {
@@ -1044,6 +1235,17 @@ async function setTab(tab) {
       renderBackupSidebarList();
       renderCurrentBackupQuestion();
     }
+  } else if (tab === "anchor_backup") {
+    if (state.anchorBackupQuestions.length === 0) {
+      try {
+        await loadAnchorBackupAll();
+      } catch (err) {
+        setSaveIndicator(`Anchor Backup 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderAnchorBackupSidebarList();
+      renderCurrentAnchorBackupQuestion();
+    }
   } else {
     renderSidebarList();
     renderCurrentQuestion();
@@ -1074,16 +1276,19 @@ function setupControls() {
   document.getElementById("tab-routing-btn").addEventListener("click", () => setTab("routing"));
   document.getElementById("tab-seed-anchor-btn").addEventListener("click", () => setTab("seed_anchor"));
   document.getElementById("tab-backup-btn").addEventListener("click", () => setTab("backup"));
+  document.getElementById("tab-anchor-backup-btn").addEventListener("click", () => setTab("anchor_backup"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
     if (state.tab === "routing") stepRoutingQuestion(-1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
+    else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
     else if (state.tab === "backup") stepBackupQuestion(-1);
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
     if (state.tab === "routing") stepRoutingQuestion(1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
+    else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
     else if (state.tab === "backup") stepBackupQuestion(1);
     else stepQuestion(1);
   });
@@ -1132,12 +1337,14 @@ function setupControls() {
     if (e.key === "ArrowLeft") {
       if (state.tab === "routing") stepRoutingQuestion(-1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
+      else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
       else if (state.tab === "backup") stepBackupQuestion(-1);
       else stepQuestion(-1);
     }
     if (e.key === "ArrowRight") {
       if (state.tab === "routing") stepRoutingQuestion(1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
+      else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
       else if (state.tab === "backup") stepBackupQuestion(1);
       else stepQuestion(1);
     }

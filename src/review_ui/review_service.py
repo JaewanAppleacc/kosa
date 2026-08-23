@@ -19,6 +19,9 @@ from src.data.contexts.context_anchor_presentations import (
     CONTEXT_ANCHOR_PRESENTATIONS,
     CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY,
 )
+from src.data.questions.anchor_backup_applicability import ANCHOR_BACKUP_APPLICABILITY_BY_QUESTION_ID
+from src.data.questions.anchor_backup_mapping_rationale import ANCHOR_BACKUP_MAPPING_RATIONALE_BY_KEY
+from src.data.questions.anchor_backup_questions import ANCHOR_BACKUP_QUESTIONS, ANCHOR_BACKUP_QUESTIONS_BY_ID
 from src.data.questions.backup_mapping_rationale import BACKUP_MAPPING_RATIONALE_BY_KEY
 from src.data.questions.backup_question_applicability import BACKUP_APPLICABILITY_BY_QUESTION_ID
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
@@ -74,6 +77,12 @@ from src.services.backup_question_review_store import (
     BACKUP_QUESTION_REVIEW_PATH,
     load_backup_option_review_entries,
     load_backup_question_review_entries,
+)
+from src.services.anchor_backup_review_store import (
+    ANCHOR_BACKUP_OPTION_REVIEW_PATH,
+    ANCHOR_BACKUP_QUESTION_REVIEW_PATH,
+    load_anchor_backup_option_review_entries,
+    load_anchor_backup_question_review_entries,
 )
 
 _CONTEXT_LABELS = {c.context_id: c.label for c in CONTEXT_DEFINITIONS}
@@ -490,6 +499,105 @@ def build_backup_anchor_preview(question_id: str, context_id: str, anchor_id: st
 
     applicability = BACKUP_APPLICABILITY_BY_QUESTION_ID.get(question_id)
     gate = check_backup_candidate(backup, anchor=anchor, applicability=applicability)
+    return BackupAnchorPreviewResponse(
+        question_id=question_id, anchor_id=anchor_id, passed=gate.passed, failures=gate.failures,
+    )
+
+
+def build_anchor_backup_question_list(
+    *,
+    question_path: Path = ANCHOR_BACKUP_QUESTION_REVIEW_PATH,
+    option_path: Path = ANCHOR_BACKUP_OPTION_REVIEW_PATH,
+) -> BackupQuestionListResponse:
+    """2.5.4단계 §7 — Anchor Backup 질문 15개 × 선택지 5개를 조합한다. 기존(2.5.3단계)
+    6개 Backup과 같은 View 모델(`BackupQuestionItem`)을 재사용하지만, 완전히 별도의
+    검토 상태 파일을 읽는다 — 사용자가 이미 REVISE 판정한 기존 파일은 절대 건드리지
+    않는다. `superseded_question_ids`는 이 Anchor Backup이 대체하는(그리고 v2 Anchor
+    Runtime 후보에서 제외된) 그 Context의 기존 REVISE Backup question_id 목록이다."""
+
+    question_reviews = {e.blueprint_id: e for e in load_anchor_backup_question_review_entries(question_path)}
+    option_reviews = {
+        (e.blueprint_id, e.role_id): e for e in load_anchor_backup_option_review_entries(option_path)
+    }
+
+    questions: list[BackupQuestionItem] = []
+    for question in ANCHOR_BACKUP_QUESTIONS:
+        context_id = question.context
+        context_anchors = [p for p in CONTEXT_ANCHOR_PRESENTATIONS if p.context_id == context_id]
+        applicability = ANCHOR_BACKUP_APPLICABILITY_BY_QUESTION_ID.get(question.question_id)
+        superseded_ids = [q.question_id for q in VERTICAL_SLICE_BACKUP_QUESTIONS.get(context_id, [])]
+
+        options: list[BackupOptionItem] = []
+        for option in question.options:
+            trait_id = next(iter(option.primary_trait_delta), None)
+            trait = _TRAIT_ONTOLOGY_BY_ID.get(trait_id) if trait_id else None
+            rationale = ANCHOR_BACKUP_MAPPING_RATIONALE_BY_KEY.get((question.question_id, option.role_id))
+            option_review = option_reviews.get((question.question_id, option.role_id))
+            if option_review is None:
+                raise UnknownRoleError(
+                    f"{question.question_id}/{option.role_id}: Anchor Backup 검수 상태 파일에 항목이 없다 — "
+                    "data/reviews/v2_anchor_backup_option_review_status.json을 확인하라"
+                )
+            options.append(BackupOptionItem(
+                role_id=option.role_id, text=option.text, primary_trait_delta=option.primary_trait_delta,
+                trait_id=trait_id, trait_label=(trait.label if trait else "NO_SIGNAL"),
+                trait_definition=trait.definition if trait else "",
+                mapping_rationale_draft=rationale.mapping_rationale_draft if rationale else "",
+                review=_option_review_view(option_review),
+            ))
+
+        anchor_gate_results: dict[str, bool] = {
+            "neutral": check_backup_candidate(question, anchor=None, applicability=applicability).passed,
+        }
+        for anchor in context_anchors:
+            anchor_gate_results[anchor.anchor_id] = check_backup_candidate(
+                question, anchor=anchor, applicability=applicability,
+            ).passed
+
+        question_review = question_reviews.get(question.question_id)
+        if question_review is None:
+            raise UnknownBlueprintError(
+                f"{question.question_id}: Anchor Backup 검수 상태 파일에 항목이 없다 — "
+                "data/reviews/v2_anchor_backup_question_review_status.json을 확인하라"
+            )
+
+        questions.append(BackupQuestionItem(
+            question_id=question.question_id, context_id=context_id,
+            context_label=_CONTEXT_LABELS.get(context_id, context_id),
+            question_text=question.question_text, options=options,
+            allowed_anchor_ids=(
+                sorted(applicability.allowed_anchor_ids) if applicability and applicability.allowed_anchor_ids
+                else None
+            ),
+            excluded_anchor_ids=sorted(applicability.excluded_anchor_ids) if applicability else [],
+            applicability_reason_draft=applicability.applicability_reason_draft if applicability else "",
+            anchor_gate_results=anchor_gate_results,
+            review=_question_review_view(question_review),
+            superseded_question_ids=superseded_ids,
+        ))
+
+    return BackupQuestionListResponse(
+        questions=questions,
+        question_review_revision=_file_revision(question_path),
+        option_review_revision=_file_revision(option_path),
+    )
+
+
+def build_anchor_backup_anchor_preview(
+    question_id: str, context_id: str, anchor_id: str | None,
+) -> BackupAnchorPreviewResponse:
+    question = ANCHOR_BACKUP_QUESTIONS_BY_ID.get(question_id)
+    if question is None or question.context != context_id:
+        raise UnknownBlueprintError(f"{context_id}/{question_id}: 실제 Anchor Backup Question 목록에 없다")
+
+    anchor = None
+    if anchor_id is not None:
+        anchor = CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY.get((context_id, anchor_id))
+        if anchor is None:
+            raise UnknownAnchorError(f"({context_id}, {anchor_id})가 Anchor Presentation 레지스트리에 없다")
+
+    applicability = ANCHOR_BACKUP_APPLICABILITY_BY_QUESTION_ID.get(question_id)
+    gate = check_backup_candidate(question, anchor=anchor, applicability=applicability)
     return BackupAnchorPreviewResponse(
         question_id=question_id, anchor_id=anchor_id, passed=gate.passed, failures=gate.failures,
     )
@@ -916,6 +1024,97 @@ def update_backup_option_review(
         updated.append(entry)
     if not found:
         raise UnknownRoleError(f"{question_id}/{role_id}가 Backup 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[OptionReviewEntry]).validate_python(payload)
+    _atomic_write_json(option_path, payload)
+    return final_status, _file_revision(option_path)
+
+
+_KNOWN_ANCHOR_BACKUP_QUESTION_IDS = {q.question_id for q in ANCHOR_BACKUP_QUESTIONS}
+_KNOWN_ANCHOR_BACKUP_OPTION_KEYS = {
+    (q.question_id, o.role_id) for q in ANCHOR_BACKUP_QUESTIONS for o in q.options
+}
+
+
+def update_anchor_backup_question_review(
+    *, question_id: str, reviewer: str, status: str, comment: str, resolution_note: str | None,
+    expected_revision: str, question_path: Path = ANCHOR_BACKUP_QUESTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    """§7/§10 — 기존 Backup·v2 Direct Probe·Routing·Seed Anchor와 완전히 같은 저장
+    순서를 Anchor Backup 질문에 대해 반복한다."""
+
+    if question_id not in _KNOWN_ANCHOR_BACKUP_QUESTION_IDS:
+        raise UnknownBlueprintError(f"question_id {question_id!r}가 실제 Anchor Backup Question 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(question_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "Anchor Backup 질문 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_anchor_backup_question_review_entries(question_path)
+    updated: list[QuestionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.blueprint_id == question_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownBlueprintError(f"question_id {question_id!r}가 Anchor Backup 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[QuestionReviewEntry]).validate_python(payload)
+    _atomic_write_json(question_path, payload)
+    return final_status, _file_revision(question_path)
+
+
+def update_anchor_backup_option_review(
+    *, question_id: str, role_id: str, reviewer: str, status: str, comment: str,
+    resolution_note: str | None, expected_revision: str, option_path: Path = ANCHOR_BACKUP_OPTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    if (question_id, role_id) not in _KNOWN_ANCHOR_BACKUP_OPTION_KEYS:
+        raise UnknownRoleError(f"{question_id}/{role_id}가 실제 Anchor Backup Option 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(option_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "Anchor Backup 선택지 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_anchor_backup_option_review_entries(option_path)
+    updated: list[OptionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.blueprint_id == question_id and entry.role_id == role_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownRoleError(f"{question_id}/{role_id}가 Anchor Backup 검수 상태 파일에 없다")
 
     payload = [json.loads(e.model_dump_json()) for e in updated]
     from pydantic import TypeAdapter

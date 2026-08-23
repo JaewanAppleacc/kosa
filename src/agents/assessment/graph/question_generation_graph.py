@@ -19,7 +19,15 @@ from pydantic import BaseModel, ConfigDict, Field
 from langgraph.graph import END, START, StateGraph
 from langsmith.run_helpers import tracing_context
 
+from src.data.questions.anchor_backup_applicability import ANCHOR_BACKUP_APPLICABILITY_BY_QUESTION_ID
 from src.data.questions.backup_question_applicability import BACKUP_APPLICABILITY_BY_QUESTION_ID
+
+# 2026-08-23 Trait Ontology v2(2.5.4단계) §3 — 기존 6개(all-permissive)와 새 15개
+# (Anchor 하나로 제한)를 한 조회 표로 합친다. question_id가 서로 겹치지 않아 병합
+# 순서는 결과에 영향이 없다.
+_ALL_BACKUP_APPLICABILITY_BY_QUESTION_ID = {
+    **BACKUP_APPLICABILITY_BY_QUESTION_ID, **ANCHOR_BACKUP_APPLICABILITY_BY_QUESTION_ID,
+}
 from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS_BY_ID
 from src.engines.backup_applicability_check import check_backup_candidate
 from src.engines.question_quality_gate import run_quality_gate
@@ -329,7 +337,7 @@ def _use_backup(g: QuestionGenerationGraphState) -> dict:
             continue
         checked += 1
 
-        applicability = BACKUP_APPLICABILITY_BY_QUESTION_ID.get(backup.question_id)
+        applicability = _ALL_BACKUP_APPLICABILITY_BY_QUESTION_ID.get(backup.question_id)
         gate = check_backup_candidate(
             backup, anchor=g.anchor, applicability=applicability,
             previous_question_texts=g.previous_question_texts,

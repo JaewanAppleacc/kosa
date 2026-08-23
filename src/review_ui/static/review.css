@@ -245,6 +245,8 @@ body.tab-routing .tab-only-routing { display: block; }
 body.tab-seed_anchor .tab-only-seed_anchor { display: block; }
 .tab-only-backup { display: none; }
 body.tab-backup .tab-only-backup { display: block; }
+.tab-only-anchor_backup { display: none; }
+body.tab-anchor_backup .tab-only-anchor_backup { display: block; }
 
 .anchor-gate-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
 .anchor-gate-chip {

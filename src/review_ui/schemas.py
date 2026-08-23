@@ -201,12 +201,13 @@ class SeedAnchorQuestionListResponse(BaseModel):
 
 
 class BackupOptionItem(BaseModel):
-    """2.5.3단계 §11 — Backup 선택지 검수 항목."""
+    """2.5.3단계 §11, 2.5.4단계 §5 — Backup 선택지 검수 항목. `trait_id=None`이면
+    NO_SIGNAL이다(2.5.3단계의 기존 6개는 NO_SIGNAL이 없어 항상 값이 있었다)."""
 
     role_id: str
     text: str
     primary_trait_delta: dict[str, int]
-    trait_id: str
+    trait_id: str | None
     trait_label: str
     trait_definition: str
     mapping_rationale_draft: str
@@ -229,6 +230,11 @@ class BackupQuestionItem(BaseModel):
     applicability_reason_draft: str
     anchor_gate_results: dict[str, bool]
     review: QuestionReviewView
+    # 2.5.4단계 §2/§7 — "이전 REVISE Backup과의 관계". 기존(2.5.3단계) Backup은 항상
+    # []. Anchor Backup은 자신이 대체하는 그 Context의 기존 REVISE Backup question_id
+    # 목록을 담는다(예: game_backup_01/02) — 사람이 검수 페이지에서 "왜 이 Anchor
+    # Backup이 새로 생겼는지" 맥락을 바로 볼 수 있게 한다.
+    superseded_question_ids: list[str] = []
 
 
 class BackupQuestionListResponse(BaseModel):
