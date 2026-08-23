@@ -33,6 +33,7 @@
     <button id="tab-backup-btn" data-tab="backup" type="button">Backup Question (6, REVISE)</button>
     <button id="tab-anchor-backup-btn" data-tab="anchor_backup" type="button">Anchor Backup (15)</button>
     <button id="tab-shared-probes-btn" data-tab="shared_probes" type="button">공용 Probe · Anchor 적용 검수 (14)</button>
+    <button id="tab-context-packs-btn" data-tab="context_packs" type="button">신규 ContextPack (12)</button>
   </div>
 
   <span id="save-indicator" class="save-indicator">불러오는 중…</span>
@@ -98,6 +99,35 @@
       <h3>공용 Probe — Anchor 적용 가능성 검수 목록</h3>
       <ul class="question-nav-list" id="shared-probe-nav-list"></ul>
     </div>
+
+    <div class="filter-group tab-only-context_packs">
+      <h3>배치</h3>
+      <div class="batch-selector" id="context-pack-batch-selector"></div>
+    </div>
+
+    <div class="filter-group tab-only-context_packs">
+      <h3>배치 · Context 승인 현황</h3>
+      <div class="batch-summary" id="context-pack-batch-summary"></div>
+    </div>
+
+    <div class="filter-group tab-only-context_packs">
+      <h3>Context 목록(이 배치)</h3>
+      <ul class="question-nav-list" id="context-pack-context-list"></ul>
+    </div>
+
+    <div class="filter-group tab-only-context_packs">
+      <h3>상태 필터</h3>
+      <label><input type="radio" name="context-pack-status-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="context-pack-status-filter" value="TBD"> TBD</label>
+      <label><input type="radio" name="context-pack-status-filter" value="APPROVE"> APPROVE</label>
+      <label><input type="radio" name="context-pack-status-filter" value="REVISE"> REVISE</label>
+      <label><input type="radio" name="context-pack-status-filter" value="HOLD"> HOLD</label>
+    </div>
+
+    <div class="filter-group tab-only-context_packs">
+      <h3>이 Context의 질문 11개</h3>
+      <ul class="question-nav-list" id="context-pack-question-nav-list"></ul>
+    </div>
   </aside>
 
   <section class="content">
@@ -106,8 +136,16 @@
       <span id="pager-label"></span>
       <button id="next-btn" type="button">다음 (→) →</button>
     </div>
+    <div class="pager tab-only-context_packs" id="context-pack-context-pager">
+      <button id="context-pack-prev-context-btn" type="button">← 이전 Context</button>
+      <span id="context-pack-context-pager-label"></span>
+      <button id="context-pack-next-context-btn" type="button">다음 Context →</button>
+    </div>
     <div id="question-container"></div>
     <div id="shared-probe-container" class="tab-only-shared_probes"></div>
+    <div id="context-pack-error-banner" class="tab-only-context_packs"></div>
+    <div id="context-pack-detail-header" class="tab-only-context_packs"></div>
+    <div id="context-pack-question-container" class="tab-only-context_packs"></div>
   </section>
 </main>
 

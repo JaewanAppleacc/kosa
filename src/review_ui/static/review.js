@@ -46,6 +46,19 @@ const state = {
   // 12개 Context 행이 전부 펼쳐져 보인다.
   sharedProbes: [],
   sharedProbeCurrentBlueprintId: null,
+  // 2026-08-24 신규 ContextPack(business/science/sports 등 12개) 검수 탭 전용 상태.
+  // Blueprint→Context→Anchor 3단인 shared_probes와 달리 이 탭은 "배치 → Context →
+  // 질문(11개)" 3단이라 currentIndex 하나로는 부족해 batch/context/questionIndex를
+  // 따로 둔다. reviewerSlot(위)을 그대로 공유한다 — "검토자 1"을 선택해야만 저장
+  // 가능한 전역 게이트를 이 탭에도 동일하게 적용한다(지시서 §7의 "이 프로젝트는
+  // reviewer_1만 사용한다"는 이미 이 게이트로 강제되고 있다).
+  contextPacks: [],
+  contextPackDiscoveryErrors: {},
+  contextPackOntologyErrors: {},
+  contextPackBatch: 1,
+  contextPackContextId: null,
+  contextPackQuestionIndex: 0,
+  contextPackStatusFilter: "all",
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -95,6 +108,33 @@ const CHECKLIST_BACKUP_OPTION = [
   "다른 선택지를 전부 포괄하는 표현이 아니다",
   "사회적으로 바람직한 정답처럼 보이지 않는다",
 ];
+
+// 2026-08-24 신규 ContextPack 검수 탭 전용 체크리스트(지시서 §9) — 게임/미디어/학교생활
+// 전용 문구를 쓰는 기존 CHECKLIST_ROUTING_*/CHECKLIST_SEED_ANCHOR_*와 달리, 12개
+// 신규 Context(업종·소재가 서로 다름) 어디에나 적용 가능한 일반 문구를 쓴다. 다른
+// 체크리스트와 마찬가지로 검토 보조 수단일 뿐 — 어떤 값도 서버로 전송하지 않는다.
+const CHECKLIST_CONTEXTPACK_ROUTING = [
+  "5개 Anchor가 명확히 구분된다",
+  "특정 경험을 부당하게 전제하지 않는다",
+  "선택지 의미가 과도하게 겹치지 않는다",
+  "Trait를 채점하는 질문처럼 보이지 않는다",
+];
+
+const CHECKLIST_CONTEXTPACK_SEED_BACKUP = [
+  "질문이 해당 Anchor 상황에 맞는다",
+  "선택지 5개가 질문에 자연스럽게 답한다",
+  "선택지와 Trait Mapping이 직접적으로 연결된다",
+  "NO_SIGNAL이 억지 Trait로 매핑되지 않았다",
+  "모범답안처럼 보이는 선택지가 없다",
+  "다른 선택지를 포괄하는 선택지가 없다",
+  "학생에게 자연스러운 문장이다",
+];
+
+const CONTEXTPACK_KIND_LABEL = {
+  routing: "Routing", seed: "Seed", anchor_backup: "Anchor Backup", direct_probe: "Native Direct Probe",
+};
+const CONTEXTPACK_KIND_ORDER = { routing: 0, seed: 1, anchor_backup: 2, direct_probe: 3 };
+const CONTEXTPACK_BATCH_LABEL = { 1: "1차 배치", 2: "2차 배치", 3: "3차 배치" };
 
 const CHECKLIST_QUESTION = [
   "고등학생이 이해하기 자연스럽다",
@@ -1336,26 +1376,465 @@ async function saveSharedProbeContextReview(blueprintId, contextId, payload) {
   }
 }
 
-async function setTab(tab) {
-  if (tab === state.tab) return;
+/* ---- 2026-08-24 신규 ContextPack(business/science/sports 등 12개) 검수 탭 ----
+ *
+ * GET /internal/review/v2/context-packs 응답을 그대로 렌더링한다 — Pack 목록·질문
+ * 구성·Trait Mapping을 이 파일에서 별도 상수로 복제하지 않는다(지시서 §3). 배치
+ * 그룹(1차/2차/3차)도 서버가 계산해 내려주는 activation_batch를 그대로 쓴다 — 프론트에
+ * 배치 표를 따로 두면 나중에 서버 정본과 어긋날 수 있어서다. 이 탭은 어떤 항목도
+ * 스스로 APPROVE하지 않는다 — 사람이 저장 버튼을 눌렀을 때만, 그 사람이 실제로 고른
+ * 값 그대로 PATCH한다. */
+
+function contextPacksInBatch(batchNo) {
+  return state.contextPacks
+    .filter((p) => p.activation_batch === batchNo)
+    .sort((a, b) => a.context_id.localeCompare(b.context_id));
+}
+
+function currentContextPack() {
+  return state.contextPacks.find((p) => p.context_id === state.contextPackContextId) || null;
+}
+
+function contextPackReviewerStatusCounts(pack) {
+  const counts = { APPROVE: 0, REVISE: 0, HOLD: 0, TBD: 0 };
+  for (const q of pack.questions) {
+    const status = q.review.reviewer_1_status;
+    if (status in counts) counts[status] += 1;
+  }
+  return counts;
+}
+
+function orderedContextPackQuestions(pack) {
+  // Array.prototype.sort는 안정 정렬이라(ES2019+) 같은 kind 안에서는 서버가 준
+  // 원래 순서(예: seed 5개의 Anchor 순서)가 그대로 유지된다.
+  return [...pack.questions].sort((a, b) => CONTEXTPACK_KIND_ORDER[a.kind] - CONTEXTPACK_KIND_ORDER[b.kind]);
+}
+
+function filteredContextPackQuestions(pack) {
+  const ordered = orderedContextPackQuestions(pack);
+  if (state.contextPackStatusFilter === "all") return ordered;
+  return ordered.filter((q) => q.review.reviewer_1_status === state.contextPackStatusFilter);
+}
+
+async function loadContextPacksAll() {
+  setSaveIndicator("신규 ContextPack 불러오는 중…", "");
+  const resp = await apiGet(`${API_BASE}/context-packs`);
+  state.contextPacks = resp.packs;
+  state.contextPackDiscoveryErrors = resp.discovery_errors;
+  state.contextPackOntologyErrors = resp.ontology_errors;
+  if (state.contextPackContextId == null || !state.contextPacks.some((p) => p.context_id === state.contextPackContextId)) {
+    // 기본 선택(지시서 §4): 1차 배치 → business. business 자체가 없으면(발견 실패 등)
+    // 1차 배치의 다른 Context로, 그것도 없으면 전체 목록의 첫 Pack으로 물러난다.
+    const batch1 = contextPacksInBatch(1);
+    const fallback = batch1.find((p) => p.context_id === "business") || batch1[0] || state.contextPacks[0] || null;
+    if (fallback) {
+      state.contextPackBatch = fallback.activation_batch || 1;
+      state.contextPackContextId = fallback.context_id;
+    }
+  }
+  renderContextPackAll();
+  setSaveIndicator("불러옴", "saved");
+}
+
+async function refreshContextPacksAfterSave(contextId, key) {
+  const resp = await apiGet(`${API_BASE}/context-packs`);
+  state.contextPacks = resp.packs;
+  state.contextPackDiscoveryErrors = resp.discovery_errors;
+  state.contextPackOntologyErrors = resp.ontology_errors;
+  state.contextPackContextId = contextId;
+  const pack = currentContextPack();
+  if (pack) {
+    const idx = orderedContextPackQuestions(pack).findIndex((q) => q.key === key);
+    if (idx !== -1) state.contextPackQuestionIndex = idx;
+  }
+  renderContextPackAll();
+}
+
+function selectContextPackBatch(batchNo) {
   if (!confirmDiscardIfDirty()) return;
-  state.tab = tab;
+  state.contextPackBatch = batchNo;
+  const contexts = contextPacksInBatch(batchNo);
+  if (contexts.length > 0 && !contexts.some((p) => p.context_id === state.contextPackContextId)) {
+    state.contextPackContextId = contexts[0].context_id;
+    state.contextPackQuestionIndex = 0;
+  }
+  renderContextPackAll();
+}
+
+function selectContextPackContext(contextId) {
+  if (!confirmDiscardIfDirty()) return;
+  state.contextPackContextId = contextId;
+  state.contextPackQuestionIndex = 0;
+  renderContextPackAll();
+}
+
+function goToContextPackQuestionIndex(orderedIndex) {
+  if (!confirmDiscardIfDirty()) return;
+  state.contextPackQuestionIndex = orderedIndex;
+  renderContextPackQuestionNavList();
+  renderCurrentContextPackQuestion();
+}
+
+function stepContextPackQuestion(delta) {
+  const pack = currentContextPack();
+  if (!pack) return;
+  const ordered = orderedContextPackQuestions(pack);
+  const visible = filteredContextPackQuestions(pack);
+  if (visible.length === 0) return;
+  const currentQ = ordered[state.contextPackQuestionIndex];
+  let pos = visible.indexOf(currentQ);
+  if (pos === -1) pos = 0;
+  const nextPos = Math.min(Math.max(pos + delta, 0), visible.length - 1);
+  goToContextPackQuestionIndex(ordered.indexOf(visible[nextPos]));
+}
+
+function stepContextPackContext(delta) {
+  const contexts = contextPacksInBatch(state.contextPackBatch);
+  if (contexts.length === 0) return;
+  const pos = contexts.findIndex((p) => p.context_id === state.contextPackContextId);
+  const nextPos = Math.min(Math.max((pos === -1 ? 0 : pos) + delta, 0), contexts.length - 1);
+  selectContextPackContext(contexts[nextPos].context_id);
+}
+
+function renderContextPackErrorBanner() {
+  const box = document.getElementById("context-pack-error-banner");
+  box.replaceChildren();
+  const de = state.contextPackDiscoveryErrors || {};
+  const oe = state.contextPackOntologyErrors || {};
+  const deKeys = Object.keys(de);
+  const oeKeys = Object.keys(oe);
+  if (deKeys.length === 0 && oeKeys.length === 0) {
+    box.className = "tab-only-context_packs";
+    return;
+  }
+  box.className = "tab-only-context_packs context-pack-error-banner";
+  if (deKeys.length > 0) {
+    box.appendChild(el("div", {}, [
+      el("strong", { text: "⚠ discovery_errors — 아래 Pack은 코드 오류로 발견 자체가 실패했다(목록에 없다 — 정상 Pack처럼 검수하지 마세요):" }),
+    ]));
+    deKeys.forEach((k) => box.appendChild(el("div", {}, `${k}: ${de[k]}`)));
+  }
+  if (oeKeys.length > 0) {
+    box.appendChild(el("div", {}, [
+      el("strong", { text: "⚠ ontology_errors — 아래 Pack은 Trait/Context 정본과 맞지 않아 제외됐다:" }),
+    ]));
+    oeKeys.forEach((k) => box.appendChild(el("div", {}, `${k}: ${oe[k]}`)));
+  }
+}
+
+function renderContextPackBatchSelector() {
+  const box = document.getElementById("context-pack-batch-selector");
+  box.replaceChildren();
+  const batchNumbers = [...new Set(state.contextPacks.map((p) => p.activation_batch).filter((b) => b != null))].sort((a, b) => a - b);
+  batchNumbers.forEach((n) => {
+    box.appendChild(
+      el("button", {
+        type: "button", class: n === state.contextPackBatch ? "active" : "",
+        onclick: () => selectContextPackBatch(n),
+      }, CONTEXTPACK_BATCH_LABEL[n] || `배치 ${n}`),
+    );
+  });
+}
+
+function renderContextPackBatchSummary() {
+  const box = document.getElementById("context-pack-batch-summary");
+  box.replaceChildren();
+  const contexts = contextPacksInBatch(state.contextPackBatch);
+  const statusTotals = { APPROVE: 0, REVISE: 0, HOLD: 0, TBD: 0 };
+  let total = 0;
+  const contextRows = contexts.map((p) => {
+    const counts = contextPackReviewerStatusCounts(p);
+    total += p.questions.length;
+    for (const k of Object.keys(statusTotals)) statusTotals[k] += counts[k];
+    return el("div", { class: "context-row" }, `${p.context_id}: ${counts.APPROVE} / ${p.questions.length}`);
+  });
+  box.appendChild(
+    el("div", { class: "row" }, [
+      el("strong", { text: CONTEXTPACK_BATCH_LABEL[state.contextPackBatch] || `배치 ${state.contextPackBatch}` }),
+      el("span", { class: "n" }, `${statusTotals.APPROVE} / ${total} 승인`),
+    ]),
+  );
+  contextRows.forEach((row) => box.appendChild(row));
+  box.appendChild(el("hr"));
+  ["APPROVE", "REVISE", "HOLD", "TBD"].forEach((k) => {
+    box.appendChild(el("div", { class: "row" }, [el("span", { text: k }), el("span", { class: "n", text: String(statusTotals[k]) })]));
+  });
+}
+
+function renderContextPackContextList() {
+  const list = document.getElementById("context-pack-context-list");
+  list.replaceChildren();
+  contextPacksInBatch(state.contextPackBatch).forEach((p) => {
+    const counts = contextPackReviewerStatusCounts(p);
+    const item = el(
+      "li",
+      { class: p.context_id === state.contextPackContextId ? "current" : "", onclick: () => selectContextPackContext(p.context_id) },
+      [el("span", { text: `${p.label} (${p.context_id})` }), el("span", { class: "n", text: `${counts.APPROVE}/${p.questions.length}` })],
+    );
+    list.appendChild(item);
+  });
+}
+
+function renderContextPackQuestionNavList() {
+  const list = document.getElementById("context-pack-question-nav-list");
+  list.replaceChildren();
+  const pack = currentContextPack();
+  if (!pack) return;
+  const ordered = orderedContextPackQuestions(pack);
+  const visible = new Set(filteredContextPackQuestions(pack));
+  ordered.forEach((q, idx) => {
+    if (!visible.has(q)) return;
+    const label = `${CONTEXTPACK_KIND_LABEL[q.kind]}${q.anchor_id ? " · " + q.anchor_id : ""}`;
+    const item = el(
+      "li",
+      { class: idx === state.contextPackQuestionIndex ? "current" : "", onclick: () => goToContextPackQuestionIndex(idx) },
+      [el("span", { text: label }), statusPill(q.review.reviewer_1_status)],
+    );
+    list.appendChild(item);
+  });
+}
+
+function renderContextPackDetailHeader() {
+  const box = document.getElementById("context-pack-detail-header");
+  box.replaceChildren();
+  const pack = currentContextPack();
+  if (!pack) {
+    box.appendChild(el("p", {}, "이 배치에 표시할 Context가 없습니다."));
+    return;
+  }
+  box.appendChild(el("h2", { text: `${pack.label} (${pack.context_id})` }));
+  box.appendChild(el("div", { class: "desc", text: pack.description }));
+  box.appendChild(
+    el("div", { class: "meta-row" }, `pack_version: ${pack.pack_version} · is_active(Runtime 서빙 중): ${pack.is_active ? "예" : "아니오"}`),
+  );
+  if (pack.registry_errors.length > 0) {
+    box.appendChild(el("div", { class: "meta-row registry-error" }, `registry_errors: ${pack.registry_errors.join(", ")}`));
+  }
+  if (pack.forbidden_assumptions.length > 0) {
+    box.appendChild(el("div", { class: "meta-row" }, `금지 전제: ${pack.forbidden_assumptions.join(" / ")}`));
+  }
+  box.appendChild(el("div", { class: "meta-row" }, "검수 상태 파일(읽기 전용 경로 표시):"));
+  pack.review_artifact_paths.forEach((p) => box.appendChild(el("span", { class: "artifact-path", text: p })));
+  box.appendChild(
+    el(
+      "div",
+      { class: "meta-row" },
+      `Trait Coverage: PRIMARY ${pack.coverage.primary_trait_ids.length}개 · 미포함 ${pack.coverage.uncovered_trait_ids.length}개 · Anchor ${pack.coverage.anchor_count}개 · Seed ${pack.coverage.seed_question_count}개 · Backup ${pack.coverage.backup_question_count}개`,
+    ),
+  );
+}
+
+function renderContextPackContextPager() {
+  const contexts = contextPacksInBatch(state.contextPackBatch);
+  const pos = contexts.findIndex((p) => p.context_id === state.contextPackContextId);
+  document.getElementById("context-pack-context-pager-label").textContent = contexts.length
+    ? `${pos + 1} / ${contexts.length} (${CONTEXTPACK_BATCH_LABEL[state.contextPackBatch] || state.contextPackBatch})`
+    : "Context 없음";
+  document.getElementById("context-pack-prev-context-btn").disabled = pos <= 0;
+  document.getElementById("context-pack-next-context-btn").disabled = pos === -1 || pos >= contexts.length - 1;
+}
+
+function renderContextPackOptionCard(option) {
+  const classes = ["option-card"];
+  if (option.mapping_type === "NO_SIGNAL") classes.push("context-pack-nosignal");
+  const metaSpans = [el("span", { text: `role_id: ${option.role_id}` }), el("span", { text: option.mapping_type })];
+  if (option.mapping_type === "TRAIT_SIGNAL") {
+    metaSpans.push(el("span", { text: `Trait: ${option.trait_label} (${option.trait_id})` }));
+  }
+  const details = [el("div", { class: "option-meta" }, metaSpans)];
+  if (option.trait_definition) details.push(el("div", { class: "def", text: option.trait_definition }));
+  if (option.mapping_rationale_draft) {
+    details.push(
+      el("div", { class: "mapping-rationale-draft", text: `Mapping Rationale Draft(팀 초안, 검증 완료 아님): ${option.mapping_rationale_draft}` }),
+    );
+  }
+  return el("li", { class: classes.join(" ") }, [el("div", { class: "option-text", text: option.text }), ...details]);
+}
+
+function renderContextPackReviewPanel(pack, question) {
+  const review = question.review;
+  const editable = state.reviewerSlot === "reviewer_1";
+  const finalBadge = el("span", { class: `final-status-badge status-pill ${review.final_status}`, text: review.final_status });
+
+  if (!editable) {
+    return el("div", { class: "review-panel" }, [
+      el("div", {}, [el("strong", { text: "검토자 1 상태 " }), statusPill(review.reviewer_1_status), finalBadge]),
+      el("p", { class: "inline-msg", text: review.reviewer_1_comment || "(의견 없음)" }),
+      review.resolution_note ? el("p", { class: "inline-msg", text: `해소 메모: ${review.resolution_note}` }) : null,
+      el("p", { class: "inline-msg", text: '저장하려면 상단에서 "검토자 1"을 선택하세요.' }),
+    ]);
+  }
+
+  const statusValue = { current: review.reviewer_1_status };
+  const radioGroup = el("div", { class: "status-radio-group" });
+  ["TBD", "APPROVE", "REVISE", "HOLD"].forEach((value) => {
+    const input = el("input", {
+      type: "radio", name: `contextpack-${question.key}-status`, value,
+      onchange: () => { statusValue.current = value; markDirty(); },
+    });
+    if (review.reviewer_1_status === value) input.setAttribute("checked", "checked");
+    radioGroup.appendChild(el("label", {}, [input, document.createTextNode(value)]));
+  });
+
+  const commentBox = el("textarea", { class: "comment-box", placeholder: "검토 의견을 입력하세요", oninput: markDirty });
+  commentBox.value = review.reviewer_1_comment || "";
+
+  const resolutionBox = el("textarea", { class: "resolution-note-box", placeholder: "해소 메모(REVISE/HOLD 반영 경위 등)", oninput: markDirty });
+  resolutionBox.value = review.resolution_note || "";
+
+  const checklistItems = question.kind === "routing" ? CHECKLIST_CONTEXTPACK_ROUTING : CHECKLIST_CONTEXTPACK_SEED_BACKUP;
+  const checklist = el(
+    "div", { class: "checklist" },
+    checklistItems.map((text, i) => el("label", {}, [el("input", { type: "checkbox", "data-checklist-index": String(i) }), document.createTextNode(text)])),
+  );
+
+  const msg = el("span", { class: "inline-msg" });
+  const saveBtn = el("button", { class: "save-btn", type: "button" }, "저장");
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    msg.textContent = "";
+    msg.className = "inline-msg";
+    try {
+      const path = `${API_BASE}/context-packs/${encodeURIComponent(pack.context_id)}/${encodeURIComponent(question.key)}`;
+      await apiPatch(path, { status: statusValue.current, comment: commentBox.value, resolution_note: resolutionBox.value });
+      msg.textContent = "저장됨";
+      msg.className = "inline-msg ok";
+      state.dirty = false;
+      await refreshContextPacksAfterSave(pack.context_id, question.key);
+    } catch (err) {
+      if (err.status === 422) msg.textContent = `입력 오류(422): ${err.message}`;
+      else if (err.status === 409) msg.textContent = `충돌(409): ${err.message}`;
+      else msg.textContent = `저장 실패${err.status ? `(${err.status})` : ""}: ${err.message}`;
+      msg.className = "inline-msg err";
+      // 실패했으므로 여기서 절대 refreshContextPacksAfterSave/state.dirty=false를
+      // 부르지 않는다 — 화면은 사용자가 입력한 값을 그대로 유지한다(성공한 것처럼
+      // 되돌리거나 지우지 않는다).
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  return el("div", { class: "review-panel" }, [
+    el("div", {}, [el("strong", { text: "검토자 1 상태 " }), finalBadge]),
+    radioGroup,
+    commentBox,
+    el("div", {}, [el("strong", { text: "해소 메모" })]),
+    resolutionBox,
+    checklist,
+    el("div", { class: "save-row" }, [saveBtn, msg]),
+  ]);
+}
+
+function renderCurrentContextPackQuestion() {
+  const container = document.getElementById("context-pack-question-container");
+  container.replaceChildren();
+  const pack = currentContextPack();
+  if (!pack) {
+    container.appendChild(el("p", {}, "이 배치에 표시할 Context가 없습니다."));
+    document.getElementById("pager-label").textContent = "";
+    document.getElementById("prev-btn").disabled = true;
+    document.getElementById("next-btn").disabled = true;
+    return;
+  }
+  const ordered = orderedContextPackQuestions(pack);
+  const question = ordered[state.contextPackQuestionIndex];
+  if (!question) {
+    container.appendChild(el("p", {}, "표시할 질문이 없습니다(상태 필터를 확인하세요)."));
+    document.getElementById("pager-label").textContent = "필터 결과 없음";
+    document.getElementById("prev-btn").disabled = true;
+    document.getElementById("next-btn").disabled = true;
+    return;
+  }
+
+  const meta = el("div", { class: "meta" }, [
+    el("span", { text: `kind: ${CONTEXTPACK_KIND_LABEL[question.kind]} · key: ${question.key}` }),
+    question.anchor_id ? el("span", { text: ` · anchor_id: ${question.anchor_id}` }) : null,
+  ]);
+
+  const signalBanner = question.trait_signal_free
+    ? el("div", { class: "trait-signal-free-banner", text: "✓ Trait Signal 없음(구조적으로 보장됨) — 이 질문의 답변은 어떤 Trait 점수에도 반영되지 않는다" })
+    : el("div", { class: "trait-signal-present-warning", text: "⚠ Trait Signal 존재 — 아래 선택지별 Mapping을 확인하세요" });
+
+  const optionList = el("ul", { class: "option-list" }, question.options.map((o) => renderContextPackOptionCard(o)));
+  const reviewPanel = renderContextPackReviewPanel(pack, question);
+
+  container.appendChild(
+    el("div", { class: "question-card" }, [meta, el("div", { class: "question-text", text: question.question_text }), signalBanner, optionList, reviewPanel]),
+  );
+
+  const visible = filteredContextPackQuestions(pack);
+  const pos = visible.indexOf(question);
+  document.getElementById("pager-label").textContent = visible.length
+    ? `${pos + 1} / ${visible.length} (전체 ${ordered.length}개 중)`
+    : "필터 결과 없음";
+  document.getElementById("prev-btn").disabled = pos <= 0;
+  document.getElementById("next-btn").disabled = pos === -1 || pos >= visible.length - 1;
+}
+
+function renderContextPackAll() {
+  renderContextPackErrorBanner();
+  renderContextPackBatchSelector();
+  renderContextPackBatchSummary();
+  renderContextPackContextList();
+  renderContextPackQuestionNavList();
+  renderContextPackDetailHeader();
+  renderCurrentContextPackQuestion();
+  renderContextPackContextPager();
+}
+
+/* ---- Hash Deep Link(#context-packs 등) — 탭마다 안정적인 hash를 매핑해, 새로고침
+ * 해도 같은 탭이 유지되게 한다. 이 프로젝트는 localStorage로 탭을 기억하지 않으므로
+ * (grep 결과 review.js 전체에 localStorage 사용 없음) hash와 충돌할 기존 저장값이
+ * 없다. */
+
+const CONTEXTPACK_TAB_HASH = {
+  direct_probe: "direct-probe", routing: "routing", seed_anchor: "seed-anchor",
+  backup: "backup", anchor_backup: "anchor-backup", shared_probes: "shared-probes",
+  context_packs: "context-packs",
+};
+const CONTEXTPACK_HASH_TO_TAB = Object.fromEntries(Object.entries(CONTEXTPACK_TAB_HASH).map(([tab, hash]) => [hash, tab]));
+
+function tabFromLocationHash() {
+  const raw = (location.hash || "").replace(/^#/, "");
+  return CONTEXTPACK_HASH_TO_TAB[raw] || null; // 알 수 없는 hash는 null → 안전한 기본 탭(direct_probe)으로.
+}
+
+let _suppressHashSync = false;
+function syncHashForTab(tab) {
+  const hash = "#" + CONTEXTPACK_TAB_HASH[tab];
+  if (location.hash === hash) return;
+  _suppressHashSync = true;
+  location.hash = CONTEXTPACK_TAB_HASH[tab];
+  setTimeout(() => { _suppressHashSync = false; }, 0);
+}
+
+window.addEventListener("hashchange", () => {
+  if (_suppressHashSync) return;
+  setTab(tabFromLocationHash() || "direct_probe");
+});
+
+function applyTabClasses(tab) {
   document.body.classList.toggle("tab-direct_probe", tab === "direct_probe");
   document.body.classList.toggle("tab-routing", tab === "routing");
   document.body.classList.toggle("tab-seed_anchor", tab === "seed_anchor");
   document.body.classList.toggle("tab-backup", tab === "backup");
   document.body.classList.toggle("tab-anchor_backup", tab === "anchor_backup");
   document.body.classList.toggle("tab-shared_probes", tab === "shared_probes");
+  document.body.classList.toggle("tab-context_packs", tab === "context_packs");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
   document.getElementById("tab-backup-btn").classList.toggle("active", tab === "backup");
   document.getElementById("tab-anchor-backup-btn").classList.toggle("active", tab === "anchor_backup");
   document.getElementById("tab-shared-probes-btn").classList.toggle("active", tab === "shared_probes");
-  // 공용 Adaptive Probe 탭은 "질문 하나 = Pager 한 칸" 모델이 아니라 사이드바
-  // 클릭으로만 이동한다 — 이전/다음 버튼은 이 탭에서 의미가 없으므로 숨긴다.
+  document.getElementById("tab-context-packs-btn").classList.toggle("active", tab === "context_packs");
+  // 공용 Adaptive Probe 탭과 마찬가지로 "질문 하나 = Pager 한 칸" 모델이 아닌 탭만
+  // 여기서 pager-bar를 숨긴다 — 신규 ContextPack 탭은 이 모델을 그대로 쓰므로
+  // (Context 안에서 이전/다음 질문) 계속 보여준다.
   document.getElementById("pager-bar").style.display = tab === "shared_probes" ? "none" : "flex";
+}
 
+async function loadOrRenderTab(tab) {
   if (tab === "shared_probes") {
     if (state.sharedProbes.length === 0) {
       try {
@@ -1411,10 +1890,37 @@ async function setTab(tab) {
       renderAnchorBackupSidebarList();
       renderCurrentAnchorBackupQuestion();
     }
+  } else if (tab === "context_packs") {
+    if (state.contextPacks.length === 0) {
+      try {
+        await loadContextPacksAll();
+      } catch (err) {
+        setSaveIndicator(`신규 ContextPack 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderContextPackAll();
+    }
   } else {
-    renderSidebarList();
-    renderCurrentQuestion();
+    if (state.questions.length === 0) {
+      try {
+        await loadAll();
+      } catch (err) {
+        setSaveIndicator(`불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderSidebarList();
+      renderCurrentQuestion();
+    }
   }
+}
+
+async function setTab(tab) {
+  if (tab === state.tab) return;
+  if (!confirmDiscardIfDirty()) return;
+  state.tab = tab;
+  syncHashForTab(tab);
+  applyTabClasses(tab);
+  await loadOrRenderTab(tab);
 }
 
 function setupControls() {
@@ -1430,7 +1936,10 @@ function setupControls() {
     state.dirty = false;
     const warning = document.getElementById("reviewer-warning");
     warning.textContent = state.reviewerSlot ? "" : "검토자를 선택해야 저장할 수 있습니다";
-    renderCurrentQuestion();
+    // 신규 ContextPack 탭에 있는 동안 검토자를 고르면 그 자리에서 바로 편집 가능
+    // 상태로 바뀌어야 한다(다른 탭을 오갈 필요 없이) — 이 탭만 별도 렌더 함수를 쓴다.
+    if (state.tab === "context_packs") renderCurrentContextPackQuestion();
+    else renderCurrentQuestion();
   });
   document.getElementById("reviewer-warning").textContent = "검토자를 선택해야 저장할 수 있습니다";
 
@@ -1443,6 +1952,7 @@ function setupControls() {
   document.getElementById("tab-backup-btn").addEventListener("click", () => setTab("backup"));
   document.getElementById("tab-anchor-backup-btn").addEventListener("click", () => setTab("anchor_backup"));
   document.getElementById("tab-shared-probes-btn").addEventListener("click", () => setTab("shared_probes"));
+  document.getElementById("tab-context-packs-btn").addEventListener("click", () => setTab("context_packs"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
     if (state.tab === "shared_probes") return; // 이 탭은 사이드바 클릭으로만 이동한다.
@@ -1450,6 +1960,7 @@ function setupControls() {
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
     else if (state.tab === "backup") stepBackupQuestion(-1);
+    else if (state.tab === "context_packs") stepContextPackQuestion(-1);
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
@@ -1458,7 +1969,19 @@ function setupControls() {
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
     else if (state.tab === "backup") stepBackupQuestion(1);
+    else if (state.tab === "context_packs") stepContextPackQuestion(1);
     else stepQuestion(1);
+  });
+
+  document.getElementById("context-pack-prev-context-btn").addEventListener("click", () => stepContextPackContext(-1));
+  document.getElementById("context-pack-next-context-btn").addEventListener("click", () => stepContextPackContext(1));
+
+  document.querySelectorAll('input[name="context-pack-status-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.contextPackStatusFilter = input.value;
+      renderContextPackQuestionNavList();
+      renderCurrentContextPackQuestion();
+    });
   });
 
   document.querySelectorAll('input[name="status-filter"]').forEach((input) => {
@@ -1508,6 +2031,7 @@ function setupControls() {
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
       else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
       else if (state.tab === "backup") stepBackupQuestion(-1);
+      else if (state.tab === "context_packs") stepContextPackQuestion(-1);
       else stepQuestion(-1);
     }
     if (e.key === "ArrowRight") {
@@ -1515,6 +2039,7 @@ function setupControls() {
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
       else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
       else if (state.tab === "backup") stepBackupQuestion(1);
+      else if (state.tab === "context_packs") stepContextPackQuestion(1);
       else stepQuestion(1);
     }
   });
@@ -1537,8 +2062,13 @@ function setMode(mode) {
 
 async function bootstrap() {
   setupControls();
+  // Deep Link(§2): hash가 있으면 그 탭으로 바로 연다(예: #context-packs).
+  // hash가 없거나 알 수 없으면 기존 동작(direct_probe 기본 탭)을 그대로 보존한다.
+  const initialTab = tabFromLocationHash() || "direct_probe";
+  state.tab = initialTab;
+  applyTabClasses(initialTab);
   try {
-    await loadAll();
+    await loadOrRenderTab(initialTab);
   } catch (err) {
     setSaveIndicator(`불러오기 실패: ${err.message}`, "error");
   }

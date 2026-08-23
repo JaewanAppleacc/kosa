@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from pydantic import ValidationError as PydanticValidationError
 
+from src.data.contexts.context_activation_batches import CONTEXT_ACTIVATION_BATCHES
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
 from src.engines.question_quality_gate import run_quality_gate
 from src.schemas.context_pack import ContextPack
@@ -49,6 +50,13 @@ from src.review_ui.schemas import (
 
 _CONTEXT_LABEL_BY_ID = {c.context_id: c.label for c in CONTEXT_DEFINITIONS}
 _CONTEXT_DESCRIPTION_BY_ID = {c.context_id: c.description for c in CONTEXT_DEFINITIONS}
+# 2026-08-24 신규 ContextPack 검수 탭 §4 — 배치 정본을 여기 한 곳에서만 뒤집어 둔다
+# (프론트가 이 매핑을 복제하지 않고 API 응답의 activation_batch를 그대로 쓴다).
+_ACTIVATION_BATCH_BY_CONTEXT_ID = {
+    context_id: batch_no
+    for batch_no, context_ids in CONTEXT_ACTIVATION_BATCHES.items()
+    for context_id in context_ids
+}
 
 
 class UnknownContextPackError(ValueError):
@@ -77,6 +85,7 @@ def _rationale_lookup(pack: ContextPack) -> dict[tuple[str, str], tuple[str | No
 
 def _finalized_option_view(
     option: FinalizedOption, question_id: str, rationale_lookup: dict, trait_labels: dict[str, str],
+    trait_definitions: dict[str, str],
 ) -> ContextPackReviewOptionView:
     trait_id = next(iter(option.primary_trait_delta), None)
     _rationale_trait_id, rationale = rationale_lookup.get((question_id, option.role_id), (None, None))
@@ -84,12 +93,14 @@ def _finalized_option_view(
         role_id=option.role_id, text=option.text,
         mapping_type="TRAIT_SIGNAL" if trait_id else "NO_SIGNAL",
         trait_id=trait_id, trait_label=trait_labels.get(trait_id) if trait_id else None,
+        trait_definition=trait_definitions.get(trait_id) if trait_id else None,
         mapping_rationale_draft=rationale,
     )
 
 
 def _direct_probe_option_views(
     probe: V2DirectProbeBlueprint, rationale_lookup: dict, trait_labels: dict[str, str],
+    trait_definitions: dict[str, str],
 ) -> list[ContextPackReviewOptionView]:
     views = []
     for mapping in probe.option_mappings:
@@ -104,6 +115,9 @@ def _direct_probe_option_views(
                 role_id=mapping.role_id, text=text, mapping_type=mapping.mapping_type,
                 trait_id=mapping.primary_trait_id,
                 trait_label=trait_labels.get(mapping.primary_trait_id) if mapping.primary_trait_id else None,
+                trait_definition=(
+                    trait_definitions.get(mapping.primary_trait_id) if mapping.primary_trait_id else None
+                ),
                 mapping_rationale_draft=rationale,
             )
         )
@@ -125,9 +139,14 @@ def build_context_pack_list(
     registry: ContextPackRegistry, trait_definitions: dict[str, TraitDefinition],
 ) -> ContextPackListResponse:
     trait_labels = {t.trait_id: t.label for t in trait_definitions.values()}
+    trait_defs = {t.trait_id: t.definition for t in trait_definitions.values()}
     items: list[ContextPackReviewItem] = []
     for pack in registry.all_packs():
-        review_entries = {e.blueprint_id: e for e in load_context_pack_review_entries(pack.context_id)}
+        # update_context_pack_review()와 동일한 이유로 base_dir을 registry에서
+        # 그대로 가져온다 — 안 그러면 registry가 테스트용 tempdir로 구성돼도 이
+        # 목록(질문별 review 필드)만 실제 data/reviews/context_packs/를 읽는다.
+        review_dir = registry.review_status_path_for(pack.context_id).parent
+        review_entries = {e.blueprint_id: e for e in load_context_pack_review_entries(pack.context_id, review_dir)}
         rationale_lookup = _rationale_lookup(pack)
 
         questions: list[ContextPackReviewQuestionView] = []
@@ -153,7 +172,9 @@ def build_context_pack_list(
                     key=key, kind="seed", anchor_id=seed.anchor_id, question=seed.question,
                     trait_signal_free=False,
                     options=[
-                        _finalized_option_view(o, seed.question.question_id, rationale_lookup, trait_labels)
+                        _finalized_option_view(
+                            o, seed.question.question_id, rationale_lookup, trait_labels, trait_defs,
+                        )
                         for o in seed.question.options
                     ],
                     review_entries_by_key=review_entries,
@@ -166,7 +187,9 @@ def build_context_pack_list(
                     key=key, kind="anchor_backup", anchor_id=backup.anchor_id, question=backup.question,
                     trait_signal_free=False,
                     options=[
-                        _finalized_option_view(o, backup.question.question_id, rationale_lookup, trait_labels)
+                        _finalized_option_view(
+                            o, backup.question.question_id, rationale_lookup, trait_labels, trait_defs,
+                        )
                         for o in backup.question.options
                     ],
                     review_entries_by_key=review_entries,
@@ -178,7 +201,7 @@ def build_context_pack_list(
                 _question_view(
                     key=key, kind="direct_probe", anchor_id=None, question=probe.base_question,
                     trait_signal_free=False,
-                    options=_direct_probe_option_views(probe, rationale_lookup, trait_labels),
+                    options=_direct_probe_option_views(probe, rationale_lookup, trait_labels, trait_defs),
                     review_entries_by_key=review_entries,
                 )
             )
@@ -210,6 +233,7 @@ def build_context_pack_list(
                 ),
                 is_active=registry.is_pack_review_approved(pack.context_id),
                 registry_errors=[],
+                activation_batch=_ACTIVATION_BATCH_BY_CONTEXT_ID.get(pack.context_id),
             )
         )
 
@@ -400,7 +424,13 @@ def update_context_pack_review(
     if key not in required_keys:
         raise UnknownReviewKeyError(f"key {key!r}가 {context_id!r}의 검수 대상이 아니다")
 
-    entries = load_context_pack_review_entries(context_id)
+    # 2026-08-24 신규 ContextPack 검수 탭 §17 버그 수정: base_dir을 안 넘기면
+    # load/save가 항상 진짜 data/reviews/context_packs/를 쓴다 — registry가 테스트용
+    # tempdir로 구성돼 있어도 이 함수만 실제 파일을 쓰고 있었다(trait_signal_review_gate.py
+    # 에서 이미 한 번 고친 것과 같은 종류의 버그). registry.review_status_path_for()가
+    # 실제로 쓰는 디렉터리를 그대로 재사용해 registry와 항상 같은 경로를 보게 한다.
+    base_dir = registry.review_status_path_for(context_id).parent
+    entries = load_context_pack_review_entries(context_id, base_dir)
     by_key = {e.blueprint_id: e for e in entries}
     existing = by_key.get(key) or QuestionReviewEntry(blueprint_id=key)
     updated = existing.model_copy(
@@ -411,5 +441,5 @@ def update_context_pack_review(
     )
     by_key[key] = updated
     # required_review_keys 순서와 무관하게 항상 결정론적으로 정렬해서 저장한다.
-    save_context_pack_review_entries(context_id, [by_key[k] for k in sorted(by_key)])
+    save_context_pack_review_entries(context_id, [by_key[k] for k in sorted(by_key)], base_dir)
     return UpdateReviewResponse(ok=True, final_status=updated.final_status, new_revision="")

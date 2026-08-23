@@ -292,6 +292,10 @@ class ContextPackReviewOptionView(BaseModel):
     mapping_type: Literal["TRAIT_SIGNAL", "NO_SIGNAL"]
     trait_id: str | None
     trait_label: str | None
+    # 2026-08-24 신규 ContextPack 검수 탭 — 기존 Seed Anchor/Backup 탭(SeedAnchorOptionItem
+    # 등)과 동일하게 Trait Ontology 정의 문장을 각 Option 응답에 직접 담는다(프론트가
+    # 별도 Trait 조회 API 없이 Mapping 근거를 바로 검토할 수 있게).
+    trait_definition: str | None = None
     mapping_rationale_draft: str | None
 
 
@@ -335,6 +339,11 @@ class ContextPackReviewItem(BaseModel):
     coverage: ContextPackCoverageView
     is_active: bool  # 지금 ENABLE_CONTEXT_PACK_RUNTIME=true라면 실제 서빙 대상인가.
     registry_errors: list[str] = Field(default_factory=list)
+    # 2026-08-24 신규 ContextPack 검수 탭 §4 — 표시용 그룹을 프론트에서 따로 만들지
+    # 않기 위해 실제 정본(src/data/contexts/context_activation_batches.py의
+    # CONTEXT_ACTIVATION_BATCHES)에서 그대로 계산해 내려준다. 그 배치 목록에 없는
+    # Pack(예: 향후 4차 배치 이전 실험용 Pack)이면 None이다.
+    activation_batch: int | None = None
 
 
 class ContextPackListResponse(BaseModel):
