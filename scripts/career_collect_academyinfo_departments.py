@@ -33,7 +33,9 @@ from dotenv import load_dotenv  # noqa: E402
 from scripts.career_console import use_utf8_stdout  # noqa: E402
 from src.data_sources.academyinfo_year import (  # noqa: E402
     PUBLIC_API_METADATA_MODIFIED_AT,
+    MajorDataUnavailableError,
     select_survey_year,
+    verify_major_data_available,
 )
 from src.data_sources.academyinfo_client import (  # noqa: E402
     ACADEMYINFO_DATASET_URL,
@@ -386,6 +388,14 @@ def main(argv: list[str] | None = None) -> int:
                 school_ids.append(sid)
     if args.max_universities is not None:
         school_ids = school_ids[: args.max_universities]
+
+    # 수집 전에 표본으로 학과 데이터 존재를 확인한다. getComparisonPubYear의
+    # 연도 목록은 대학 비교통계 서비스의 것이라, 학과 서비스에 그대로 적용되지 않는다
+    # (rationale_c/07 §7-24 — 2024로 398콜을 쓰고 0건을 받은 뒤에 배웠다).
+    available, probe_note = verify_major_data_available(client, survey_year, school_ids)
+    print(f"  [검증] {probe_note}")
+    if not available:
+        raise MajorDataUnavailableError(probe_note)
 
     dept_count, failed = collect_departments(
         client, paths, survey_year, school_ids, dry_run=args.dry_run, resume=args.resume

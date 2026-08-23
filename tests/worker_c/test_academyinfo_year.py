@@ -10,6 +10,7 @@ from typing import Any
 
 from src.data_sources.academyinfo_client import AcademyInfoClient, RetryPolicy
 from src.data_sources.academyinfo_year import (
+    verify_major_data_available,
     PUBLIC_API_METADATA_MODIFIED_AT,
     SurveyYearUnavailableError,
     parse_supported_years,
@@ -112,3 +113,45 @@ class ParseTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MajorDataProbeTest(unittest.TestCase):
+    """§7-24: 공시연도 목록이 학과 서비스에도 적용된다고 가정하지 않는다."""
+
+    def _client(self, per_year: dict[int, int]) -> AcademyInfoClient:
+        def transport(_url: str, params: dict[str, Any]) -> tuple[int, str]:
+            year = int(params.get("svyYr", 0))
+            count = per_year.get(year, 0)
+            if count == 0:
+                return 200, (
+                    "<response><header><resultCode>03</resultCode>"
+                    "<resultMsg>NODATA_ERROR</resultMsg></header><body/></response>"
+                )
+            items = "".join(f"<item><schlMjrId>m{i}</schlMjrId></item>" for i in range(count))
+            return 200, (
+                "<response><header><resultCode>00</resultCode><resultMsg>OK</resultMsg></header>"
+                f"<body><items>{items}</items><numOfRows>100</numOfRows>"
+                f"<pageNo>1</pageNo><totalCount>{count}</totalCount></body></response>"
+            )
+
+        return AcademyInfoClient(
+            "fake/key==", transport=transport,
+            retry=RetryPolicy(max_attempts=1, base_delay_s=0), sleep=lambda _s: None,
+        )
+
+    def test_available_year_passes(self) -> None:
+        ok, note = verify_major_data_available(self._client({2025: 3}), 2025, ["s1", "s2"])
+        self.assertTrue(ok)
+        self.assertIn("2025", note)
+
+    def test_advertised_but_empty_year_is_rejected(self) -> None:
+        """2024는 지원연도로 나오지만 학과가 0건이다 — 실측으로 확인된 상황."""
+        ok, note = verify_major_data_available(self._client({2025: 3}), 2024, ["s1", "s2", "s3"])
+        self.assertFalse(ok)
+        self.assertIn("서로 다른 서비스", note)
+
+    def test_probe_uses_at_most_three_calls(self) -> None:
+        """실패는 값싸야 한다 — 398콜을 쓰고 알게 되면 안 된다."""
+        client = self._client({2025: 3})
+        verify_major_data_available(client, 2024, [f"s{i}" for i in range(50)])
+        self.assertLessEqual(client.call_count, 3)

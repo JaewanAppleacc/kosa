@@ -85,3 +85,33 @@ def select_survey_year(
         f"포털 명세 수정일({PUBLIC_API_METADATA_MODIFIED_AT})은 조사연도가 아니므로 근거로 쓰지 않음."
     )
     return SurveyYearSelection(supported, latest, reason)
+
+
+class MajorDataUnavailableError(RuntimeError):
+    """지원연도로 광고되지만 학과 데이터가 실제로는 없다."""
+
+
+def verify_major_data_available(
+    client: AcademyInfoClient, survey_year: int, probe_school_ids: list[str]
+) -> tuple[bool, str]:
+    """선택한 연도에 **학과 데이터가 실제로 있는지** 표본으로 확인한다.
+
+    `getComparisonPubYear`는 `BasicInformationService_2`(대학 비교통계)의 공시연도다.
+    학과는 `BasicInformationService_1`의 `getUniversityMajorCode`로 받는데 **서로 다른
+    서비스이고 연도 범위가 다르다.**
+
+    실측(2026-08-24): 공시연도는 [2025, 2024, 2023]인데 학과는 2025만 응답한다.
+    2024로 전국 수집을 돌렸더니 대학 376개를 받고 학과 0건이 나왔다 — API 호출 398회를
+    쓰고 나서야 알았다. 한 서비스의 연도 목록을 다른 서비스에 그대로 적용한 것이 원인이다.
+
+    그래서 **수집 전에 표본 몇 건으로 먼저 찔러 본다.** 실패는 값싸야 한다.
+    """
+    for school_id in probe_school_ids[:3]:
+        rows = client.fetch_departments(survey_year, school_id=school_id, num_of_rows=5)
+        if rows:
+            return True, f"조사연도 {survey_year} 학과 데이터 확인 (표본 schlId={school_id})"
+    return False, (
+        f"조사연도 {survey_year}는 getComparisonPubYear에 지원연도로 나오지만 "
+        f"getUniversityMajorCode가 학과를 하나도 돌려주지 않습니다 "
+        f"(표본 {probe_school_ids[:3]}). 두 오퍼레이션은 서로 다른 서비스라 연도 범위가 다릅니다."
+    )
