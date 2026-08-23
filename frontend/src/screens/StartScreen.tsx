@@ -1,13 +1,26 @@
-import { Logo } from "@/components/brand/Logo";
+import { Logo, Wordmark } from "@/components/brand/Logo";
 import { ErrorView } from "@/components/ErrorView";
 import { Button, Spinner } from "@/components/ui";
-import { createSession } from "@/api/endpoints";
-import { useAction } from "@/hooks/useAsync";
+import { createSession, fetchContextCatalog } from "@/api/endpoints";
+import { useAction, useAsync } from "@/hooks/useAsync";
 import { useAppState } from "@/session/AppState";
 
 /** 초안 6b 시작 화면 — 배경 블롭 두 개, 중앙 정렬, 큰 CTA 하나. */
 export function StartScreen() {
   const { dispatch } = useAppState();
+  /**
+   * 시작 전에 "몇 개의 이야기로 진행되는지"를 알려주려고 목록만 미리 받아둔다.
+   * 실패해도 시작을 막지 않는다 — 그 칩만 빠지고 나머지는 그대로 보인다.
+   */
+  const catalog = useAsync((signal) => fetchContextCatalog(signal), []);
+  const policy = catalog.status === "success" ? catalog.data.selection_policy : null;
+  const contextCountLabel =
+    policy === null
+      ? null
+      : policy.final_context_min_count === policy.final_context_max_count
+        ? `이야기 ${policy.final_context_min_count}개로 진행`
+        : `이야기 ${policy.final_context_min_count}~${policy.final_context_max_count}개로 진행`;
+
   const start = useAction(async () => {
     // user_id는 서버가 고정한다 — 화면은 아무것도 보내지 않는다.
     const session = await createSession();
@@ -35,12 +48,13 @@ export function StartScreen() {
 
       <div className="relative z-10 grid min-h-dvh place-items-center px-6 py-14">
         <div className="max-w-[620px] text-center">
-          <div className="flex justify-center">
-            <Logo size={96} />
+          <div className="flex flex-col items-center gap-4">
+            <Logo size={104} />
+            <Wordmark size="lg" showTagline />
           </div>
 
           <h1
-            className="trail-word mt-6 mb-3.5 text-[clamp(28px,6vw,40px)] leading-[1.32]"
+            className="trail-word mt-9 mb-3.5 text-[clamp(28px,6vw,40px)] leading-[1.32]"
             style={{ letterSpacing: "-0.01em" }}
           >
             좋아하는 이야기를 따라가면
@@ -48,11 +62,25 @@ export function StartScreen() {
             진로가 보이기 시작해요
           </h1>
 
-          <p className="mx-auto mb-8 max-w-[52ch] text-[16px] leading-[1.75]" style={{ color: "var(--color-neutral-700)" }}>
+          <p className="mx-auto mb-6 max-w-[52ch] text-[16px] leading-[1.75]" style={{ color: "var(--color-neutral-700)" }}>
             게임, 유튜브, 학교생활처럼 이미 좋아하는 이야기 안에서 질문에 답하면 돼요.
             <br className="hidden sm:inline" />
             유형으로 정해주지 않고, 지금까지 보인 모습만 보여줘요.
           </p>
+
+          <ul className="mb-8 flex flex-wrap justify-center gap-2">
+            {contextCountLabel !== null ? (
+              <li>
+                <span className="chip chip-quiet">📍 {contextCountLabel}</span>
+              </li>
+            ) : null}
+            <li>
+              <span className="chip chip-quiet">🔁 답에 따라 다음 질문이 달라져요</span>
+            </li>
+            <li>
+              <span className="chip chip-quiet">📄 유형 대신 문장으로 정리</span>
+            </li>
+          </ul>
 
           {start.error ? (
             <div className="mb-6">
