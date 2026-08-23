@@ -210,7 +210,8 @@ class GenerateTailQuestionTest(unittest.TestCase):
             "game_tail_02", cached, blueprint_for_target_trait("causal_analysis")
         )
         client = _ScriptedFakeLLMClient([])  # 호출되면 IndexError로 바로 실패 — HIT라면 호출 자체가 없어야 함
-        cache_key = "game:problem_check:causal_analysis"
+        # 2.5.2단계 §5: Cache Key에 anchor_id("neutral")·option_blueprint_id가 추가됐다.
+        cache_key = "game:neutral:problem_response_v1:problem_check:causal_analysis"
         outcome = self._generate(client, question_cache={cache_key: finalized})
         self.assertEqual(outcome.source, "cache")
         self.assertEqual(client.call_count, 0)

@@ -104,5 +104,62 @@ class QuestionQualityGateTest(unittest.TestCase):
         self.assertTrue(any("반복" in f for f in result.failures))
 
 
+class AnchorForbiddenAssumptionGateTest(unittest.TestCase):
+    """2026-08-23 Trait Ontology v2(2.5.2단계) §4/§15 —
+    `forbidden_anchor_assumption_phrases`가 실제로 질문·선택지 양쪽에서 위반을
+    잡아내는지, 정상 단어를 과도하게 막지는 않는지 확인한다."""
+
+    def test_rejects_when_forbidden_phrase_is_in_question_text(self) -> None:
+        question = _make_question(
+            "팀원과 경기 순위를 다투는 상황에서 무엇을 가장 먼저 하나요?",
+            ["원인을 분석한다", "계획을 세운다", "직접 시도한다", "패턴을 찾는다", "도구를 써본다"],
+        )
+        result = run_quality_gate(question, forbidden_anchor_assumption_phrases=("팀원", "경기 순위"))
+        self.assertFalse(result.passed)
+        self.assertTrue(any("Anchor 금지 전제" in f for f in result.failures))
+
+    def test_rejects_when_forbidden_phrase_is_in_an_option_text(self) -> None:
+        question = _make_question(
+            "무언가를 만들거나 꾸밀 때 가장 몰입되는 순간은 언제인가요?",
+            ["원인을 분석한다", "계획을 세운다", "팀원과 승패를 겨룬다", "패턴을 찾는다", "도구를 써본다"],
+        )
+        result = run_quality_gate(question, forbidden_anchor_assumption_phrases=("팀원", "승패"))
+        self.assertFalse(result.passed)
+        self.assertTrue(any("Anchor 금지 전제" in f for f in result.failures))
+
+    def test_no_forbidden_phrases_passes(self) -> None:
+        question = _make_question(
+            "이야기를 따라가며 게임을 진행할 때 가장 몰입되는 순간은 언제인가요?",
+            ["원인을 분석한다", "계획을 세운다", "직접 시도한다", "패턴을 찾는다", "도구를 써본다"],
+        )
+        result = run_quality_gate(question, forbidden_anchor_assumption_phrases=("팀원", "경기 순위"))
+        self.assertTrue(result.passed)
+
+    def test_empty_forbidden_list_does_not_block_normal_words(self) -> None:
+        """부분 문자열 정책이 과도하게 정상 단어를 막지 않는지 — Anchor가 없을 때는
+        forbidden_anchor_assumption_phrases 자체가 빈 튜플이라 아무것도 안 걸린다."""
+
+        question = _make_question(
+            "팀원과 함께 협동 역할을 나눠 진행할 때 가장 몰입되는 순간은 언제인가요?",
+            ["원인을 분석한다", "계획을 세운다", "직접 시도한다", "패턴을 찾는다", "도구를 써본다"],
+        )
+        result = run_quality_gate(question, forbidden_anchor_assumption_phrases=())
+        self.assertTrue(result.passed)
+
+    def test_forbidden_phrase_check_is_independent_of_trait_label_check(self) -> None:
+        question = _make_question(
+            "무언가를 만들거나 꾸밀 때 승패를 가장 먼저 생각하나요?",
+            ["원인을 분석한다", "계획을 세운다", "직접 시도한다", "패턴을 찾는다", "도구를 써본다"],
+        )
+        result = run_quality_gate(
+            question, forbidden_trait_label_phrases=("독립적 판단",),
+            forbidden_anchor_assumption_phrases=("승패",),
+        )
+        self.assertFalse(result.passed)
+        reasons = "; ".join(result.failures)
+        self.assertIn("Anchor 금지 전제", reasons)
+        self.assertNotIn("Trait Label", reasons)
+
+
 if __name__ == "__main__":
     unittest.main()

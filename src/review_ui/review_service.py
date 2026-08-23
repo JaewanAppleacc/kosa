@@ -18,6 +18,7 @@ from src.api.mock_data import seed_question_as_finalized
 from src.data.contexts.context_anchor_presentations import CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
 from src.data.questions.context_routing_blueprints import CONTEXT_ROUTING_BLUEPRINTS
+from src.data.questions.seed_anchor_variants import SEED_ANCHOR_VARIANTS
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
 from src.engines.v2_direct_probe_quality_checks import question_level_flags, worksheet_row_flags
@@ -32,6 +33,9 @@ from src.review_ui.schemas import (
     RoutingOptionItem,
     RoutingQuestionItem,
     RoutingQuestionListResponse,
+    SeedAnchorOptionItem,
+    SeedAnchorQuestionItem,
+    SeedAnchorQuestionListResponse,
     SummaryResponse,
 )
 from src.schemas.v2_direct_probe_review import OptionReviewEntry, QuestionReviewEntry
@@ -47,6 +51,12 @@ from src.services.context_routing_review_store import (
     ROUTING_QUESTION_REVIEW_PATH,
     load_routing_option_review_entries,
     load_routing_question_review_entries,
+)
+from src.services.seed_anchor_review_store import (
+    SEED_ANCHOR_OPTION_REVIEW_PATH,
+    SEED_ANCHOR_QUESTION_REVIEW_PATH,
+    load_seed_anchor_option_review_entries,
+    load_seed_anchor_question_review_entries,
 )
 
 _CONTEXT_LABELS = {c.context_id: c.label for c in CONTEXT_DEFINITIONS}
@@ -308,6 +318,71 @@ def build_anchor_preview(context_id: str, anchor_id: str) -> AnchorPreviewRespon
     )
 
 
+def build_seed_anchor_question_list(
+    *,
+    question_path: Path = SEED_ANCHOR_QUESTION_REVIEW_PATH,
+    option_path: Path = SEED_ANCHOR_OPTION_REVIEW_PATH,
+) -> SeedAnchorQuestionListResponse:
+    """2.5.2단계 §12 — Seed Anchor Variant 질문 15개 × 선택지 5개를 조합한다. Trait
+    Mapping은 원본 Seed Question(`VERTICAL_SLICE_SEED_QUESTIONS`)이 그대로 소유하고
+    있으므로, 여기서는 role_id로 그 원본을 찾아 trait_id/primary_trait_delta/중립
+    문구(neutral_text)를 그대로 옮겨 붙이기만 한다 — 새로 계산하지 않는다."""
+
+    question_reviews = {
+        (e.context_id, e.anchor_id): e for e in load_seed_anchor_question_review_entries(question_path)
+    }
+    option_reviews = {
+        (e.context_id, e.anchor_id, e.role_id): e for e in load_seed_anchor_option_review_entries(option_path)
+    }
+
+    questions: list[SeedAnchorQuestionItem] = []
+    for variant in SEED_ANCHOR_VARIANTS:
+        seed = VERTICAL_SLICE_SEED_QUESTIONS[variant.context_id]
+        neutral_option_by_role = {o.role_id: o for o in seed.options}
+        presentation = CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY[(variant.context_id, variant.anchor_id)]
+
+        options: list[SeedAnchorOptionItem] = []
+        for role_id, text in variant.option_text_by_role_id.items():
+            neutral_option = neutral_option_by_role[role_id]
+            trait_id = next(iter(neutral_option.primary_trait_delta))
+            trait = _TRAIT_ONTOLOGY_BY_ID.get(trait_id)
+            option_review = option_reviews.get((variant.context_id, variant.anchor_id, role_id))
+            if option_review is None:
+                raise UnknownRoleError(
+                    f"{variant.context_id}/{variant.anchor_id}/{role_id}: Seed Anchor 검수 상태 파일에 항목이 없다 — "
+                    "data/reviews/v2_seed_anchor_option_review_status.json을 확인하라"
+                )
+            options.append(SeedAnchorOptionItem(
+                role_id=role_id, text=text, neutral_text=neutral_option.text,
+                primary_trait_delta=neutral_option.primary_trait_delta, trait_id=trait_id,
+                trait_label=trait.label if trait else trait_id,
+                trait_definition=trait.definition if trait else "",
+                mapping_rationale_draft=variant.option_mapping_rationale_draft[role_id],
+                review=_option_review_view(option_review),
+            ))
+
+        question_review = question_reviews.get((variant.context_id, variant.anchor_id))
+        if question_review is None:
+            raise UnknownBlueprintError(
+                f"{variant.context_id}/{variant.anchor_id}: Seed Anchor 검수 상태 파일에 항목이 없다 — "
+                "data/reviews/v2_seed_anchor_question_review_status.json을 확인하라"
+            )
+
+        questions.append(SeedAnchorQuestionItem(
+            context_id=variant.context_id, context_label=_CONTEXT_LABELS.get(variant.context_id, variant.context_id),
+            anchor_id=variant.anchor_id, anchor_label=presentation.label,
+            question_text=variant.question_text, neutral_question_text=seed.question_text,
+            options=options,
+            review=_question_review_view(question_review),
+        ))
+
+    return SeedAnchorQuestionListResponse(
+        questions=questions,
+        question_review_revision=_file_revision(question_path),
+        option_review_revision=_file_revision(option_path),
+    )
+
+
 def build_summary(
     *, question_path: Path = QUESTION_REVIEW_PATH, option_path: Path = OPTION_REVIEW_PATH,
 ) -> SummaryResponse:
@@ -547,5 +622,100 @@ def update_routing_option_review(
     from pydantic import TypeAdapter
 
     TypeAdapter(list[OptionReviewEntry]).validate_python(payload)
+    _atomic_write_json(option_path, payload)
+    return final_status, _file_revision(option_path)
+
+
+_KNOWN_SEED_ANCHOR_QUESTION_KEYS = {(v.context_id, v.anchor_id) for v in SEED_ANCHOR_VARIANTS}
+_KNOWN_SEED_ANCHOR_OPTION_KEYS = {
+    (v.context_id, v.anchor_id, role_id) for v in SEED_ANCHOR_VARIANTS for role_id in v.option_text_by_role_id
+}
+
+
+def update_seed_anchor_question_review(
+    *, context_id: str, anchor_id: str, reviewer: str, status: str, comment: str, resolution_note: str | None,
+    expected_revision: str, question_path: Path = SEED_ANCHOR_QUESTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    """§11/§12 — v2 Direct Probe·Routing과 완전히 같은 저장 순서를 Seed Anchor Variant
+    질문에 대해 반복한다."""
+
+    from src.schemas.seed_anchor_review import SeedAnchorQuestionReviewEntry
+
+    if (context_id, anchor_id) not in _KNOWN_SEED_ANCHOR_QUESTION_KEYS:
+        raise UnknownBlueprintError(f"({context_id}, {anchor_id})가 실제 Seed Anchor Variant 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(question_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "Seed Anchor 질문 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_seed_anchor_question_review_entries(question_path)
+    updated: list[SeedAnchorQuestionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.context_id == context_id and entry.anchor_id == anchor_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownBlueprintError(f"({context_id}, {anchor_id})가 Seed Anchor 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[SeedAnchorQuestionReviewEntry]).validate_python(payload)
+    _atomic_write_json(question_path, payload)
+    return final_status, _file_revision(question_path)
+
+
+def update_seed_anchor_option_review(
+    *, context_id: str, anchor_id: str, role_id: str, reviewer: str, status: str, comment: str,
+    resolution_note: str | None, expected_revision: str, option_path: Path = SEED_ANCHOR_OPTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    from src.schemas.seed_anchor_review import SeedAnchorOptionReviewEntry
+
+    if (context_id, anchor_id, role_id) not in _KNOWN_SEED_ANCHOR_OPTION_KEYS:
+        raise UnknownRoleError(f"{context_id}/{anchor_id}/{role_id}가 실제 Seed Anchor Option 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(option_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "Seed Anchor 선택지 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_seed_anchor_option_review_entries(option_path)
+    updated: list[SeedAnchorOptionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.context_id == context_id and entry.anchor_id == anchor_id and entry.role_id == role_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownRoleError(f"{context_id}/{anchor_id}/{role_id}가 Seed Anchor 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[SeedAnchorOptionReviewEntry]).validate_python(payload)
     _atomic_write_json(option_path, payload)
     return final_status, _file_revision(option_path)

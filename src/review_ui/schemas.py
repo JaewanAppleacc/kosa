@@ -167,6 +167,39 @@ class AnchorPreviewResponse(BaseModel):
     preview_options: list[AnchorPreviewOptionView]
 
 
+class SeedAnchorOptionItem(BaseModel):
+    """2.5.2단계 §12 — Seed Anchor Variant 선택지 검수 항목."""
+
+    role_id: str
+    text: str
+    neutral_text: str
+    primary_trait_delta: dict[str, int]
+    trait_id: str
+    trait_label: str
+    trait_definition: str
+    mapping_rationale_draft: str
+    review: OptionReviewView
+
+
+class SeedAnchorQuestionItem(BaseModel):
+    """2.5.2단계 §12 — Seed Anchor Variant 질문 검수 항목."""
+
+    context_id: str
+    context_label: str
+    anchor_id: str
+    anchor_label: str
+    question_text: str
+    neutral_question_text: str
+    options: list[SeedAnchorOptionItem]
+    review: QuestionReviewView
+
+
+class SeedAnchorQuestionListResponse(BaseModel):
+    questions: list[SeedAnchorQuestionItem]
+    question_review_revision: str
+    option_review_revision: str
+
+
 class UpdateQuestionReviewRequest(BaseModel):
     reviewer: ReviewerSlot
     status: ReviewerStatus

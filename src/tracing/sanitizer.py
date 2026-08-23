@@ -99,6 +99,11 @@ def _allow_none(inner: Callable[[object], bool]) -> Callable[[object], bool]:
 # sanitize_trace_attributes가 검증기 없는 Key를 자동으로 거부한다).
 _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "context_id": _allow_none(_is_slug),
+    # 2026-08-23 Trait Ontology v2(2.5.2단계) §6 — Anchor ID는 사전 정의된 고정
+    # slug(예: "story_exploration")뿐이라 trait_id/context_id와 같은 검증기를 쓴다.
+    # 학생 자유서술 원문은 애초에 이 값에 담기지 않는다(Anchor 선택은 서버가 만든
+    # 5개 고정 role_id 중 하나를 고르는 것뿐이지 자유 텍스트가 아니다).
+    "context_anchor_id": _allow_none(_is_slug),
     "trait_id": _allow_none(_is_slug),
     "trait_ids": _allow_none(_is_slug_list),
     "role_id": _allow_none(_is_slug),

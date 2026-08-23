@@ -21,6 +21,7 @@ from src.review_ui.schemas import (
     AnchorPreviewResponse,
     QuestionListResponse,
     RoutingQuestionListResponse,
+    SeedAnchorQuestionListResponse,
     SummaryResponse,
     UpdateOptionReviewRequest,
     UpdateQuestionReviewRequest,
@@ -154,6 +155,56 @@ def get_anchor_preview(context_id: str, anchor_id: str) -> AnchorPreviewResponse
         return rs.build_anchor_preview(context_id, anchor_id)
     except rs.UnknownAnchorError as exc:
         raise _http_error(422, str(exc)) from exc
+
+
+# 2.5.2단계 §12 — Seed Anchor Variant 검수 Endpoint. v2 Direct Probe·Routing과 완전히
+# 별개 경로다.
+
+
+@app.get("/internal/review/v2/seed-anchor-questions", response_model=SeedAnchorQuestionListResponse)
+def get_seed_anchor_questions() -> SeedAnchorQuestionListResponse:
+    return rs.build_seed_anchor_question_list(
+        question_path=rs.SEED_ANCHOR_QUESTION_REVIEW_PATH, option_path=rs.SEED_ANCHOR_OPTION_REVIEW_PATH,
+    )
+
+
+@app.patch(
+    "/internal/review/v2/seed-anchor-questions/{context_id}/{anchor_id}", response_model=UpdateReviewResponse,
+)
+def patch_seed_anchor_question(
+    context_id: str, anchor_id: str, payload: UpdateQuestionReviewRequest,
+) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_seed_anchor_question_review(
+            context_id=context_id, anchor_id=anchor_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, question_path=rs.SEED_ANCHOR_QUESTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+@app.patch(
+    "/internal/review/v2/seed-anchor-questions/{context_id}/{anchor_id}/options/{role_id}",
+    response_model=UpdateReviewResponse,
+)
+def patch_seed_anchor_option(
+    context_id: str, anchor_id: str, role_id: str, payload: UpdateOptionReviewRequest,
+) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_seed_anchor_option_review(
+            context_id=context_id, anchor_id=anchor_id, role_id=role_id, reviewer=payload.reviewer,
+            status=payload.status, comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, option_path=rs.SEED_ANCHOR_OPTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
 
 
 @app.get("/")

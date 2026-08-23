@@ -16,7 +16,7 @@ const state = {
   optionRevision: null,
   reviewerSlot: "", // "" | "reviewer_1" | "reviewer_2"
   mode: "student", // "student" | "mapping"
-  tab: "direct_probe", // "direct_probe" | "routing" — 2.5단계 §10 질문 유형 탭
+  tab: "direct_probe", // "direct_probe" | "routing" | "seed_anchor" — 질문 유형 탭
   currentIndex: 0,
   filters: { status: "all", questionFlag: false, optionFlag: false, noSignal: false, lengthHistory: false, trait: "", context: "" },
   dirty: false, // 저장하지 않은 변경사항 존재 여부(현재 열린 편집 영역 기준)
@@ -25,6 +25,11 @@ const state = {
   routingQuestionRevision: null,
   routingOptionRevision: null,
   routingCurrentIndex: 0,
+  // 2.5.2단계 §12 — Seed Anchor Variant 탭 전용 상태.
+  seedAnchorQuestions: [],
+  seedAnchorQuestionRevision: null,
+  seedAnchorOptionRevision: null,
+  seedAnchorCurrentIndex: 0,
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -42,6 +47,22 @@ const CHECKLIST_ROUTING_OPTION = [
   "이 선택지가 가리키는 하위 Context 이름이 실제 문장과 어울린다",
   "다른 선택지와 문구가 겹치지 않는다",
   "이 선택지를 고른다고 해서 특정 성향이 더 낫다는 인상을 주지 않는다",
+];
+
+// 2.5.2단계 §12 — Seed Anchor Variant는 Trait Mapping을 실제로 갖고 있으므로(중립
+// Seed와 같은 role_id·primary_trait_delta), V2 Direct Probe 체크리스트와 비슷하지만
+// "중립 문구와 비교했을 때 의미가 바뀌지 않았는가"가 이 유형에서만 중요한 항목이다.
+const CHECKLIST_SEED_ANCHOR_QUESTION = [
+  "Anchor 상황으로 바뀌어도 5개 Trait가 관찰될 수 있는 넓은 상황이다",
+  "중립(Anchor 없음) 질문과 비교했을 때 의미가 달라지지 않았다",
+  "고등학생이 이해하기 자연스럽다",
+];
+
+const CHECKLIST_SEED_ANCHOR_OPTION = [
+  "문장이 연결된 Trait 행동을 직접 나타낸다",
+  "단순 관심·감상만으로 능력이나 성향을 추론하지 않는다",
+  "중립 선택지와 비교했을 때 Mapping 의미가 변질되지 않았다",
+  "Mapping Rationale Draft가 이 문장과 실제로 맞아떨어진다",
 ];
 
 const CHECKLIST_QUESTION = [
@@ -258,8 +279,11 @@ function renderReviewerSlotBlock({ scope, blueprintId, roleId, review, onSaved, 
 
 function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, blueprintId, roleId, onSaved, kind }) {
   const isRouting = kind === "routing";
+  const isSeedAnchor = kind === "seed_anchor";
   const checklistItems = isRouting
     ? (scope === "question" ? CHECKLIST_ROUTING_QUESTION : CHECKLIST_ROUTING_OPTION)
+    : isSeedAnchor
+    ? (scope === "question" ? CHECKLIST_SEED_ANCHOR_QUESTION : CHECKLIST_SEED_ANCHOR_OPTION)
     : (scope === "question" ? CHECKLIST_QUESTION : CHECKLIST_OPTION);
 
   if (!editable) {
@@ -300,13 +324,19 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
     msg.textContent = "";
     msg.className = "inline-msg";
     try {
-      const routePrefix = isRouting ? "routing-questions" : "questions";
+      const routePrefix = isRouting ? "routing-questions" : isSeedAnchor ? "seed-anchor-questions" : "questions";
       const revisionKey = isRouting
         ? (scope === "question" ? "routingQuestionRevision" : "routingOptionRevision")
+        : isSeedAnchor
+        ? (scope === "question" ? "seedAnchorQuestionRevision" : "seedAnchorOptionRevision")
         : (scope === "question" ? "questionRevision" : "optionRevision");
+      // Seed Anchor는 blueprintId 자리에 이미 "{context_id}/{anchor_id}"(각 segment는
+      // 호출부에서 미리 encodeURIComponent된) 형태로 들어온다 — 여기서 다시 감싸면
+      // 슬래시가 %2F로 이중 인코딩돼 경로가 깨진다.
+      const blueprintPathSegment = isSeedAnchor ? blueprintId : encodeURIComponent(blueprintId);
       const path = scope === "question"
-        ? `${API_BASE}/${routePrefix}/${encodeURIComponent(blueprintId)}`
-        : `${API_BASE}/${routePrefix}/${encodeURIComponent(blueprintId)}/options/${encodeURIComponent(roleId)}`;
+        ? `${API_BASE}/${routePrefix}/${blueprintPathSegment}`
+        : `${API_BASE}/${routePrefix}/${blueprintPathSegment}/options/${encodeURIComponent(roleId)}`;
       const result = await apiPatch(path, {
         reviewer: slot, status: statusValue.current, comment: commentBox.value,
         expected_revision: state[revisionKey],
@@ -316,6 +346,7 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
       msg.className = "inline-msg ok";
       state.dirty = false;
       if (isRouting) await refreshRoutingAfterSave();
+      else if (isSeedAnchor) await refreshSeedAnchorAfterSave();
       else await refreshAfterSave();
       if (onSaved) onSaved();
     } catch (err) {
@@ -323,6 +354,7 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
         msg.textContent = "충돌: 다른 곳에서 먼저 저장됨 — 새로고침이 필요합니다";
         msg.className = "inline-msg err";
         if (isRouting) await reloadRoutingAfterConflict();
+        else if (isSeedAnchor) await reloadSeedAnchorAfterConflict();
         else await reloadAfterConflict();
       } else {
         msg.textContent = err.message || "저장 실패";
@@ -637,14 +669,142 @@ function renderCurrentRoutingQuestion() {
   document.getElementById("next-btn").disabled = state.routingCurrentIndex >= state.routingQuestions.length - 1;
 }
 
+/* ---- 2.5.2단계 §12: Seed Anchor Variant 탭 전용 렌더링/로딩 ---- */
+
+async function loadSeedAnchorAll() {
+  setSaveIndicator("Seed Anchor Variant 불러오는 중…", "");
+  const resp = await apiGet(`${API_BASE}/seed-anchor-questions`);
+  state.seedAnchorQuestions = resp.questions;
+  state.seedAnchorQuestionRevision = resp.question_review_revision;
+  state.seedAnchorOptionRevision = resp.option_review_revision;
+  renderSeedAnchorSidebarList();
+  renderCurrentSeedAnchorQuestion();
+  setSaveIndicator("불러옴", "saved");
+}
+
+async function refreshSeedAnchorAfterSave() {
+  const resp = await apiGet(`${API_BASE}/seed-anchor-questions`);
+  const current = state.seedAnchorQuestions[state.seedAnchorCurrentIndex];
+  const currentKey = current ? `${current.context_id}:${current.anchor_id}` : null;
+  state.seedAnchorQuestions = resp.questions;
+  state.seedAnchorQuestionRevision = resp.question_review_revision;
+  state.seedAnchorOptionRevision = resp.option_review_revision;
+  if (currentKey) {
+    const idx = state.seedAnchorQuestions.findIndex((q) => `${q.context_id}:${q.anchor_id}` === currentKey);
+    if (idx !== -1) state.seedAnchorCurrentIndex = idx;
+  }
+  renderSeedAnchorSidebarList();
+  renderCurrentSeedAnchorQuestion();
+}
+
+async function reloadSeedAnchorAfterConflict() {
+  if (state.dirty) {
+    const proceed = confirm("저장하지 않은 변경사항이 있습니다. 새로고침하면 사라집니다. 계속할까요?");
+    if (!proceed) return;
+  }
+  state.dirty = false;
+  await loadSeedAnchorAll();
+}
+
+function goToSeedAnchorIndex(index) {
+  if (!confirmDiscardIfDirty()) return;
+  state.seedAnchorCurrentIndex = index;
+  renderSeedAnchorSidebarList();
+  renderCurrentSeedAnchorQuestion();
+}
+
+function stepSeedAnchorQuestion(delta) {
+  if (state.seedAnchorQuestions.length === 0) return;
+  const next = Math.min(Math.max(state.seedAnchorCurrentIndex + delta, 0), state.seedAnchorQuestions.length - 1);
+  goToSeedAnchorIndex(next);
+}
+
+function renderSeedAnchorSidebarList() {
+  const list = document.getElementById("seed-anchor-nav-list");
+  list.replaceChildren();
+  state.seedAnchorQuestions.forEach((q, idx) => {
+    const item = el(
+      "li",
+      { class: idx === state.seedAnchorCurrentIndex ? "current" : "", onclick: () => goToSeedAnchorIndex(idx) },
+      [el("span", { text: `${q.context_label} · ${q.anchor_label}` }), statusPill(q.review.final_status)],
+    );
+    list.appendChild(item);
+  });
+}
+
+function renderSeedAnchorOptionCard(option, question) {
+  const mappingDetails = el("div", { class: "mapping-only" }, [
+    el("div", { class: "option-meta" }, [
+      el("span", { text: `role_id: ${option.role_id}` }),
+      el("span", { text: `Trait: ${option.trait_label} (${option.trait_id})` }),
+    ]),
+    el("div", { class: "def" }, option.trait_definition),
+    el("div", { class: "mapping-rationale-draft" }, `Mapping Rationale Draft(팀 초안, 검증 완료 아님): ${option.mapping_rationale_draft}`),
+    el("div", { class: "neutral-comparison" }, `중립 Seed 선택지: ${option.neutral_text}`),
+  ]);
+
+  const reviewPanel = renderReviewerSlotBlock({
+    scope: "option", blueprintId: `${encodeURIComponent(question.context_id)}/${encodeURIComponent(question.anchor_id)}`,
+    roleId: option.role_id, review: option.review, kind: "seed_anchor",
+  });
+
+  return el("li", { class: "option-card" }, [
+    el("div", { class: "option-text", text: option.text }),
+    mappingDetails,
+    reviewPanel,
+  ]);
+}
+
+function renderSeedAnchorQuestionCard(question) {
+  const meta = el("div", { class: "meta" }, [
+    el("span", { class: "student-hint", text: `Context: ${question.context_label}` }),
+    el("span", { class: "mapping-only-inline", text: ` · anchor_id: ${question.anchor_id} · anchor_label: ${question.anchor_label}` }),
+  ]);
+
+  const neutralPanel = el("div", { class: "neutral-comparison mapping-only" }, `중립 Seed 질문: ${question.neutral_question_text}`);
+
+  const optionList = el("ul", { class: "option-list" }, question.options.map((o) => renderSeedAnchorOptionCard(o, question)));
+
+  const questionReviewPanel = renderReviewerSlotBlock({
+    scope: "question", blueprintId: `${encodeURIComponent(question.context_id)}/${encodeURIComponent(question.anchor_id)}`,
+    roleId: null, review: question.review, kind: "seed_anchor",
+  });
+
+  return el("div", { class: "question-card" }, [
+    meta,
+    el("div", { class: "question-text", text: question.question_text }),
+    neutralPanel,
+    questionReviewPanel,
+    optionList,
+  ]);
+}
+
+function renderCurrentSeedAnchorQuestion() {
+  const container = document.getElementById("question-container");
+  container.replaceChildren();
+  const q = state.seedAnchorQuestions[state.seedAnchorCurrentIndex];
+  if (!q) {
+    container.appendChild(el("p", { text: "표시할 Seed Anchor Variant 질문이 없습니다." }));
+    return;
+  }
+  container.appendChild(renderSeedAnchorQuestionCard(q));
+
+  document.getElementById("pager-label").textContent =
+    `${state.seedAnchorCurrentIndex + 1} / ${state.seedAnchorQuestions.length}`;
+  document.getElementById("prev-btn").disabled = state.seedAnchorCurrentIndex <= 0;
+  document.getElementById("next-btn").disabled = state.seedAnchorCurrentIndex >= state.seedAnchorQuestions.length - 1;
+}
+
 async function setTab(tab) {
   if (tab === state.tab) return;
   if (!confirmDiscardIfDirty()) return;
   state.tab = tab;
   document.body.classList.toggle("tab-direct_probe", tab === "direct_probe");
   document.body.classList.toggle("tab-routing", tab === "routing");
+  document.body.classList.toggle("tab-seed_anchor", tab === "seed_anchor");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
+  document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
 
   if (tab === "routing") {
     if (state.routingQuestions.length === 0) {
@@ -656,6 +816,17 @@ async function setTab(tab) {
     } else {
       renderRoutingSidebarList();
       renderCurrentRoutingQuestion();
+    }
+  } else if (tab === "seed_anchor") {
+    if (state.seedAnchorQuestions.length === 0) {
+      try {
+        await loadSeedAnchorAll();
+      } catch (err) {
+        setSaveIndicator(`Seed Anchor Variant 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderSeedAnchorSidebarList();
+      renderCurrentSeedAnchorQuestion();
     }
   } else {
     renderSidebarList();
@@ -685,12 +856,17 @@ function setupControls() {
 
   document.getElementById("tab-direct-probe-btn").addEventListener("click", () => setTab("direct_probe"));
   document.getElementById("tab-routing-btn").addEventListener("click", () => setTab("routing"));
+  document.getElementById("tab-seed-anchor-btn").addEventListener("click", () => setTab("seed_anchor"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
-    if (state.tab === "routing") stepRoutingQuestion(-1); else stepQuestion(-1);
+    if (state.tab === "routing") stepRoutingQuestion(-1);
+    else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
+    else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
-    if (state.tab === "routing") stepRoutingQuestion(1); else stepQuestion(1);
+    if (state.tab === "routing") stepRoutingQuestion(1);
+    else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
+    else stepQuestion(1);
   });
 
   document.querySelectorAll('input[name="status-filter"]').forEach((input) => {
@@ -734,8 +910,16 @@ function setupControls() {
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-    if (e.key === "ArrowLeft") { if (state.tab === "routing") stepRoutingQuestion(-1); else stepQuestion(-1); }
-    if (e.key === "ArrowRight") { if (state.tab === "routing") stepRoutingQuestion(1); else stepQuestion(1); }
+    if (e.key === "ArrowLeft") {
+      if (state.tab === "routing") stepRoutingQuestion(-1);
+      else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
+      else stepQuestion(-1);
+    }
+    if (e.key === "ArrowRight") {
+      if (state.tab === "routing") stepRoutingQuestion(1);
+      else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
+      else stepQuestion(1);
+    }
   });
 
   window.addEventListener("beforeunload", (e) => {

@@ -23,6 +23,7 @@ from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS_BY_
 from src.engines.question_quality_gate import run_quality_gate
 from src.llm.protocols import ChatLLMClient, LLMCallError
 from src.schemas.context import ContextDefinition
+from src.schemas.context_anchor_presentation import ContextAnchorPresentation
 from src.schemas.question import (
     FinalizedQuestion,
     QuestionGenerationResult,
@@ -92,11 +93,26 @@ def _build_user_prompt(
     previous_question_text: str | None = None,
     previous_answer_text: str | None = None,
     previous_next_probe: str | None = None,
+    anchor: ContextAnchorPresentation | None = None,
 ) -> str:
     role_list = "\n".join(
         f"- {role_id} (측정 대상: {trait_label})"
         for role_id, trait_label in blueprint_role_trait_labels
     )
+    anchor_block = ""
+    if anchor is not None:
+        # 2026-08-23 Trait Ontology v2(2.5.2단계) §3 — v2_direct_probe_generator.py의
+        # 같은 원칙을 그대로 따른다: role_id·Trait 이름을 언급하지 않는다(LLM이
+        # Anchor에서 새 Trait를 추론할 실마리를 주지 않기 위해서), 내부 점수·Profile·
+        # 전공 추천값도 넣지 않는다.
+        anchor_block = f"""
+[학생이 선택한 세부 Context — 상황과 단어 선택에만 참고할 것, 여기서 새로운 성향을
+추론하지 말 것]
+상황 이름: {anchor.label}
+사용 가능한 상황 표현: {", ".join(anchor.situation_terms)}
+우선적으로 활용할 장면: {", ".join(anchor.preferred_scenarios)}
+절대 전제하면 안 되는 상황: {", ".join(anchor.forbidden_assumptions) if anchor.forbidden_assumptions else "(없음)"}
+"""
     continuity_lines: list[str] = []
     if previous_question_text:
         continuity_lines.append(f"직전 질문: {previous_question_text}")
@@ -120,7 +136,7 @@ def _build_user_prompt(
 label: {context_definition.label}
 description: {context_definition.description}
 예시 활동(참고용 — 아래 5개 Trait와 안 맞으면 무시해도 되지만, Context 자체를 벗어나면 안 됨): {', '.join(context_definition.example_activities)}
-
+{anchor_block}
 [이번 질문이 다뤄야 할 Trait 5개 — 질문 상황을 잡기 전에 반드시 전부 확인할 것]
 {role_list}
 
@@ -186,6 +202,8 @@ class QuestionGenerationGraphState(BaseModel):
     used_backup_question_ids: set[str] = Field(default_factory=set)
     question_cache: dict[str, FinalizedQuestion] = Field(default_factory=dict)
     max_regenerations: int = 1
+    # 2.5.2단계 §2/§5 — 없으면(None) 기존 동작과 완전히 동일하다(중립 질문).
+    anchor: ContextAnchorPresentation | None = None
 
     # Node 간 전달용 중간 결과
     user_prompt: str | None = None
@@ -195,10 +213,21 @@ class QuestionGenerationGraphState(BaseModel):
 
 
 def _check_cache(g: QuestionGenerationGraphState) -> dict:
-    cache_key = f"{g.context_definition.context_id}:{g.frame_id}:{g.trait_definition.trait_id}"
+    # 2.5.2단계 §5 — Anchor를 Cache Key에 포함한다. anchor_id가 없으면 "neutral"을 써서
+    # (아무 Anchor도 선택하지 않은) 중립 요청과 특정 Anchor 요청이 같은 Key를 쓰지
+    # 않게 한다 — Anchor A로 생성된 질문이 Anchor B(또는 중립) 학생에게 재사용되지
+    # 않아야 한다(§5 요구사항).
+    anchor_key = g.anchor.anchor_id if g.anchor is not None else "neutral"
+    cache_key = (
+        f"{g.context_definition.context_id}:{anchor_key}:{g.option_blueprint_id}:"
+        f"{g.frame_id}:{g.trait_definition.trait_id}"
+    )
     cached = g.question_cache.get(cache_key)
     if cached is not None:
-        gate = run_quality_gate(cached, g.previous_question_texts)
+        forbidden_anchor_phrases = tuple(g.anchor.forbidden_assumptions) if g.anchor is not None else ()
+        gate = run_quality_gate(
+            cached, g.previous_question_texts, forbidden_anchor_assumption_phrases=forbidden_anchor_phrases,
+        )
         if gate.passed:
             return {"outcome": QuestionGenerationOutcome(question=cached, source="cache")}
         # 캐시된 질문도 Guardrail은 통과해야 한다 — 실패하면 조용히 넘기지 않고 실시간 생성으로 이어간다.
@@ -226,6 +255,7 @@ def _prepare_prompt(g: QuestionGenerationGraphState) -> dict:
         previous_question_text=previous_question_text,
         previous_answer_text=g.previous_answer_text,
         previous_next_probe=g.previous_next_probe,
+        anchor=g.anchor,
     )
     return {"user_prompt": user_prompt}
 
@@ -249,7 +279,10 @@ def _generate_attempt(g: QuestionGenerationGraphState) -> dict:
         return {"attempt_count": g.attempt_count + 1, "last_failure": f"Role ID 불일치로 거부: {exc}"}
 
     finalized = finalized.model_copy(update={"target_traits": [g.trait_definition.trait_id]})
-    gate = run_quality_gate(finalized, g.previous_question_texts)
+    forbidden_anchor_phrases = tuple(g.anchor.forbidden_assumptions) if g.anchor is not None else ()
+    gate = run_quality_gate(
+        finalized, g.previous_question_texts, forbidden_anchor_assumption_phrases=forbidden_anchor_phrases,
+    )
     if not gate.passed:
         return {
             "attempt_count": g.attempt_count + 1,
@@ -328,10 +361,14 @@ def generate_tail_question(
     used_backup_question_ids: set[str] | None = None,
     question_cache: dict[str, FinalizedQuestion] | None = None,
     max_regenerations: int = 1,
+    anchor: ContextAnchorPresentation | None = None,
 ) -> QuestionGenerationOutcome:
     """예전 question_generator.generate_tail_question과 시그니처·반환값이 동일하다 —
     내부만 LangGraph 실행(check_cache → prepare_prompt → generate_attempt[재생성 루프]
-    → use_backup)으로 바뀌었다."""
+    → use_backup)으로 바뀌었다.
+
+    2026-08-23 Trait Ontology v2(2.5.2단계) §2 — `anchor`가 None이면 기존 동작과
+    완전히 동일하다(중립 질문, 기존 Prompt·Cache Key 그대로)."""
 
     graph_input = QuestionGenerationGraphState(
         question_id=question_id,
@@ -350,6 +387,7 @@ def generate_tail_question(
         used_backup_question_ids=used_backup_question_ids or set(),
         question_cache=question_cache or {},
         max_regenerations=max_regenerations,
+        anchor=anchor,
     )
     # answer_graph.py와 동일한 이유로 LangChain/LangGraph의 자동(비Sanitizer) LangSmith
     # 전송을 명시적으로 끈다 — 여기엔 LLM이 생성한 질문·선택지 원문이 그대로 담긴다.

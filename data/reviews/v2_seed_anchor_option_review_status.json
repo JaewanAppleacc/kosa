@@ -1,0 +1,752 @@
+[
+  {
+    "context_id": "game",
+    "anchor_id": "story_exploration",
+    "role_id": "strategy_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "story_exploration",
+    "role_id": "quick_execution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "story_exploration",
+    "role_id": "team_coordination",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "story_exploration",
+    "role_id": "pattern_recognition",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "story_exploration",
+    "role_id": "tool_mastery",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "strategy_puzzle",
+    "role_id": "strategy_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "strategy_puzzle",
+    "role_id": "quick_execution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "strategy_puzzle",
+    "role_id": "team_coordination",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "strategy_puzzle",
+    "role_id": "pattern_recognition",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "strategy_puzzle",
+    "role_id": "tool_mastery",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "competition_mastery",
+    "role_id": "strategy_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "competition_mastery",
+    "role_id": "quick_execution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "competition_mastery",
+    "role_id": "team_coordination",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "competition_mastery",
+    "role_id": "pattern_recognition",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "competition_mastery",
+    "role_id": "tool_mastery",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "cooperative_role",
+    "role_id": "strategy_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "cooperative_role",
+    "role_id": "quick_execution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "cooperative_role",
+    "role_id": "team_coordination",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "cooperative_role",
+    "role_id": "pattern_recognition",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "cooperative_role",
+    "role_id": "tool_mastery",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "building_creation",
+    "role_id": "strategy_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "building_creation",
+    "role_id": "quick_execution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "building_creation",
+    "role_id": "team_coordination",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "building_creation",
+    "role_id": "pattern_recognition",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "game",
+    "anchor_id": "building_creation",
+    "role_id": "tool_mastery",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "film_drama",
+    "role_id": "structure_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "film_drama",
+    "role_id": "creative_making",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "film_drama",
+    "role_id": "audience_reaction",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "film_drama",
+    "role_id": "character_empathy",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "film_drama",
+    "role_id": "trend_research",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "online_video",
+    "role_id": "structure_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "online_video",
+    "role_id": "creative_making",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "online_video",
+    "role_id": "audience_reaction",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "online_video",
+    "role_id": "character_empathy",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "online_video",
+    "role_id": "trend_research",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "animation_webcontent",
+    "role_id": "structure_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "animation_webcontent",
+    "role_id": "creative_making",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "animation_webcontent",
+    "role_id": "audience_reaction",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "animation_webcontent",
+    "role_id": "character_empathy",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "animation_webcontent",
+    "role_id": "trend_research",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "stage_performance",
+    "role_id": "structure_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "stage_performance",
+    "role_id": "creative_making",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "stage_performance",
+    "role_id": "audience_reaction",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "stage_performance",
+    "role_id": "character_empathy",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "stage_performance",
+    "role_id": "trend_research",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "documentary",
+    "role_id": "structure_analysis",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "documentary",
+    "role_id": "creative_making",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "documentary",
+    "role_id": "audience_reaction",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "documentary",
+    "role_id": "character_empathy",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "media",
+    "anchor_id": "documentary",
+    "role_id": "trend_research",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "academic_study",
+    "role_id": "task_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "academic_study",
+    "role_id": "team_project",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "academic_study",
+    "role_id": "conflict_mediation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "academic_study",
+    "role_id": "peer_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "academic_study",
+    "role_id": "adapting_change",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "assignment_evaluation",
+    "role_id": "task_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "assignment_evaluation",
+    "role_id": "team_project",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "assignment_evaluation",
+    "role_id": "conflict_mediation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "assignment_evaluation",
+    "role_id": "peer_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "assignment_evaluation",
+    "role_id": "adapting_change",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "course_career",
+    "role_id": "task_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "course_career",
+    "role_id": "team_project",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "course_career",
+    "role_id": "conflict_mediation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "course_career",
+    "role_id": "peer_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "course_career",
+    "role_id": "adapting_change",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "friendship",
+    "role_id": "task_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "friendship",
+    "role_id": "team_project",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "friendship",
+    "role_id": "conflict_mediation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "friendship",
+    "role_id": "peer_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "friendship",
+    "role_id": "adapting_change",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "club_activity",
+    "role_id": "task_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "club_activity",
+    "role_id": "team_project",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "club_activity",
+    "role_id": "conflict_mediation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "club_activity",
+    "role_id": "peer_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "context_id": "school_life",
+    "anchor_id": "club_activity",
+    "role_id": "adapting_change",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  }
+]

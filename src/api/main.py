@@ -482,6 +482,7 @@ def _serve_next_v2_direct_probe_question(state: AssessmentState) -> "NextQuestio
         attributes={
             "graph_node": "v2_direct_probe_question_generator",
             "context_id": question_context,
+            "context_anchor_id": chosen_anchor_id,
             "frame_id": chosen_blueprint.question_frame_id,
             "blueprint_id": chosen_blueprint.blueprint_id,
             "source": outcome.source,
@@ -987,6 +988,13 @@ def next_question(session_id: str) -> NextQuestionResponse:
             current_context, "tail", state.questions_asked_in_current_context
         )
         frame_id = state.pending_question_frame or "problem_check"
+        # 2.5.2단계 §2: 일반 Adaptive Tail 질문에도 v2 Direct Probe와 같은 방식으로
+        # 이 Context의 Anchor를 넘긴다.
+        tail_anchor_id = state.context_anchor_choices.get(current_context)
+        tail_anchor = (
+            CONTEXT_ANCHOR_PRESENTATIONS_BY_KEY.get((current_context, tail_anchor_id))
+            if tail_anchor_id else None
+        )
         outcome = generate_tail_question(
             question_id=question_id,
             context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
@@ -1002,6 +1010,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             previous_next_probe=state.pending_next_probe,
             backup_questions=VERTICAL_SLICE_BACKUP_QUESTIONS.get(current_context, []),
             used_backup_question_ids=set(state.used_backup_question_ids),
+            anchor=tail_anchor,
         )
         _tracer.record_stage(
             trace_id=state.trace_id,
@@ -1009,6 +1018,7 @@ def next_question(session_id: str) -> NextQuestionResponse:
             attributes={
                 "graph_node": "question_generator",
                 "context_id": current_context,
+                "context_anchor_id": tail_anchor_id,
                 "frame_id": frame_id,
                 "blueprint_id": state.pending_option_blueprint_id,
                 "trait_ids": state.pending_target_traits,

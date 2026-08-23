@@ -241,6 +241,22 @@ body.mode-mapping .student-hint { display: none; }
 body.tab-direct_probe .tab-only-direct_probe { display: block; }
 .tab-only-routing { display: none; }
 body.tab-routing .tab-only-routing { display: block; }
+.tab-only-seed_anchor { display: none; }
+body.tab-seed_anchor .tab-only-seed_anchor { display: block; }
+
+.neutral-comparison {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+  font-size: 0.9em;
+}
+.mapping-rationale-draft {
+  margin-top: 4px;
+  font-style: italic;
+  color: var(--muted);
+  font-size: 0.9em;
+}
 
 .routing-anchor-chip {
   display: inline-block;
