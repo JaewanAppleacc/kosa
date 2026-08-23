@@ -1,6 +1,6 @@
 # V2 Direct Probe Human Review Guide
 
-2026-08-23 Trait Ontology v2(2.2단계) §17. 70행 Worksheet(`v2_direct_probe_question_review.md`)를 대신하지 않는다 — 그 Worksheet는 Option 단위로 더 세밀하게 검토할 때 쓰고, 이 문서는 Trait 단위로 빠르게 훑어보는 용도다. 아래 체크란은 전부 미선택(TBD) 상태다 — 팀원 두 명이 각자 검토한 뒤 표시해야 한다. 두 명 모두 승인한 문항만 `team_reviewed`로 승격하고, 그다음에만 v2 Career Profile 표시를 진행한다.
+2026-08-23 Trait Ontology v2(2.2단계 §17, 2.3단계 §4). 70행 Worksheet(`v2_direct_probe_question_review.md`)를 대신하지 않는다 — 그 Worksheet는 Option 단위(PRIMARY·RELATED·NO_SIGNAL Mapping 타당성)로 더 세밀하게 검토할 때 쓰고, 이 문서는 질문(Trait) 단위로 빠르게 훑어보는 용도다(Exploration 후보 선택 규칙, 사회적 바람직성, 질문 간 의미 중복, 상황적 Trade-off, Target 길이·구체성). `reviewer_1_status`/`reviewer_2_status`/`final_status`는 `data/reviews/v2_direct_probe_question_review_status.json`을 그대로 읽어온 값이다 — 이 스크립트는 그 파일을 절대 쓰지 않는다(사람이 직접 그 JSON을 채워야 값이 바뀐다). `final_status`는 두 검토자 상태로부터 항상 다시 계산한다: 둘 다 APPROVE일 때만 TEAM_REVIEWED, 하나라도 REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD 남음)는 DRAFT다. 두 명 모두 APPROVE인 질문만 `team_reviewed`로 승격하고, 그다음에만 v2 Career Profile 표시를 진행한다.
 
 ## systems_thinking (구조적 사고)
 
@@ -19,7 +19,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| st_ripple_check | 이게 다른 아이템이나 전략에 어떤 영향을 주는지 같이 살펴본다 | **TARGET(systems_thinking)** | - |
+| st_ripple_check | 다른 아이템이나 전략에 어떤 영향을 주는지 살펴본다 | **TARGET(systems_thinking)** | - |
 | st_reason_first | 왜 이게 추가됐는지 이유부터 생각해본다 | TRAIT_SIGNAL(causal_analysis) | - |
 | st_try_it | 일단 직접 써보면서 익힌다 | TRAIT_SIGNAL(immediate_execution) | - |
 | st_compare_items | 기존 아이템들과 비교해본다 | TRAIT_SIGNAL(information_comparison) | - |
@@ -31,7 +31,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| st_map_impact | 이 변화가 다른 사람의 역할과 어떻게 서로 얽혀 영향을 주는지 짚어본다 | **TARGET(systems_thinking)** | - |
+| st_map_impact | 이 변화가 다른 역할과 얽혀 영향을 주는지 짚어본다 | **TARGET(systems_thinking)** | - |
 | st_replan | 남은 일정과 순서를 처음부터 다시 짠다 | TRAIT_SIGNAL(planning) | - |
 | st_adapt_now | 일단 상황에 맞게 바로 대응한다 | TRAIT_SIGNAL(change_adaptation) | - |
 | st_check_mood | 역할이 바뀐 친구의 기분을 먼저 살핀다 | TRAIT_SIGNAL(emotional_interpretation) | - |
@@ -41,17 +41,12 @@
 - Target 선택지가 '영향을 주고받는 관계'를 실제로 묻고 있는가, 아니면 단순히 '전체를 본다'는 막연한 표현에 그치는가?
 - distractor 중 planning/causal_analysis로 매핑된 선택지가 실제로 systems_thinking으로도 읽힐 만큼 표현이 겹치지는 않는가?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| systems_thinking_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| systems_thinking_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| systems_thinking_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| systems_thinking_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| systems_thinking_game_v1 | TBD | - | TBD | - | DRAFT | - |
+| systems_thinking_school_life_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 
@@ -84,7 +79,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| do_check_conditions | 시간이 촉박해도 제출 조건을 하나하나 놓치지 않았는지 세세히 확인한다 | **TARGET(detail_orientation)** | - |
+| do_check_conditions | 촉박해도 조건을 하나하나 놓치지 않는지 확인한다 | **TARGET(detail_orientation)** | - |
 | do_finish_first | 일단 끝까지 마무리부터 한다 | TRAIT_SIGNAL(persistence_completion) | - |
 | do_priority_pick | 가장 중요한 부분부터 순서를 정한다 | TRAIT_SIGNAL(planning) | - |
 | do_quick_submit | 지금 상태로 바로 제출한다 | TRAIT_SIGNAL(immediate_execution) | - |
@@ -94,17 +89,12 @@
 - Target 선택지가 '시간이 더 들어도'/'촉박해도' 같은 Trade-off를 포함해 무조건 좋은 답처럼 보이지 않는가?
 - NO_SIGNAL로 바뀐 선택지(예: do_visual_check)가 정말 detail_orientation도 visual_expression도 아닌 애매한 확인 행동으로 읽히는가, 아니면 실제로는 다른 Trait가 강하게 느껴지는가?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| detail_orientation_media_v1 | TBD | ☐ | ☐ | ☐ | |
-| detail_orientation_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| detail_orientation_media_v1 | TBD | ☐ | ☐ | ☐ | |
-| detail_orientation_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| detail_orientation_media_v1 | TBD | - | TBD | - | DRAFT | - |
+| detail_orientation_school_life_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 
@@ -124,7 +114,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| pc_keep_going | 결과가 잘 안 나오고 다른 목표를 시작할 시간이 늦어져도, 지금 목표는 그대로 두고 끝까지 시도를 이어간다 | **TARGET(persistence_completion)** | - |
+| pc_keep_going | 잘 안 나와도 다른 목표로 넘어가지 않고 끝까지 이어간다 | **TARGET(persistence_completion)** | - |
 | pc_analyze_fail | 왜 계속 실패하는지 원인을 분석한다 | TRAIT_SIGNAL(causal_analysis) | - |
 | pc_take_break | 그 목표 대신 지금 상황에 맞는 다른 목표로 바꾼다 | NO_SIGNAL | 목표를 다른 것으로 바꾸는 행동으로, 상황에 맞춰 방식을 능동적으로 바꾸는 change_adaptation의 직접 근거로 보기엔 단순한 목표 포기·교체에 가깝다 |
 | pc_watch_others | 다른 사람들은 어떻게 하는지 찾아본다 | TRAIT_SIGNAL(information_comparison) | - |
@@ -136,7 +126,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| pc_finish_through | 다른 일에 쓸 시간이 줄어들어도, 지루한 과제를 끝까지 마무리하는 데 가장 오래 매달린다 | **TARGET(persistence_completion)** | - |
+| pc_finish_through | 시간이 걸려도 과제를 끝까지 마무리하는 데 가장 오래 매달린다 | **TARGET(persistence_completion)** | - |
 | pc_plan_stage | 처음 계획을 세우는 데 가장 오래 매달린다 | TRAIT_SIGNAL(planning) | - |
 | pc_detail_stage | 세부 내용을 확인하는 데 가장 오래 매달린다 | TRAIT_SIGNAL(detail_orientation) | - |
 | pc_creative_stage | 결과물을 보기 좋게 꾸미는 데 가장 오래 매달린다 | TRAIT_SIGNAL(visual_expression) | - |
@@ -146,17 +136,12 @@
 - Target 선택지('결과가 잘 안 나오고... 시간이 늦어져도')가 여전히 자연스러운 한국어 문장으로 읽히는가, Trade-off 문구가 어색하게 붙지는 않았는가?
 - pc_take_break(NO_SIGNAL)이 실제로 change_adaptation의 근거가 되기엔 약하다는 판단에 동의하는가?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| persistence_completion_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| persistence_completion_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| persistence_completion_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| persistence_completion_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| persistence_completion_game_v1 | TBD | - | TBD | - | DRAFT | - |
+| persistence_completion_school_life_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 
@@ -198,17 +183,12 @@
 - ut_plan_ahead(재작성 후 '여러 경우를 미리 따져보고 계획을 세운다')가 순수한 planning 행동으로 읽히는가, 여전히 불확실성 회피처럼 읽히지는 않는가?
 - ut_wait_more(NO_SIGNAL)이 실제로는 계획 행동(planning)에 더 가깝다고 보이지는 않는가?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| uncertainty_tolerance_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| uncertainty_tolerance_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| uncertainty_tolerance_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| uncertainty_tolerance_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| uncertainty_tolerance_game_v1 | TBD | - | TBD | - | DRAFT | - |
+| uncertainty_tolerance_school_life_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 
@@ -228,7 +208,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| oe_state_view | 분위기가 어색해질 수 있어도 내 생각을 먼저 분명하게 말한다 | **TARGET(opinion_expression)** | - |
+| oe_state_view | 분위기가 어색해져도 내 생각을 먼저 분명하게 말한다 | **TARGET(opinion_expression)** | - |
 | oe_mediate | 서로 다른 의견을 절충할 지점을 찾는다 | TRAIT_SIGNAL(opinion_mediation) | - |
 | oe_gather_data | 관련 사례를 더 찾아서 비교해본다 | TRAIT_SIGNAL(information_comparison) | - |
 | oe_follow_majority | 다수가 원하는 방향을 따른다 | NO_SIGNAL | 다수 의견을 따르는 행동으로, 협업 선호인지 단순한 순응·갈등 회피인지 문맥만으로 구분하기 어렵다 |
@@ -250,17 +230,12 @@
 - Target 선택지에 추가한 Trade-off('분위기가 어색해질 수 있어도' 등)가 다른 선택지보다 지나치게 길거나 튀어 보이지 않는가?
 - oe_follow_majority/oe_support_role(NO_SIGNAL)이 실제로는 collaboration_preference의 근거로 쓸 수 있다고 보이지는 않는가(단순 순응과 협업 선호의 경계 판단)?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| opinion_expression_media_v1 | TBD | ☐ | ☐ | ☐ | |
-| opinion_expression_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| opinion_expression_media_v1 | TBD | ☐ | ☐ | ☐ | |
-| opinion_expression_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| opinion_expression_media_v1 | TBD | - | TBD | - | DRAFT | - |
+| opinion_expression_school_life_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 
@@ -292,7 +267,7 @@
 
 | role_id | 선택지 | Mapping | NO_SIGNAL 이유 |
 |---|---|---|---|
-| ci_invent_rule | 여러 요소를 새롭게 엮어서 지금까지와 다른 방식을 스스로 만들어본다 | **TARGET(creative_ideation)** | - |
+| ci_invent_rule | 여러 요소를 새롭게 엮어서 다른 방식을 스스로 만들어본다 | **TARGET(creative_ideation)** | - |
 | ci_improve_existing | 기존 규칙 중 반복되는 부분을 찾아 다듬는다 | TRAIT_SIGNAL(pattern_finding) | - |
 | ci_test_it | 일단 만들어서 바로 실험해본다 | TRAIT_SIGNAL(immediate_execution) | - |
 | ci_visual_design | 어떻게 보여줄지 화면 디자인부터 생각한다 | TRAIT_SIGNAL(visual_expression) | - |
@@ -302,17 +277,12 @@
 - ci_invent_rule Target 문구('여러 요소를 새롭게 엮어서')가 pattern_finding(ci_improve_existing, '반복되는 부분을 찾아 다듬는다')과 충분히 구분되는가?
 - ci_get_feedback(NO_SIGNAL)이 실제로 collaboration_preference에 가깝다고 보이지는 않는가?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| creative_ideation_media_v1 | TBD | ☐ | ☐ | ☐ | |
-| creative_ideation_game_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| creative_ideation_media_v1 | TBD | ☐ | ☐ | ☐ | |
-| creative_ideation_game_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| creative_ideation_media_v1 | TBD | - | TBD | - | DRAFT | - |
+| creative_ideation_game_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 
@@ -354,17 +324,12 @@
 - ij_own_call/ij_set_own_standard(Target)와 ij_say_thoughts/ij_speak_role(opinion_expression) 이 실제로 다른 행동으로 구분돼 읽히는가?
 - ij_ask_more/ij_ask_clarify(NO_SIGNAL)를 collaboration_preference로 되돌려야 한다고 보이는 지점이 있는가?
 
-**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):
+**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):
 
-| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| independent_judgment_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| independent_judgment_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
-
-| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |
-|---|---|---|---|---|---|
-| independent_judgment_game_v1 | TBD | ☐ | ☐ | ☐ | |
-| independent_judgment_school_life_v1 | TBD | ☐ | ☐ | ☐ | |
+| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | reviewer_2_comment | final_status | resolution_note |
+|---|---|---|---|---|---|---|
+| independent_judgment_game_v1 | TBD | - | TBD | - | DRAFT | - |
+| independent_judgment_school_life_v1 | TBD | - | TBD | - | DRAFT | - |
 
 ---
 

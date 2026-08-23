@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.ids import generate_option_id
 from src.schemas.question import FinalizedOption, FinalizedQuestion, GeneratedQuestion
@@ -44,7 +44,10 @@ class V2ProbeOptionMapping(BaseModel):
 
     role_id: str
     mapping_type: Literal["TRAIT_SIGNAL", "NO_SIGNAL"]
-    trait_signals: list[TraitSignal] = []
+    # 2.3단계 §1: Pydantic v2는 bare list/dict/set 기본값도 인스턴스마다 독립적으로
+    # 복사한다(공유 객체 버그가 실제로 발생하지 않는다 — 테스트로 확인). 그래도
+    # `default_factory`가 관례적으로 더 명확하므로 통일한다.
+    trait_signals: list[TraitSignal] = Field(default_factory=list)
     no_signal_reason: str | None = None
 
     @model_validator(mode="after")

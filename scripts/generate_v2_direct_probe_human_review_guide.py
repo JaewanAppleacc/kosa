@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # noqa: E402
 
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT  # noqa: E402
+from src.services.v2_direct_probe_review_store import load_question_review_entries  # noqa: E402
 
 OUTPUT_PATH = (
     Path(__file__).resolve().parents[1] / "outputs" / "reviews" / "v2_direct_probe_human_review_guide.md"
@@ -174,13 +175,22 @@ def _question_block(bp) -> list[str]:
 
 
 def main() -> None:
+    # 2.3단계 §4: 질문 단위 검토 상태는 data/reviews/v2_direct_probe_question_review_status.json이
+    # 정본이다 — 이 스크립트는 그 파일을 읽기만 하고 절대 쓰지 않는다.
+    review_by_blueprint_id = {e.blueprint_id: e for e in load_question_review_entries()}
+
     lines = [
         "# V2 Direct Probe Human Review Guide",
         "",
-        "2026-08-23 Trait Ontology v2(2.2단계) §17. 70행 Worksheet"
-        "(`v2_direct_probe_question_review.md`)를 대신하지 않는다 — 그 Worksheet는 Option 단위로 더 "
-        "세밀하게 검토할 때 쓰고, 이 문서는 Trait 단위로 빠르게 훑어보는 용도다. 아래 체크란은 전부 "
-        "미선택(TBD) 상태다 — 팀원 두 명이 각자 검토한 뒤 표시해야 한다. 두 명 모두 승인한 문항만 "
+        "2026-08-23 Trait Ontology v2(2.2단계 §17, 2.3단계 §4). 70행 Worksheet"
+        "(`v2_direct_probe_question_review.md`)를 대신하지 않는다 — 그 Worksheet는 Option 단위(PRIMARY·"
+        "RELATED·NO_SIGNAL Mapping 타당성)로 더 세밀하게 검토할 때 쓰고, 이 문서는 질문(Trait) 단위로 "
+        "빠르게 훑어보는 용도다(Exploration 후보 선택 규칙, 사회적 바람직성, 질문 간 의미 중복, "
+        "상황적 Trade-off, Target 길이·구체성). `reviewer_1_status`/`reviewer_2_status`/`final_status`는 "
+        "`data/reviews/v2_direct_probe_question_review_status.json`을 그대로 읽어온 값이다 — 이 "
+        "스크립트는 그 파일을 절대 쓰지 않는다(사람이 직접 그 JSON을 채워야 값이 바뀐다). `final_status`는 "
+        "두 검토자 상태로부터 항상 다시 계산한다: 둘 다 APPROVE일 때만 TEAM_REVIEWED, 하나라도 "
+        "REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD 남음)는 DRAFT다. 두 명 모두 APPROVE인 질문만 "
         "`team_reviewed`로 승격하고, 그다음에만 v2 Career Profile 표시를 진행한다.",
         "",
     ]
@@ -204,17 +214,24 @@ def main() -> None:
         for q in guide["reviewer_questions"]:
             lines.append(f"- {q}")
         lines.append("")
-        lines.append("**승인/수정/보류 체크란** (각 Blueprint당 1행, 미선택):")
+        lines.append(
+            "**검토 상태** (`data/reviews/v2_direct_probe_question_review_status.json`에서 읽음, "
+            "reviewer_*_status는 APPROVE/REVISE/HOLD/TBD 중 하나):"
+        )
         lines.append("")
-        lines.append("| blueprint_id | 1차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |")
-        lines.append("|---|---|---|---|---|---|")
+        lines.append(
+            "| blueprint_id | reviewer_1_status | reviewer_1_comment | reviewer_2_status | "
+            "reviewer_2_comment | final_status | resolution_note |"
+        )
+        lines.append("|---|---|---|---|---|---|---|")
         for bp in blueprints:
-            lines.append(f"| {bp.blueprint_id} | TBD | ☐ | ☐ | ☐ | |")
-        lines.append("")
-        lines.append("| blueprint_id | 2차 검토자 | 승인 | 수정 필요 | 보류 | 비고 |")
-        lines.append("|---|---|---|---|---|---|")
-        for bp in blueprints:
-            lines.append(f"| {bp.blueprint_id} | TBD | ☐ | ☐ | ☐ | |")
+            review = review_by_blueprint_id[bp.blueprint_id]
+            lines.append(
+                f"| {bp.blueprint_id} | {review.reviewer_1_status} | "
+                f"{review.reviewer_1_comment or '-'} | {review.reviewer_2_status} | "
+                f"{review.reviewer_2_comment or '-'} | {review.final_status} | "
+                f"{review.resolution_note or '-'} |"
+            )
         lines.append("")
         lines.append("---")
         lines.append("")

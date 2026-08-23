@@ -591,6 +591,24 @@ def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: s
 
 
 def _get_state_or_404(session_id: str) -> AssessmentState:
+    """2.3단계 §2 — 예외 원자성: `InMemorySessionStore.load()`는 저장된 객체를 참조
+    그대로 반환한다(방어적 복사를 하지 않는다, `src/memory/session_store.py`). 이 함수가
+    항상 깊은 복사본을 돌려주면, 호출자가 답변·질문 생성 도중 이 State를 아무리
+    변형해도 처리 중간에 예외가 나서 `_store.save(state)`에 끝내 도달하지 못하면 그
+    변형은 이 복사본에만 남고 Store에 저장된 원본은 전혀 건드리지 않는다 — Store에
+    저장된 상태는 어떤 요청이 "완전히 성공"했을 때만 `_store.save(state)` 한 번으로
+    교체된다.
+
+    이 함수를 쓰는 12개 Handler를 전부 확인했다: interest-rating/context-select/
+    context-confirm/next-question/answer 5개는 매 mutating 경로 끝에서 반드시
+    `_store.save(state)`를 한 번 호출하고(§2 검증), 나머지(profile/majors/subjects/
+    course 관련/subgraph/session 복원)는 AssessmentState를 읽기 전용으로만 쓰고
+    `_store.save()`를 아예 호출하지 않는다 — 두 경우 모두 복사본을 돌려줘도 기존 동작이
+    달라지지 않는다. `src/memory/session_store.py` 자체(`InMemorySessionStore.load()`의
+    의미)는 바꾸지 않았다 — 이 파일 밖에서 `_store.load()`를 직접 부르는 테스트 코드
+    (예: `main_module._store.load(session_id)`로 State를 읽고 직접 mutate하는 기존
+    테스트 패턴)에 영향을 주지 않기 위해서다."""
+
     state = _store.load(session_id)
     if state is None:
         raise HTTPException(
@@ -600,7 +618,7 @@ def _get_state_or_404(session_id: str) -> AssessmentState:
                 message=f"session_id {session_id!r}를 찾을 수 없습니다.",
             ).model_dump(),
         )
-    return state
+    return state.model_copy(deep=True)
 
 
 @app.get("/contexts", response_model=ContextCatalogResponse)

@@ -153,14 +153,16 @@ class AssessmentState(BaseModel):
     # 후보 Trait 우선순위 큐 — V2_DIRECT_PROBE 진입 시 한 번 계산해서 채우고,
     # 질문을 하나 낼 때마다 그 Trait를 꺼내 쓴다(§11 우선순위 공식은
     # src/engines/v2_direct_probe_selector.py가 순수 함수로 계산한다).
-    pending_v2_probe_trait_ids: list[str] = []
+    # 2.3단계 §1: v2가 추가한 list 필드는 default_factory로 통일한다(Pydantic v2가
+    # 이미 인스턴스마다 독립적으로 복사하므로 실제 공유 버그는 없었지만, 관례를 맞춘다).
+    pending_v2_probe_trait_ids: list[str] = Field(default_factory=list)
     v2_probe_questions_asked: int = 0
-    v2_probed_trait_ids: list[str] = []
+    v2_probed_trait_ids: list[str] = Field(default_factory=list)
     current_v2_probe_target_trait_id: str | None = None
     current_v2_probe_blueprint_id: str | None = None
     # §10 — Target Signal을 선택하지 않았어도 "질문은 제시했다"는 사실 자체를 남긴다
     # (Counter Evidence로 쓰지 않는다, 사용자 화면에 노출하지 않는다).
-    v2_probe_opportunities: list[V2ProbeOpportunity] = []
+    v2_probe_opportunities: list[V2ProbeOpportunity] = Field(default_factory=list)
 
     @property
     def current_context_id(self) -> str | None:

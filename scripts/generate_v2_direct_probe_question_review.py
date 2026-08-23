@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # noqa: E402
 
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS  # noqa: E402
 from src.engines.v2_direct_probe_quality_checks import worksheet_row_flags  # noqa: E402
+from src.services.v2_direct_probe_review_store import load_option_review_entries  # noqa: E402
 
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "outputs" / "reviews" / "v2_direct_probe_question_review.md"
 
@@ -434,6 +435,12 @@ DEFAULT_NOTE = {
 
 
 def _rows() -> list[dict]:
+    # 2.3단계 §4: "1차/2차 사람 검토"·"최종 상태"는 더 이상 이 스크립트가 하드코딩하지
+    # 않는다 — data/reviews/v2_direct_probe_option_review_status.json이 정본이고, 이
+    # 파일에 실제로 사람이 입력한 값이 있으면 그대로 반영한다(이 스크립트는 그 파일을
+    # 절대 쓰지 않는다 — 읽기만 한다).
+    review_by_key = {(e.blueprint_id, e.role_id): e for e in load_option_review_entries()}
+
     rows = []
     for bp in V2_DIRECT_PROBE_BLUEPRINTS:
         blueprint_id = bp.blueprint_id
@@ -445,6 +452,7 @@ def _rows() -> list[dict]:
             note = _NOTES.get((blueprint_id, option.role_id), DEFAULT_NOTE)
             is_target = mapping.mapping_type == "TRAIT_SIGNAL" and mapping.primary_trait_id == bp.trait_id
             auto_flags = worksheet_row_flags(bp, option)
+            review = review_by_key[(blueprint_id, option.role_id)]
             rows.append({
                 "trait_id": bp.trait_id, "blueprint_id": blueprint_id, "context_id": context_id,
                 "frame_id": frame_id, "question_text": question_text, "role_id": option.role_id,
@@ -460,7 +468,10 @@ def _rows() -> list[dict]:
                 "naturalness": note["naturalness"],
                 "before": note["before"] or "-", "after": note["after"] or "-",
                 "auto_result": "; ".join(auto_flags) if auto_flags else "이상 없음",
-                "review_1": "TBD", "review_2": "TBD", "final_status": "draft",
+                "review_1": review.reviewer_1_status, "review_1_comment": review.reviewer_1_comment or "-",
+                "review_2": review.reviewer_2_status, "review_2_comment": review.reviewer_2_comment or "-",
+                "final_status": review.final_status,
+                "resolution_note": review.resolution_note or "-",
             })
     return rows
 
@@ -476,19 +487,25 @@ def main() -> None:
         "option_text", "mapping_type", "mapped_trait_id", "no_signal_reason", "target_option",
         "행동-Trait 직접 일치", "인접 Trait 혼동 위험", "사회적 바람직성 편향", "Trade-off 균형",
         "문장 자연스러움", "수정 전 문구", "수정 후 문구", "자동 검수 결과",
-        "1차 사람 검토", "2차 사람 검토", "최종 상태",
+        "reviewer_1_status", "reviewer_1_comment", "reviewer_2_status", "reviewer_2_comment",
+        "final_status", "resolution_note",
     ]
     no_signal_count = sum(1 for r in rows if r["mapping_type"] == "NO_SIGNAL")
+    team_reviewed_count = sum(1 for r in rows if r["final_status"] == "TEAM_REVIEWED")
     lines = [
         "# V2 Direct Probe Question Review Worksheet",
         "",
-        "2026-08-23 Trait Ontology v2(2.1단계 §10, 2.2단계 §15). 14개 Blueprint × 5개 "
-        f"Option = {len(rows)}행(그중 NO_SIGNAL {no_signal_count}행). '1차 사람 검토'/'2차 사람 "
-        "검토'/'최종 상태'는 항상 TBD/draft다 — A가 스스로 완료 처리하지 않는다. 나머지 판단 "
-        "열은 A가 §7~§9에서 실제로 검토한 내용을 데이터로 남긴 것이며, 사람 검토를 대신하지 "
-        "않는다. NO_SIGNAL 행은 '이 선택지는 이번 질문에서 특정 Core Trait를 직접 확인할 만큼 "
-        "근거가 명확하지 않다'는 뜻일 뿐 Target Trait가 낮다거나 반대 Trait가 강하다는 뜻이 "
-        "아니다.",
+        "2026-08-23 Trait Ontology v2(2.1단계 §10, 2.2단계 §15, 2.3단계 §4). 14개 Blueprint "
+        f"× 5개 Option = {len(rows)}행(그중 NO_SIGNAL {no_signal_count}행, 현재 TEAM_REVIEWED "
+        f"{team_reviewed_count}행). `reviewer_1_status`/`reviewer_2_status`/`final_status`는 "
+        "`data/reviews/v2_direct_probe_option_review_status.json`을 그대로 읽어온 값이다 — "
+        "이 스크립트는 그 파일을 절대 쓰지 않는다(사람이 직접 그 JSON을 채워야 값이 바뀐다). "
+        "`final_status`는 두 검토자 상태로부터 항상 다시 계산한다: 둘 다 APPROVE일 때만 "
+        "TEAM_REVIEWED, 하나라도 REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD 남음)는 DRAFT다. "
+        "나머지 판단 열(행동-Trait 일치 등)은 A가 §7~§9에서 실제로 검토한 내용을 데이터로 "
+        "남긴 것이며, 사람의 독립 검토를 대신하지 않는다. NO_SIGNAL 행은 '이 선택지는 이번 "
+        "질문에서 특정 Core Trait를 직접 확인할 만큼 근거가 명확하지 않다'는 뜻일 뿐 Target "
+        "Trait가 낮다거나 반대 Trait가 강하다는 뜻이 아니다.",
         "",
         "| " + " | ".join(header) + " |",
         "|" + "---|" * len(header),
@@ -501,7 +518,9 @@ def main() -> None:
             row["is_target"], row["behavior_trait_match"], row["adjacent_risk"],
             row["desirability_bias"], row["trade_off_balance"], row["naturalness"],
             _escape(row["before"]), _escape(row["after"]), row["auto_result"],
-            row["review_1"], row["review_2"], row["final_status"],
+            row["review_1"], _escape(row["review_1_comment"]),
+            row["review_2"], _escape(row["review_2_comment"]),
+            row["final_status"], _escape(row["resolution_note"]),
         ]
         lines.append("| " + " | ".join(cells) + " |")
 

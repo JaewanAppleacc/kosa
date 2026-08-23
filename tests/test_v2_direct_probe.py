@@ -762,6 +762,50 @@ class BlueprintCrossFieldValidationTest(unittest.TestCase):
         self.assertEqual(len(V2_DIRECT_PROBE_BLUEPRINTS), 14)
 
 
+class MutableDefaultSafetyTest(unittest.TestCase):
+    """2.3단계 §1 — v2가 추가한 Schema의 list 기본값이 인스턴스 사이에 공유되지
+    않는지, JSON 직렬화 결과가 `Field(default_factory=list)` 적용 전후로 그대로인지
+    확인한다."""
+
+    def test_two_v2_probe_option_mappings_do_not_share_trait_signals_list(self) -> None:
+        from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+        a = V2ProbeOptionMapping(role_id="r1", mapping_type="NO_SIGNAL", no_signal_reason="근거 약함")
+        b = V2ProbeOptionMapping(role_id="r2", mapping_type="NO_SIGNAL", no_signal_reason="근거 약함")
+        self.assertIsNot(a.trait_signals, b.trait_signals)
+
+    def test_mutating_one_instance_trait_signals_does_not_affect_another(self) -> None:
+        from src.schemas.trait_signal import TraitSignal
+        from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+        a = V2ProbeOptionMapping(role_id="r1", mapping_type="NO_SIGNAL", no_signal_reason="근거 약함")
+        b = V2ProbeOptionMapping(role_id="r2", mapping_type="NO_SIGNAL", no_signal_reason="근거 약함")
+        a.trait_signals.append(TraitSignal(trait_id="planning", signal_role="PRIMARY", weight=1.0))
+        self.assertEqual(b.trait_signals, [])
+
+    def test_v2_probe_option_mapping_json_round_trip_unchanged(self) -> None:
+        from src.schemas.v2_direct_probe import V2ProbeOptionMapping
+
+        original = V2ProbeOptionMapping(role_id="r1", mapping_type="NO_SIGNAL", no_signal_reason="근거 약함")
+        dumped = original.model_dump_json()
+        self.assertEqual(dumped, '{"role_id":"r1","mapping_type":"NO_SIGNAL","trait_signals":[],"no_signal_reason":"근거 약함"}')
+        restored = V2ProbeOptionMapping.model_validate_json(dumped)
+        self.assertEqual(restored, original)
+
+    def test_assessment_state_v2_list_fields_do_not_share_across_instances(self) -> None:
+        from src.schemas.assessment_state import AssessmentState
+
+        s1 = AssessmentState(session_id="s1", user_id="u1")
+        s2 = AssessmentState(session_id="s2", user_id="u2")
+        self.assertIsNot(s1.pending_v2_probe_trait_ids, s2.pending_v2_probe_trait_ids)
+        self.assertIsNot(s1.v2_probed_trait_ids, s2.v2_probed_trait_ids)
+        self.assertIsNot(s1.v2_probe_opportunities, s2.v2_probe_opportunities)
+        s1.pending_v2_probe_trait_ids.append("systems_thinking")
+        s1.v2_probed_trait_ids.append("systems_thinking")
+        self.assertEqual(s2.pending_v2_probe_trait_ids, [])
+        self.assertEqual(s2.v2_probed_trait_ids, [])
+
+
 class NoSignalMappingTest(unittest.TestCase):
     """2.2단계 §4/§18 — NO_SIGNAL 전용 검증 규칙."""
 

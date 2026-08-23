@@ -92,7 +92,7 @@ SYSTEMS_THINKING_GAME_V1 = _build(
     context="game",
     question_text="게임에 새로운 아이템이나 규칙이 추가되면 가장 먼저 무엇을 하나요?",
     rows=[
-        ("st_ripple_check", "이게 다른 아이템이나 전략에 어떤 영향을 주는지 같이 살펴본다", "systems_thinking", None),
+        ("st_ripple_check", "다른 아이템이나 전략에 어떤 영향을 주는지 살펴본다", "systems_thinking", None),
         ("st_reason_first", "왜 이게 추가됐는지 이유부터 생각해본다", "causal_analysis", None),
         ("st_try_it", "일단 직접 써보면서 익힌다", "immediate_execution", None),
         ("st_compare_items", "기존 아이템들과 비교해본다", "information_comparison", None),
@@ -109,7 +109,7 @@ SYSTEMS_THINKING_SCHOOL_LIFE_V1 = _build(
     context="school_life",
     question_text="조별 프로젝트에서 한 사람의 역할이나 일정이 갑자기 바뀌면 무엇을 가장 먼저 생각하나요?",
     rows=[
-        ("st_map_impact", "이 변화가 다른 사람의 역할과 어떻게 서로 얽혀 영향을 주는지 짚어본다", "systems_thinking", None),
+        ("st_map_impact", "이 변화가 다른 역할과 얽혀 영향을 주는지 짚어본다", "systems_thinking", None),
         ("st_replan", "남은 일정과 순서를 처음부터 다시 짠다", "planning", None),
         ("st_adapt_now", "일단 상황에 맞게 바로 대응한다", "change_adaptation", None),
         ("st_check_mood", "역할이 바뀐 친구의 기분을 먼저 살핀다", "emotional_interpretation", None),
@@ -158,7 +158,7 @@ DETAIL_ORIENTATION_SCHOOL_LIFE_V1 = _build(
     rows=[
         (
             "do_check_conditions",
-            "시간이 촉박해도 제출 조건을 하나하나 놓치지 않았는지 세세히 확인한다",
+            "촉박해도 조건을 하나하나 놓치지 않는지 확인한다",
             "detail_orientation", None,
         ),
         ("do_finish_first", "일단 끝까지 마무리부터 한다", "persistence_completion", None),
@@ -181,7 +181,7 @@ PERSISTENCE_COMPLETION_GAME_V1 = _build(
     rows=[
         (
             "pc_keep_going",
-            "결과가 잘 안 나오고 다른 목표를 시작할 시간이 늦어져도, 지금 목표는 그대로 두고 끝까지 시도를 이어간다",
+            "잘 안 나와도 다른 목표로 넘어가지 않고 끝까지 이어간다",
             "persistence_completion", None,
         ),
         ("pc_analyze_fail", "왜 계속 실패하는지 원인을 분석한다", "causal_analysis", None),
@@ -206,7 +206,7 @@ PERSISTENCE_COMPLETION_SCHOOL_LIFE_V1 = _build(
     rows=[
         (
             "pc_finish_through",
-            "다른 일에 쓸 시간이 줄어들어도, 지루한 과제를 끝까지 마무리하는 데 가장 오래 매달린다",
+            "시간이 걸려도 과제를 끝까지 마무리하는 데 가장 오래 매달린다",
             "persistence_completion", None,
         ),
         ("pc_plan_stage", "처음 계획을 세우는 데 가장 오래 매달린다", "planning", None),
@@ -278,7 +278,7 @@ OPINION_EXPRESSION_MEDIA_V1 = _build(
     question_text="콘텐츠 방향에 대해 사람들 의견이 갈리면 어떻게 하나요?",
     rows=[
         (
-            "oe_state_view", "분위기가 어색해질 수 있어도 내 생각을 먼저 분명하게 말한다",
+            "oe_state_view", "분위기가 어색해져도 내 생각을 먼저 분명하게 말한다",
             "opinion_expression", None,
         ),
         ("oe_mediate", "서로 다른 의견을 절충할 지점을 찾는다", "opinion_mediation", None),
@@ -343,7 +343,7 @@ CREATIVE_IDEATION_GAME_V1 = _build(
     question_text="새로운 게임 규칙이나 콘텐츠를 직접 만들 수 있다면 무엇을 하고 싶나요?",
     rows=[
         (
-            "ci_invent_rule", "여러 요소를 새롭게 엮어서 지금까지와 다른 방식을 스스로 만들어본다",
+            "ci_invent_rule", "여러 요소를 새롭게 엮어서 다른 방식을 스스로 만들어본다",
             "creative_ideation", None,
         ),
         ("ci_improve_existing", "기존 규칙 중 반복되는 부분을 찾아 다듬는다", "pattern_finding", None),
