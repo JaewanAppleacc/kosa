@@ -1,4 +1,4 @@
-"""Trait Vector Snapshot Schema — 2026-08-31 Trait Ontology v2(1단계) §10.
+"""Trait Vector Snapshot Schema — 2026-08-23 Trait Ontology v2(1단계) §10.
 
 이 단계에서는 기존 Profile·Matching 결과를 바꾸지 않고 이 Snapshot을 Shadow Mode로
 병행 계산만 한다 — `tendency_score`는 학생의 능력 점수가 아니라 내부 정규화 상태값이고,
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 TraitVectorStatus = Literal["NOT_PROBED", "HYPOTHESIS", "LIMITED", "MODERATE", "STRONG", "CONFLICTING"]
 
@@ -44,3 +44,15 @@ class TraitVectorEntry(BaseModel):
         "no_evidence", "explicit_conflict",
     ]
     status: TraitVectorStatus
+
+
+class TraitVectorSnapshot(BaseModel):
+    """2026-08-23 1.5단계 §9 — 한 세션의 v2 Trait Vector Snapshot 전체를 담아
+    `TraitVectorShadowRepository`에 저장하는 단위. `frozen=True`라 저장 후에는 호출자가
+    내용을 고칠 수 없다(list/dict 필드가 없어 frozen만으로 완전히 방어된다 — 다만
+    Repository 구현체는 그래도 model_copy(deep=True)로 한 번 더 방어한다, 저장소 자체의
+    책임과 값 객체의 책임을 분리하기 위해)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    entries: dict[str, TraitVectorEntry] = Field(default_factory=dict)

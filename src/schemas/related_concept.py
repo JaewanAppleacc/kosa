@@ -1,4 +1,4 @@
-"""Related Concept Schema — 2026-08-31 Trait Ontology v2(1단계) §3.
+"""Related Concept Schema — 2026-08-23 Trait Ontology v2(1단계) §3.
 
 Core Trait(24개, `src/schemas/trait.py::TraitDefinition`)와 학생에게 보여주는 세부
 표현("감독의 관점에서 보기", "장면 순서를 재구성함" 등)을 분리한다. Related Concept는

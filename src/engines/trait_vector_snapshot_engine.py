@@ -1,4 +1,4 @@
-"""Trait Vector Snapshot Engine — 2026-08-31 Trait Ontology v2(1단계) §9/§10. LLM·DB
+"""Trait Vector Snapshot Engine — 2026-08-23 Trait Ontology v2(1단계) §9/§10. LLM·DB
 호출 없는 순수 계산(matching_engine.py/evidence_engine.py와 같은 성격).
 
 이 파일이 하지 않는 것:

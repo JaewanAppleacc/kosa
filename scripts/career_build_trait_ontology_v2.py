@@ -1,4 +1,4 @@
-"""career_build_trait_ontology_v2.py — 2026-08-31 Trait Ontology v2(1단계).
+"""career_build_trait_ontology_v2.py — 2026-08-23 Trait Ontology v2(1단계).
 
 data/master/trait_ontology_v2.jsonl(24개, Shadow Mode 정본)을 만든다.
 

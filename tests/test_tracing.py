@@ -184,6 +184,27 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
                 self.assertEqual(sanitize_trace_attributes({key: []}), {})
                 self.assertEqual(sanitize_trace_attributes({key: {}}), {})
 
+    def test_trait_vector_shadow_snapshot_counts_are_preserved(self) -> None:
+        """2026-08-23 Trait Ontology v2(1.5단계) §9/§13 — Shadow Snapshot Stage가 남기는
+        12개 집계 필드만 허용한다. 학생 답변 원문·Trait Signal 세부 내용(trait_id·weight·
+        related_concept_ids)은 Key 자체가 없어 구조적으로 샐 수 없다."""
+
+        attributes = {
+            "core_trait_count": 24, "observable_trait_count": 19, "directly_measurable_count": 12,
+            "related_only_count": 7, "not_probed_count": 5, "observed_in_session_count": 3,
+            "hypothesis_count": 1, "promoted_related_count": 1, "conflict_count": 0,
+            "mapping_source_exact_count": 3, "mapping_source_legacy_adapter_count": 0,
+            "mapping_missing_count": 0,
+        }
+        self.assertEqual(sanitize_trace_attributes(attributes), attributes)
+
+    def test_trait_vector_shadow_snapshot_counts_reject_negative_or_non_int(self) -> None:
+        for key in ("core_trait_count", "mapping_source_exact_count", "conflict_count"):
+            with self.subTest(key=key):
+                self.assertEqual(sanitize_trace_attributes({key: -1}), {})
+                self.assertEqual(sanitize_trace_attributes({key: 1.5}), {})
+                self.assertEqual(sanitize_trace_attributes({key: "3"}), {})
+
     def test_session_id_and_raw_answer_text_have_no_allowlisted_key(self) -> None:
         """session_id/학생 답변 원문/질문 원문은 Key 자체가 Allowlist에 없어 어떤 값을
         보내도 구조적으로 샐 수 없다."""

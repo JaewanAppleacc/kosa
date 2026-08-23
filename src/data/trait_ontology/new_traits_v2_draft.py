@@ -1,6 +1,6 @@
 """Trait Ontology v2 1단계 — 신규 12개 Trait 초안(DRAFT, 2인 교차검토 전).
 
-CLAUDE.md 지시(2026-08-31 20차 후속): 기존 12개 Trait(`vertical_slice_traits.py`)의
+CLAUDE.md 지시(2026-08-23 20차 후속): 기존 12개 Trait(`vertical_slice_traits.py`)의
 ID·정의·행동 지표는 여기서 하나도 바꾸지 않는다 — 이 파일은 신규 12개만 추가한다.
 `career_build_trait_ontology_v2.py`가 이 파일과 `VERTICAL_SLICE_TRAITS`를 합쳐
 `data/master/trait_ontology_v2.jsonl`(24개, review 대상 정본)을 만든다.
@@ -14,7 +14,7 @@ ID·정의·행동 지표는 여기서 하나도 바꾸지 않는다 — 이 파
   다른지 명시한다 — 문서화하지 않으면 나중에 두 Trait가 하나로 합쳐지기 쉽다.
 - `personal_goal_priority`는 "이기적임"의 중립적 표현이다 — 타인을 배려하지 않는
   성격으로 단정하지 않고, 공동 목표보다 개인 목표·자율적 기준을 상대적으로 우선하는
-  경향으로만 정의한다(2026-08-31 지시서 §2 원칙 3).
+  경향으로만 정의한다(2026-08-23 지시서 §2 원칙 3).
 
 발견된 긴장(자동으로 고치지 않고 review 문서에 그대로 보고함, §2 원칙 7):
 - `creative_ideation`의 정의가 넓게 잡히면 기존 `visual_expression`이 이미 인용한
@@ -198,7 +198,7 @@ NEW_TRAITS_V2_DRAFT: list[TraitDefinition] = [
         positive_indicators=["익숙한 방법이 있어도 새로운 것을 직접 찾아보고 시도하는 선택"],
         conflicting_indicators=["익숙하고 검증된 방식을 그대로 유지하는 것을 선호"],
         aliases=[],
-        source_references=["팀 정의 — O*NET/Holland 대응 항목 없음, 2026-08-31 조사"],
+        source_references=["팀 정의 — O*NET/Holland 대응 항목 없음, 2026-08-23 조사"],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
@@ -297,7 +297,7 @@ NEW_TRAITS_V2_DRAFT: list[TraitDefinition] = [
         positive_indicators=["생각이 있으면 먼저 나서서 말하거나 제안하는 선택"],
         conflicting_indicators=["의견이 있어도 먼저 나서서 말하지 않고 다른 사람에게 맡김"],
         aliases=[],
-        source_references=["팀 정의 — O*NET/Holland에 '주장성' 자체를 다루는 공식 항목 없음, 2026-08-31 조사"],
+        source_references=["팀 정의 — O*NET/Holland에 '주장성' 자체를 다루는 공식 항목 없음, 2026-08-23 조사"],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
@@ -318,14 +318,14 @@ NEW_TRAITS_V2_DRAFT: list[TraitDefinition] = [
         positive_indicators=["공동 목표와 개인 목표가 갈릴 때 자신의 기준을 우선하는 선택"],
         conflicting_indicators=["개인 목표보다 공동·팀의 목표를 우선함"],
         aliases=[],
-        source_references=["팀 정의 — O*NET/Holland 대응 항목 없음, 2026-08-31 조사"],
+        source_references=["팀 정의 — O*NET/Holland 대응 항목 없음, 2026-08-23 조사"],
         trait_scope="shared",
         minimum_context_count=2,
         primary_vector_group="work_style",
         grounding_type="TEAM_DEFINED",
         neighboring_trait_ids=["independent_judgment", "collaboration_preference"],
         distinction_notes=(
-            "2026-08-31 지시서 §2 원칙 3: 이 Trait는 '이기적임'의 중립적 표현이다 — 타인을 "
+            "2026-08-23 지시서 §2 원칙 3: 이 Trait는 '이기적임'의 중립적 표현이다 — 타인을 "
             "배려하지 않는 성격으로 단정하지 않는다. collaboration_preference(혼자 vs 함께 "
             "일하는 방식 선호)와는 다른 축이다 — 함께 일하는 것을 선호하면서도(협업 선호 "
             "높음) 목표 우선순위는 개인 기준을 앞세울 수 있다(독립적 차원). "

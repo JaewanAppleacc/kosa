@@ -1,4 +1,4 @@
-"""Trait Ontology v2 Loader — A 소유, 2026-08-31 Trait Ontology v2(1단계) 보조.
+"""Trait Ontology v2 Loader — A 소유, 2026-08-23 Trait Ontology v2(1단계) 보조.
 
 `data/master/trait_ontology_v2.jsonl`(24개, `scripts/career_build_trait_ontology_v2.py`가
 생성하는 정본)을 읽기만 한다 — Subject/Major Repository와 같은 "빌드 스크립트가 만든

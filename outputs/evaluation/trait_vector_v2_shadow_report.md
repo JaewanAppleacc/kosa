@@ -1,6 +1,6 @@
 # Trait Vector v2 Shadow Mode 비교 보고서
 
-2026-08-31 Trait Ontology v2(1단계) §11. 기존 Profile·Matching·Subgraph 결과는
+2026-08-23 Trait Ontology v2(1단계 §11, 1.5단계 §11/§14). 기존 Profile·Matching·Subgraph 결과는
 이 보고서 생성 과정에서 전혀 바뀌지 않는다 — Legacy Trait Summary와 v2 Trait
 Vector Snapshot을 같은 세션에 대해 병행 계산만 했다.
 
@@ -11,21 +11,21 @@ Vector Snapshot을 같은 세션에 대해 병행 계산만 했다.
   진행했다 — Seed 3개(Context당 1개)에서만 의도한 선택지를 고르고, 그 뒤
   꼬리질문은 전부 옵션[0]을 고른다.
 - Persona 7은 같은 방식으로 Seed 3개만 답하고 중단했다.
-- Persona 9는 실제 API로 재현할 수 없어(아래 '핵심 한계' 참고) 실제 엔진 함수
+- Persona 9는 실제 API로 재현할 수 없어(아래 '1.5단계 수정 사항' 참고) 실제 엔진 함수
   (`detect_explicit_conflicts` 등)에 직접 넣을 Evidence Ledger를 구성했다.
 
-## 핵심 한계 — LLM 미연동 시 v2 Signal 관찰 범위
+## 1.5단계 수정 사항 — role_id 단독 조회 → 복합 Key + LEGACY_PRIMARY_ADAPTER
 
-로컬 `.env`가 `ENABLE_LLM_QUESTION_GENERATION=true`로 설정돼 있어도, 이
-스크립트는 재현성을 위해 LLM을 강제로 끈다. LLM이 꺼지면 꼬리질문은
-`mock_data.tail_question_from_planner_decision()`이 만드는 자리표시자
-role_id(`role_{trait}`)를 쓰는데, 이 값은 `trait_signal_registry.py`
-Registry에 전혀 등록돼 있지 않다 — 그래서 **실제 v2 Signal은 세션당 최대
-3개(Context별 Seed 답변 1개)에서만 붙는다.** 검토된 15개 Tail Blueprint Role
-(`tail_option_blueprints.py`)은 LLM이 실제로 그 Blueprint를 선택해 질문을
-생성해야만 서빙된다. 이 보고서의 모든 수치는 이 하한(lower bound) 조건에서
-나온 값이다 — LLM을 켜면 세션당 최대 15개까지 v2 Signal 관찰 기회가 늘어날
-수 있다(실제 수치는 별도 검증 필요, 이번 1단계 범위 밖).
+1단계는 LLM이 꺼지면 꼬리질문이 `mock_data.tail_question_from_planner_decision()`이
+만드는 자리표시자 role_id(`role_{trait}`)를 썼고, 이 값은 Registry에 전혀 등록될
+수 없어 **v2 Signal이 세션당 최대 3개(Context별 Seed 답변 1개)에서만 붙었다.**
+1.5단계는 `resolve_trait_signals()`가 Registry에 없는 조합이면 legacy
+`primary_trait_delta`를 그대로 PRIMARY Signal로 옮기는 LEGACY_PRIMARY_ADAPTER로
+넘어가도록 바꿨다 — 그래서 이제 **일반 질문(Conflict Resolution 제외)은 전부 최소
+PRIMARY Signal 1개를 얻는다**(아래 '§14 LLM-off Coverage 측정' 참고). 다만
+RELATED Signal은 여전히 EXACT_BLUEPRINT(Seed·Backup·Tail Blueprint에 사람이
+직접 등록한 Role)에서만 나온다 — LEGACY_PRIMARY_ADAPTER는 근거 없는 RELATED를
+추측해서 만들지 않는다(1단계 §16 금지 조항 유지).
 
 ## Persona별 비교
 
@@ -40,8 +40,8 @@ game/media Seed에서 원인 분석 선택지를 골라 causal_analysis를 강�
 - v2 HYPOTHESIS: persistence_completion
 - RELATED 승격(promoted_related_signal)된 신규 Trait: systems_thinking
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:0, causal_analysis:2, change_adaptation:0, collaboration_preference:0, emotional_interpretation:0, immediate_execution:0, information_comparison:0, persistence_completion:1, planning:1, systems_thinking:2
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:0, collaboration_preference:0, emotional_interpretation:0, immediate_execution:0, information_comparison:0, persistence_completion:1, planning:1, systems_thinking:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:2, change_adaptation:1, collaboration_preference:2, emotional_interpretation:1, immediate_execution:2, information_comparison:2, persistence_completion:1, planning:1, systems_thinking:2
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:2, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:2, immediate_execution:2, information_comparison:2, persistence_completion:1, planning:2, systems_thinking:1
 
 ### Persona 2 — 시각·창의 표현형
 
@@ -54,8 +54,8 @@ media Seed에서 시각적 표현 선택지를 골라 visual_expression + aesthe
 - v2 HYPOTHESIS: aesthetic_sensitivity, persistence_completion, systems_thinking
 - RELATED 승격(promoted_related_signal)된 신규 Trait: (없음)
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): aesthetic_sensitivity:1, audience_response_prediction:0, causal_analysis:0, change_adaptation:0, collaboration_preference:0, emotional_interpretation:0, immediate_execution:0, pattern_finding:1, persistence_completion:1, planning:1, systems_thinking:1, visual_expression:1
-- Frame 다양성(관찰된 것만, trait_id: frame_count): aesthetic_sensitivity:1, audience_response_prediction:0, causal_analysis:0, change_adaptation:0, collaboration_preference:0, emotional_interpretation:0, immediate_execution:0, pattern_finding:1, persistence_completion:1, planning:1, systems_thinking:1, visual_expression:1
+- Context 다양성(관찰된 것만, trait_id: context_count): aesthetic_sensitivity:1, audience_response_prediction:1, causal_analysis:1, change_adaptation:2, collaboration_preference:1, emotional_interpretation:2, immediate_execution:2, pattern_finding:2, persistence_completion:1, planning:1, systems_thinking:1, visual_expression:2
+- Frame 다양성(관찰된 것만, trait_id: frame_count): aesthetic_sensitivity:1, audience_response_prediction:2, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:2, immediate_execution:2, pattern_finding:2, persistence_completion:1, planning:2, systems_thinking:1, visual_expression:2
 
 ### Persona 3 — 계획·완수형
 
@@ -68,8 +68,8 @@ school_life Seed에서 계획 수립 선택지를 골라 planning + persistence_
 - v2 HYPOTHESIS: detail_orientation, persistence_completion, systems_thinking
 - RELATED 승격(promoted_related_signal)된 신규 Trait: (없음)
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:0, collaboration_preference:0, detail_orientation:1, emotional_interpretation:0, immediate_execution:0, information_comparison:1, opinion_mediation:0, persistence_completion:1, planning:1, systems_thinking:1
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:0, collaboration_preference:0, detail_orientation:1, emotional_interpretation:0, immediate_execution:0, information_comparison:1, opinion_mediation:0, persistence_completion:1, planning:1, systems_thinking:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:1, change_adaptation:1, collaboration_preference:2, detail_orientation:1, emotional_interpretation:1, immediate_execution:2, information_comparison:1, opinion_mediation:2, persistence_completion:1, planning:1, systems_thinking:1
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:2, causal_analysis:2, change_adaptation:2, collaboration_preference:2, detail_orientation:1, emotional_interpretation:2, immediate_execution:2, information_comparison:2, opinion_mediation:2, persistence_completion:1, planning:2, systems_thinking:1
 
 ### Persona 4 — 즉시 실행·변화 적응형
 
@@ -82,8 +82,8 @@ game Seed에서 즉시 실행, school_life Seed에서 변화 대응 선택지를
 - v2 HYPOTHESIS: novelty_seeking, systems_thinking, uncertainty_tolerance
 - RELATED 승격(promoted_related_signal)된 신규 Trait: (없음)
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:1, collaboration_preference:0, emotional_interpretation:0, immediate_execution:1, information_comparison:0, novelty_seeking:1, opinion_mediation:0, pattern_finding:0, systems_thinking:1, uncertainty_tolerance:1
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:1, collaboration_preference:0, emotional_interpretation:0, immediate_execution:1, information_comparison:0, novelty_seeking:1, opinion_mediation:0, pattern_finding:0, systems_thinking:1, uncertainty_tolerance:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:1, immediate_execution:2, information_comparison:2, novelty_seeking:1, opinion_mediation:2, pattern_finding:1, systems_thinking:1, uncertainty_tolerance:1
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:2, causal_analysis:3, change_adaptation:2, collaboration_preference:2, emotional_interpretation:2, immediate_execution:2, information_comparison:2, novelty_seeking:1, opinion_mediation:2, pattern_finding:2, systems_thinking:1, uncertainty_tolerance:1
 
 ### Persona 5 — 협업·조정형
 
@@ -96,8 +96,8 @@ game Seed에서 협업, school_life Seed에서 의견 조정 선택지를 골라
 - v2 HYPOTHESIS: opinion_expression
 - RELATED 승격(promoted_related_signal)된 신규 Trait: (없음)
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:0, causal_analysis:0, change_adaptation:0, collaboration_preference:1, emotional_interpretation:1, immediate_execution:0, information_comparison:0, opinion_expression:1, opinion_mediation:1
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:0, causal_analysis:0, change_adaptation:0, collaboration_preference:1, emotional_interpretation:1, immediate_execution:0, information_comparison:0, opinion_expression:1, opinion_mediation:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:1, change_adaptation:2, collaboration_preference:1, emotional_interpretation:2, immediate_execution:2, information_comparison:2, opinion_expression:1, opinion_mediation:1
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:2, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:3, immediate_execution:2, information_comparison:2, opinion_expression:1, opinion_mediation:2
 
 ### Persona 6 — 독립 판단·자기 기준형
 
@@ -110,8 +110,8 @@ independent_judgment/personal_goal_priority는 이번 1단계에서 RELATED Sign
 - v2 HYPOTHESIS: persistence_completion, uncertainty_tolerance
 - RELATED 승격(promoted_related_signal)된 신규 Trait: (없음)
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:0, change_adaptation:0, collaboration_preference:0, emotional_interpretation:0, immediate_execution:1, information_comparison:0, persistence_completion:1, planning:1, uncertainty_tolerance:1
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:1, causal_analysis:0, change_adaptation:0, collaboration_preference:0, emotional_interpretation:0, immediate_execution:1, information_comparison:0, persistence_completion:1, planning:1, uncertainty_tolerance:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:2, causal_analysis:1, change_adaptation:2, collaboration_preference:2, emotional_interpretation:2, immediate_execution:2, information_comparison:2, persistence_completion:1, planning:2, uncertainty_tolerance:1
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:3, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:2, immediate_execution:2, information_comparison:2, persistence_completion:1, planning:2, uncertainty_tolerance:1
 
 ### Persona 7 — Sparse Evidence Persona
 
@@ -125,7 +125,7 @@ Seed 3개(Context당 1개)만 답하고 중단한 경우 — 대부분의 Trait�
 - RELATED 승격(promoted_related_signal)된 신규 Trait: (없음)
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
 - Context 다양성(관찰된 것만, trait_id: context_count): causal_analysis:1, systems_thinking:1
-- Frame 다양성(관찰된 것만, trait_id: frame_count): causal_analysis:1, systems_thinking:1
+- Frame 다양성(관찰된 것만, trait_id: frame_count): causal_analysis:2, systems_thinking:1
 
 ### Persona 8 — Related Signal만 반복된 Persona
 
@@ -138,8 +138,8 @@ systems_thinking은 어떤 Role에서도 PRIMARY로 배정된 적이 없다(신�
 - v2 HYPOTHESIS: novelty_seeking
 - RELATED 승격(promoted_related_signal)된 신규 Trait: systems_thinking
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: (없음)
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:0, causal_analysis:2, change_adaptation:1, collaboration_preference:0, emotional_interpretation:0, immediate_execution:0, information_comparison:0, novelty_seeking:1, opinion_mediation:0, systems_thinking:2
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:1, collaboration_preference:0, emotional_interpretation:0, immediate_execution:0, information_comparison:0, novelty_seeking:1, opinion_mediation:0, systems_thinking:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:1, immediate_execution:2, information_comparison:2, novelty_seeking:1, opinion_mediation:2, systems_thinking:2
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:2, causal_analysis:2, change_adaptation:3, collaboration_preference:2, emotional_interpretation:2, immediate_execution:1, information_comparison:2, novelty_seeking:1, opinion_mediation:2, systems_thinking:1
 
 ### Persona 9 — Explicit Conflict Persona
 
@@ -166,21 +166,48 @@ game Seed에서 패턴 인식(pattern_in_structure Concept), media Seed에서 �
 - v2 HYPOTHESIS: (없음)
 - RELATED 승격(promoted_related_signal)된 신규 Trait: systems_thinking
 - 같은 Trait가 2개 이상 Related Concept로 연결된 사례: systems_thinking(['pattern_in_structure', 'whole_system_view'])
-- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:0, collaboration_preference:1, emotional_interpretation:0, immediate_execution:0, information_comparison:0, pattern_finding:1, systems_thinking:2
-- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:0, causal_analysis:1, change_adaptation:0, collaboration_preference:1, emotional_interpretation:0, immediate_execution:0, information_comparison:0, pattern_finding:1, systems_thinking:1
+- Context 다양성(관찰된 것만, trait_id: context_count): audience_response_prediction:1, causal_analysis:2, change_adaptation:2, collaboration_preference:2, emotional_interpretation:2, immediate_execution:2, information_comparison:2, pattern_finding:2, systems_thinking:2
+- Frame 다양성(관찰된 것만, trait_id: frame_count): audience_response_prediction:2, causal_analysis:3, change_adaptation:2, collaboration_preference:3, emotional_interpretation:2, immediate_execution:2, information_comparison:2, pattern_finding:2, systems_thinking:1
+
+## §14 LLM-off Coverage 측정 (실제 완주 세션 1개, 재현 가능)
+
+- 전체 답변 수: 21
+- 일반 질문(Conflict Resolution 제외) 수: 21
+- EXACT_BLUEPRINT 수: 3
+- LEGACY_PRIMARY_ADAPTER 수: 18
+- v2 Signal이 비어 있는(signals=[]) 일반 질문 수: 0 (0이어야 완료 조건을 만족한다)
+- 관찰된 Trait 수(NOT_PROBED 제외): 10
+- Directly Measurable Trait 중 이번 세션에서 실제 관찰된 수: 8
+- Related-Only Trait 중 이번 세션에서 실제 관찰된 수: 2
+- HYPOTHESIS 수: 1
+- 승격된 RELATED(promoted_related_signal) 수: 1
+- NOT_PROBED로 남은 Trait 수: 5
+- Context 2개 이상에서 관찰된 Trait 수: 5
+- Frame 2개 이상에서 관찰된 Trait 수: 8
+
+## §11 LLM-on 실검증 (opt-in, 실제 API Key 존재 시 1회 수동 실행 결과)
+
+`.env`에 `OPENAI_API_KEY`와 `ENABLE_LLM_QUESTION_GENERATION=true`가 설정돼 있어
+실제 네트워크 호출로 1회 검증했다(재현성이 필요 없는 opt-in 검증이라 이 스크립트의
+기본 실행에는 포함하지 않는다 — 실행할 때마다 실제 비용이 발생한다).
+
+- `generate_tail_question(option_blueprint_id="problem_response_v1", trait_definition=causal_analysis, context=game, frame_id="problem_check")`를
+  실제 OpenAI Client로 1회 호출했다.
+- `outcome.source == "llm"`(성공), 생성된 질문: "게임을 하다가 예상과 다른 일이 일어났을 때 먼저 무엇을 하나요?"
+- 반환된 5개 Role(cause_analysis/strategy_change/direct_trial/external_research/ask_others) 전부 `resolve_trait_signals(question_family_id="tail_blueprint", blueprint_id="problem_response_v1", ...)`에서 `EXACT_BLUEPRINT`로 조회됐다 —
+  LLM이 생성한 질문의 Role이 실제로 Signal Registry에 연결되는지 확인됐다.
+- 5개 선택지 문장을 사람이 직접 읽고 확인한 결과, 각 선택지가 가리키는 Signal
+  Mapping(causal_analysis/change_adaptation/immediate_execution/information_comparison/collaboration_preference)과 의미상 모순이 없었다.
+- Quality Gate 재생성 시 내부 Blueprint id 보존 여부와 외부 호출 실패 시 Backup
+  전환은 실제 네트워크 호출로 강제 재현하기 어려워(LLM이 의도적으로 형식을 어기게
+  만들 수 없고, 네트워크 장애도 임의로 일으킬 수 없다) 결정론적 FakeLLM 테스트로
+  검증했다(`tests/test_evidence_ledger_v2_signal.py::LLMOnSignalMappingTest`).
 
 ## 종합 판단
 
-- Core Trait 24개 중 Vertical Slice Active로 분류된 것: 19개
-  (기존 12개 + 신규 7개: aesthetic_sensitivity, detail_orientation, novelty_seeking, opinion_expression, persistence_completion, systems_thinking, uncertainty_tolerance)
-- 신규 12개 Trait 중 이번 1단계에서 전혀 관찰되지 않는 것(PRIMARY Role 자체가 없음): challenge_seeking, creative_ideation, independent_judgment, personal_goal_priority, verbal_expression
-- 신규 Trait는 전부 PRIMARY Role이 없다 — RELATED Signal로만 관찰되고, 위
-  '핵심 한계' 때문에 LLM 없이는 Seed 3개에서 나온 조합만으로 승격 여부가
-  갈린다. Persona 1/10처럼 game+media Seed 조합이 causal_analysis 계열을
-  고르면 systems_thinking만 승격되고, 나머지 신규 Trait(aesthetic_sensitivity/
-  opinion_expression/persistence_completion/uncertainty_tolerance/
-  detail_orientation/novelty_seeking)는 Seed 원천이 Context 1곳뿐이라 이번
-  1단계의 Seed-only 관찰로는 HYPOTHESIS를 넘지 못한다.
+- Core Trait 24개 중 Directly Measurable: 12개(기존 12개와 정확히 동일 — 신규 Trait는 이번 단계에서 하나도 승격되지 않았다)
+- Related-Only Trait: 7개 aesthetic_sensitivity, detail_orientation, novelty_seeking, opinion_expression, persistence_completion, systems_thinking, uncertainty_tolerance
+- Not Probed Trait: 5개 challenge_seeking, creative_ideation, independent_judgment, personal_goal_priority, verbal_expression
 - RELATED Signal 승격(LIMITED)이 STRONG/MODERATE로 잘못 해석된 사례는 없다
   (`compute_trait_vector_snapshot_all`이 legacy PRIMARY 판정을 항상 우선한다).
 - 동일 Concept·Trait가 같은 답변에서 중복 합산되는 사례는 없었다(Persona 10 —
@@ -188,3 +215,5 @@ game Seed에서 패턴 인식(pattern_in_structure Concept), media Seed에서 �
 - 지나치게 넓은 Trait Mapping이나 동점 현상은 관찰되지 않았다 — 신규 Trait는
   전부 최대 1개 RELATED Signal만 가진 Role에서 나왔고, 한 Role이 3개 이상의
   RELATED Signal을 가진 경우는 없다(Registry 자체가 이미 그렇게 설계됨).
+- 1.5단계 핵심 성과: 일반 질문의 v2 Signal 누락(signals=[])이 0건으로 확인됐다 —
+  1단계의 '세션당 최대 3개' 한계가 PRIMARY Signal 관점에서 해소됐다.

@@ -5,13 +5,13 @@ from __future__ import annotations
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from src.schemas.trait_signal import SignalRole
+from src.schemas.trait_signal import MappingSource, SignalRole
 
 
 class AppliedTraitSignal(BaseModel):
-    """2026-08-31 Trait Ontology v2(1단계) §8 — 답변 하나가 실제로 적용한 v2 Trait
+    """2026-08-23 Trait Ontology v2(1단계) §8 — 답변 하나가 실제로 적용한 v2 Trait
     Signal 하나. `TraitSignal`(정본 Registry 값)과 필드는 같지만, 이건 "이 답변이 실제로
     적용받은 값"을 Evidence Ledger에 그대로 굳혀 기록하는 별도 타입이다 — 나중에
     Registry 내용이 바뀌어도 과거 Evidence 기록은 그때 실제로 적용된 값 그대로 남아야
@@ -20,7 +20,10 @@ class AppliedTraitSignal(BaseModel):
     trait_id: str
     signal_role: SignalRole
     weight: float
-    related_concept_ids: list[str] = []
+    # 1.5단계 §6: mutable default([])는 클래스 정의 시 한 번만 만들어지는 공유 객체라,
+    # 실수로 여러 인스턴스가 같은 list를 공유하게 될 위험이 있다 — default_factory로
+    # 인스턴스마다 새 list를 만든다.
+    related_concept_ids: list[str] = Field(default_factory=list)
 
 
 class EvidenceOrigin(str, Enum):
@@ -57,13 +60,18 @@ class EvidenceRecord(BaseModel):
     generator_version: str
     quality_gate_status: str
     cross_context_group: str | None = None
-    # 2026-08-31 Trait Ontology v2(1단계) §8: 기존 `applied_primary_trait_delta`는
+    # 2026-08-23 Trait Ontology v2(1단계) §8: 기존 `applied_primary_trait_delta`는
     # 즉시 제거하지 않고 하위 호환·Legacy 계산을 위해 그대로 유지한다 — 이 필드는
     # 그 옆에 병행으로 추가하는 v2 Signal 기록이다(기본값 빈 리스트라 기존 EvidenceRecord
-    # 생성 코드는 하나도 안 고쳐도 된다). `role_id`가 v2 Registry에 없으면(예: 아직
-    # Signal을 매핑하지 않은 Backup Question, Conflict Resolution 확인 질문) 빈 리스트로
-    # 남는다 — 지어내지 않는다.
-    applied_trait_signals_v2: list[AppliedTraitSignal] = []
+    # 생성 코드는 하나도 안 고쳐도 된다). Conflict Resolution 확인 질문에서만 빈 리스트로
+    # 남는다 — 그 외 정상 질문은 1.5단계부터 항상 최소 1개(EXACT_BLUEPRINT 또는
+    # LEGACY_PRIMARY_ADAPTER)를 갖는다.
+    applied_trait_signals_v2: list[AppliedTraitSignal] = Field(default_factory=list)
+    # 1.5단계 §1/§6 신규: 이 Evidence의 v2 Signal이 어디서 왔는지(사람이 검토한 Registry
+    # 값인지, 아직 Registry에 없어 legacy delta를 그대로 옮긴 것인지, Conflict Resolution
+    # 이라 아예 없는지) 감사·Coverage 측정용으로 남긴다. None은 이 필드가 생기기 전
+    # 과거(1단계) 기록과의 하위 호환용이다 — API 응답에는 노출하지 않는다.
+    trait_signal_mapping_source_v2: MappingSource | None = None
 
 
 class ContrastDefinition(BaseModel):

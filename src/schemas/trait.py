@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from src.ids import is_valid_slug
 
@@ -35,12 +35,13 @@ class TraitDefinition(BaseModel):
     # 취급")이라, 이 필드를 모르는 기존 테스트 Fixture(tests/test_*.py의 손으로 만든
     # TraitDefinition)가 실수로 더 강한 근거를 주장하게 되지 않는다.
     grounding_type: GroundingType = "TEAM_DEFINED"
-    # 2026-08-31 Trait Ontology v2(1단계, Shadow Mode) 추가 필드 — 전부 기본값을 둬서
+    # 2026-08-23 Trait Ontology v2(1단계, Shadow Mode) 추가 필드 — 전부 기본값을 둬서
     # 기존 12개 Trait(VERTICAL_SLICE_TRAITS)를 만드는 코드를 하나도 안 고쳐도 된다.
     # neighboring_trait_ids/distinction_notes는 새 24개 Trait가 의미상 겹치는 이웃
     # Trait와 실제로 어떻게 다른지 명시하기 위한 것이다("두 Trait가 뭐가 다른가"를
     # 문서로 남기지 않으면 나중에 누구도 구분 못 하고 하나로 합쳐버리기 쉽다).
-    neighboring_trait_ids: list[str] = []
+    # 1.5단계 §6: mutable default([]) 대신 default_factory로 인스턴스마다 새 list를 만든다.
+    neighboring_trait_ids: list[str] = Field(default_factory=list)
     distinction_notes: str = ""
     # 이 Trait 정의 자체가 2인 교차검토를 거쳤는지 — Major/Subject Mapping의
     # review_status와 같은 의미(draft=아직 검토 전, team_reviewed=검토 완료).

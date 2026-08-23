@@ -50,6 +50,12 @@ from src.data.contexts.context_vectors import CONTEXT_VECTORS
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
+from src.data.trait_ontology.trait_probe_capabilities_v2 import (
+    CORE_TRAIT_IDS,
+    DIRECTLY_MEASURABLE_TRAIT_IDS,
+    NOT_PROBED_TRAIT_IDS,
+    RELATED_ONLY_TRAIT_IDS,
+)
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
 from src.engines.contrast_context_selector import (
     CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE,
@@ -68,6 +74,7 @@ from src.engines.matching_engine import (
     compute_student_trait_states,
     rank_major_relevance,
 )
+from src.engines.trait_vector_snapshot_engine import compute_trait_vector_snapshot_all
 from src.ids import generate_question_id, generate_session_id
 from src.llm.openai_client import OpenAIChatClient
 from src.llm.protocols import ChatLLMClient
@@ -101,6 +108,7 @@ from src.services.knowledge_subgraph_service import (
 from src.services.major_exploration_service import MajorExplorationService
 from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
 from src.services.subject_trait_mapping_evidence import load_subject_trait_mapping_evidence
+from src.services.trait_vector_shadow_repository import InMemoryTraitVectorShadowRepository
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
 from src.tracing.settings import TracingSettingsError, load_tracing_settings, tracing_enabled
@@ -133,6 +141,8 @@ from src.schemas.api import (
     SubjectsResponse,
 )
 from src.schemas.assessment_state import AssessmentPhase, AssessmentState
+from src.schemas.evidence import EvidenceOrigin
+from src.schemas.trait_vector_snapshot import TraitVectorSnapshot
 
 app = FastAPI(
     title="AI 진로·학업설계 Agent API",
@@ -172,6 +182,10 @@ async def _handle_request_validation_error(request: Request, exc: RequestValidat
 
 
 _store = InMemorySessionStore()
+# 2026-08-23 Trait Ontology v2(1.5단계) §9 — Shadow Mode 전용 저장소. Career Profile
+# Store와 완전히 분리된 별도 객체다: 이 저장소가 뭘 하든(계산 실패든 값이 이상하든)
+# 기존 Career Profile 응답에는 절대 영향을 줄 수 없다는 걸 타입 수준에서도 분리해 둔다.
+_trait_vector_shadow_repository = InMemoryTraitVectorShadowRepository()
 
 # 설계안 §1: 공모전 프로토타입은 로그인 없이 demo_user_01 단일 사용자만 지원한다.
 # 2026-08-20 보안 리뷰 반영: 이전에는 create_session이 클라이언트가 보낸 user_id를
@@ -296,6 +310,8 @@ def _advance_to_next_context_or_complete(state: AssessmentState) -> bool:
         state.current_context_seed_trait_id = None
         state.resolution_questions_asked_in_current_context = 0
         state.pending_resolution_contrast_id = None
+        state.current_question_family_id = None
+        state.current_question_blueprint_id = None
         return True
     state.phase = AssessmentPhase.PROFILE_GENERATION
     return False
@@ -512,6 +528,11 @@ def next_question(session_id: str) -> NextQuestionResponse:
         if builder is not None:
             question = builder(current_context)
             state.current_question = question
+            # 2026-08-23 Trait Ontology v2(1.5단계) §3: Conflict Resolution 확인 질문은
+            # resolve_trait_signals()가 is_resolution_question=True로 항상 무시하지만,
+            # 감사 목적으로 family/blueprint id도 의미 있는 값으로 남겨둔다.
+            state.current_question_family_id = "conflict_resolution"
+            state.current_question_blueprint_id = question.contrast_id or ""
             _store.save(state)
             return NextQuestionResponse(
                 session_id=session_id,
@@ -522,9 +543,17 @@ def next_question(session_id: str) -> NextQuestionResponse:
                 assessment_complete=False,
             )
 
+    question_family_id: str
+    question_blueprint_id: str
+
     if state.questions_asked_in_current_context == 0:
         # Context의 첫 질문 — 실제 확정된 Seed Question(§7-1)을 그대로 반환한다.
         question = mock_data.next_mock_question(current_context, 0)
+        # 2026-08-23 Trait Ontology v2(1.5단계) §3: Seed의 Blueprint id는
+        # `seed_question_to_blueprint()`와 동일한 명명 규칙("{question_id}_blueprint")을
+        # 그대로 따른다 — trait_signal_registry.py가 Seed를 등록할 때 이 함수로 직접
+        # 만든 blueprint_id와 정확히 같은 문자열이어야 EXACT_BLUEPRINT로 조회된다.
+        question_family_id, question_blueprint_id = "seed", f"{question.question_id}_blueprint"
     elif _llm_client is not None and state.pending_target_traits and state.pending_option_blueprint_id:
         question_id = generate_question_id(
             current_context, "tail", state.questions_asked_in_current_context
@@ -591,12 +620,26 @@ def next_question(session_id: str) -> NextQuestionResponse:
         if outcome.source == "backup":
             state.used_backup_question_ids.append(question.question_id)
             status = QuestionDeliveryStatus.BACKUP_USED
+            # 2026-08-23 Trait Ontology v2(1.5단계) §2/§4: Backup Question은 Tail
+            # Blueprint가 아니라 그 자체가 하나의 고정 Blueprint다 — question_id를
+            # blueprint_id로 쓴다(trait_signal_registry.py의 Backup 등록과 동일한 규칙).
+            question_family_id, question_blueprint_id = "backup", question.question_id
         elif outcome.source == "cache":
             status = QuestionDeliveryStatus.CACHE_USED
+            question_family_id, question_blueprint_id = "tail_blueprint", state.pending_option_blueprint_id
         else:
             status = QuestionDeliveryStatus.GENERATED
+            question_family_id, question_blueprint_id = "tail_blueprint", state.pending_option_blueprint_id
     else:
         # LLM 미연동(.env ENABLE_LLM_QUESTION_GENERATION 미설정) 상태의 기존 Mock 경로.
+        # 2026-08-23 Trait Ontology v2(1.5단계) §1 감사 결과: 이 경로가 만드는 role_id는
+        # 실제 Blueprint가 아니라 그때그때 만든 자리표시자(`role_{trait}`)라 v2 Registry에
+        # 절대 등록될 수 없다 — family를 "mock_placeholder"로 명확히 구분해서, Registry
+        # 조회가 항상 실패하고 LEGACY_PRIMARY_ADAPTER로 넘어가는 것이 설계대로임을
+        # 감사 기록에 남긴다(§4 "정상 질문인데 signals=[]로 조용히 끝나는 경로를 없앨
+        # 것"은 LEGACY_PRIMARY_ADAPTER가 항상 PRIMARY Signal 1개를 보장하는 것으로
+        # 충족한다 — 이 Mock 경로의 role_id·offered trait 구성 자체는 바꾸지 않는다,
+        # 바꾸면 기존 LLM-off 세션의 Legacy Profile/Major/Subject 결과가 달라진다).
         question_id = generate_question_id(
             current_context, "tail", state.questions_asked_in_current_context
         )
@@ -606,8 +649,11 @@ def next_question(session_id: str) -> NextQuestionResponse:
             state.pending_target_traits,
             state.pending_question_frame or "problem_check",
         )
+        question_family_id, question_blueprint_id = "mock_placeholder", question.question_id
 
     state.current_question = question
+    state.current_question_family_id = question_family_id
+    state.current_question_blueprint_id = question_blueprint_id
     _store.save(state)
     return NextQuestionResponse(
         session_id=session_id,
@@ -744,7 +790,64 @@ def get_profile(session_id: str) -> ProfileResponse:
             "highlight_count": len(profile.highlights),
         },
     )
+    _compute_and_store_trait_vector_shadow_snapshot(state)
     return profile
+
+
+def _compute_and_store_trait_vector_shadow_snapshot(state: AssessmentState) -> None:
+    """2026-08-23 Trait Ontology v2(1.5단계) §9 — `/profile` 응답이 이미 확정된 뒤에만
+    호출한다(Fail-Open: 이 함수가 무엇을 하든 위에서 이미 만든 `profile` 반환값에는
+    영향을 줄 수 없다). 계산이 실패해도(방어적으로 broad Exception을 잡는다 — 이 함수는
+    Shadow 진단 전용이라 어떤 예외도 사용자에게 전파하면 안 된다) 그냥 이번 호출만
+    건너뛴다 — 세션 진행에는 영향이 없다."""
+
+    try:
+        legacy_states = compute_student_trait_states(
+            state.trait_summaries,
+            TRAIT_DEFINITIONS_BY_ID,
+            unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
+            resolutions=state.contrast_resolutions,
+        )
+        entries = compute_trait_vector_snapshot_all(
+            state.evidence_ledger, legacy_states, state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS
+        )
+        snapshot = TraitVectorSnapshot(entries=entries)
+        _trait_vector_shadow_repository.save(state.session_id, snapshot)
+
+        observed = [e for e in entries.values() if e.evidence_confidence != "no_evidence"]
+        primary_records = [r for r in state.evidence_ledger if r.evidence_origin == EvidenceOrigin.PRIMARY_BLUEPRINT]
+        _tracer.record_stage(
+            trace_id=state.trace_id,
+            stage_name="Trait Vector Shadow Snapshot",
+            attributes={
+                "graph_node": "trait_vector_shadow_snapshot",
+                "core_trait_count": len(CORE_TRAIT_IDS),
+                "observable_trait_count": len(observed),
+                "directly_measurable_count": len(DIRECTLY_MEASURABLE_TRAIT_IDS),
+                "related_only_count": len(RELATED_ONLY_TRAIT_IDS),
+                "not_probed_count": len(NOT_PROBED_TRAIT_IDS),
+                "observed_in_session_count": len(observed),
+                "hypothesis_count": sum(1 for e in entries.values() if e.status == "HYPOTHESIS"),
+                "promoted_related_count": sum(
+                    1 for e in entries.values() if e.evidence_confidence == "promoted_related_signal"
+                ),
+                "conflict_count": sum(1 for e in entries.values() if e.status == "CONFLICTING"),
+                "mapping_source_exact_count": sum(
+                    1 for r in primary_records if r.trait_signal_mapping_source_v2 == "EXACT_BLUEPRINT"
+                ),
+                "mapping_source_legacy_adapter_count": sum(
+                    1 for r in primary_records if r.trait_signal_mapping_source_v2 == "LEGACY_PRIMARY_ADAPTER"
+                ),
+                "mapping_missing_count": sum(
+                    1 for r in primary_records if r.trait_signal_mapping_source_v2 is None
+                ),
+            },
+        )
+    except Exception:
+        # Fail-Open — Shadow 계산·기록 실패가 Career Profile 응답에 영향을 주면 안 된다.
+        # 이미 위에서 `profile`을 계산·반환하기로 확정한 뒤에만 이 함수를 호출하므로,
+        # 여기서 무엇이 실패해도 되돌릴 결과가 없다(부수 효과만 실패할 뿐이다).
+        pass
 
 
 @app.get("/majors/{session_id}", response_model=MajorsResponse)

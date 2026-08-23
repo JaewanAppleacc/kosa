@@ -17,7 +17,14 @@ _FORBIDDEN_OPENAPI_STRINGS = (
     "related_concept_ids", "primary_signal_sum", "related_signal_sum",
     "confirmed_related_signal_sum", "tendency_score", "TraitVectorEntry",
     "TraitVectorStatus", "RelatedConceptDefinition", "trait_ontology_v2",
+    # 1.5단계 §14 추가 — 새로 만든 내부 타입/필드도 전부 확인한다.
+    "TraitSignalRegistryKey", "TraitSignalResolution", "mapping_source",
+    "EXACT_BLUEPRINT", "LEGACY_PRIMARY_ADAPTER", "trait_signal_mapping_source_v2",
+    "TraitProbeCapability", "TraitVectorSnapshot", "TraitVectorShadowRepository",
+    "blueprint_ids", "primary_probe_count", "related_probe_count",
 )
+
+_FORBIDDEN_ENDPOINT_PATH_FRAGMENTS = ("trait-vector", "/debug", "/shadow")
 
 
 class OpenAPINoInternalSignalLeakTest(unittest.TestCase):
@@ -25,6 +32,15 @@ class OpenAPINoInternalSignalLeakTest(unittest.TestCase):
         spec_text = str(app.openapi())
         for forbidden in _FORBIDDEN_OPENAPI_STRINGS:
             self.assertNotIn(forbidden, spec_text, f"OpenAPI에 내부 v2 타입이 노출됨: {forbidden!r}")
+
+    def test_no_new_shadow_debug_endpoint_was_added(self) -> None:
+        """1.5단계 §10/§15 금지: `/trait-vector`, `/debug`, `/shadow` 같은 Endpoint를
+        추가하지 않는다 — Shadow 결과 확인은 Repository 직접 조회·테스트·스크립트로만 한다."""
+
+        paths = app.openapi()["paths"]
+        for path in paths:
+            for forbidden in _FORBIDDEN_ENDPOINT_PATH_FRAGMENTS:
+                self.assertNotIn(forbidden, path, f"금지된 Shadow 전용 Endpoint 추가됨: {path!r}")
 
 
 class SessionLifecycleRegressionTest(unittest.TestCase):

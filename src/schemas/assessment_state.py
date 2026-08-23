@@ -118,6 +118,18 @@ class AssessmentState(BaseModel):
     # 없애기 위해 Planner가 고른 Blueprint를 그대로 넘긴다.
     pending_option_blueprint_id: str | None = None
 
+    # 2026-08-23 Trait Ontology v2(1.5단계) §3 — "지금 학생에게 나가 있는 current_question이
+    # v2 Signal Registry를 조회할 때 어떤 (질문 계열, Blueprint)에서 왔는지"를 가리키는
+    # 서버 내부 전용 식별자. FinalizedQuestion 자체에 필드를 추가해 API 응답에서
+    # exclude=True로 숨기는 방식 대신 이 State 필드를 골랐다 — 이유는 완료 보고에 설명한다
+    # (핵심은: FinalizedQuestion은 NextQuestionResponse 등 여러 Response Model에 직접
+    # 중첩되므로 매 경로·매 직렬화 지점마다 노출 여부를 새로 검증해야 하는데, AssessmentState는
+    # 이미 어떤 Response Model에도 직접 노출되지 않는다는 게 기존 구조로 보장돼 있다 —
+    # pending_option_blueprint_id·pending_resolution_contrast_id와 같은 기존 패턴을 그대로
+    # 따른다). Seed·LLM·Backup 질문 모두 next_question() Handler가 이 두 필드를 채운다.
+    current_question_family_id: str | None = None
+    current_question_blueprint_id: str | None = None
+
     @property
     def current_context_id(self) -> str | None:
         if 0 <= self.current_context_index < len(self.context_processing_order):

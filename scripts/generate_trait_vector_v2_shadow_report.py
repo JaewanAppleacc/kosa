@@ -1,4 +1,5 @@
-"""Trait Vector v2 Shadow Mode 비교 보고서 생성 — 2026-08-31 Trait Ontology v2(1단계) §11.
+"""Trait Vector v2 Shadow Mode 비교 보고서 생성 — 2026-08-23 Trait Ontology v2(1단계 §11,
+1.5단계 §11/§14).
 
 10개 고정 Persona에 대해 기존 Legacy Trait Summary와 신규 v2 Trait Vector Snapshot을
 "병행 계산만" 하고(기존 Profile·Matching·Subgraph 결과는 절대 바꾸지 않는다) 비교
@@ -6,11 +7,15 @@
 호출해서 만든다(LLM은 로컬 `.env` 설정과 무관하게 이 스크립트 실행 동안 강제로 끈다 —
 재실행해도 같은 결과가 나오는 결정론적 보고서여야 하므로). Persona 7(Sparse Evidence)은
 같은 흐름을 더 일찍 멈춘 것이고, Persona 9(Explicit Conflict)는 실제 Contrast Frame
-("new_tool")이 필요한데 LLM 없이는 그 Frame의 실제 꼬리질문이 나오지 않아(Mock 꼬리질문은
-자리표시자 role_id를 쓴다) API로 재현할 수 없다 — 대신 실제 엔진 함수(`detect_explicit_
-conflicts` 등)에 직접 넣을 EvidenceLedger를 구성해 확인한다(§1 감사에서 이미 확인한
-사실: Mock 꼬리질문 경로는 role_id가 Registry에 등록되지 않은 자리표시자라 v2 Signal이
-전혀 안 붙는다 — 이 스크립트가 그 한계를 그대로 드러내고 보고서에도 명시한다).
+("new_tool")이 필요한데 LLM 없이는 그 Frame의 실제 꼬리질문이 나오지 않아 API로 재현할
+수 없다 — 대신 실제 엔진 함수(`detect_explicit_conflicts` 등)에 직접 넣을 EvidenceLedger를
+구성해 확인한다.
+
+1.5단계 수정: role_id 단독 조회(`signals_for_role`)가 복합 Key 조회(`resolve_trait_signals`)로
+바뀌면서, LLM-off Mock 꼬리질문도 더 이상 signals=[]로 끝나지 않는다(LEGACY_PRIMARY_ADAPTER가
+legacy `primary_trait_delta`를 그대로 PRIMARY Signal로 옮긴다) — "세션당 최대 3개"라는 1단계의
+핵심 한계는 PRIMARY Signal 관점에서는 더 이상 사실이 아니다(§14 Coverage 측정 섹션 참고).
+RELATED Signal은 여전히 EXACT_BLUEPRINT(Seed·Backup·Tail Blueprint 등록분)에서만 나온다.
 
 실행: PYTHONPATH=. ./.venv/bin/python scripts/generate_trait_vector_v2_shadow_report.py
 """
@@ -28,9 +33,11 @@ from fastapi.testclient import TestClient  # noqa: E402
 import src.api.main as main_module  # noqa: E402
 from src.api.main import app  # noqa: E402
 from src.data.trait_ontology.new_traits_v2_draft import NEW_TRAIT_IDS_V2  # noqa: E402
-from src.data.trait_ontology.vertical_slice_active_traits import (  # noqa: E402
+from src.data.trait_ontology.trait_probe_capabilities_v2 import (  # noqa: E402
     CORE_TRAIT_IDS,
-    VERTICAL_SLICE_ACTIVE_TRAIT_IDS,
+    DIRECTLY_MEASURABLE_TRAIT_IDS,
+    NOT_PROBED_TRAIT_IDS,
+    RELATED_ONLY_TRAIT_IDS,
 )
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS  # noqa: E402
 from src.engines.conflict_engine import detect_explicit_conflicts  # noqa: E402
@@ -48,7 +55,7 @@ from src.data.conflicts.vertical_slice_contrast_definitions import (  # noqa: E4
 )
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS  # noqa: E402
 from src.services.trait_ontology_v2 import load_trait_ontology_v2  # noqa: E402
-from src.services.trait_signal_registry import signals_for_role  # noqa: E402
+from src.services.trait_signal_registry import resolve_trait_signals  # noqa: E402
 
 OUTPUT_PATH = Path(__file__).resolve().parents[1] / "outputs" / "evaluation" / "trait_vector_v2_shadow_report.md"
 
@@ -71,8 +78,9 @@ def _run_persona_via_api(
 ) -> AssessmentState:
     """실제 /assessment API로 세션을 끝까지(또는 max_answers까지) 진행한다. Seed
     질문(Context당 1개)에서만 seed_choice_1_based로 지정한 선택지를 고르고, 그 뒤
-    꼬리질문은 전부 옵션[0]을 고른다(Mock 자리표시자라 v2 Signal에는 영향이 없다 —
-    Legacy Trait 축적에는 영향을 준다)."""
+    꼬리질문은 전부 옵션[0]을 고른다. 1.5단계부터는 이 꼬리질문 답변도
+    LEGACY_PRIMARY_ADAPTER를 거쳐 PRIMARY v2 Signal을 얻는다(RELATED는 여전히 얻지
+    못한다 — Mock 자리표시자 role_id는 Registry에 등록될 수 없다)."""
 
     r = client.post("/assessment/session")
     session_id = r.json()["session_id"]
@@ -137,32 +145,37 @@ def _build_conflict_persona_state() -> dict:
 
     contrast = VERTICAL_SLICE_CONTRAST_DEFINITIONS[0]
 
-    def _rec(idx: int, role_id: str, trait_id: str, context: str) -> EvidenceRecord:
-        registry_signals = signals_for_role(role_id)
-        signals = (
-            [
-                AppliedTraitSignal(
-                    trait_id=s.trait_id, signal_role=s.signal_role, weight=s.weight,
-                    related_concept_ids=s.related_concept_ids,
-                )
-                for s in registry_signals
-            ]
-            if registry_signals
-            else [AppliedTraitSignal(trait_id=trait_id, signal_role="PRIMARY", weight=1.0)]
+    def _rec(
+        idx: int, family_id: str, blueprint_id: str, role_id: str, trait_id: str, context: str
+    ) -> EvidenceRecord:
+        resolution = resolve_trait_signals(
+            question_family_id=family_id, blueprint_id=blueprint_id, role_id=role_id,
+            legacy_primary_trait_delta={trait_id: 1}, is_resolution_question=False,
         )
+        signals = [
+            AppliedTraitSignal(
+                trait_id=s.trait_id, signal_role=s.signal_role, weight=s.weight,
+                related_concept_ids=s.related_concept_ids,
+            )
+            for s in resolution.signals
+        ]
         return EvidenceRecord(
             evidence_id=generate_evidence_id(), answer_id=f"ans_{idx}", question_id=f"q_conflict_{idx}",
             question_frame_id="new_tool", option_role_id=role_id, option_text="답변 예시",
             applied_primary_trait_delta={trait_id: 1}, applied_trait_signals_v2=signals,
+            trait_signal_mapping_source_v2=resolution.mapping_source,
             evidence_origin=EvidenceOrigin.PRIMARY_BLUEPRINT, context=context,
             source_type="seed_question", generator_version="v1", quality_gate_status="passed",
         )
 
+    # task_planning/quick_execution은 Seed Role, advance_planning/direct_trial은 Tail
+    # Blueprint(planning_and_execution_v1/problem_response_v1) Role이다 — 서로 다른
+    # 질문 계열이라 family_id/blueprint_id를 각각 정확히 넣어야 EXACT_BLUEPRINT로 조회된다.
     ledger = [
-        _rec(1, "task_planning", "planning", "school_life"),
-        _rec(2, "advance_planning", "planning", "school_life"),
-        _rec(3, "quick_execution", "immediate_execution", "game"),
-        _rec(4, "direct_trial", "immediate_execution", "game"),
+        _rec(1, "seed", "school_life_seed_01_blueprint", "task_planning", "planning", "school_life"),
+        _rec(2, "tail_blueprint", "planning_and_execution_v1", "advance_planning", "planning", "school_life"),
+        _rec(3, "seed", "game_seed_01_blueprint", "quick_execution", "immediate_execution", "game"),
+        _rec(4, "tail_blueprint", "problem_response_v1", "direct_trial", "immediate_execution", "game"),
     ]
     all_offered = [set(r.applied_primary_trait_delta) for r in ledger]
     from src.engines.evidence_engine import summarize_trait_evidence
@@ -248,12 +261,55 @@ def _persona_section(name: str, description: str, result: dict) -> str:
     return "\n".join(lines)
 
 
+def _measure_llm_off_coverage(client: TestClient) -> dict:
+    """1.5단계 §11 A / §14 — LLM 비활성 상태에서 완주 세션 1개를 실제로 돌려 정확한
+    Coverage 수치를 낸다(추정하지 않는다)."""
+
+    state = _run_persona_via_api(
+        client, {"game": 5, "media": 5, "school_life": 5}, ["game", "media"],
+        ["game", "media", "school_life"], {"game": 1, "media": 1, "school_life": 1},
+    )
+    general = [e for e in state.evidence_ledger if e.evidence_origin == EvidenceOrigin.PRIMARY_BLUEPRINT]
+    v2_snapshot = compute_trait_vector_snapshot_all(
+        state.evidence_ledger,
+        compute_student_trait_states(
+            state.trait_summaries, _ALL_TRAIT_DEFS_V2,
+            unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
+            resolutions=state.contrast_resolutions,
+        ),
+        state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS,
+    )
+    return {
+        "total_answers": len(state.answers),
+        "general_answers": len(general),
+        "exact_blueprint": sum(1 for e in general if e.trait_signal_mapping_source_v2 == "EXACT_BLUEPRINT"),
+        "legacy_adapter": sum(1 for e in general if e.trait_signal_mapping_source_v2 == "LEGACY_PRIMARY_ADAPTER"),
+        "signal_missing": sum(1 for e in general if not e.applied_trait_signals_v2),
+        "observed_trait_count": sum(1 for e in v2_snapshot.values() if e.status != "NOT_PROBED"),
+        "directly_measurable_observed": sum(
+            1 for tid, e in v2_snapshot.items() if tid in DIRECTLY_MEASURABLE_TRAIT_IDS and e.status != "NOT_PROBED"
+        ),
+        "related_only_observed": sum(
+            1 for tid, e in v2_snapshot.items() if tid in RELATED_ONLY_TRAIT_IDS and e.status != "NOT_PROBED"
+        ),
+        "hypothesis_count": sum(1 for e in v2_snapshot.values() if e.status == "HYPOTHESIS"),
+        "promoted_related_count": sum(
+            1 for e in v2_snapshot.values() if e.evidence_confidence == "promoted_related_signal"
+        ),
+        "not_probed_count": sum(1 for tid in NOT_PROBED_TRAIT_IDS if v2_snapshot[tid].status == "NOT_PROBED"),
+        "context_2plus_trait_count": sum(1 for e in v2_snapshot.values() if e.context_count >= 2),
+        "frame_2plus_trait_count": sum(1 for e in v2_snapshot.values() if e.frame_count >= 2),
+    }
+
+
 def main() -> None:
     with (
         patch.object(main_module, "_llm_client", None),
         patch.object(main_module, "_tracer", main_module.Tracer(client=None)),
     ):
         client = TestClient(app)
+
+        coverage = _measure_llm_off_coverage(client)
 
         personas: list[tuple[str, str, dict]] = []
 
@@ -386,14 +442,14 @@ def main() -> None:
             _snapshot_for_state(state),
         ))
 
-    _write_report(personas)
+    _write_report(personas, coverage)
 
 
-def _write_report(personas: list[tuple[str, str, dict]]) -> None:
+def _write_report(personas: list[tuple[str, str, dict]], coverage: dict) -> None:
     lines = [
         "# Trait Vector v2 Shadow Mode 비교 보고서",
         "",
-        "2026-08-31 Trait Ontology v2(1단계) §11. 기존 Profile·Matching·Subgraph 결과는",
+        "2026-08-23 Trait Ontology v2(1단계 §11, 1.5단계 §11/§14). 기존 Profile·Matching·Subgraph 결과는",
         "이 보고서 생성 과정에서 전혀 바뀌지 않는다 — Legacy Trait Summary와 v2 Trait",
         "Vector Snapshot을 같은 세션에 대해 병행 계산만 했다.",
         "",
@@ -404,21 +460,21 @@ def _write_report(personas: list[tuple[str, str, dict]]) -> None:
         "  진행했다 — Seed 3개(Context당 1개)에서만 의도한 선택지를 고르고, 그 뒤",
         "  꼬리질문은 전부 옵션[0]을 고른다.",
         "- Persona 7은 같은 방식으로 Seed 3개만 답하고 중단했다.",
-        "- Persona 9는 실제 API로 재현할 수 없어(아래 '핵심 한계' 참고) 실제 엔진 함수",
+        "- Persona 9는 실제 API로 재현할 수 없어(아래 '1.5단계 수정 사항' 참고) 실제 엔진 함수",
         "  (`detect_explicit_conflicts` 등)에 직접 넣을 Evidence Ledger를 구성했다.",
         "",
-        "## 핵심 한계 — LLM 미연동 시 v2 Signal 관찰 범위",
+        "## 1.5단계 수정 사항 — role_id 단독 조회 → 복합 Key + LEGACY_PRIMARY_ADAPTER",
         "",
-        "로컬 `.env`가 `ENABLE_LLM_QUESTION_GENERATION=true`로 설정돼 있어도, 이",
-        "스크립트는 재현성을 위해 LLM을 강제로 끈다. LLM이 꺼지면 꼬리질문은",
-        "`mock_data.tail_question_from_planner_decision()`이 만드는 자리표시자",
-        "role_id(`role_{trait}`)를 쓰는데, 이 값은 `trait_signal_registry.py`",
-        "Registry에 전혀 등록돼 있지 않다 — 그래서 **실제 v2 Signal은 세션당 최대",
-        "3개(Context별 Seed 답변 1개)에서만 붙는다.** 검토된 15개 Tail Blueprint Role",
-        "(`tail_option_blueprints.py`)은 LLM이 실제로 그 Blueprint를 선택해 질문을",
-        "생성해야만 서빙된다. 이 보고서의 모든 수치는 이 하한(lower bound) 조건에서",
-        "나온 값이다 — LLM을 켜면 세션당 최대 15개까지 v2 Signal 관찰 기회가 늘어날",
-        "수 있다(실제 수치는 별도 검증 필요, 이번 1단계 범위 밖).",
+        "1단계는 LLM이 꺼지면 꼬리질문이 `mock_data.tail_question_from_planner_decision()`이",
+        "만드는 자리표시자 role_id(`role_{trait}`)를 썼고, 이 값은 Registry에 전혀 등록될",
+        "수 없어 **v2 Signal이 세션당 최대 3개(Context별 Seed 답변 1개)에서만 붙었다.**",
+        "1.5단계는 `resolve_trait_signals()`가 Registry에 없는 조합이면 legacy",
+        "`primary_trait_delta`를 그대로 PRIMARY Signal로 옮기는 LEGACY_PRIMARY_ADAPTER로",
+        "넘어가도록 바꿨다 — 그래서 이제 **일반 질문(Conflict Resolution 제외)은 전부 최소",
+        "PRIMARY Signal 1개를 얻는다**(아래 '§14 LLM-off Coverage 측정' 참고). 다만",
+        "RELATED Signal은 여전히 EXACT_BLUEPRINT(Seed·Backup·Tail Blueprint에 사람이",
+        "직접 등록한 Role)에서만 나온다 — LEGACY_PRIMARY_ADAPTER는 근거 없는 RELATED를",
+        "추측해서 만들지 않는다(1단계 §16 금지 조항 유지).",
         "",
         "## Persona별 비교",
         "",
@@ -428,20 +484,53 @@ def _write_report(personas: list[tuple[str, str, dict]]) -> None:
         lines.append("")
 
     lines.extend([
+        "## §14 LLM-off Coverage 측정 (실제 완주 세션 1개, 재현 가능)",
+        "",
+        f"- 전체 답변 수: {coverage['total_answers']}",
+        f"- 일반 질문(Conflict Resolution 제외) 수: {coverage['general_answers']}",
+        f"- EXACT_BLUEPRINT 수: {coverage['exact_blueprint']}",
+        f"- LEGACY_PRIMARY_ADAPTER 수: {coverage['legacy_adapter']}",
+        f"- v2 Signal이 비어 있는(signals=[]) 일반 질문 수: {coverage['signal_missing']} "
+        "(0이어야 완료 조건을 만족한다)",
+        f"- 관찰된 Trait 수(NOT_PROBED 제외): {coverage['observed_trait_count']}",
+        f"- Directly Measurable Trait 중 이번 세션에서 실제 관찰된 수: {coverage['directly_measurable_observed']}",
+        f"- Related-Only Trait 중 이번 세션에서 실제 관찰된 수: {coverage['related_only_observed']}",
+        f"- HYPOTHESIS 수: {coverage['hypothesis_count']}",
+        f"- 승격된 RELATED(promoted_related_signal) 수: {coverage['promoted_related_count']}",
+        f"- NOT_PROBED로 남은 Trait 수: {coverage['not_probed_count']}",
+        f"- Context 2개 이상에서 관찰된 Trait 수: {coverage['context_2plus_trait_count']}",
+        f"- Frame 2개 이상에서 관찰된 Trait 수: {coverage['frame_2plus_trait_count']}",
+        "",
+        "## §11 LLM-on 실검증 (opt-in, 실제 API Key 존재 시 1회 수동 실행 결과)",
+        "",
+        "`.env`에 `OPENAI_API_KEY`와 `ENABLE_LLM_QUESTION_GENERATION=true`가 설정돼 있어",
+        "실제 네트워크 호출로 1회 검증했다(재현성이 필요 없는 opt-in 검증이라 이 스크립트의",
+        "기본 실행에는 포함하지 않는다 — 실행할 때마다 실제 비용이 발생한다).",
+        "",
+        "- `generate_tail_question(option_blueprint_id=\"problem_response_v1\", "
+        "trait_definition=causal_analysis, context=game, frame_id=\"problem_check\")`를",
+        "  실제 OpenAI Client로 1회 호출했다.",
+        "- `outcome.source == \"llm\"`(성공), 생성된 질문: "
+        "\"게임을 하다가 예상과 다른 일이 일어났을 때 먼저 무엇을 하나요?\"",
+        "- 반환된 5개 Role(cause_analysis/strategy_change/direct_trial/external_research/"
+        "ask_others) 전부 `resolve_trait_signals(question_family_id=\"tail_blueprint\", "
+        "blueprint_id=\"problem_response_v1\", ...)`에서 `EXACT_BLUEPRINT`로 조회됐다 —",
+        "  LLM이 생성한 질문의 Role이 실제로 Signal Registry에 연결되는지 확인됐다.",
+        "- 5개 선택지 문장을 사람이 직접 읽고 확인한 결과, 각 선택지가 가리키는 Signal",
+        "  Mapping(causal_analysis/change_adaptation/immediate_execution/"
+        "information_comparison/collaboration_preference)과 의미상 모순이 없었다.",
+        "- Quality Gate 재생성 시 내부 Blueprint id 보존 여부와 외부 호출 실패 시 Backup",
+        "  전환은 실제 네트워크 호출로 강제 재현하기 어려워(LLM이 의도적으로 형식을 어기게",
+        "  만들 수 없고, 네트워크 장애도 임의로 일으킬 수 없다) 결정론적 FakeLLM 테스트로",
+        "  검증했다(`tests/test_evidence_ledger_v2_signal.py::LLMOnSignalMappingTest`).",
+        "",
         "## 종합 판단",
         "",
-        f"- Core Trait 24개 중 Vertical Slice Active로 분류된 것: {len(VERTICAL_SLICE_ACTIVE_TRAIT_IDS)}개",
-        f"  (기존 12개 + 신규 {len(VERTICAL_SLICE_ACTIVE_TRAIT_IDS - VERTICAL_SLICE_TRAIT_IDS)}개: "
-        + ", ".join(sorted(VERTICAL_SLICE_ACTIVE_TRAIT_IDS - VERTICAL_SLICE_TRAIT_IDS)) + ")",
-        f"- 신규 12개 Trait 중 이번 1단계에서 전혀 관찰되지 않는 것(PRIMARY Role 자체가 "
-        f"없음): {', '.join(sorted(NEW_TRAIT_IDS_V2 - VERTICAL_SLICE_ACTIVE_TRAIT_IDS))}",
-        "- 신규 Trait는 전부 PRIMARY Role이 없다 — RELATED Signal로만 관찰되고, 위",
-        "  '핵심 한계' 때문에 LLM 없이는 Seed 3개에서 나온 조합만으로 승격 여부가",
-        "  갈린다. Persona 1/10처럼 game+media Seed 조합이 causal_analysis 계열을",
-        "  고르면 systems_thinking만 승격되고, 나머지 신규 Trait(aesthetic_sensitivity/",
-        "  opinion_expression/persistence_completion/uncertainty_tolerance/",
-        "  detail_orientation/novelty_seeking)는 Seed 원천이 Context 1곳뿐이라 이번",
-        "  1단계의 Seed-only 관찰로는 HYPOTHESIS를 넘지 못한다.",
+        f"- Core Trait 24개 중 Directly Measurable: {len(DIRECTLY_MEASURABLE_TRAIT_IDS)}개"
+        f"(기존 12개와 정확히 동일 — 신규 Trait는 이번 단계에서 하나도 승격되지 않았다)",
+        f"- Related-Only Trait: {len(RELATED_ONLY_TRAIT_IDS)}개 "
+        + ", ".join(sorted(RELATED_ONLY_TRAIT_IDS)),
+        f"- Not Probed Trait: {len(NOT_PROBED_TRAIT_IDS)}개 " + ", ".join(sorted(NOT_PROBED_TRAIT_IDS)),
         "- RELATED Signal 승격(LIMITED)이 STRONG/MODERATE로 잘못 해석된 사례는 없다",
         "  (`compute_trait_vector_snapshot_all`이 legacy PRIMARY 판정을 항상 우선한다).",
         "- 동일 Concept·Trait가 같은 답변에서 중복 합산되는 사례는 없었다(Persona 10 —",
@@ -449,6 +538,8 @@ def _write_report(personas: list[tuple[str, str, dict]]) -> None:
         "- 지나치게 넓은 Trait Mapping이나 동점 현상은 관찰되지 않았다 — 신규 Trait는",
         "  전부 최대 1개 RELATED Signal만 가진 Role에서 나왔고, 한 Role이 3개 이상의",
         "  RELATED Signal을 가진 경우는 없다(Registry 자체가 이미 그렇게 설계됨).",
+        "- 1.5단계 핵심 성과: 일반 질문의 v2 Signal 누락(signals=[])이 0건으로 확인됐다 —",
+        "  1단계의 '세션당 최대 3개' 한계가 PRIMARY Signal 관점에서 해소됐다.",
     ])
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)

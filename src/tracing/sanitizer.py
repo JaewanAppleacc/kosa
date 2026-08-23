@@ -141,6 +141,22 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     # `1`/`0`이 새지 않도록: `isinstance(1, bool)`은 False다).
     "has_confirmed_course_profile": _is_bool,
     "has_subject_nodes": _is_bool,
+    # 2026-08-23 Trait Ontology v2(1.5단계) §9 — Trait Vector Shadow Snapshot Stage.
+    # 개수 집계만 허용한다. 학생 답변 원문·선택지 원문·user_id·Trait Signal 세부 내용
+    # (trait_id·weight·related_concept_ids 등)은 애초에 이 Allowlist에 Key 자체가
+    # 없으므로 구조적으로 샐 수 없다(Subgraph Stage와 같은 원칙).
+    "core_trait_count": _is_nonneg_int,
+    "observable_trait_count": _is_nonneg_int,
+    "directly_measurable_count": _is_nonneg_int,
+    "related_only_count": _is_nonneg_int,
+    "not_probed_count": _is_nonneg_int,
+    "observed_in_session_count": _is_nonneg_int,
+    "hypothesis_count": _is_nonneg_int,
+    "promoted_related_count": _is_nonneg_int,
+    "conflict_count": _is_nonneg_int,
+    "mapping_source_exact_count": _is_nonneg_int,
+    "mapping_source_legacy_adapter_count": _is_nonneg_int,
+    "mapping_missing_count": _is_nonneg_int,
 }
 
 ALLOWED_TRACE_ATTRIBUTE_KEYS: frozenset[str] = frozenset(_VALUE_VALIDATORS.keys())
