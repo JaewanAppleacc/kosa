@@ -1,677 +1,677 @@
 [
   {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
     "blueprint_id": "game_backup_story_exploration_v2",
-    "role_id": "weigh_outcome",
-    "reviewer_1_status": "TBD",
+    "role_id": "weigh_outcome"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_story_exploration_v2",
-    "role_id": "pick_intuitively",
-    "reviewer_1_status": "TBD",
+    "role_id": "pick_intuitively"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_story_exploration_v2",
-    "role_id": "check_others_choice",
-    "reviewer_1_status": "TBD",
+    "role_id": "check_others_choice"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_story_exploration_v2",
-    "role_id": "recall_pattern",
-    "reviewer_1_status": "TBD",
+    "role_id": "recall_pattern"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_story_exploration_v2",
-    "role_id": "reread_context",
-    "reviewer_1_status": "TBD",
+    "role_id": "reread_context"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_strategy_puzzle_v2",
-    "role_id": "reexamine_conditions",
-    "reviewer_1_status": "TBD",
+    "role_id": "reexamine_conditions"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_strategy_puzzle_v2",
-    "role_id": "try_different_approach",
-    "reviewer_1_status": "TBD",
+    "role_id": "try_different_approach"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_strategy_puzzle_v2",
-    "role_id": "search_solution",
-    "reviewer_1_status": "TBD",
+    "role_id": "search_solution"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_strategy_puzzle_v2",
-    "role_id": "take_a_break",
-    "reviewer_1_status": "TBD",
+    "role_id": "take_a_break"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_strategy_puzzle_v2",
-    "role_id": "narrow_down_pattern",
-    "reviewer_1_status": "TBD",
+    "role_id": "narrow_down_pattern"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_competition_mastery_v2",
-    "role_id": "analyze_mistake",
-    "reviewer_1_status": "TBD",
+    "role_id": "analyze_mistake"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_competition_mastery_v2",
-    "role_id": "keep_retrying",
-    "reviewer_1_status": "TBD",
+    "role_id": "keep_retrying"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_competition_mastery_v2",
-    "role_id": "change_method",
-    "reviewer_1_status": "TBD",
+    "role_id": "change_method"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_competition_mastery_v2",
-    "role_id": "watch_others",
-    "reviewer_1_status": "TBD",
+    "role_id": "watch_others"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_competition_mastery_v2",
-    "role_id": "lower_goal",
-    "reviewer_1_status": "TBD",
+    "role_id": "lower_goal"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_cooperative_role_v2",
-    "role_id": "reassign_roles",
-    "reviewer_1_status": "TBD",
+    "role_id": "reassign_roles"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_cooperative_role_v2",
-    "role_id": "decide_alone_fast",
-    "reviewer_1_status": "TBD",
+    "role_id": "decide_alone_fast"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_cooperative_role_v2",
-    "role_id": "ask_team_opinion",
-    "reviewer_1_status": "TBD",
+    "role_id": "ask_team_opinion"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_cooperative_role_v2",
-    "role_id": "explain_situation",
-    "reviewer_1_status": "TBD",
+    "role_id": "explain_situation"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_cooperative_role_v2",
-    "role_id": "observe_team_first",
-    "reviewer_1_status": "TBD",
+    "role_id": "observe_team_first"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_building_creation_v2",
-    "role_id": "redesign_structure",
-    "reviewer_1_status": "TBD",
+    "role_id": "redesign_structure"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_building_creation_v2",
-    "role_id": "try_again_same_way",
-    "reviewer_1_status": "TBD",
+    "role_id": "try_again_same_way"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_building_creation_v2",
-    "role_id": "find_reference",
-    "reviewer_1_status": "TBD",
+    "role_id": "find_reference"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_building_creation_v2",
-    "role_id": "use_new_material",
-    "reviewer_1_status": "TBD",
+    "role_id": "use_new_material"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "game_backup_building_creation_v2",
-    "role_id": "step_away_first",
-    "reviewer_1_status": "TBD",
+    "role_id": "step_away_first"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_film_drama_v2",
-    "role_id": "rewind_scene",
-    "reviewer_1_status": "TBD",
+    "role_id": "rewind_scene"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_film_drama_v2",
-    "role_id": "guess_reason",
-    "reviewer_1_status": "TBD",
+    "role_id": "guess_reason"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_film_drama_v2",
-    "role_id": "imagine_ending",
-    "reviewer_1_status": "TBD",
+    "role_id": "imagine_ending"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_film_drama_v2",
-    "role_id": "tell_someone",
-    "reviewer_1_status": "TBD",
+    "role_id": "tell_someone"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_film_drama_v2",
-    "role_id": "keep_watching",
-    "reviewer_1_status": "TBD",
+    "role_id": "keep_watching"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_online_video_v2",
-    "role_id": "pause_and_check",
-    "reviewer_1_status": "TBD",
+    "role_id": "pause_and_check"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_online_video_v2",
-    "role_id": "search_more_info",
-    "reviewer_1_status": "TBD",
+    "role_id": "search_more_info"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_online_video_v2",
-    "role_id": "predict_next",
-    "reviewer_1_status": "TBD",
+    "role_id": "predict_next"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_online_video_v2",
-    "role_id": "skip_ahead",
-    "reviewer_1_status": "TBD",
+    "role_id": "skip_ahead"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_online_video_v2",
-    "role_id": "read_comments",
-    "reviewer_1_status": "TBD",
+    "role_id": "read_comments"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_animation_webcontent_v2",
-    "role_id": "connect_to_world",
-    "reviewer_1_status": "TBD",
+    "role_id": "connect_to_world"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_animation_webcontent_v2",
-    "role_id": "compare_similar_work",
-    "reviewer_1_status": "TBD",
+    "role_id": "compare_similar_work"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_animation_webcontent_v2",
-    "role_id": "imagine_backstory",
-    "reviewer_1_status": "TBD",
+    "role_id": "imagine_backstory"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_animation_webcontent_v2",
-    "role_id": "keep_reading",
-    "reviewer_1_status": "TBD",
+    "role_id": "keep_reading"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_animation_webcontent_v2",
-    "role_id": "check_reactions",
-    "reviewer_1_status": "TBD",
+    "role_id": "check_reactions"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_stage_performance_v2",
-    "role_id": "notice_staging",
-    "reviewer_1_status": "TBD",
+    "role_id": "notice_staging"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_stage_performance_v2",
-    "role_id": "guess_actor_emotion",
-    "reviewer_1_status": "TBD",
+    "role_id": "guess_actor_emotion"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_stage_performance_v2",
-    "role_id": "compare_other_performance",
-    "reviewer_1_status": "TBD",
+    "role_id": "compare_other_performance"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_stage_performance_v2",
-    "role_id": "clap_or_react",
-    "reviewer_1_status": "TBD",
+    "role_id": "clap_or_react"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_stage_performance_v2",
-    "role_id": "keep_watching",
-    "reviewer_1_status": "TBD",
+    "role_id": "keep_watching"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_documentary_v2",
-    "role_id": "question_evidence",
-    "reviewer_1_status": "TBD",
+    "role_id": "question_evidence"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_documentary_v2",
-    "role_id": "compare_other_source",
-    "reviewer_1_status": "TBD",
+    "role_id": "compare_other_source"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_documentary_v2",
-    "role_id": "connect_bigger_picture",
-    "reviewer_1_status": "TBD",
+    "role_id": "connect_bigger_picture"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_documentary_v2",
-    "role_id": "accept_as_is",
-    "reviewer_1_status": "TBD",
+    "role_id": "accept_as_is"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "media_backup_documentary_v2",
-    "role_id": "share_with_someone",
-    "reviewer_1_status": "TBD",
+    "role_id": "share_with_someone"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_academic_study_v2",
-    "role_id": "replan_schedule",
-    "reviewer_1_status": "TBD",
+    "role_id": "replan_schedule"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_academic_study_v2",
-    "role_id": "push_through",
-    "reviewer_1_status": "TBD",
+    "role_id": "push_through"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_academic_study_v2",
-    "role_id": "cut_less_important",
-    "reviewer_1_status": "TBD",
+    "role_id": "cut_less_important"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_academic_study_v2",
-    "role_id": "ask_friend_progress",
-    "reviewer_1_status": "TBD",
+    "role_id": "ask_friend_progress"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_academic_study_v2",
-    "role_id": "take_short_rest",
-    "reviewer_1_status": "TBD",
+    "role_id": "take_short_rest"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_assignment_evaluation_v2",
-    "role_id": "prioritize_remaining",
-    "reviewer_1_status": "TBD",
+    "role_id": "prioritize_remaining"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_assignment_evaluation_v2",
-    "role_id": "finish_current_first",
-    "reviewer_1_status": "TBD",
+    "role_id": "finish_current_first"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_assignment_evaluation_v2",
-    "role_id": "ask_teacher_extension",
-    "reviewer_1_status": "TBD",
+    "role_id": "ask_teacher_extension"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_assignment_evaluation_v2",
-    "role_id": "simplify_remaining",
-    "reviewer_1_status": "TBD",
+    "role_id": "simplify_remaining"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_assignment_evaluation_v2",
-    "role_id": "check_requirements_again",
-    "reviewer_1_status": "TBD",
+    "role_id": "check_requirements_again"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_course_career_v2",
-    "role_id": "research_more_info",
-    "reviewer_1_status": "TBD",
+    "role_id": "research_more_info"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_course_career_v2",
-    "role_id": "decide_with_current_info",
-    "reviewer_1_status": "TBD",
+    "role_id": "decide_with_current_info"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_course_career_v2",
-    "role_id": "ask_teacher_or_senior",
-    "reviewer_1_status": "TBD",
+    "role_id": "ask_teacher_or_senior"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_course_career_v2",
-    "role_id": "list_pros_cons",
-    "reviewer_1_status": "TBD",
+    "role_id": "list_pros_cons"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_course_career_v2",
-    "role_id": "postpone_decision",
-    "reviewer_1_status": "TBD",
+    "role_id": "postpone_decision"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_friendship_v2",
-    "role_id": "explain_my_view",
-    "reviewer_1_status": "TBD",
+    "role_id": "explain_my_view"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_friendship_v2",
-    "role_id": "find_common_ground",
-    "reviewer_1_status": "TBD",
+    "role_id": "find_common_ground"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_friendship_v2",
-    "role_id": "understand_friend_view",
-    "reviewer_1_status": "TBD",
+    "role_id": "understand_friend_view"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_friendship_v2",
-    "role_id": "drop_the_topic",
-    "reviewer_1_status": "TBD",
+    "role_id": "drop_the_topic"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "school_life_backup_friendship_v2",
-    "role_id": "follow_friend_opinion",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
-    "reviewer_2_status": "TBD",
-    "reviewer_2_comment": "",
-    "resolution_note": ""
+    "role_id": "follow_friend_opinion"
   },
   {
-    "blueprint_id": "school_life_backup_club_activity_v2",
-    "role_id": "gather_opinions",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_club_activity_v2",
+    "role_id": "gather_opinions"
   },
   {
-    "blueprint_id": "school_life_backup_club_activity_v2",
-    "role_id": "propose_own_idea",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_club_activity_v2",
+    "role_id": "propose_own_idea"
   },
   {
-    "blueprint_id": "school_life_backup_club_activity_v2",
-    "role_id": "check_precedent",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_club_activity_v2",
+    "role_id": "check_precedent"
   },
   {
-    "blueprint_id": "school_life_backup_club_activity_v2",
-    "role_id": "assign_roles",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_club_activity_v2",
+    "role_id": "assign_roles"
   },
   {
-    "blueprint_id": "school_life_backup_club_activity_v2",
-    "role_id": "wait_for_decision",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "school_life_backup_club_activity_v2",
+    "role_id": "wait_for_decision"
   }
 ]
