@@ -200,6 +200,53 @@ class SeedAnchorQuestionListResponse(BaseModel):
     option_review_revision: str
 
 
+class BackupOptionItem(BaseModel):
+    """2.5.3단계 §11 — Backup 선택지 검수 항목."""
+
+    role_id: str
+    text: str
+    primary_trait_delta: dict[str, int]
+    trait_id: str
+    trait_label: str
+    trait_definition: str
+    mapping_rationale_draft: str
+    review: OptionReviewView
+
+
+class BackupQuestionItem(BaseModel):
+    """2.5.3단계 §11 — Backup 질문 검수 항목. `anchor_gate_results`는 이 Context의 각
+    Anchor(및 "neutral" = Anchor 없음)에 대해 실제 Backup 적합성 검사 함수
+    (`check_backup_candidate`)를 그대로 호출한 통과 여부다 — UI 전용 가짜 판정이
+    아니다."""
+
+    question_id: str
+    context_id: str
+    context_label: str
+    question_text: str
+    options: list[BackupOptionItem]
+    allowed_anchor_ids: list[str] | None
+    excluded_anchor_ids: list[str]
+    applicability_reason_draft: str
+    anchor_gate_results: dict[str, bool]
+    review: QuestionReviewView
+
+
+class BackupQuestionListResponse(BaseModel):
+    questions: list[BackupQuestionItem]
+    question_review_revision: str
+    option_review_revision: str
+
+
+class BackupAnchorPreviewResponse(BaseModel):
+    """2.5.3단계 §11/§14 — Backup Anchor Preview. `check_backup_candidate()`를 그대로
+    호출한 결과만 담는다."""
+
+    question_id: str
+    anchor_id: str | None
+    passed: bool
+    failures: list[str]
+
+
 class UpdateQuestionReviewRequest(BaseModel):
     reviewer: ReviewerSlot
     status: ReviewerStatus

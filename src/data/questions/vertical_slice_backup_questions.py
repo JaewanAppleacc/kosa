@@ -13,7 +13,7 @@ GAME_BACKUP_01 = FinalizedQuestion(
     context="game",
     target_traits=[],
     frame_id="backup",
-    question_text="새로운 게임 규칙을 팀원들과 처음 접했을 때, 가장 먼저 하고 싶은 행동은?",
+    question_text="게임에서 새로운 규칙이나 방식을 처음 접했을 때 무엇을 가장 먼저 하나요?",
     options=[
         FinalizedOption(
             option_id="game_backup_01_o1",
@@ -36,7 +36,7 @@ GAME_BACKUP_01 = FinalizedQuestion(
         FinalizedOption(
             option_id="game_backup_01_o4",
             role_id="role_split",
-            text="팀원들과 역할을 나눠서 같이 파악한다",
+            text="다른 사람과 정보나 역할을 나눠 함께 파악한다",
             primary_trait_delta={"collaboration_preference": 1},
         ),
         FinalizedOption(
@@ -58,7 +58,7 @@ GAME_BACKUP_02 = FinalizedQuestion(
         FinalizedOption(
             option_id="game_backup_02_o1",
             role_id="screen_review",
-            text="화면 구성을 다시 살펴보며 놓친 게 있는지 본다",
+            text="그 상황을 그림이나 도표로 직접 표현해서 정리해본다",
             primary_trait_delta={"visual_expression": 1},
         ),
         FinalizedOption(
@@ -110,7 +110,7 @@ MEDIA_BACKUP_01 = FinalizedQuestion(
         FinalizedOption(
             option_id="media_backup_01_o3",
             role_id="comment_reading",
-            text="댓글이나 반응을 보며 감정을 읽어본다",
+            text="댓글 속에 담긴 사람들의 감정을 헤아려본다",
             primary_trait_delta={"emotional_interpretation": 1},
         ),
         FinalizedOption(
@@ -133,36 +133,36 @@ MEDIA_BACKUP_02 = FinalizedQuestion(
     context="media",
     target_traits=[],
     frame_id="backup",
-    question_text="콘텐츠를 기획할 때 어떤 부분에 가장 신경 쓰나요?",
+    question_text="인상 깊은 문화 콘텐츠를 본 뒤 더 깊이 알아보고 싶을 때 무엇을 하나요?",
     options=[
         FinalizedOption(
             option_id="media_backup_02_o1",
             role_id="sequence_plan",
-            text="전체 진행 순서를 미리 계획한다",
+            text="관련 정보를 어떤 순서로 더 찾아볼지 계획한다",
             primary_trait_delta={"planning": 1},
         ),
         FinalizedOption(
             option_id="media_backup_02_o2",
             role_id="visual_layout",
-            text="화면 구성과 시각적 배치를 신경 쓴다",
+            text="인상 깊었던 장면을 직접 그림이나 이미지로 표현해본다",
             primary_trait_delta={"visual_expression": 1},
         ),
         FinalizedOption(
             option_id="media_backup_02_o3",
             role_id="new_editing_tool",
-            text="편집 도구의 새로운 기능을 먼저 써본다",
+            text="새로운 검색이나 정리 도구를 써서 자료를 모아본다",
             primary_trait_delta={"tool_utilization": 1},
         ),
         FinalizedOption(
             option_id="media_backup_02_o4",
             role_id="reference_pattern",
-            text="반복되는 좋은 패턴을 참고한다",
+            text="비슷한 작품들에서 반복되는 패턴을 찾아본다",
             primary_trait_delta={"pattern_finding": 1},
         ),
         FinalizedOption(
             option_id="media_backup_02_o5",
             role_id="team_split",
-            text="팀원과 역할을 나눠 함께 만든다",
+            text="친구와 함께 이야기를 나누며 궁금한 점을 알아본다",
             primary_trait_delta={"collaboration_preference": 1},
         ),
     ],
@@ -173,7 +173,7 @@ SCHOOL_LIFE_BACKUP_01 = FinalizedQuestion(
     context="school_life",
     target_traits=[],
     frame_id="backup",
-    question_text="조별 과제에서 의견이 갈릴 때 가장 먼저 하는 행동은?",
+    question_text="학교에서 다른 사람과 생각이 달라 결정을 내려야 할 때 무엇을 가장 먼저 하나요?",
     options=[
         FinalizedOption(
             option_id="school_life_backup_01_o1",
@@ -190,7 +190,7 @@ SCHOOL_LIFE_BACKUP_01 = FinalizedQuestion(
         FinalizedOption(
             option_id="school_life_backup_01_o3",
             role_id="other_group_compare",
-            text="다른 조는 어떻게 하는지 비교해본다",
+            text="다른 사람들은 이럴 때 어떻게 하는지 비교해본다",
             primary_trait_delta={"information_comparison": 1},
         ),
         FinalizedOption(
@@ -202,7 +202,7 @@ SCHOOL_LIFE_BACKUP_01 = FinalizedQuestion(
         FinalizedOption(
             option_id="school_life_backup_01_o5",
             role_id="feelings_care",
-            text="친구들의 감정이 상하지 않게 신경 쓴다",
+            text="함께하는 사람들의 감정이 상하지 않게 신경 쓴다",
             primary_trait_delta={"emotional_interpretation": 1},
         ),
     ],
@@ -242,7 +242,7 @@ SCHOOL_LIFE_BACKUP_02 = FinalizedQuestion(
         FinalizedOption(
             option_id="school_life_backup_02_o5",
             role_id="anticipate_reaction",
-            text="다른 사람들 반응을 미리 예상해본다",
+            text="이 활동을 발표하거나 공유했을 때 사람들이 어떻게 반응할지 미리 예상해본다",
             primary_trait_delta={"audience_response_prediction": 1},
         ),
     ],

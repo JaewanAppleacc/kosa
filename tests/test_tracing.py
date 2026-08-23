@@ -217,6 +217,27 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
                 self.assertEqual(sanitize_trace_attributes({key: 1.5}), {})
                 self.assertEqual(sanitize_trace_attributes({key: "3"}), {})
 
+    def test_context_anchor_id_accepts_slug_only(self) -> None:
+        """2026-08-23 Trait Ontology v2(2.5.2단계) §6/2.5.3단계 §12 — Anchor ID는 사전
+        정의된 고정 slug만 허용한다(자유 텍스트 아님)."""
+
+        self.assertEqual(
+            sanitize_trace_attributes({"context_anchor_id": "story_exploration"}),
+            {"context_anchor_id": "story_exploration"},
+        )
+        self.assertEqual(sanitize_trace_attributes({"context_anchor_id": None}), {"context_anchor_id": None})
+        self.assertEqual(sanitize_trace_attributes({"context_anchor_id": "학생이 직접 쓴 문장"}), {})
+
+    def test_backup_candidate_counts_accept_nonneg_int_only(self) -> None:
+        """2026-08-23 Trait Ontology v2(2.5.3단계) §12 — Backup 후보 검사 결과는 숫자로만
+        보낸다. 질문·선택지 원문은 Key 자체가 없어 구조적으로 샐 수 없다."""
+
+        attributes = {"backup_candidates_checked": 2, "backup_candidates_rejected": 1}
+        self.assertEqual(sanitize_trace_attributes(attributes), attributes)
+        self.assertEqual(sanitize_trace_attributes({"backup_candidates_checked": -1}), {})
+        self.assertEqual(sanitize_trace_attributes({"backup_candidates_rejected": 1.5}), {})
+        self.assertEqual(sanitize_trace_attributes({"backup_candidates_checked": "2"}), {})
+
     def test_session_id_and_raw_answer_text_have_no_allowlisted_key(self) -> None:
         """session_id/학생 답변 원문/질문 원문은 Key 자체가 Allowlist에 없어 어떤 값을
         보내도 구조적으로 샐 수 없다."""

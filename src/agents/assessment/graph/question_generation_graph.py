@@ -19,7 +19,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from langgraph.graph import END, START, StateGraph
 from langsmith.run_helpers import tracing_context
 
+from src.data.questions.backup_question_applicability import BACKUP_APPLICABILITY_BY_QUESTION_ID
 from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS_BY_ID
+from src.engines.backup_applicability_check import check_backup_candidate
 from src.engines.question_quality_gate import run_quality_gate
 from src.llm.protocols import ChatLLMClient, LLMCallError
 from src.schemas.context import ContextDefinition
@@ -162,6 +164,11 @@ class QuestionGenerationOutcome(BaseModel):
     source: str  # "cache" | "llm" | "backup" | "exhausted"
     secondary_trait_hypotheses: list[str] = []
     failure_reason: str | None = None
+    # 2026-08-23 Trait Ontology v2(2.5.3단계) §2/§12 — Backup 후보 중 몇 개를
+    # 검사했고 몇 개를 거부했는지(질문·선택지 원문은 담지 않는다 — Trace로 안전하게
+    # 보낼 수 있는 숫자만).
+    backup_candidates_checked: int = 0
+    backup_candidates_rejected: int = 0
 
 
 def classify_generation_failure(failure_reason: str | None) -> str | None:
@@ -307,16 +314,41 @@ def _route_after_attempt(g: QuestionGenerationGraphState) -> str:
 
 
 def _use_backup(g: QuestionGenerationGraphState) -> dict:
+    """2026-08-23 Trait Ontology v2(2.5.3단계) §1/§2 — 이전에는 이 함수가 사용하지
+    않은 첫 Backup을 검증 없이 그대로 반환했다(재현: Anchor가 "팀원"을 금지해도
+    "팀원들과"가 들어간 Backup이 그대로 나갔다). 이제 LLM·Cache 질문과 동일한
+    Quality Gate(§2)와 Applicability(§3)를 통과한 후보만 반환한다 — 부적합한 후보는
+    건너뛰고 다음 후보를 검사하며, 호환되는 후보가 하나도 없으면 잘못된 질문을 그냥
+    반환하는 대신 `exhausted`로 끝낸다. 후보 순서는 `g.backup_questions`(호출자가
+    고정된 리스트로 넘긴다)를 그대로 따르므로 같은 State에 대해 항상 결정론적이다."""
+
+    checked = 0
+    rejected = 0
     for backup in g.backup_questions:
-        if backup.question_id not in g.used_backup_question_ids:
-            return {
-                "outcome": QuestionGenerationOutcome(
-                    question=backup, source="backup", failure_reason=g.last_failure
-                )
-            }
+        if backup.question_id in g.used_backup_question_ids:
+            continue
+        checked += 1
+
+        applicability = BACKUP_APPLICABILITY_BY_QUESTION_ID.get(backup.question_id)
+        gate = check_backup_candidate(
+            backup, anchor=g.anchor, applicability=applicability,
+            previous_question_texts=g.previous_question_texts,
+        )
+        if not gate.passed:
+            rejected += 1
+            continue
+
+        return {
+            "outcome": QuestionGenerationOutcome(
+                question=backup, source="backup", failure_reason=g.last_failure,
+                backup_candidates_checked=checked, backup_candidates_rejected=rejected,
+            )
+        }
+
     return {
         "outcome": QuestionGenerationOutcome(
-            question=None, source="exhausted", failure_reason=g.last_failure or "Backup Question 소진"
+            question=None, source="exhausted", failure_reason=g.last_failure or "Backup Question 소진",
+            backup_candidates_checked=checked, backup_candidates_rejected=rejected,
         )
     }
 

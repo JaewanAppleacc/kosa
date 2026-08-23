@@ -243,6 +243,18 @@ body.tab-direct_probe .tab-only-direct_probe { display: block; }
 body.tab-routing .tab-only-routing { display: block; }
 .tab-only-seed_anchor { display: none; }
 body.tab-seed_anchor .tab-only-seed_anchor { display: block; }
+.tab-only-backup { display: none; }
+body.tab-backup .tab-only-backup { display: block; }
+
+.anchor-gate-grid { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.anchor-gate-chip {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.85em;
+  border: 1px solid var(--border);
+}
+.anchor-gate-chip.pass { background: var(--status-approve-bg); color: var(--status-approve); border-color: var(--status-approve); }
+.anchor-gate-chip.fail { background: var(--status-hold-bg); color: var(--status-hold); border-color: var(--status-hold); }
 
 .neutral-comparison {
   margin-top: 6px;

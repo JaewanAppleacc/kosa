@@ -45,7 +45,7 @@ class SchoolLifeTeamProjectRoleDivisionTest(unittest.TestCase):
     친목이 아니라)."""
 
     def test_all_5_team_project_options_mention_role_division_or_joint_work(self) -> None:
-        markers = ("역할을 나눠", "역할을 나누")
+        markers = ("역할을 나눠", "역할을 나누", "역할 나눠")
         for v in SEED_ANCHOR_VARIANTS:
             if v.context_id != "school_life":
                 continue

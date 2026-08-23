@@ -272,13 +272,19 @@ _SCHOOL_LIFE_VARIANTS = [
     ),
     SeedAnchorVariant(
         context_id="school_life", anchor_id="friendship",
-        question_text="친구 관계에서 생각이 다르거나 오해가 생겼을 때 가장 신경 쓰는 부분은 무엇인가요?",
+        # 2.5.3단계 §8: 기존 질문("생각이 다르거나 오해가 생겼을 때 가장 신경 쓰는
+        # 부분")은 team_project Option("함께 해결할 일이 생기면...")이 그 질문에 대한
+        # 직접적인 답이 아니었다(협업 행동 자체는 맞지만 "생각 차이·오해"라는 질문
+        # 상황과 안 이어짐). 질문을 "함께 하기로 한 일에서 생각이 다르거나 오해가
+        # 생겼을 때"로 넓혀 5개 Trait 전부가 같은 상황·같은 의사결정 시점의 자연스러운
+        # 답이 되도록 맞췄다.
+        question_text="친구와 함께 하기로 한 일에서 생각이 다르거나 오해가 생겼을 때 무엇을 가장 중요하게 보나요?",
         option_text_by_role_id={
-            "task_planning": "어떻게 이야기를 풀어갈지 미리 정리해보는 것",
-            "team_project": "친구와 함께 해결할 일이 생기면 역할을 나눠 같이 진행하는 것",
-            "conflict_mediation": "나와 친구의 생각이 다를 때 서로 받아들일 수 있는 지점을 찾아 조율하는 것",
+            "task_planning": "어떻게 풀어갈지 순서와 방법을 정리해보는 것",
+            "team_project": "함께 해야 할 일을 역할 나눠 해결하는 것",
+            "conflict_mediation": "서로 받아들일 수 있는 지점을 찾아 조율하는 것",
             "peer_understanding": "친구의 생각이나 감정을 먼저 이해해보는 것",
-            "adapting_change": "상황이 달라지면 내 태도도 거기에 맞춰 바꾸는 것",
+            "adapting_change": "상황 변화에 따라 접근 방식을 조정하는 것",
         },
         option_mapping_rationale_draft={
             "task_planning": "무엇을 언제 할지 순서와 계획을 미리 세우는 행동이 직접 드러나 planning 후보로 연결된다",

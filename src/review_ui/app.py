@@ -19,6 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
     AnchorPreviewResponse,
+    BackupAnchorPreviewResponse,
+    BackupQuestionListResponse,
     QuestionListResponse,
     RoutingQuestionListResponse,
     SeedAnchorQuestionListResponse,
@@ -199,6 +201,56 @@ def patch_seed_anchor_option(
             context_id=context_id, anchor_id=anchor_id, role_id=role_id, reviewer=payload.reviewer,
             status=payload.status, comment=payload.comment, resolution_note=payload.resolution_note,
             expected_revision=payload.expected_revision, option_path=rs.SEED_ANCHOR_OPTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+# 2.5.3단계 §10/§11/§14 — Backup Question 검수 Endpoint.
+
+
+@app.get("/internal/review/v2/backup-questions", response_model=BackupQuestionListResponse)
+def get_backup_questions() -> BackupQuestionListResponse:
+    return rs.build_backup_question_list(
+        question_path=rs.BACKUP_QUESTION_REVIEW_PATH, option_path=rs.BACKUP_OPTION_REVIEW_PATH,
+    )
+
+
+@app.get("/internal/review/v2/backup-questions/{question_id}/anchor-preview", response_model=BackupAnchorPreviewResponse)
+def get_backup_anchor_preview(question_id: str, context_id: str, anchor_id: str | None = None) -> BackupAnchorPreviewResponse:
+    try:
+        return rs.build_backup_anchor_preview(question_id, context_id, anchor_id)
+    except (rs.UnknownBlueprintError, rs.UnknownAnchorError) as exc:
+        raise _http_error(422, str(exc)) from exc
+
+
+@app.patch("/internal/review/v2/backup-questions/{question_id}", response_model=UpdateReviewResponse)
+def patch_backup_question(question_id: str, payload: UpdateQuestionReviewRequest) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_backup_question_review(
+            question_id=question_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, question_path=rs.BACKUP_QUESTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+@app.patch(
+    "/internal/review/v2/backup-questions/{question_id}/options/{role_id}", response_model=UpdateReviewResponse,
+)
+def patch_backup_option(question_id: str, role_id: str, payload: UpdateOptionReviewRequest) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_backup_option_review(
+            question_id=question_id, role_id=role_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, option_path=rs.BACKUP_OPTION_REVIEW_PATH,
         )
     except rs.StaleRevisionError as exc:
         raise _http_error(409, str(exc)) from exc

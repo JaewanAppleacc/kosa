@@ -1037,6 +1037,8 @@ def next_question(session_id: str) -> NextQuestionResponse:
                     "cache_or_fallback_status": outcome.source,
                     "fallback_source": outcome.source,
                     "error_type": classify_generation_failure(outcome.failure_reason),
+                    "backup_candidates_checked": outcome.backup_candidates_checked,
+                    "backup_candidates_rejected": outcome.backup_candidates_rejected,
                 },
             )
         if outcome.question is None:

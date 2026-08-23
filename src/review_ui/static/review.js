@@ -30,6 +30,11 @@ const state = {
   seedAnchorQuestionRevision: null,
   seedAnchorOptionRevision: null,
   seedAnchorCurrentIndex: 0,
+  // 2.5.3단계 §11 — Backup Question 탭 전용 상태.
+  backupQuestions: [],
+  backupQuestionRevision: null,
+  backupOptionRevision: null,
+  backupCurrentIndex: 0,
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -63,6 +68,21 @@ const CHECKLIST_SEED_ANCHOR_OPTION = [
   "단순 관심·감상만으로 능력이나 성향을 추론하지 않는다",
   "중립 선택지와 비교했을 때 Mapping 의미가 변질되지 않았다",
   "Mapping Rationale Draft가 이 문장과 실제로 맞아떨어진다",
+];
+
+// 2.5.3단계 §11 — Backup Question은 특정 Anchor 없이도(Anchor 답변 전 세션 포함) 나갈
+// 수 있어야 하므로, "특정 장르·Anchor에 종속되지 않는가"가 이 유형에서만 중요하다.
+const CHECKLIST_BACKUP_QUESTION = [
+  "특정 Anchor를 선택하지 않은 학생도 자연스럽게 답할 수 있다",
+  "현재 재정의된 Context와 일치한다",
+  "질문 상황과 5개 선택지가 자연스럽게 이어진다",
+];
+
+const CHECKLIST_BACKUP_OPTION = [
+  "문장이 연결된 Trait 행동을 직접 나타낸다",
+  "단순 감상·관찰만으로 능력이나 표현을 추론하지 않는다",
+  "다른 선택지를 전부 포괄하는 표현이 아니다",
+  "사회적으로 바람직한 정답처럼 보이지 않는다",
 ];
 
 const CHECKLIST_QUESTION = [
@@ -280,10 +300,13 @@ function renderReviewerSlotBlock({ scope, blueprintId, roleId, review, onSaved, 
 function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, blueprintId, roleId, onSaved, kind }) {
   const isRouting = kind === "routing";
   const isSeedAnchor = kind === "seed_anchor";
+  const isBackup = kind === "backup";
   const checklistItems = isRouting
     ? (scope === "question" ? CHECKLIST_ROUTING_QUESTION : CHECKLIST_ROUTING_OPTION)
     : isSeedAnchor
     ? (scope === "question" ? CHECKLIST_SEED_ANCHOR_QUESTION : CHECKLIST_SEED_ANCHOR_OPTION)
+    : isBackup
+    ? (scope === "question" ? CHECKLIST_BACKUP_QUESTION : CHECKLIST_BACKUP_OPTION)
     : (scope === "question" ? CHECKLIST_QUESTION : CHECKLIST_OPTION);
 
   if (!editable) {
@@ -324,11 +347,16 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
     msg.textContent = "";
     msg.className = "inline-msg";
     try {
-      const routePrefix = isRouting ? "routing-questions" : isSeedAnchor ? "seed-anchor-questions" : "questions";
+      const routePrefix = isRouting ? "routing-questions"
+        : isSeedAnchor ? "seed-anchor-questions"
+        : isBackup ? "backup-questions"
+        : "questions";
       const revisionKey = isRouting
         ? (scope === "question" ? "routingQuestionRevision" : "routingOptionRevision")
         : isSeedAnchor
         ? (scope === "question" ? "seedAnchorQuestionRevision" : "seedAnchorOptionRevision")
+        : isBackup
+        ? (scope === "question" ? "backupQuestionRevision" : "backupOptionRevision")
         : (scope === "question" ? "questionRevision" : "optionRevision");
       // Seed Anchor는 blueprintId 자리에 이미 "{context_id}/{anchor_id}"(각 segment는
       // 호출부에서 미리 encodeURIComponent된) 형태로 들어온다 — 여기서 다시 감싸면
@@ -347,6 +375,7 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
       state.dirty = false;
       if (isRouting) await refreshRoutingAfterSave();
       else if (isSeedAnchor) await refreshSeedAnchorAfterSave();
+      else if (isBackup) await refreshBackupAfterSave();
       else await refreshAfterSave();
       if (onSaved) onSaved();
     } catch (err) {
@@ -355,6 +384,7 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
         msg.className = "inline-msg err";
         if (isRouting) await reloadRoutingAfterConflict();
         else if (isSeedAnchor) await reloadSeedAnchorAfterConflict();
+        else if (isBackup) await reloadBackupAfterConflict();
         else await reloadAfterConflict();
       } else {
         msg.textContent = err.message || "저장 실패";
@@ -795,6 +825,179 @@ function renderCurrentSeedAnchorQuestion() {
   document.getElementById("next-btn").disabled = state.seedAnchorCurrentIndex >= state.seedAnchorQuestions.length - 1;
 }
 
+/* ---- 2.5.3단계 §11: Backup Question 탭 전용 렌더링/로딩 ---- */
+
+async function loadBackupAll() {
+  setSaveIndicator("Backup Question 불러오는 중…", "");
+  const resp = await apiGet(`${API_BASE}/backup-questions`);
+  state.backupQuestions = resp.questions;
+  state.backupQuestionRevision = resp.question_review_revision;
+  state.backupOptionRevision = resp.option_review_revision;
+  renderBackupSidebarList();
+  renderCurrentBackupQuestion();
+  setSaveIndicator("불러옴", "saved");
+}
+
+async function refreshBackupAfterSave() {
+  const resp = await apiGet(`${API_BASE}/backup-questions`);
+  const current = state.backupQuestions[state.backupCurrentIndex];
+  const currentId = current ? current.question_id : null;
+  state.backupQuestions = resp.questions;
+  state.backupQuestionRevision = resp.question_review_revision;
+  state.backupOptionRevision = resp.option_review_revision;
+  if (currentId) {
+    const idx = state.backupQuestions.findIndex((q) => q.question_id === currentId);
+    if (idx !== -1) state.backupCurrentIndex = idx;
+  }
+  renderBackupSidebarList();
+  renderCurrentBackupQuestion();
+}
+
+async function reloadBackupAfterConflict() {
+  if (state.dirty) {
+    const proceed = confirm("저장하지 않은 변경사항이 있습니다. 새로고침하면 사라집니다. 계속할까요?");
+    if (!proceed) return;
+  }
+  state.dirty = false;
+  await loadBackupAll();
+}
+
+function goToBackupIndex(index) {
+  if (!confirmDiscardIfDirty()) return;
+  state.backupCurrentIndex = index;
+  renderBackupSidebarList();
+  renderCurrentBackupQuestion();
+}
+
+function stepBackupQuestion(delta) {
+  if (state.backupQuestions.length === 0) return;
+  const next = Math.min(Math.max(state.backupCurrentIndex + delta, 0), state.backupQuestions.length - 1);
+  goToBackupIndex(next);
+}
+
+function renderBackupSidebarList() {
+  const list = document.getElementById("backup-nav-list");
+  list.replaceChildren();
+  state.backupQuestions.forEach((q, idx) => {
+    const item = el(
+      "li",
+      { class: idx === state.backupCurrentIndex ? "current" : "", onclick: () => goToBackupIndex(idx) },
+      [el("span", { text: `${q.context_label} · ${q.question_id}` }), statusPill(q.review.final_status)],
+    );
+    list.appendChild(item);
+  });
+}
+
+function renderBackupOptionCard(option, question) {
+  const mappingDetails = el("div", { class: "mapping-only" }, [
+    el("div", { class: "option-meta" }, [
+      el("span", { text: `role_id: ${option.role_id}` }),
+      el("span", { text: `Trait: ${option.trait_label} (${option.trait_id})` }),
+    ]),
+    el("div", { class: "def" }, option.trait_definition),
+    el("div", { class: "mapping-rationale-draft" }, `Mapping Rationale Draft(팀 초안, 검증 완료 아님): ${option.mapping_rationale_draft}`),
+  ]);
+
+  const reviewPanel = renderReviewerSlotBlock({
+    scope: "option", blueprintId: question.question_id, roleId: option.role_id, review: option.review,
+    kind: "backup",
+  });
+
+  return el("li", { class: "option-card" }, [
+    el("div", { class: "option-text", text: option.text }),
+    mappingDetails,
+    reviewPanel,
+  ]);
+}
+
+/* 실제 Runtime의 check_backup_candidate()를 그대로 호출하는 서버 결과만 렌더링한다. */
+async function loadBackupAnchorPreview(question, anchorId, resultBox) {
+  resultBox.replaceChildren(el("p", {}, "불러오는 중…"));
+  try {
+    const params = new URLSearchParams({ context_id: question.context_id });
+    if (anchorId) params.set("anchor_id", anchorId);
+    const preview = await apiGet(`${API_BASE}/backup-questions/${encodeURIComponent(question.question_id)}/anchor-preview?${params}`);
+    resultBox.replaceChildren(
+      el("div", {}, [
+        el("strong", {}, `Anchor: ${anchorId || "(없음 — 중립 요청)"}`),
+        el("span", { class: `routing-check-${preview.passed ? "ok" : "manual"}`, text: preview.passed ? " ✓ 사용 가능" : " ✗ 거부됨" }),
+      ]),
+      preview.failures.length
+        ? el("ul", {}, preview.failures.map((f) => el("li", {}, f)))
+        : null,
+    );
+  } catch (err) {
+    resultBox.replaceChildren(el("p", { class: "inline-msg err" }, `Preview 실패: ${err.message}`));
+  }
+}
+
+function renderBackupAnchorPreviewPanel(question) {
+  const resultBox = el("div", { class: "anchor-preview-result" }, "위에서 Anchor를 선택하면 실제 적합성 검사 결과가 여기 표시됩니다.");
+  const anchorIds = Object.keys(question.anchor_gate_results).filter((k) => k !== "neutral");
+  const panel = el("div", { class: "anchor-preview-panel" }, [
+    el("h4", {}, "Anchor Preview — 실제 Backup 적합성 검사"),
+    el("div", { class: "anchor-preview-buttons" }, [
+      el("button", { type: "button", class: "anchor-preview-btn", onclick: () => loadBackupAnchorPreview(question, null, resultBox) }, "중립(Anchor 없음)"),
+      ...anchorIds.map((anchorId) =>
+        el("button", { type: "button", class: "anchor-preview-btn", onclick: () => loadBackupAnchorPreview(question, anchorId, resultBox) }, anchorId)
+      ),
+    ]),
+  ]);
+  panel.appendChild(resultBox);
+  return panel;
+}
+
+function renderBackupQuestionCard(question) {
+  const meta = el("div", { class: "meta" }, [
+    el("span", { class: "student-hint", text: `Context: ${question.context_label}` }),
+    el("span", { class: "mapping-only-inline", text: ` · question_id: ${question.question_id}` }),
+  ]);
+
+  const gateGrid = el("div", { class: "anchor-gate-grid mapping-only" },
+    Object.entries(question.anchor_gate_results).map(([anchorId, passed]) =>
+      el("span", { class: `anchor-gate-chip ${passed ? "pass" : "fail"}`, text: `${anchorId}: ${passed ? "통과" : "거부"}` })
+    ),
+  );
+
+  const applicabilityPanel = el("div", { class: "neutral-comparison mapping-only" }, [
+    el("div", {}, `허용 Anchor: ${question.allowed_anchor_ids ? question.allowed_anchor_ids.join(", ") : "전체(중립)"}`),
+    el("div", {}, `제외 Anchor: ${question.excluded_anchor_ids.length ? question.excluded_anchor_ids.join(", ") : "(없음)"}`),
+    el("div", { class: "mapping-rationale-draft" }, `Applicability 초안(검증 완료 아님): ${question.applicability_reason_draft}`),
+  ]);
+
+  const optionList = el("ul", { class: "option-list" }, question.options.map((o) => renderBackupOptionCard(o, question)));
+
+  const questionReviewPanel = renderReviewerSlotBlock({
+    scope: "question", blueprintId: question.question_id, roleId: null, review: question.review, kind: "backup",
+  });
+
+  return el("div", { class: "question-card" }, [
+    meta,
+    el("div", { class: "question-text", text: question.question_text }),
+    gateGrid,
+    applicabilityPanel,
+    renderBackupAnchorPreviewPanel(question),
+    questionReviewPanel,
+    optionList,
+  ]);
+}
+
+function renderCurrentBackupQuestion() {
+  const container = document.getElementById("question-container");
+  container.replaceChildren();
+  const q = state.backupQuestions[state.backupCurrentIndex];
+  if (!q) {
+    container.appendChild(el("p", { text: "표시할 Backup 질문이 없습니다." }));
+    return;
+  }
+  container.appendChild(renderBackupQuestionCard(q));
+
+  document.getElementById("pager-label").textContent =
+    `${state.backupCurrentIndex + 1} / ${state.backupQuestions.length}`;
+  document.getElementById("prev-btn").disabled = state.backupCurrentIndex <= 0;
+  document.getElementById("next-btn").disabled = state.backupCurrentIndex >= state.backupQuestions.length - 1;
+}
+
 async function setTab(tab) {
   if (tab === state.tab) return;
   if (!confirmDiscardIfDirty()) return;
@@ -802,9 +1005,11 @@ async function setTab(tab) {
   document.body.classList.toggle("tab-direct_probe", tab === "direct_probe");
   document.body.classList.toggle("tab-routing", tab === "routing");
   document.body.classList.toggle("tab-seed_anchor", tab === "seed_anchor");
+  document.body.classList.toggle("tab-backup", tab === "backup");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
+  document.getElementById("tab-backup-btn").classList.toggle("active", tab === "backup");
 
   if (tab === "routing") {
     if (state.routingQuestions.length === 0) {
@@ -827,6 +1032,17 @@ async function setTab(tab) {
     } else {
       renderSeedAnchorSidebarList();
       renderCurrentSeedAnchorQuestion();
+    }
+  } else if (tab === "backup") {
+    if (state.backupQuestions.length === 0) {
+      try {
+        await loadBackupAll();
+      } catch (err) {
+        setSaveIndicator(`Backup Question 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderBackupSidebarList();
+      renderCurrentBackupQuestion();
     }
   } else {
     renderSidebarList();
@@ -857,15 +1073,18 @@ function setupControls() {
   document.getElementById("tab-direct-probe-btn").addEventListener("click", () => setTab("direct_probe"));
   document.getElementById("tab-routing-btn").addEventListener("click", () => setTab("routing"));
   document.getElementById("tab-seed-anchor-btn").addEventListener("click", () => setTab("seed_anchor"));
+  document.getElementById("tab-backup-btn").addEventListener("click", () => setTab("backup"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
     if (state.tab === "routing") stepRoutingQuestion(-1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
+    else if (state.tab === "backup") stepBackupQuestion(-1);
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
     if (state.tab === "routing") stepRoutingQuestion(1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
+    else if (state.tab === "backup") stepBackupQuestion(1);
     else stepQuestion(1);
   });
 
@@ -913,11 +1132,13 @@ function setupControls() {
     if (e.key === "ArrowLeft") {
       if (state.tab === "routing") stepRoutingQuestion(-1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
+      else if (state.tab === "backup") stepBackupQuestion(-1);
       else stepQuestion(-1);
     }
     if (e.key === "ArrowRight") {
       if (state.tab === "routing") stepRoutingQuestion(1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
+      else if (state.tab === "backup") stepBackupQuestion(1);
       else stepQuestion(1);
     }
   });

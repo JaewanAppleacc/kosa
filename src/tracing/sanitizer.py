@@ -123,6 +123,10 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "highlight_count": _is_nonneg_int,
     "question_count": _is_nonneg_int,
     "question_index": _is_nonneg_int,
+    # 2026-08-23 Trait Ontology v2(2.5.3단계) §12 — Backup 후보 검사 결과는 숫자로만
+    # 보낸다. 질문·선택지 원문은 애초에 이 Allowlist에 Key가 없어 구조적으로 샐 수 없다.
+    "backup_candidates_checked": _is_nonneg_int,
+    "backup_candidates_rejected": _is_nonneg_int,
     "latency_ms": _is_nonneg_number,
     "estimated_cost": _is_nonneg_number,
     "token_usage": _is_token_usage,
