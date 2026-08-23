@@ -16,19 +16,25 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from src.data.contexts.context_definitions import CONTEXT_IDS
+from src.review_ui import context_pack_review_service as cprs
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
     AnchorPreviewResponse,
     BackupAnchorPreviewResponse,
     BackupQuestionListResponse,
+    ContextPackListResponse,
     QuestionListResponse,
     RoutingQuestionListResponse,
     SeedAnchorQuestionListResponse,
     SummaryResponse,
+    UpdateContextPackReviewRequest,
     UpdateOptionReviewRequest,
     UpdateQuestionReviewRequest,
     UpdateReviewResponse,
 )
+from src.services.context_pack_registry import ContextPackRegistry
+from src.services.trait_ontology_v2 import load_trait_ontology_v2
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -43,6 +49,15 @@ app = FastAPI(
 
 def _http_error(status_code: int, message: str) -> HTTPException:
     return HTTPException(status_code=status_code, detail={"error": message})
+
+
+# 2026-08-23 Trait Ontology v2(2.8단계) §9 — `src/api/main.py`의 Registry와는 완전히
+# 별개 인스턴스다(서로 다른 FastAPI App이라 공유하지 않는다 — Department/Subject
+# Repository와 달리 이 인스턴스는 파일을 읽기만 하므로 별도로 만들어도 비용이 낮다).
+# 여기서는 검수 화면이 목적이라 승인 여부와 무관하게 발견된 Pack을 전부 보여준다
+# (Fail-Closed 게이트는 `main.py`의 Runtime 쪽에만 적용된다).
+_context_pack_registry = ContextPackRegistry(known_context_ids=frozenset(CONTEXT_IDS))
+_trait_definitions_by_id = {t.trait_id: t for t in load_trait_ontology_v2()}
 
 
 # 2.4단계 §13: 매 요청마다 `rs.QUESTION_REVIEW_PATH`/`rs.OPTION_REVIEW_PATH`를 모듈
@@ -316,6 +331,31 @@ def patch_anchor_backup_option(
     except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
         raise _http_error(422, str(exc)) from exc
     return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+# 2026-08-23 Trait Ontology v2(2.8단계) §9 — ContextPack(business 등, T·S·L이 병렬로
+# 추가) 검수 Endpoint. Context마다 이 파일을 고칠 필요가 없다 — `ContextPackRegistry`가
+# `src/data/context_packs/`를 자동으로 훑는다(위 인스턴스 생성 시점).
+
+
+@app.get("/internal/review/v2/context-packs", response_model=ContextPackListResponse)
+def get_context_packs() -> ContextPackListResponse:
+    return cprs.build_context_pack_list(_context_pack_registry, _trait_definitions_by_id)
+
+
+@app.patch(
+    "/internal/review/v2/context-packs/{context_id}/{key:path}", response_model=UpdateReviewResponse,
+)
+def patch_context_pack_review(
+    context_id: str, key: str, payload: UpdateContextPackReviewRequest,
+) -> UpdateReviewResponse:
+    try:
+        return cprs.update_context_pack_review(
+            _context_pack_registry, context_id, key, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+        )
+    except (cprs.UnknownContextPackError, cprs.UnknownReviewKeyError) as exc:
+        raise _http_error(422, str(exc)) from exc
 
 
 @app.get("/")

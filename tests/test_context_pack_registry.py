@@ -18,13 +18,20 @@ from src.services.context_pack_registry import (
 
 
 class EmptyRegistryBaselineTest(unittest.TestCase):
-    """실제 `src/data/context_packs/`에는 아직 어떤 실제 Pack도 없다 — 이 상태에서
-    기존 3개 Context 지원 목록이 절대 바뀌면 안 된다(§9와 같은 회귀 불변식)."""
+    """2026-08-23 2.8단계: Context 확장 에이전트들이 실제 Pack을 병렬로 추가하면서
+    이 클래스 이름이 더 이상 문자 그대로는 맞지 않는다 — 그래도 검증 대상 불변식은
+    그대로다: 실제 Pack이 몇 개든 검수(reviewer_1 APPROVE) 전에는 기존 3개 Context
+    지원 목록이 절대 바뀌면 안 된다(§9)."""
 
-    def test_no_real_packs_registered_yet(self) -> None:
+    def test_discovered_real_packs_have_no_structural_errors(self) -> None:
+        """실제 Pack이 있든 없든, 발견된 Pack은 전부 구조적으로 올바라야 한다(Fail-Fast
+        가 이미 각 Pack 모듈 import 시점에 강제한다 — 여기서는 discover_context_packs()
+        가 그 결과를 조용히 삼기지 않는지만 확인한다)."""
+
         packs, errors = discover_context_packs()
-        self.assertEqual(packs, {})
         self.assertEqual(errors, {})
+        for context_id, pack in packs.items():
+            self.assertEqual(pack.context_id, context_id)
 
     def test_assessment_supported_context_ids_unchanged_with_no_packs(self) -> None:
         registry = ContextPackRegistry(known_context_ids=frozenset(CONTEXT_IDS))
@@ -174,15 +181,18 @@ class RealDirectoryAutoDiscoveryTest(unittest.TestCase):
                 f.unlink()
 
     def test_new_pack_file_is_auto_discovered_without_touching_registry(self) -> None:
+        # 2026-08-23 2.8단계: 실제 배치 Context id(business 등)는 다른 작업자가 동시에
+        # 실제 Pack을 만들고 있어 충돌할 수 있다 — 이 테스트는 발견 메커니즘 자체만
+        # 검증하면 되므로, 실제 배치와 무관한 합성 context_id를 쓴다(기본값 그대로).
         self.pack_file.write_text(
             "from src.data.context_packs._example_pack_builder import build_example_context_pack\n"
-            "CONTEXT_PACK = build_example_context_pack(context_id='business')\n",
+            "CONTEXT_PACK = build_example_context_pack()\n",
             encoding="utf-8",
         )
         packs, errors = discover_context_packs()
         self.assertEqual(errors, {})
-        self.assertIn("business", packs)
-        self.assertEqual(packs["business"].context_id, "business")
+        self.assertIn("example_context", packs)
+        self.assertEqual(packs["example_context"].context_id, "example_context")
 
 
 if __name__ == "__main__":

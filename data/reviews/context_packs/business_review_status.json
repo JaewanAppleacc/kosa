@@ -1,0 +1,90 @@
+[
+  {
+    "blueprint_id": "business::anchor_backup::feedback_reading",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::anchor_backup::idea_shaping",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::anchor_backup::plan_decision",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::anchor_backup::resource_budgeting",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::anchor_backup::team_role_share",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::routing::business_context_router_v1",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::seed::feedback_reading",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::seed::idea_shaping",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::seed::plan_decision",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::seed::resource_budgeting",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "business::seed::team_role_share",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  }
+]

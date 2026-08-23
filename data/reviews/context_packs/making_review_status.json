@@ -1,0 +1,90 @@
+[
+  {
+    "blueprint_id": "making::anchor_backup::assembling",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::anchor_backup::error_fixing",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::anchor_backup::improving",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::anchor_backup::tool_using",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::anchor_backup::user_perspective",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::routing::making_context_router_v1",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::seed::assembling",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::seed::error_fixing",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::seed::improving",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::seed::tool_using",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "making::seed::user_perspective",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  }
+]

@@ -233,6 +233,7 @@ def select_blueprint_for_trait(
     preferred_context_ids: list[str],
     final_contexts: list[str],
     used_v2_probe_frame_ids: set[str],
+    candidate_pool: list[V2DirectProbeBlueprint] | None = None,
 ) -> V2DirectProbeBlueprint | None:
     """§5 — 다음 우선순위로 Blueprint를 고른다:
 
@@ -242,11 +243,17 @@ def select_blueprint_for_trait(
     4. 아직 사용하지 않은 Frame
     5. blueprint_id 오름차순
 
-    맞는 Blueprint가 없으면 None(호출자가 다음 후보 Trait로 넘어간다)."""
+    맞는 Blueprint가 없으면 None(호출자가 다음 후보 Trait로 넘어간다).
 
+    2026-08-23 Trait Ontology v2(2.8단계) §7: `candidate_pool`이 주어지면 전역
+    `V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT`(Legacy 3-Context) 대신 그 목록에서만
+    고른다 — ContextPack Runtime이 신규 Context 하나의 Direct Probe 후보만 넘길 때
+    쓴다. 기본값 None이면 기존 동작과 100% 동일하다(하위 호환)."""
+
+    source = candidate_pool if candidate_pool is not None else V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT.get(trait_id, [])
     candidates = [
-        bp for bp in V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT.get(trait_id, [])
-        if set(bp.allowed_context_ids) & set(final_contexts)
+        bp for bp in source
+        if bp.trait_id == trait_id and set(bp.allowed_context_ids) & set(final_contexts)
     ]
     if not candidates:
         return None

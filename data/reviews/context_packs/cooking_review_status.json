@@ -1,0 +1,90 @@
+[
+  {
+    "blueprint_id": "cooking::anchor_backup::food_choice",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::anchor_backup::ingredient_substitution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::anchor_backup::process_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::anchor_backup::recipe_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::anchor_backup::taste_adjustment",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::routing::cooking_routing_blueprint",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::seed::food_choice",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::seed::ingredient_substitution",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::seed::process_planning",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::seed::recipe_understanding",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "cooking::seed::taste_adjustment",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  }
+]

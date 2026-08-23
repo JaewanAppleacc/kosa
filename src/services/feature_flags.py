@@ -41,3 +41,14 @@ def trait_vector_v2_primary_enabled(env: dict[str, str] | None = None) -> bool:
     쓸지 여부. DIRECT_PROBES와 독립이다(위 모듈 docstring 참고)."""
 
     return _flag_on("ENABLE_TRAIT_VECTOR_V2_PRIMARY", env)
+
+
+def context_pack_runtime_enabled(env: dict[str, str] | None = None) -> bool:
+    """2026-08-23 Trait Ontology v2(2.8단계) §3-2 — 승인된 신규 ContextPack(business 등
+    12개)을 실제 Assessment 질문 흐름(Routing/Seed/Direct Probe/Backup)과 `/contexts`
+    지원 목록에 포함할지 여부. 위 두 Flag와도 독립이다 — 이 Flag가 꺼져 있으면
+    ContextPackRegistry에 몇 개가 등록·검수됐든 기존 game/media/school_life 3개와 기존
+    API 값이 완전히 그대로 유지된다(§3-2 "Flag OFF에서는 기존 3개 Context와 기존 API
+    값이 완전히 동일해야 한다"). 기본값 OFF."""
+
+    return _flag_on("ENABLE_CONTEXT_PACK_RUNTIME", env)

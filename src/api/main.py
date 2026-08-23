@@ -118,6 +118,9 @@ from src.services.course_planning_service_v2 import (
     CoursePlanningServiceV2,
     MajorNotSelectableErrorV2,
 )
+from src.services.context_pack_registry import ContextPackRegistry
+from src.services.context_pack_runtime import ContextPackRuntime
+from src.services.context_trait_coverage import compute_context_trait_coverage
 from src.services.department_recommendation_scope import JsonlDepartmentRecommendationScopePolicy
 from src.services.knowledge_subgraph_service import (
     KnowledgeSubgraphService,
@@ -126,6 +129,7 @@ from src.services.knowledge_subgraph_service import (
 from src.services.major_exploration_service import MajorExplorationService
 from src.services.feature_flags import (
     MAX_V2_DIRECT_PROBE_QUESTIONS,
+    context_pack_runtime_enabled,
     trait_vector_v2_direct_probes_enabled,
     trait_vector_v2_primary_enabled,
 )
@@ -316,6 +320,25 @@ _course_planning_service_v2 = CoursePlanningServiceV2(
     trait_definitions=TRAIT_DEFINITIONS_V2_BY_ID,
 )
 
+# 2026-08-23 Trait Ontology v2(2.8단계) §1/§4 — ContextPack Registry는 앱 시작 시 한 번만
+# `src/data/context_packs/`를 훑는다(Department/Subject Repository와 같은 패턴). 이
+# 시점에 오류가 나는 개별 Pack이 있어도 앱 전체가 죽지 않는다(discover_context_packs가
+# 이미 Fail-Closed로 그 Pack만 제외하고 원인을 보존한다, context_pack_registry.py 참고).
+_context_pack_registry = ContextPackRegistry(
+    known_context_ids=frozenset(CONTEXT_IDS), known_trait_ids=frozenset(TRAIT_DEFINITIONS_V2_BY_ID),
+)
+if _context_pack_registry.discovery_errors() or _context_pack_registry.ontology_errors():
+    print(
+        "[warn] 일부 ContextPack이 구조·Ontology 오류로 제외됐습니다: "
+        f"{ {**_context_pack_registry.discovery_errors(), **_context_pack_registry.ontology_errors()} }"
+    )
+# ENABLE_CONTEXT_PACK_RUNTIME이 꺼져 있으면(기본값) 이 Runtime은 어떤 context_id에도
+# 절대 관여하지 않는다(항상 None/빈 목록 반환) — 기존 game/media/school_life 3개와
+# 기존 API 값이 완전히 그대로 유지된다(§3-2).
+_context_pack_runtime = ContextPackRuntime(
+    _context_pack_registry, context_pack_runtime_enabled, frozenset(VERTICAL_SLICE_CONTEXT_IDS),
+)
+
 # 2026-08-26 16차 리뷰: POST /course/upload — 실제 Parser를 연결한다. Alias 표도 학과·
 # 과목 Repository와 같은 패턴으로 앱 시작 시 한 번만 읽는다.
 _subject_alias_index = SubjectAliasIndex.load(
@@ -343,6 +366,17 @@ _knowledge_subgraph_service = KnowledgeSubgraphService(
     course_planning_store=_course_planning_store,
     subject_repository=_subject_repository,
 )
+
+
+def _effective_supported_context_ids() -> list[str]:
+    """2026-08-23 Trait Ontology v2(2.8단계) §3-1 — `GET /contexts`·`/assessment/
+    context-select`·`/assessment/context-confirm`이 전부 이 함수 하나만 호출한다(같은
+    집합을 세 곳에서 각자 계산하면 불일치가 생긴다). Flag OFF면 기존 3개 그대로,
+    ON이면 Registry가 Fail-Closed로 판정한 승인된 신규 Context만 추가된다."""
+
+    if not context_pack_runtime_enabled():
+        return list(VERTICAL_SLICE_CONTEXT_IDS)
+    return _context_pack_registry.assessment_supported_context_ids(list(VERTICAL_SLICE_CONTEXT_IDS))
 
 
 def _clear_current_question(state: AssessmentState) -> None:
@@ -669,6 +703,217 @@ def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: s
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
 
+def _serve_pack_context_question(state: AssessmentState, current_context: str) -> "NextQuestionResponse":
+    """2026-08-23 Trait Ontology v2(2.8단계) §2/§4/§5 — 신규 ContextPack Context 전용
+    질문 서빙. Legacy Tail Option Blueprint(12-Trait 전용)는 전혀 쓰지 않는다 —
+    ContextPack은 Seed/Backup/Direct Probe만 정의한다(개발 가이드 §2). 이번 라운드의
+    최소 연결 범위: Context당 정확히 Seed(위치 0) + 그 뒤 질문 1개(Direct Probe 후보가
+    있으면 그중 하나, 없으면 그 Anchor의 Backup)로 끝난다 — 그 뒤에는 항상 다음
+    Context로 진행한다(§4 "Backup까지 사용할 수 없으면 기존 조기 종료 정책을 따르세요").
+    "게임", "미디어" 같은 이름을 조건문으로 나열하지 않는다 — `_context_pack_runtime`
+    호출 하나로 어떤 신규 Context가 와도 동일하게 동작한다."""
+
+    anchor_id = state.context_anchor_choices.get(current_context)
+    if anchor_id is None:
+        # 방어적 분기 — Routing이 이 Context의 Anchor를 항상 먼저 정하므로(위 next_question
+        # 본문에서 Routing을 먼저 서빙한다) 정상 흐름에서는 도달하지 않는다.
+        has_next_context = _advance_to_next_context_or_complete(state)
+        _clear_current_question(state)
+        assessment_complete = not has_next_context
+        _store.save(state)
+        return NextQuestionResponse(
+            session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED, question=None,
+            current_context_id=state.current_context_id, questions_asked_in_current_context=0,
+            assessment_complete=assessment_complete,
+        )
+
+    if state.questions_asked_in_current_context == 0:
+        seed_question = _context_pack_runtime.get_seed_question(current_context, anchor_id)
+        if seed_question is None:
+            has_next_context = _advance_to_next_context_or_complete(state)
+            _clear_current_question(state)
+            assessment_complete = not has_next_context
+            _store.save(state)
+            return NextQuestionResponse(
+                session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED, question=None,
+                current_context_id=state.current_context_id, questions_asked_in_current_context=0,
+                assessment_complete=assessment_complete,
+            )
+        question = seed_question
+        question_family_id = "seed"
+        question_blueprint_id = f"{question.question_id}_blueprint"
+        status = QuestionDeliveryStatus.GENERATED
+    else:
+        v2_snapshot = _compute_v2_snapshot(state)
+        pack_candidates = _context_pack_runtime.get_direct_probe_candidates(current_context)
+        chosen_trait_id: str | None = None
+        chosen_blueprint = None
+        if pack_candidates:
+            candidates = select_v2_probe_candidates(
+                v2_snapshot, set(state.v2_probed_trait_ids), final_contexts=[current_context],
+                used_v2_probe_frame_ids=set(), preferred_context_ids=state.selected_preferred_contexts,
+                interest_ratings=state.interest_ratings,
+            )
+            for trait_id in candidates:
+                blueprint = select_blueprint_for_trait(
+                    trait_id,
+                    related_context_ids=v2_snapshot[trait_id].related_context_ids if trait_id in v2_snapshot else set(),
+                    preferred_context_ids=state.selected_preferred_contexts, final_contexts=[current_context],
+                    used_v2_probe_frame_ids=set(), candidate_pool=pack_candidates,
+                )
+                if blueprint is not None:
+                    chosen_trait_id, chosen_blueprint = trait_id, blueprint
+                    break
+
+        if chosen_blueprint is not None:
+            question_id = generate_question_id(current_context, "v2_probe", 1)
+            anchor_presentation = _context_pack_runtime.get_anchor_presentation(current_context, anchor_id)
+            outcome = generate_v2_direct_probe_question(
+                question_id=question_id, context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
+                blueprint=chosen_blueprint, llm_client=_llm_client, anchor=anchor_presentation,
+            )
+            question = outcome.question
+            status = QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED
+            question_family_id = "pack_direct_probe"
+            question_blueprint_id = chosen_blueprint.blueprint_id
+            state.current_v2_probe_target_trait_id = chosen_trait_id
+            state.current_v2_probe_blueprint_id = chosen_blueprint.blueprint_id
+        else:
+            backups = _context_pack_runtime.get_backup_candidates(current_context, anchor_id)
+            unused_backups = [b for b in backups if b.question_id not in state.used_backup_question_ids]
+            if not unused_backups:
+                has_next_context = _advance_to_next_context_or_complete(state)
+                _clear_current_question(state)
+                assessment_complete = not has_next_context
+                _store.save(state)
+                return NextQuestionResponse(
+                    session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED,
+                    question=None, current_context_id=state.current_context_id,
+                    questions_asked_in_current_context=state.questions_asked_in_current_context,
+                    assessment_complete=assessment_complete,
+                )
+            question = unused_backups[0]
+            question_family_id, question_blueprint_id = "pack_backup", question.question_id
+            status = QuestionDeliveryStatus.BACKUP_USED
+
+    state.current_question = question
+    state.current_question_family_id = question_family_id
+    state.current_question_blueprint_id = question_blueprint_id
+    state.current_question_delivery_status = status.value
+    state.current_question_served_context_id = current_context
+    _store.save(state)
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Pack Context Question Generator",
+        attributes={
+            "graph_node": "pack_context_question_generator", "context_id": current_context,
+            "context_anchor_id": anchor_id, "blueprint_id": question_blueprint_id,
+        },
+    )
+
+    return NextQuestionResponse(
+        session_id=state.session_id, status=status, question=question, current_context_id=current_context,
+        questions_asked_in_current_context=state.questions_asked_in_current_context, assessment_complete=False,
+    )
+
+
+def _submit_pack_context_probe_answer(state: AssessmentState, selected_option_id: str) -> "AnswerResponse":
+    """2026-08-23 Trait Ontology v2(2.8단계) §5 — Pack Context의 Direct Probe/Backup
+    답변. `_submit_v2_direct_probe_answer()`와 같은 Evidence 생성 원칙(Legacy Stop/
+    Continue·Target Planner를 건드리지 않음)을 따르되, "이 Context는 Seed+질문 1개로
+    끝난다"는 §2.8단계 최소 연결 범위에 맞춰 답변 직후 항상 다음 Context로 진행하거나
+    세션을 완료 처리한다(Legacy처럼 같은 Context에서 추가 질문을 더 내지 않는다)."""
+
+    question = state.current_question
+    selected = next((o for o in question.options if o.option_id == selected_option_id), None)
+    if selected is None:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=f"selected_option_id {selected_option_id!r}가 질문 {question.question_id!r}의 선택지 목록에 없습니다.",
+            ).model_dump(),
+        )
+
+    is_direct_probe = state.current_question_family_id == "pack_direct_probe"
+    origin = EvidenceOrigin.V2_DIRECT_PROBE if is_direct_probe else EvidenceOrigin.PRIMARY_BLUEPRINT
+    resolution = resolve_trait_signals(
+        question_family_id=state.current_question_family_id or "",
+        blueprint_id=state.current_question_blueprint_id or "",
+        role_id=selected.role_id,
+        legacy_primary_trait_delta=selected.primary_trait_delta,
+        is_resolution_question=False,
+    )
+    applied_signals = [
+        AppliedTraitSignal(
+            trait_id=s.trait_id, signal_role=s.signal_role, weight=s.weight,
+            related_concept_ids=s.related_concept_ids,
+        )
+        for s in resolution.signals
+    ]
+
+    evidence = EvidenceRecord(
+        evidence_id=generate_evidence_id(),
+        answer_id=f"ans_{question.question_id}_{len(state.answers) + 1:02d}",
+        question_id=question.question_id, question_frame_id=question.frame_id, option_role_id=selected.role_id,
+        option_text=selected.text, applied_primary_trait_delta=selected.primary_trait_delta,
+        applied_trait_signals_v2=applied_signals, trait_signal_mapping_source_v2=resolution.mapping_source,
+        evidence_origin=origin, context=question.context,
+        source_type="pack_context_direct_probe_question" if is_direct_probe else "pack_context_backup_question",
+        generator_version="v1", quality_gate_status="passed",
+        source_question_family_id=state.current_question_family_id, source_blueprint_id=state.current_question_blueprint_id,
+    )
+    state.evidence_ledger.append(evidence)
+    state.answers.append(
+        AnsweredQuestion(
+            question_id=question.question_id, selected_option_id=selected.option_id, selected_role_id=selected.role_id,
+        )
+    )
+
+    if is_direct_probe:
+        target_trait_id = state.current_v2_probe_target_trait_id or ""
+        target_signal_selected = any(
+            s.trait_id == target_trait_id and s.signal_role == "PRIMARY" for s in resolution.signals
+        )
+        state.v2_probe_opportunities.append(
+            V2ProbeOpportunity(
+                question_id=question.question_id, blueprint_id=state.current_question_blueprint_id or "",
+                target_trait_id=target_trait_id, context_id=question.context, frame_id=question.frame_id,
+                selected_option_id=selected.option_id, target_signal_selected=target_signal_selected,
+            )
+        )
+        state.v2_probe_questions_asked += 1
+        if target_trait_id:
+            state.v2_probed_trait_ids.append(target_trait_id)
+        state.current_v2_probe_target_trait_id = None
+        state.current_v2_probe_blueprint_id = None
+    else:
+        state.used_backup_question_ids.append(question.question_id)
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Pack Context Probe Evidence Update",
+        attributes={
+            "graph_node": "pack_context_probe_evidence_update", "context_id": evidence.context,
+            "role_id": evidence.option_role_id,
+        },
+    )
+
+    # §2.8단계 최소 연결 범위: 이 Context는 Seed + 이 질문 하나로 끝난다 — 항상 다음
+    # Context로 진행하거나(있으면) 세션을 완료 처리한다.
+    has_next_context = _advance_to_next_context_or_complete(state)
+    _clear_current_question(state)
+    if has_next_context:
+        next_action = "NEXT_QUESTION"
+    elif _enter_v2_direct_probe_phase_if_applicable(state):
+        next_action = "NEXT_QUESTION"
+    else:
+        next_action = "ASSESSMENT_COMPLETE"
+    _store.save(state)
+    return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
+
+
 def _serve_context_routing_question(
     state: AssessmentState, routing_blueprint: "ContextRoutingBlueprint",
 ) -> "NextQuestionResponse":
@@ -725,7 +970,23 @@ def _submit_context_routing_answer(state: AssessmentState, selected_option_id: s
             ).model_dump(),
         )
 
-    routing_blueprint = CONTEXT_ROUTING_BLUEPRINTS_BY_ID[state.current_question_blueprint_id]
+    # 2026-08-23 Trait Ontology v2(2.8단계) §4: Legacy Routing Blueprint는 blueprint_id로
+    # 조회하지만, 신규 ContextPack Routing Blueprint는 blueprint_id가 Pack 저작자마다
+    # 다르므로 이 답변을 서빙한 Context id(`current_question_served_context_id`)로
+    # 다시 조회한다 — 서빙 시점과 완전히 동일한 조회 순서(Legacy 우선)를 그대로 따른다.
+    routing_blueprint = CONTEXT_ROUTING_BLUEPRINTS_BY_ID.get(state.current_question_blueprint_id)
+    if routing_blueprint is None:
+        routing_blueprint = _context_pack_runtime.get_routing_question(
+            state.current_question_served_context_id or ""
+        )
+    if routing_blueprint is None:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=f"blueprint_id {state.current_question_blueprint_id!r}에 해당하는 Routing Blueprint를 찾을 수 없습니다.",
+            ).model_dump(),
+        )
     anchor = routing_blueprint.anchor_for_role(selected.role_id)
 
     state.context_anchor_choices[routing_blueprint.context_id] = anchor
@@ -790,6 +1051,11 @@ def get_context_catalog() -> ContextCatalogResponse:
     않는다). `assessment_supported`는 `VERTICAL_SLICE_CONTEXT_IDS`(현재 3개)에 속하는지로
     계산한다 — `/assessment/context-select`가 실제로 검증하는 것과 동일한 기준이다."""
 
+    # 2026-08-23 Trait Ontology v2(2.8단계) §3-1: 위 docstring은 OpenAPI 공개 설명이라
+    # Flag OFF에서 문구가 절대 안 바뀌게 그대로 둔다(§9 "OpenAPI byte-identical" 불변식)
+    # — 실제 계산은 이제 `_effective_supported_context_ids()`(Flag OFF면 기존 3개
+    # 그대로, ON이면 검수 승인된 신규 Context Pack까지 Fail-Closed로 포함)가 한다.
+    supported_ids = set(_effective_supported_context_ids())
     contexts = [
         ContextCatalogItem(
             context_id=c.context_id,
@@ -798,7 +1064,7 @@ def get_context_catalog() -> ContextCatalogResponse:
             example_activities=c.example_activities,
             interest_rating_prompt=c.interest_rating_prompt,
             is_core=c.is_core,
-            assessment_supported=c.context_id in VERTICAL_SLICE_CONTEXT_IDS,
+            assessment_supported=c.context_id in supported_ids,
         )
         for c in CONTEXT_DEFINITIONS
     ]
@@ -855,6 +1121,7 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
     (4) 관심도를 아직 안 매긴 Context."""
 
     state = _get_state_or_404(payload.session_id)
+    effective_supported = _effective_supported_context_ids()
     try:
         validate_context_id_list(
             payload.selected_preferred_context_ids,
@@ -863,11 +1130,11 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
             maximum_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
             label="선호 Context",
         )
-        unsupported = sorted(set(payload.selected_preferred_context_ids) - set(VERTICAL_SLICE_CONTEXT_IDS))
+        unsupported = sorted(set(payload.selected_preferred_context_ids) - set(effective_supported))
         if unsupported:
             raise ContextSelectionError(
-                f"등록은 됐지만 Vertical Slice가 아직 실제 질문 흐름을 지원하지 않는 Context입니다: "
-                f"{unsupported} (지원: {VERTICAL_SLICE_CONTEXT_IDS})"
+                f"등록은 됐지만 실제 질문 흐름을 아직 지원하지 않는 Context입니다: "
+                f"{unsupported} (지원: {effective_supported})"
             )
         not_rated = sorted(set(payload.selected_preferred_context_ids) - set(state.interest_ratings))
         if not_rated:
@@ -885,13 +1152,16 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
     # §5-1/§6-5: 실제 계산 — 관심도 평가와 사전 정의된 Context Vector·Coverage Matrix만
     # 사용한다(학생의 Trait 점수나 전공 순위는 절대 참조하지 않는다, CLAUDE.md).
     # 2026-08-30 20차 리뷰: all_context_ids를 등록된 15개 전체가 아니라 실제 질문 흐름을
-    # 지원하는 3개로 제한한다 — 안 그러면 Contrast 후보가 미지원 12개 Context 중 하나로
-    # 제안될 수 있었다(선호 Context는 이미 지원 3개 중 2개이므로, 남는 후보는 자동으로
-    # 나머지 1개가 된다).
+    # 지원하는 Context로 제한한다 — 안 그러면 Contrast 후보가 미지원 Context 중 하나로
+    # 제안될 수 있었다. 2026-08-23 2.8단계 §3-1: 이 범위가 이제 `_effective_supported_
+    # context_ids()`다 — Flag ON이면 검수 승인된 신규 Context까지 포함된다.
+    # `CONTEXT_VECTORS`/`CONTEXT_TRAIT_COVERAGE`는 이미 15개 Context 전부를 담고 있어
+    # (Legacy 12-Trait 범위) 새 Context를 넘겨도 KeyError 없이 그대로 동작한다
+    # (contrast_context_selector.py가 `.get()` 기반으로 이미 방어적이다).
     selection = select_contrast_context(
         preferred_context_ids=state.selected_preferred_contexts,
         interest_ratings=state.interest_ratings,
-        all_context_ids=set(VERTICAL_SLICE_CONTEXT_IDS),
+        all_context_ids=set(effective_supported),
         context_vectors=CONTEXT_VECTORS,
         coverage_matrix=CONTEXT_TRAIT_COVERAGE,
         all_trait_ids=VERTICAL_SLICE_TRAIT_IDS,
@@ -932,14 +1202,17 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
             maximum_count=MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
             label="최종 Context",
         )
-        # Vertical Slice 운영 제약: 실제 질문 흐름(Seed·Option Blueprint)이 아직
-        # game/media/school_life 3개만 지원한다 — 다른 유효한 Context를 확정하면
-        # /assessment/next-question에서야 뒤늦게 실패하므로 여기서 먼저 막는다.
-        unsupported = sorted(set(payload.final_context_ids) - set(VERTICAL_SLICE_CONTEXT_IDS))
+        # 운영 제약: 실제 질문 흐름(Seed·Backup·Routing)을 지원하는 Context만 확정할 수
+        # 있다 — 다른 유효한 Context를 확정하면 /assessment/next-question에서야 뒤늦게
+        # 실패하므로 여기서 먼저 막는다. 2026-08-23 2.8단계 §3-1: 기준이 이제
+        # `_effective_supported_context_ids()`다(Flag ON이면 검수 승인된 신규 Context
+        # 까지 포함).
+        effective_supported = _effective_supported_context_ids()
+        unsupported = sorted(set(payload.final_context_ids) - set(effective_supported))
         if unsupported:
             raise ContextSelectionError(
-                f"Vertical Slice는 아직 다음 Context의 실제 질문 흐름을 지원하지 않습니다: "
-                f"{unsupported} (지원: {VERTICAL_SLICE_CONTEXT_IDS})"
+                f"다음 Context의 실제 질문 흐름을 아직 지원하지 않습니다: "
+                f"{unsupported} (지원: {effective_supported})"
             )
     except ContextSelectionError as exc:
         raise HTTPException(
@@ -1001,8 +1274,19 @@ def next_question(session_id: str) -> NextQuestionResponse:
     # 완전히 그대로 유지돼야 한다"는 기존 불변식(1.5단계부터 모든 라운드에 걸쳐 지켜온
     # 규칙)을 그대로 지킨다. Context 자체(정의·질문 문구)는 이미 재정의됐지만, "Routing
     # 질문이 추가로 하나 더 나가는" 흐름 변화는 v2 실험 범위 안에서만 켠다.
-    if trait_vector_v2_direct_probes_enabled() and current_context not in state.context_anchor_choices:
-        routing_blueprint = CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT.get(current_context)
+    #
+    # 2026-08-23 Trait Ontology v2(2.8단계) §3-1/§4: 신규 ContextPack Context는 Anchor
+    # 없이는 Seed 자체를 낼 수 없으므로(Legacy처럼 "Anchor 없는 기본 Seed"가 없다),
+    # Routing이 `ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES`가 아니라 별도로
+    # `ContextPackRuntime.get_routing_question()`(ENABLE_CONTEXT_PACK_RUNTIME Flag +
+    # 검수 승인 여부로 이미 Fail-Closed)이 있으면 항상 먼저 나간다 — Legacy 3개
+    # Context의 기존 Routing Gate(위 Flag)는 전혀 건드리지 않는다.
+    if current_context not in state.context_anchor_choices:
+        routing_blueprint = None
+        if trait_vector_v2_direct_probes_enabled():
+            routing_blueprint = CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT.get(current_context)
+        if routing_blueprint is None:
+            routing_blueprint = _context_pack_runtime.get_routing_question(current_context)
         if routing_blueprint is not None:
             return _serve_context_routing_question(state, routing_blueprint)
 
@@ -1031,6 +1315,13 @@ def next_question(session_id: str) -> NextQuestionResponse:
                 questions_asked_in_current_context=state.questions_asked_in_current_context,
                 assessment_complete=False,
             )
+
+    # 2026-08-23 Trait Ontology v2(2.8단계) §2/§4: Legacy 3개 Context가 아니면 이 시점
+    # 이후로는 전부 ContextPack Runtime이 담당한다 — Legacy Seed Mock 데이터·Tail Option
+    # Blueprint(12-Trait 전용)를 전혀 참조하지 않는다. Routing을 아직 안 거쳤다면(Anchor
+    # 없음) `_serve_pack_context_question`이 방어적으로 Context를 조기 종료한다.
+    if current_context not in VERTICAL_SLICE_CONTEXT_IDS:
+        return _serve_pack_context_question(state, current_context)
 
     question_family_id: str
     question_blueprint_id: str
@@ -1211,6 +1502,12 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
     # 2.5단계 §5: Context Routing 답변도 마찬가지로 Legacy/v2 파이프라인을 완전히 우회한다.
     if state.current_question_family_id == "context_routing":
         return _submit_context_routing_answer(state, payload.selected_option_id)
+
+    # 2026-08-23 Trait Ontology v2(2.8단계) §5: 신규 ContextPack Context의 Direct
+    # Probe/Backup 답변도 Legacy 12-Trait 전용 Stop/Continue·Target Planner를 완전히
+    # 우회한다(그 둘 다 VERTICAL_SLICE_TRAIT_IDS 기준이라 Pack의 24-Trait 범위와 안 맞다).
+    if state.current_question_family_id in ("pack_direct_probe", "pack_backup"):
+        return _submit_pack_context_probe_answer(state, payload.selected_option_id)
 
     is_first_context_in_session = state.current_context_index == 0
     result = process_answer_submission(

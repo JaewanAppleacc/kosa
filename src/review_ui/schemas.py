@@ -279,3 +279,71 @@ class UpdateReviewResponse(BaseModel):
     ok: bool
     final_status: FinalReviewStatus
     new_revision: str
+
+
+class ContextPackReviewOptionView(BaseModel):
+    """2026-08-23 Trait Ontology v2(2.8단계) §9 — Seed/Backup은 `FinalizedOption.
+    primary_trait_delta`(비어있으면 NO_SIGNAL) 기반, Direct Probe는
+    `V2ProbeOptionMapping`(PRIMARY/RELATED/NO_SIGNAL 명시) 기반이다 — 어느 쪽이든
+    같은 View로 평평하게 담는다."""
+
+    role_id: str
+    text: str
+    mapping_type: Literal["TRAIT_SIGNAL", "NO_SIGNAL"]
+    trait_id: str | None
+    trait_label: str | None
+    mapping_rationale_draft: str | None
+
+
+class ContextPackReviewQuestionView(BaseModel):
+    key: str  # ContextPackRegistry.required_review_keys()와 동일한 검수 상태 Key.
+    kind: Literal["routing", "seed", "anchor_backup", "direct_probe"]
+    anchor_id: str | None
+    question_text: str
+    trait_signal_free: bool  # Routing 질문이면 True(Trait 미반영 구조 확인용).
+    options: list[ContextPackReviewOptionView]
+    review: QuestionReviewView
+
+
+class ContextPackAnchorView(BaseModel):
+    anchor_id: str
+    label: str
+    situation_terms: list[str]
+    preferred_scenarios: list[str]
+    forbidden_assumptions: list[str]
+
+
+class ContextPackCoverageView(BaseModel):
+    primary_trait_ids: list[str]
+    related_trait_ids: list[str]
+    direct_probe_trait_ids: list[str]
+    anchor_count: int
+    seed_question_count: int
+    backup_question_count: int
+    uncovered_trait_ids: list[str]
+
+
+class ContextPackReviewItem(BaseModel):
+    context_id: str
+    label: str
+    description: str
+    pack_version: str
+    forbidden_assumptions: list[str]
+    review_artifact_paths: list[str]
+    anchors: list[ContextPackAnchorView]
+    questions: list[ContextPackReviewQuestionView]
+    coverage: ContextPackCoverageView
+    is_active: bool  # 지금 ENABLE_CONTEXT_PACK_RUNTIME=true라면 실제 서빙 대상인가.
+    registry_errors: list[str] = Field(default_factory=list)
+
+
+class ContextPackListResponse(BaseModel):
+    packs: list[ContextPackReviewItem]
+    discovery_errors: dict[str, str]
+    ontology_errors: dict[str, str]
+
+
+class UpdateContextPackReviewRequest(BaseModel):
+    status: ReviewerStatus
+    comment: str = ""
+    resolution_note: str | None = None
