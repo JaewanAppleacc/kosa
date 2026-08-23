@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from urllib.parse import parse_qsl, urlparse
 
 from pydantic import BaseModel, field_validator
 
@@ -56,6 +57,19 @@ class CanonicalMappingResult(BaseModel):
     mapping_version: str
 
 
+# A2 지시서(2026-08-24) §1: department_url에는 대학알리미 OpenAPI 호출 URL이나 API
+# Key/Service Key가 든 URL을 넣지 않는다 — 학과 공식 홈페이지만 허용한다. 쿼리
+# 파라미터 이름 기준으로 판정한다(값 자체를 흉내내는 우연한 문자열 매칭을 피하기
+# 위해 urlparse로 실제 쿼리 파라미터만 본다).
+_FORBIDDEN_DEPARTMENT_URL_QUERY_PARAMS = frozenset(
+    {"servicekey", "service_key", "apikey", "api_key", "key", "authkey", "auth_key", "token"}
+)
+# A2 후속 보완(2026-08-24) §2-1: 학과 홈페이지는 웹 페이지여야 한다 — `file`/`javascript`/
+# `ftp` 등은 브라우저에서 새 탭으로 열었을 때 안전하지 않거나(로컬 파일 접근, 스크립트
+# 실행) 애초에 "홈페이지"가 아니다.
+_ALLOWED_DEPARTMENT_URL_SCHEMES = frozenset({"http", "https"})
+
+
 class Department(BaseModel):
     """§18 실제 학과. department_id는 §ids.py의 generate_department_id()로 생성하며
     조사년도(svyYr)는 id 해시에 넣지 않는다 — source_svy_year로 별도 보존한다."""
@@ -71,6 +85,12 @@ class Department(BaseModel):
     source_svy_year: int
     source_url: str
     canonical_major_id: str | None = None  # CanonicalMappingResult 확정 후 채워짐
+    # A2 지시서(2026-08-24) §1: 학과 공식 홈페이지 URL. 데이터 출처 표시용인
+    # `source_url`(대학알리미 공식 URL)과 역할이 다르다 — B는 이 값이 있을 때만 "학과
+    # 홈페이지" 버튼을 보여주고, `source_url`을 그 버튼에 쓰면 안 된다(README_B §2 참고).
+    # 검증되지 않은 URL은 아직 None이다 — C의 검증된 URL 데이터는 이후 별도 라운드에서
+    # 채운다(이번 라운드는 Schema·None 처리 경로만 완성한다).
+    department_url: str | None = None
 
     @field_validator("department_name", "university_name")
     @classmethod
@@ -78,6 +98,44 @@ class Department(BaseModel):
         if not value.strip():
             raise ValueError("빈 값은 허용하지 않는다")
         return value
+
+    @field_validator("department_url")
+    @classmethod
+    def _validate_department_url(cls, value: str | None) -> str | None:
+        """A2 후속 보완(2026-08-24) §2 — 오류 메시지에는 절대 원본 URL을 그대로
+        담지 않는다(§2-3). Query 값이 비어 있어도(`?serviceKey=`) 차단해야 하므로
+        `parse_qsl(keep_blank_values=True)`로 실제 쿼리 파라미터 "이름"만 본다(값은
+        아예 비교하지 않는다 — 이름만으로 판정하면 로그에도 Secret 값이 남지 않는다).
+        Query 이름 비교는 대소문자를 무시한다."""
+
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            return None  # 빈 문자열·공백만 있는 값은 "없음"으로 정규화한다.
+
+        parsed = urlparse(stripped)
+        if parsed.scheme.lower() not in _ALLOWED_DEPARTMENT_URL_SCHEMES or not parsed.netloc:
+            raise ValueError("department_url은 http 또는 https 절대 URL이어야 한다")
+
+        query_param_names = {name.lower() for name, _value in parse_qsl(parsed.query, keep_blank_values=True)}
+        forbidden = query_param_names & _FORBIDDEN_DEPARTMENT_URL_QUERY_PARAMS
+        if forbidden:
+            raise ValueError(
+                "department_url에 인증·API Key로 보이는 쿼리 파라미터를 포함할 수 없다 "
+                f"(파라미터 이름: {sorted(forbidden)}) — 학과 공식 홈페이지 URL만 허용한다"
+            )
+
+        # 대학알리미(academyinfo.go.kr) OpenAPI 호출 경로를 학과 홈페이지로 위장하지
+        # 않는다 — source_url(출처 표시용 포털 URL)과 구분한다.
+        host = parsed.netloc.lower()
+        if "academyinfo.go.kr" in host and "openapi" in stripped.lower():
+            raise ValueError(
+                "department_url에 대학알리미 OpenAPI 호출 URL을 넣을 수 없다 — "
+                "학과 공식 홈페이지 URL만 허용한다"
+            )
+
+        return stripped
 
 
 class AdmissionReference(BaseModel):

@@ -899,8 +899,14 @@ class DepartmentsEndpointTest(unittest.TestCase):
                 "department_id", "university_name", "campus", "region", "department_name",
                 "college_name", "admission_unit", "department_status", "source_svy_year",
                 "source_url", "canonical_major_id",
+                # A2 지시서(2026-08-24) §1: 학과 공식 홈페이지 URL(선택 필드) 추가.
+                "department_url",
             },
         )
+        # C의 검증된 URL 데이터가 아직 통합되지 않았으므로 이번 라운드의 35개 시연
+        # 데이터는 전부 department_url이 없다(§3) — None으로 응답에 그대로 노출된다.
+        for d in body["departments"]:
+            self.assertIsNone(d["department_url"])
 
     def test_other_endpoints_in_the_same_session_are_unaffected(self) -> None:
         r = client.post("/assessment/session")

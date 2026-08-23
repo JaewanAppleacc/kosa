@@ -1,6 +1,31 @@
-# B 작업자 핸드오프 — 2026-08-30 (갱신)
+# B 작업자 핸드오프 — 2026-08-31 (갱신)
 
 이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-31 갱신 내용 — `Department.department_url` 필드 추가 (21차, 하위 호환 — 기존 필드 삭제·변경 없음)**:
+> 1. **`GET /departments/{major_id}`가 반환하는 각 학과 객체에 `department_url:
+>    string | null`이 새로 추가됐습니다.** 학과 **공식 홈페이지** URL입니다.
+>    - `string`이면 "학과 홈페이지" 버튼을 표시하세요(새 탭으로 열어도 되는 값입니다).
+>    - `null`이면 그 버튼을 숨기세요. **지금 저장소의 시연 데이터 35개는 전부
+>      `null`입니다** — 검증된 홈페이지 URL 데이터가 아직 통합되지 않았습니다(다음
+>      라운드에 채워질 예정). 화면에서 "URL이 없을 수 있다"를 기본 전제로 만들어
+>      두세요.
+> 2. **기존 `source_url` 필드는 역할이 다릅니다 — 학과 홈페이지 버튼으로 쓰지
+>    마세요.** `source_url`은 대학알리미(academyinfo.go.kr) 공식 URL이고 **데이터
+>    출처 표시 전용**입니다. 화면에 출처를 표기할 때는 `source_url`을 링크로 걸고
+>    문구는 아래 형태를 그대로 쓰세요(`source_svy_year`와 조합):
+>    ```text
+>    대학알리미 {source_svy_year}년 공시 기준
+>    ```
+>    예: `source_svy_year: 2025` → "대학알리미 2025년 공시 기준". `source_dataset`
+>    같은 별도 필드는 추가하지 않았습니다 — 이 문구는 `source_svy_year` 하나로
+>    충분히 만들 수 있습니다.
+> 3. **정리하면 학과 객체 하나에 URL이 두 개 있습니다** — `department_url`(있으면
+>    "학과 홈페이지 보기" 버튼), `source_url`(항상 있음, "대학알리미 {연도}년 공시
+>    기준" 출처 문구의 링크). 서로 바꿔 쓰지 마세요.
+> 4. **API Request/Response Schema는 이 필드 하나만 추가됐습니다** — 기존 필드는
+>    이름·타입 전부 그대로입니다. `outputs/mock_api/departments_normal.json`·
+>    `openapi.json`을 재생성해 반영했습니다.
 
 > **2026-08-30 갱신 내용 — Context 화면 API 정합성 (20차)**:
 > 1. **`GET /contexts`가 새로 추가됐습니다(세션 불필요).** Context 15개 목록과 선택
@@ -231,7 +256,7 @@ python3 -m venv .venv
 | 답변 제출 → Evidence·Trait 판정 | ✅ 실제 계산(§12/§13). LLM 연동 여부와 무관하게 항상 실제로 동작합니다. |
 | Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM을 쓸 수 있으면 실제 Evidence를 바탕으로 LLM이 문장을 생성하고, LLM이 꺼져 있거나 호출에 실패하면 **같은 학생의 같은 실제 Evidence**를 바탕으로 결정론적 Fallback 문장을 생성합니다(다른 학생의 Mock Profile을 대신 보여주지 않습니다). 어느 경로든 Trait·근거 구조는 항상 이 세션의 실제 답변에서 나옵니다. 답변이 아예 없으면 200이 아니라 `EVIDENCE_NOT_READY`입니다(아래 참고). `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
 | Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
-| Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
+| Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). **`department_url`(2026-08-31, 21차)은 지금 전부 `null`입니다** — 위 21차 갱신 내용을 확인하세요. |
 | Subjects 조회 (`/subjects/{session_id}`) | ✅ 실제 PRE_SURVEY + POST_OFFERING 추천(§20) — `selected_major_id` Query Parameter 필수. `/course/confirm`을 마쳤으면 자동으로 POST_OFFERING 결과가 나옵니다(응답의 `source` 필드로 구분). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
 | 과목 업로드·확정 (`/course/upload`, `/course/confirm`) | ✅ 실제 Parser 연결 + 실제 확정 검증(§20). PDF/XLSX만 지원(XLS 제외). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
 | Subgraph 조회 (`/subgraph/{session_id}`) | ✅ 실제 계산(§23) — 답변이 하나도 없으면 `EVIDENCE_NOT_READY`, 과목 미확정이면 Trait·전공·학과까지만(부분 그래프), `/course/confirm` 완료 후에는 과목 Node까지 포함한 전체 그래프. 위 2026-08-29 갱신 내용을 꼭 읽어주세요. |

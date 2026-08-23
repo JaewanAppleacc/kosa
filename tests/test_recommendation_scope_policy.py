@@ -256,6 +256,8 @@ class DepartmentLevelPolicyTest(unittest.TestCase):
                 "department_id", "university_name", "campus", "region", "department_name",
                 "college_name", "admission_unit", "department_status", "source_svy_year",
                 "source_url", "canonical_major_id",
+                # A2 지시서(2026-08-24) §1: 학과 공식 홈페이지 URL(선택 필드) 추가.
+                "department_url",
             },
         )
         # 내부 적격성 필드는 응답에 노출되지 않는다.

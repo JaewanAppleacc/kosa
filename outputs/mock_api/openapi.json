@@ -1225,6 +1225,17 @@
               }
             ],
             "title": "Canonical Major Id"
+          },
+          "department_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department Url"
           }
         },
         "type": "object",
