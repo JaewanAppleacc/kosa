@@ -14,8 +14,14 @@ Mask 포함)라는 점이 다르다.
 from __future__ import annotations
 
 from src.engines.matching_engine_v2 import _effective_tendency
-from src.engines.subject_matching_engine import SubjectMatchResult
-from src.schemas.course import SubjectProfile
+from src.engines.subject_matching_engine import (
+    SubjectMatchResult,
+    build_unavailable_reason,
+    to_alternative_course_recommendation_items,
+    to_course_recommendation_items,
+)
+from src.schemas.course import CourseRecommendationItem, SubjectProfile, UnavailableSubjectItem
+from src.schemas.trait import TraitDefinition
 from src.schemas.trait_vector_snapshot import TraitVectorEntry
 
 MINIMUM_USABLE_TRAITS_FOR_EXPLORE = 1
@@ -74,3 +80,72 @@ def compute_subject_recommendations_v2(
     category_order = {"core": 0, "explore": 1}
     results.sort(key=lambda r: (category_order[r.category], -r.score, r.subject_id))
     return results
+
+
+def compute_post_offering_recommendations_v2(
+    student_entries: dict[str, TraitVectorEntry],
+    selected_major_id: str,
+    subjects: list[SubjectProfile],
+    confirmed_offered_subject_ids: set[str],
+    major_label: str,
+    trait_definitions: dict[str, TraitDefinition],
+) -> tuple[list[CourseRecommendationItem], list[UnavailableSubjectItem]]:
+    """2026-08-23 Trait Ontology v2(2.7단계) §4 — Legacy
+    `subject_matching_engine.compute_post_offering_recommendations()`와 완전히 같은
+    절차(원래 wishlist 재계산 → 미개설 core를 explore 중 실제 개설된 과목으로 대체
+    → unavailable 목록 구성)를 v2 입력으로 그대로 반복한다. 이유 문구·대체 배정
+    로직(`build_unavailable_reason`/`to_alternative_course_recommendation_items`/
+    `to_course_recommendation_items`)은 `SubjectMatchResult` 필드만 보고 동작하므로
+    Legacy 함수를 그대로 재사용한다 — 복제하지 않는다."""
+
+    original_results = compute_subject_recommendations_v2(student_entries, selected_major_id, subjects)
+    original_core = [r for r in original_results if r.category == "core"]
+    original_explore = [r for r in original_results if r.category == "explore"]
+
+    kept_core = [r for r in original_core if r.subject_id in confirmed_offered_subject_ids]
+    missing_core = [r for r in original_core if r.subject_id not in confirmed_offered_subject_ids]
+    missing_explore = [r for r in original_explore if r.subject_id not in confirmed_offered_subject_ids]
+
+    alternative_pool = [r for r in original_explore if r.subject_id in confirmed_offered_subject_ids]
+    used_alternative_ids: set[str] = set()
+
+    unavailable: list[UnavailableSubjectItem] = []
+    assignments: list[tuple[SubjectMatchResult, SubjectMatchResult]] = []
+
+    for missing in missing_core:
+        unavailable.append(
+            UnavailableSubjectItem(
+                subject_id=missing.subject_id, label=missing.label,
+                reason=build_unavailable_reason(missing, major_label),
+            )
+        )
+        candidate = next((c for c in alternative_pool if c.subject_id not in used_alternative_ids), None)
+        if candidate is not None:
+            used_alternative_ids.add(candidate.subject_id)
+            assignments.append((candidate, missing))
+
+    for missing in missing_explore:
+        unavailable.append(
+            UnavailableSubjectItem(
+                subject_id=missing.subject_id, label=missing.label,
+                reason=build_unavailable_reason(missing, major_label),
+            )
+        )
+
+    kept_explore = [
+        r for r in original_explore
+        if r.subject_id in confirmed_offered_subject_ids and r.subject_id not in used_alternative_ids
+    ]
+
+    kept_recommendations = to_course_recommendation_items(
+        kept_core + kept_explore, major_label, trait_definitions, is_actually_offered=True
+    )
+    alternative_recommendations = to_alternative_course_recommendation_items(
+        assignments, major_label, trait_definitions
+    )
+
+    category_order: dict[str, int] = {"core": 0, "explore": 1, "alternative": 2}
+    recommendations = sorted(
+        kept_recommendations + alternative_recommendations, key=lambda item: category_order[item.category],
+    )
+    return recommendations, unavailable

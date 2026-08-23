@@ -45,7 +45,10 @@ from src.schemas.course import (
     CourseProfile,
     ParsedSubjectCandidate,
 )
+from src.schemas.trait import TraitDefinition
+from src.schemas.trait_vector_snapshot import TraitVectorEntry
 from src.services.course_planning_service import CoursePlanningService
+from src.services.course_planning_service_v2 import CoursePlanningServiceV2
 
 # §3 MVP 권장 상한. 실제 개설과목 편성표는 텍스트 위주라 10MB면 충분히 넉넉하다 —
 # 다른 값을 쓰려면 이 자리에 근거를 남긴다(지시서 §3).
@@ -190,11 +193,17 @@ class CourseDocumentParsingService:
         subject_repository: SubjectRepository,
         course_planning_service: CoursePlanningService,
         course_planning_store: CoursePlanningStore,
+        # 2026-08-23 Trait Ontology v2(2.7단계) §4 — PRIMARY Flag가 켜진 세션의
+        # /course/confirm이 v2 POST_OFFERING 경로를 쓸 수 있게 하는 선택적 의존성.
+        # None이면(기본값, 하위 호환) 항상 Legacy만 쓴다 — 업로드 Parser는 이 변경과
+        # 무관하다(§4 "업로드 Parser 변경 금지").
+        course_planning_service_v2: CoursePlanningServiceV2 | None = None,
     ) -> None:
         self._alias_index = alias_index
         self._subject_repository = subject_repository
         self._course_planning_service = course_planning_service
         self._course_planning_store = course_planning_store
+        self._course_planning_service_v2 = course_planning_service_v2
 
     def parse_upload(
         self,
@@ -275,14 +284,29 @@ class CourseDocumentParsingService:
         warnings = [CourseParseWarning(stage=e.stage, message=e.message) for e in result.errors]
         return deduped_candidates, warnings
 
-    def confirm(self, state: AssessmentState, confirmed_subject_ids: list[str]) -> CourseProfile:
+    def confirm(
+        self,
+        state: AssessmentState,
+        confirmed_subject_ids: list[str],
+        *,
+        v2_snapshot_entries: dict[str, TraitVectorEntry] | None = None,
+        v2_trait_definitions: dict[str, TraitDefinition] | None = None,
+    ) -> CourseProfile:
         """§6(16차)/§2(17차) 전체 검증 + 원자적 확정.
 
         검증 → POST_OFFERING 추천 계산(`CoursePlanningService.build_post_offering_
         course_profile`, 이 안에서 Policy Guard까지 통과해야 한다) → 전부 성공한 뒤에만
         Store를 `CONFIRMED`로 갱신한다. 계산이나 Guard가 실패하면 이 메서드는 Store를
         전혀 건드리지 않은 채(=이전 상태 그대로) 예외를 그대로 전파한다 — "요청은
-        실패했는데 Store에는 CONFIRMED가 남는" 상황을 구조적으로 막는다."""
+        실패했는데 Store에는 CONFIRMED가 남는" 상황을 구조적으로 막는다.
+
+        2026-08-23 Trait Ontology v2(2.7단계) §4: `v2_snapshot_entries`가 주어지면(=
+        호출부 main.py가 PRIMARY Flag ON을 이미 확인하고 Fail-Closed 게이트를 통과한
+        Snapshot을 계산해 넘긴 것) `CoursePlanningServiceV2.build_post_offering_
+        course_profile_v2()`로 계산한다 — 원자성 순서(검증·계산·Guard를 전부 통과한
+        뒤에만 Store 갱신)는 Legacy와 완전히 동일하게 유지한다. `v2_snapshot_entries`
+        가 None이면(기본값) 이 메서드는 이전과 100% 동일하게 동작한다(§9 PRIMARY=false
+        회귀 불변)."""
 
         planning_state = self._course_planning_store.load(state.session_id)
         if planning_state is None:
@@ -324,9 +348,20 @@ class CourseDocumentParsingService:
 
         # 아직 Store에 아무것도 저장하지 않는다 — 추천 계산과 Policy Guard를 먼저 전부
         # 통과시킨다(원자성, §2). 여기서 예외가 나면 그대로 전파하고 끝난다.
-        course_profile = self._course_planning_service.build_post_offering_course_profile(
-            state, planning_state.selected_major_id, set(deduped_requested), unresolved_candidates
-        )
+        if v2_snapshot_entries is not None:
+            if self._course_planning_service_v2 is None or v2_trait_definitions is None:
+                raise ValueError(
+                    "v2_snapshot_entries가 주어졌지만 course_planning_service_v2/"
+                    "v2_trait_definitions가 없다 — 호출부(main.py) 배선 오류"
+                )
+            course_profile = self._course_planning_service_v2.build_post_offering_course_profile_v2(
+                state, planning_state.selected_major_id, v2_snapshot_entries, v2_trait_definitions,
+                set(deduped_requested), unresolved_candidates,
+            )
+        else:
+            course_profile = self._course_planning_service.build_post_offering_course_profile(
+                state, planning_state.selected_major_id, set(deduped_requested), unresolved_candidates
+            )
 
         # 여기 도달했다는 건 계산·Guard가 전부 성공했다는 뜻 — 이제서야 Store에 반영한다.
         # planning_state는 Store.load()가 이미 방어적으로 복사해 돌려준 객체라 그대로

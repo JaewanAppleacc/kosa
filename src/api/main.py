@@ -326,6 +326,7 @@ _course_document_parsing_service = CourseDocumentParsingService(
     _subject_repository,
     _course_planning_service,
     _course_planning_store,
+    course_planning_service_v2=_course_planning_service_v2,
 )
 
 # 2026-08-28 19차 리뷰: GET /subgraph/{session_id} — 실제 Knowledge Subgraph. Major/
@@ -1535,12 +1536,11 @@ def get_subjects(
 
     state = _get_state_or_404(session_id)
 
-    # 2026-08-23 Trait Ontology v2(2.6단계) §8/§9 — PRIMARY Flag가 켜지고 PRE_SURVEY
-    # 단계(아직 실제 개설과목이 확정되지 않음)면 v2 경로를 쓴다. POST_OFFERING(학교
-    # 실제 개설과목 업로드 이후 재추천)은 이번 Vertical Slice E2E 범위 밖이라 아직 v2로
-    # 옮기지 않았다 — 이 경우에만 Legacy 경로를 그대로 쓴다(완료 보고 §18에 한계로
-    # 명시한다. "v2 Evidence 부족을 Legacy로 조용히 대체"하는 것과는 다르다 — 이건
-    # Evidence 문제가 아니라 아직 이식하지 않은 기능이다).
+    # 2026-08-23 Trait Ontology v2(2.6/2.7단계) §8/§9 — PRIMARY Flag가 켜지면
+    # PRE_SURVEY·POST_OFFERING 둘 다 v2 경로를 쓴다(2.7단계 §4로 POST_OFFERING도
+    # 이식했다 — 더 이상 Legacy로 떨어지지 않는다). 분기 조건(CONFIRMED 상태인가)은
+    # Legacy `CoursePlanningService.get_course_profile()`과 완전히 동일하게 다시
+    # 계산한다.
     if trait_vector_v2_primary_enabled():
         planning_state = _course_planning_store.load(session_id)
         is_post_offering = (
@@ -1548,37 +1548,45 @@ def get_subjects(
             and planning_state.selected_major_id == selected_major_id
             and planning_state.upload_status == "CONFIRMED"
         )
-        if not is_post_offering:
-            try:
-                snapshot_entries, _primary_evidence = _compute_v2_primary_snapshot(state)
+        try:
+            snapshot_entries, _primary_evidence = _compute_v2_primary_snapshot(state)
+            if is_post_offering:
+                unresolved_candidates = [
+                    c for c in planning_state.parsed_candidates if c.matched_subject_id is None
+                ]
+                course_profile = _course_planning_service_v2.build_post_offering_course_profile_v2(
+                    state, selected_major_id, snapshot_entries, TRAIT_DEFINITIONS_V2_BY_ID,
+                    set(planning_state.confirmed_offered_subject_ids), unresolved_candidates,
+                )
+            else:
                 course_profile = _course_planning_service_v2.build_pre_survey_course_profile_v2(
                     state, selected_major_id, snapshot_entries, TRAIT_DEFINITIONS_V2_BY_ID,
                 )
-            except CourseEvidenceNotReadyErrorV2 as exc:
-                raise HTTPException(
-                    status_code=422,
-                    detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
-                ) from exc
-            except MajorNotSelectableErrorV2 as exc:
-                raise HTTPException(
-                    status_code=422,
-                    detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
-                ) from exc
-            gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
-            _tracer.record_stage(
-                trace_id=state.trace_id,
-                stage_name="Subject Matching",
-                attributes={
-                    "graph_node": "subject_matching",
-                    "trait_engine_version": "trait_vector_v2",
-                    "matching_engine_version": "subject_matching_engine_v2",
-                    "primary_signal_count": len(gate.approved_evidence_ids),
-                    "excluded_unreviewed_signal_count": len(gate.excluded_evidence_ids),
-                    "usable_trait_count": sum(1 for e in snapshot_entries.values() if e.tendency_score is not None),
-                    "recommendation_count": len(course_profile.recommendations),
-                },
-            )
-            return course_profile
+        except CourseEvidenceNotReadyErrorV2 as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+            ) from exc
+        except MajorNotSelectableErrorV2 as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+            ) from exc
+        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+        _tracer.record_stage(
+            trace_id=state.trace_id,
+            stage_name="Subject Matching",
+            attributes={
+                "graph_node": "subject_matching",
+                "trait_engine_version": "trait_vector_v2",
+                "matching_engine_version": "subject_matching_engine_v2",
+                "primary_signal_count": len(gate.approved_evidence_ids),
+                "excluded_unreviewed_signal_count": len(gate.excluded_evidence_ids),
+                "usable_trait_count": sum(1 for e in snapshot_entries.values() if e.tendency_score is not None),
+                "recommendation_count": len(course_profile.recommendations),
+            },
+        )
+        return course_profile
 
     try:
         return _course_planning_service.get_course_profile(state, selected_major_id)
@@ -1672,9 +1680,18 @@ def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResp
 
     state = _get_state_or_404(payload.session_id)
 
+    # 2026-08-23 Trait Ontology v2(2.7단계) §4 — PRIMARY Flag가 켜지면 POST_OFFERING도
+    # v2 TraitVectorSnapshot(Fail-Closed 게이트 통과분)으로 계산한다. v2_snapshot_entries
+    # 를 넘기지 않으면(PRIMARY=false) confirm()이 이전과 100% 동일하게 동작한다.
+    v2_snapshot_entries = None
+    if trait_vector_v2_primary_enabled():
+        v2_snapshot_entries, _primary_evidence = _compute_v2_primary_snapshot(state)
+
     try:
         course_profile = _course_document_parsing_service.confirm(
-            state, payload.confirmed_subject_ids
+            state, payload.confirmed_subject_ids,
+            v2_snapshot_entries=v2_snapshot_entries,
+            v2_trait_definitions=TRAIT_DEFINITIONS_V2_BY_ID if v2_snapshot_entries is not None else None,
         )
     except CourseUploadNotFoundError as exc:
         raise HTTPException(
@@ -1686,12 +1703,12 @@ def confirm_course_selection(payload: CourseConfirmRequest) -> CourseConfirmResp
             status_code=422,
             detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
         ) from exc
-    except CourseEvidenceNotReadyError as exc:
+    except (CourseEvidenceNotReadyError, CourseEvidenceNotReadyErrorV2) as exc:
         raise HTTPException(
             status_code=422,
             detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
         ) from exc
-    except MajorNotSelectableError as exc:
+    except (MajorNotSelectableError, MajorNotSelectableErrorV2) as exc:
         raise HTTPException(
             status_code=422,
             detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
