@@ -158,11 +158,12 @@ class AnchorBackupSavePathsUseTemporaryFilesTest(unittest.TestCase):
         self.assertEqual(_sha256(rs.BACKUP_OPTION_REVIEW_PATH), old_backup_option_hash_before)
 
 
-class AnchorBackupAllTBDInitiallyTest(unittest.TestCase):
-    """§7 — "새 검수 파일을 만드세요 ... 전부 TBD" 요구를 실제 커밋된 파일에 대해
-    확인한다(이 테스트는 임시 파일이 아니라 실제 정본을 읽지만 절대 쓰지 않는다)."""
+class AnchorBackupAllApprovedTest(unittest.TestCase):
+    """2.5.5단계 §4 — 사용자가 검수 페이지에서 Anchor Backup 질문 15개·선택지 75개를
+    전부 reviewer_1 APPROVE로 판정했다(커밋 867c8c9). 이 테스트는 임시 파일이 아니라
+    실제 정본을 읽지만 절대 쓰지 않는다."""
 
-    def test_committed_anchor_backup_review_files_start_all_tbd(self) -> None:
+    def test_committed_anchor_backup_review_files_are_all_reviewer_1_approved(self) -> None:
         from src.services.anchor_backup_review_store import (
             load_anchor_backup_option_review_entries,
             load_anchor_backup_question_review_entries,
@@ -170,10 +171,11 @@ class AnchorBackupAllTBDInitiallyTest(unittest.TestCase):
 
         question_entries = load_anchor_backup_question_review_entries()
         option_entries = load_anchor_backup_option_review_entries()
+        self.assertEqual(len(question_entries), 15)
+        self.assertEqual(len(option_entries), 75)
         for entry in [*question_entries, *option_entries]:
-            self.assertEqual(entry.reviewer_1_status, "TBD")
-            self.assertEqual(entry.reviewer_2_status, "TBD")
-            self.assertEqual(entry.final_status, "DRAFT")
+            self.assertEqual(entry.reviewer_1_status, "APPROVE")
+            self.assertEqual(entry.final_status, "APPROVED")
 
 
 class AnchorBackupNotOnPublicApiTest(unittest.TestCase):

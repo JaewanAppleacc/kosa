@@ -93,7 +93,8 @@ class V2DirectProbeBlueprint(BaseModel):
     question_frame_id: str
     purpose: str
     base_question: FinalizedQuestion
-    review_status: Literal["draft", "team_reviewed"] = "draft"
+    # 2.5.5단계: 단일 검토자 정책 전환으로 "team_reviewed" 대신 "approved"를 쓴다.
+    review_status: Literal["draft", "approved"] = "draft"
 
     @field_validator("allowed_context_ids")
     @classmethod

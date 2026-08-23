@@ -491,17 +491,20 @@ def main() -> None:
         "final_status", "resolution_note",
     ]
     no_signal_count = sum(1 for r in rows if r["mapping_type"] == "NO_SIGNAL")
-    team_reviewed_count = sum(1 for r in rows if r["final_status"] == "TEAM_REVIEWED")
+    approved_count = sum(1 for r in rows if r["final_status"] == "APPROVED")
     lines = [
         "# V2 Direct Probe Question Review Worksheet",
         "",
-        "2026-08-23 Trait Ontology v2(2.1단계 §10, 2.2단계 §15, 2.3단계 §4). 14개 Blueprint "
-        f"× 5개 Option = {len(rows)}행(그중 NO_SIGNAL {no_signal_count}행, 현재 TEAM_REVIEWED "
-        f"{team_reviewed_count}행). `reviewer_1_status`/`reviewer_2_status`/`final_status`는 "
+        "2026-08-23 Trait Ontology v2(2.1단계 §10, 2.2단계 §15, 2.3단계 §4, 2.5.5단계 "
+        "단일 검토자 정책 전환). 14개 Blueprint "
+        f"× 5개 Option = {len(rows)}행(그중 NO_SIGNAL {no_signal_count}행, 현재 APPROVED "
+        f"{approved_count}행). `reviewer_1_status`/`reviewer_2_status`/`final_status`는 "
         "`data/reviews/v2_direct_probe_option_review_status.json`을 그대로 읽어온 값이다 — "
         "이 스크립트는 그 파일을 절대 쓰지 않는다(사람이 직접 그 JSON을 채워야 값이 바뀐다). "
-        "`final_status`는 두 검토자 상태로부터 항상 다시 계산한다: 둘 다 APPROVE일 때만 "
-        "TEAM_REVIEWED, 하나라도 REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD 남음)는 DRAFT다. "
+        "이 프로젝트는 2차 검토를 쓰지 않는다 — `final_status`는 `reviewer_1_status`만으로 "
+        "항상 다시 계산한다: APPROVE면 APPROVED, REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD "
+        "남음)는 DRAFT다. `reviewer_2_status`는 과거 데이터 호환을 위해 열은 남아 있지만 "
+        "계산에는 관여하지 않는다. "
         "나머지 판단 열(행동-Trait 일치 등)은 A가 §7~§9에서 실제로 검토한 내용을 데이터로 "
         "남긴 것이며, 사람의 독립 검토를 대신하지 않는다. NO_SIGNAL 행은 '이 선택지는 이번 "
         "질문에서 특정 Core Trait를 직접 확인할 만큼 근거가 명확하지 않다'는 뜻일 뿐 Target "

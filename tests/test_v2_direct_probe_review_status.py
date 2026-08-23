@@ -1,5 +1,5 @@
-"""V2 Direct Probe 2인 Human Review 상태 Schema/Validator 테스트 — 2026-08-23
-Trait Ontology v2(2.3단계) §4."""
+"""V2 Direct Probe Human Review 상태 Schema/Validator 테스트 — 2026-08-23
+Trait Ontology v2(2.3단계) §4, 2.5.5단계(단일 검토자 정책 전환)."""
 
 from __future__ import annotations
 
@@ -24,31 +24,47 @@ from src.services.v2_direct_probe_review_store import (
 
 
 class FinalStatusComputationTest(unittest.TestCase):
-    def test_both_approve_is_team_reviewed(self) -> None:
-        entry = QuestionReviewEntry(
-            blueprint_id="x", reviewer_1_status="APPROVE", reviewer_2_status="APPROVE",
-        )
-        self.assertEqual(entry.final_status, "TEAM_REVIEWED")
+    """2.5.5단계: 이 프로젝트는 2차 검토를 쓰지 않는다 — `final_status`는
+    `reviewer_1_status`만으로 결정되고, `reviewer_2_status`는 어떤 값이어도 결과에
+    영향을 주지 않는다."""
 
-    def test_one_tbd_is_draft(self) -> None:
+    def test_reviewer_1_approve_with_reviewer_2_tbd_is_approved(self) -> None:
         entry = QuestionReviewEntry(blueprint_id="x", reviewer_1_status="APPROVE", reviewer_2_status="TBD")
-        self.assertEqual(entry.final_status, "DRAFT")
+        self.assertEqual(entry.final_status, "APPROVED")
 
-    def test_both_tbd_is_draft(self) -> None:
+    def test_reviewer_1_approve_with_reviewer_2_approve_is_approved(self) -> None:
+        entry = QuestionReviewEntry(blueprint_id="x", reviewer_1_status="APPROVE", reviewer_2_status="APPROVE")
+        self.assertEqual(entry.final_status, "APPROVED")
+
+    def test_reviewer_1_tbd_is_draft(self) -> None:
         entry = QuestionReviewEntry(blueprint_id="x")
         self.assertEqual(entry.final_status, "DRAFT")
 
-    def test_revise_is_review_required(self) -> None:
+    def test_reviewer_1_revise_is_review_required(self) -> None:
         entry = QuestionReviewEntry(blueprint_id="x", reviewer_1_status="REVISE", reviewer_2_status="APPROVE")
         self.assertEqual(entry.final_status, "REVIEW_REQUIRED")
 
-    def test_hold_is_review_required(self) -> None:
-        entry = QuestionReviewEntry(blueprint_id="x", reviewer_1_status="APPROVE", reviewer_2_status="HOLD")
+    def test_reviewer_1_hold_is_review_required(self) -> None:
+        entry = QuestionReviewEntry(blueprint_id="x", reviewer_1_status="HOLD", reviewer_2_status="APPROVE")
         self.assertEqual(entry.final_status, "REVIEW_REQUIRED")
 
-    def test_revise_beats_tbd(self) -> None:
+    def test_reviewer_1_revise_beats_reviewer_2_tbd(self) -> None:
         entry = QuestionReviewEntry(blueprint_id="x", reviewer_1_status="REVISE", reviewer_2_status="TBD")
         self.assertEqual(entry.final_status, "REVIEW_REQUIRED")
+
+    def test_reviewer_2_status_alone_never_changes_final_status(self) -> None:
+        """reviewer_1을 고정하고 reviewer_2만 4가지 값으로 바꿔도 final_status는
+        전혀 달라지지 않아야 한다(§6 필수 검증 항목)."""
+
+        for reviewer_1_status, expected in (
+            ("TBD", "DRAFT"), ("APPROVE", "APPROVED"), ("REVISE", "REVIEW_REQUIRED"), ("HOLD", "REVIEW_REQUIRED"),
+        ):
+            for reviewer_2_status in ("TBD", "APPROVE", "REVISE", "HOLD"):
+                with self.subTest(reviewer_1=reviewer_1_status, reviewer_2=reviewer_2_status):
+                    entry = QuestionReviewEntry(
+                        blueprint_id="x", reviewer_1_status=reviewer_1_status, reviewer_2_status=reviewer_2_status,
+                    )
+                    self.assertEqual(entry.final_status, expected)
 
     def test_invalid_status_value_rejected(self) -> None:
         with self.assertRaises(ValidationError):
@@ -88,7 +104,7 @@ class RealReviewStatusFilesTest(unittest.TestCase):
                 self.assertEqual(entry.reviewer_2_status, "TBD")
                 self.assertEqual(entry.final_status, "DRAFT")
 
-    def test_no_real_blueprint_is_team_reviewed_yet(self) -> None:
+    def test_no_real_blueprint_is_approved_yet(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:
             self.assertEqual(bp.review_status, "draft")
 
@@ -104,23 +120,24 @@ class RealReviewStatusFilesTest(unittest.TestCase):
 
 
 class PromotionConsistencyValidatorTest(unittest.TestCase):
-    """§4 Validator 핵심 규칙 — team_reviewed로 승격된 Blueprint는 실제로 두 검토자
-    모두 APPROVE인 상태와만 일치해야 한다."""
+    """§4 Validator 핵심 규칙 — approved로 승격된 Blueprint는 실제로 reviewer_1이
+    APPROVE인 상태와만 일치해야 한다(2.5.5단계: reviewer_2는 이 판정에 관여하지
+    않는다)."""
 
     def test_promoted_blueprint_without_full_approval_fails(self) -> None:
         promoted = [
-            b.model_copy(update={"review_status": "team_reviewed"}) if i == 0 else b
+            b.model_copy(update={"review_status": "approved"}) if i == 0 else b
             for i, b in enumerate(V2_DIRECT_PROBE_BLUEPRINTS)
         ]
-        # 실제 커밋된 JSON 파일은 전부 TBD이므로, 이 Blueprint가 team_reviewed로
+        # 실제 커밋된 JSON 파일은 전부 TBD이므로, 이 Blueprint가 approved로
         # "승격됐다"고 주장하는 것과 모순된다.
         with patch("src.services.v2_direct_probe_review_store.V2_DIRECT_PROBE_BLUEPRINTS", promoted):
             with self.assertRaises(ReviewStatusValidationError):
                 validate_review_status_files()
 
-    def test_promoted_blueprint_with_full_approval_passes(self) -> None:
+    def test_promoted_blueprint_with_reviewer_1_approval_passes(self) -> None:
         bp = V2_DIRECT_PROBE_BLUEPRINTS[0]
-        promoted_bp = bp.model_copy(update={"review_status": "team_reviewed"})
+        promoted_bp = bp.model_copy(update={"review_status": "approved"})
 
         with tempfile.TemporaryDirectory() as tmp:
             q_path = Path(tmp) / "q.json"
@@ -129,7 +146,8 @@ class PromotionConsistencyValidatorTest(unittest.TestCase):
                 json.dumps([{
                     "blueprint_id": bp.blueprint_id,
                     "reviewer_1_status": "APPROVE", "reviewer_1_comment": "ok",
-                    "reviewer_2_status": "APPROVE", "reviewer_2_comment": "ok",
+                    # reviewer_2는 TBD여도 무방하다 — 승격 판정에 관여하지 않는다.
+                    "reviewer_2_status": "TBD", "reviewer_2_comment": "",
                 }]),
                 encoding="utf-8",
             )
@@ -138,7 +156,7 @@ class PromotionConsistencyValidatorTest(unittest.TestCase):
                     {
                         "blueprint_id": bp.blueprint_id, "role_id": m.role_id,
                         "reviewer_1_status": "APPROVE", "reviewer_1_comment": "ok",
-                        "reviewer_2_status": "APPROVE", "reviewer_2_comment": "ok",
+                        "reviewer_2_status": "TBD", "reviewer_2_comment": "",
                     }
                     for m in bp.option_mappings
                 ]),
@@ -147,9 +165,9 @@ class PromotionConsistencyValidatorTest(unittest.TestCase):
             with patch("src.services.v2_direct_probe_review_store.V2_DIRECT_PROBE_BLUEPRINTS", [promoted_bp]):
                 validate_review_status_files(question_path=q_path, option_path=o_path)  # 예외 없으면 통과
 
-    def test_promoted_blueprint_with_one_option_still_tbd_fails(self) -> None:
+    def test_promoted_blueprint_with_one_option_reviewer_1_still_tbd_fails(self) -> None:
         bp = V2_DIRECT_PROBE_BLUEPRINTS[0]
-        promoted_bp = bp.model_copy(update={"review_status": "team_reviewed"})
+        promoted_bp = bp.model_copy(update={"review_status": "approved"})
 
         with tempfile.TemporaryDirectory() as tmp:
             q_path = Path(tmp) / "q.json"
@@ -168,7 +186,9 @@ class PromotionConsistencyValidatorTest(unittest.TestCase):
                 }
                 for m in bp.option_mappings
             ]
-            option_rows[0]["reviewer_2_status"] = "TBD"  # 선택지 하나만 아직 미승인
+            # 선택지 하나만 reviewer_1이 아직 TBD — reviewer_2가 APPROVE여도 승격
+            # 조건을 만족하지 못해야 한다(2.5.5단계: reviewer_2는 무관하다).
+            option_rows[0]["reviewer_1_status"] = "TBD"
             o_path.write_text(json.dumps(option_rows), encoding="utf-8")
 
             with patch("src.services.v2_direct_probe_review_store.V2_DIRECT_PROBE_BLUEPRINTS", [promoted_bp]):

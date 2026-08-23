@@ -124,18 +124,26 @@ class QuestionUpdateTest(TempReviewFilesTestCase):
         self.assertEqual(entry.reviewer_1_comment, "1차 승인")
         self.assertEqual(entry.reviewer_2_status, "TBD")  # reviewer_2는 그대로 보존
 
-    def test_final_status_computed_correctly_after_both_approve(self) -> None:
+    def test_final_status_computed_correctly_after_reviewer_1_approve(self) -> None:
         bp_id = V2_DIRECT_PROBE_BLUEPRINTS[0].blueprint_id
         _, qrev, _ = rs.build_question_list(question_path=self.q_path, option_path=self.o_path)
-        _, qrev = rs.update_question_review(
+        final_status, _ = rs.update_question_review(
             blueprint_id=bp_id, reviewer="reviewer_1", status="APPROVE", comment="",
             resolution_note=None, expected_revision=qrev, question_path=self.q_path,
         )
+        self.assertEqual(final_status, "APPROVED")
+
+    def test_reviewer_2_approve_alone_does_not_reach_approved(self) -> None:
+        """2.5.5단계: 이 프로젝트는 2차 검토를 쓰지 않는다 — reviewer_2만 APPROVE해도
+        reviewer_1이 TBD면 최종 상태는 여전히 DRAFT다."""
+
+        bp_id = V2_DIRECT_PROBE_BLUEPRINTS[0].blueprint_id
+        _, qrev, _ = rs.build_question_list(question_path=self.q_path, option_path=self.o_path)
         final_status, _ = rs.update_question_review(
             blueprint_id=bp_id, reviewer="reviewer_2", status="APPROVE", comment="",
             resolution_note=None, expected_revision=qrev, question_path=self.q_path,
         )
-        self.assertEqual(final_status, "TEAM_REVIEWED")
+        self.assertEqual(final_status, "DRAFT")
 
     def test_does_not_promote_underlying_blueprint_review_status(self) -> None:
         """§11 — Review Service가 저장하는 건 검수 JSON뿐이다. 실제
@@ -215,40 +223,56 @@ class SummaryTest(TempReviewFilesTestCase):
         summary = rs.build_summary(question_path=self.q_path, option_path=self.o_path)
         self.assertEqual(summary.question_total, 14)
         self.assertEqual(summary.option_total, 70)
-        self.assertEqual(summary.team_reviewed_eligible_blueprint_ids, [])
+        self.assertEqual(summary.approved_eligible_blueprint_ids, [])
 
-    def test_no_blueprint_eligible_for_team_reviewed_until_all_approve(self) -> None:
+    def test_no_blueprint_eligible_until_all_options_approved(self) -> None:
         bp = V2_DIRECT_PROBE_BLUEPRINTS[0]
         _, qrev, orev = rs.build_question_list(question_path=self.q_path, option_path=self.o_path)
-        qrev_final = qrev
-        for reviewer in ("reviewer_1", "reviewer_2"):
-            _, qrev_final = rs.update_question_review(
-                blueprint_id=bp.blueprint_id, reviewer=reviewer, status="APPROVE", comment="",
-                resolution_note=None, expected_revision=qrev_final, question_path=self.q_path,
-            )
+        rs.update_question_review(
+            blueprint_id=bp.blueprint_id, reviewer="reviewer_1", status="APPROVE", comment="",
+            resolution_note=None, expected_revision=qrev, question_path=self.q_path,
+        )
         summary = rs.build_summary(question_path=self.q_path, option_path=self.o_path)
-        # 질문은 TEAM_REVIEWED지만 선택지 5개는 아직 전부 TBD이므로 승격 후보에 없어야 한다.
-        self.assertNotIn(bp.blueprint_id, summary.team_reviewed_eligible_blueprint_ids)
+        # 질문은 APPROVED(reviewer_1 단독)지만 선택지 5개는 아직 전부 TBD이므로
+        # 승격 후보에 없어야 한다.
+        self.assertNotIn(bp.blueprint_id, summary.approved_eligible_blueprint_ids)
 
     def test_blueprint_eligible_only_after_question_and_all_options_approved(self) -> None:
         bp = V2_DIRECT_PROBE_BLUEPRINTS[0]
         _, qrev, orev = rs.build_question_list(question_path=self.q_path, option_path=self.o_path)
-        qrev_final = qrev
-        for reviewer in ("reviewer_1", "reviewer_2"):
-            _, qrev_final = rs.update_question_review(
-                blueprint_id=bp.blueprint_id, reviewer=reviewer, status="APPROVE", comment="",
-                resolution_note=None, expected_revision=qrev_final, question_path=self.q_path,
-            )
+        rs.update_question_review(
+            blueprint_id=bp.blueprint_id, reviewer="reviewer_1", status="APPROVE", comment="",
+            resolution_note=None, expected_revision=qrev, question_path=self.q_path,
+        )
         orev_current = orev
         for mapping in bp.option_mappings:
-            for reviewer in ("reviewer_1", "reviewer_2"):
-                _, orev_current = rs.update_option_review(
-                    blueprint_id=bp.blueprint_id, role_id=mapping.role_id, reviewer=reviewer,
-                    status="APPROVE", comment="", resolution_note=None,
-                    expected_revision=orev_current, option_path=self.o_path,
-                )
+            _, orev_current = rs.update_option_review(
+                blueprint_id=bp.blueprint_id, role_id=mapping.role_id, reviewer="reviewer_1",
+                status="APPROVE", comment="", resolution_note=None,
+                expected_revision=orev_current, option_path=self.o_path,
+            )
         summary = rs.build_summary(question_path=self.q_path, option_path=self.o_path)
-        self.assertIn(bp.blueprint_id, summary.team_reviewed_eligible_blueprint_ids)
+        self.assertIn(bp.blueprint_id, summary.approved_eligible_blueprint_ids)
+
+    def test_reviewer_2_approving_everything_does_not_make_it_eligible(self) -> None:
+        """2.5.5단계 §6 — reviewer_2 상태만으로는 최종 상태(따라서 승격 후보 여부도)가
+        바뀌지 않는다."""
+
+        bp = V2_DIRECT_PROBE_BLUEPRINTS[0]
+        _, qrev, orev = rs.build_question_list(question_path=self.q_path, option_path=self.o_path)
+        rs.update_question_review(
+            blueprint_id=bp.blueprint_id, reviewer="reviewer_2", status="APPROVE", comment="",
+            resolution_note=None, expected_revision=qrev, question_path=self.q_path,
+        )
+        orev_current = orev
+        for mapping in bp.option_mappings:
+            _, orev_current = rs.update_option_review(
+                blueprint_id=bp.blueprint_id, role_id=mapping.role_id, reviewer="reviewer_2",
+                status="APPROVE", comment="", resolution_note=None,
+                expected_revision=orev_current, option_path=self.o_path,
+            )
+        summary = rs.build_summary(question_path=self.q_path, option_path=self.o_path)
+        self.assertNotIn(bp.blueprint_id, summary.approved_eligible_blueprint_ids)
 
 
 if __name__ == "__main__":

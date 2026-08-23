@@ -91,7 +91,8 @@ class RoutingSavePathsUseTemporaryFilesTest(unittest.TestCase):
             json={"reviewer": "reviewer_1", "status": "APPROVE", "comment": "구분됨", "expected_revision": qrev},
         )
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["final_status"], "DRAFT")
+        # 2.5.5단계: 단일 검토자 정책 — reviewer_1 APPROVE만으로 APPROVED가 된다.
+        self.assertEqual(r.json()["final_status"], "APPROVED")
 
         from src.services.context_routing_review_store import load_routing_question_review_entries
 

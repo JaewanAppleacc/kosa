@@ -208,7 +208,7 @@ function renderSummary() {
   box.replaceChildren(
     el("div", { class: "row" }, [el("span", {}, "질문 검토"), el("span", { class: "n" }, `${s.question_reviewed_final} / ${s.question_total}`)]),
     el("div", { class: "row" }, [el("span", {}, "선택지 검토"), el("span", { class: "n" }, `${s.option_reviewed_final} / ${s.option_total}`)]),
-    el("div", { class: "row" }, [el("span", {}, "TEAM_REVIEWED 가능 질문 수"), el("span", { class: "n" }, `${s.team_reviewed_eligible_blueprint_ids.length}`)]),
+    el("div", { class: "row" }, [el("span", {}, "승인 완료 질문 수"), el("span", { class: "n" }, `${s.approved_eligible_blueprint_ids.length}`)]),
     el("div", { class: "row" }, [el("strong", {}, "질문 슬롯 분포")]),
     ...["APPROVE", "REVISE", "HOLD", "TBD"].map((k) =>
       el("div", { class: "row" }, [el("span", {}, k), el("span", { class: "n" }, String(s.question_status_counts[k] || 0))])

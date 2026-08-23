@@ -1,9 +1,15 @@
-"""V2 Direct Probe 검수 UI 내부 API Schema — 2026-08-23 Trait Ontology v2(2.4단계) §2/§10.
+"""V2 Direct Probe 검수 UI 내부 API Schema — 2026-08-23 Trait Ontology v2(2.4단계) §2/§10,
+2.5.5단계(단일 검토자 정책 전환).
 
 `src/api/main.py`가 노출하는 공개 API Schema(`src/schemas/api.py`)와 이름이 겹치더라도
 완전히 별개다 — 이 파일의 모델은 오직 `src/review_ui/app.py`(127.0.0.1 전용 내부 App)
 에서만 쓰인다. 학생 답변이나 개인정보는 어디에도 담지 않는다 — 검수 대상은 고정
-Blueprint와 Mapping, 그리고 두 검토자의 판단(TBD/APPROVE/REVISE/HOLD)뿐이다."""
+Blueprint와 Mapping, 그리고 검토자의 판단(TBD/APPROVE/REVISE/HOLD)뿐이다.
+
+2.5.5단계: 이 프로젝트는 2차 검토를 쓰지 않는다 — `final_status`는 reviewer_1만으로
+계산한다([[v2_direct_probe_review.ReviewEntry]] 참고). `ReviewerSlot`은 과거 데이터
+호환을 위해 `reviewer_2`를 계속 허용하지만(기존 JSON에 남은 값을 깨뜨리지 않는다),
+UI는 검토자 1 선택만 제공한다."""
 
 from __future__ import annotations
 
@@ -13,7 +19,7 @@ from pydantic import BaseModel, Field
 
 ReviewerSlot = Literal["reviewer_1", "reviewer_2"]
 ReviewerStatus = Literal["APPROVE", "REVISE", "HOLD", "TBD"]
-FinalReviewStatus = Literal["DRAFT", "REVIEW_REQUIRED", "TEAM_REVIEWED"]
+FinalReviewStatus = Literal["DRAFT", "REVIEW_REQUIRED", "APPROVED"]
 
 
 class OptionReviewView(BaseModel):
@@ -101,7 +107,7 @@ class SummaryResponse(BaseModel):
     option_total: int
     option_reviewed_final: int
     option_status_counts: dict[str, int]
-    team_reviewed_eligible_blueprint_ids: list[str]
+    approved_eligible_blueprint_ids: list[str]
     question_review_revision: str
     option_review_revision: str
 

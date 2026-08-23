@@ -610,37 +610,39 @@ def build_summary(
 
     q_status_counts: dict[str, int] = {"APPROVE": 0, "REVISE": 0, "HOLD": 0, "TBD": 0}
     o_status_counts: dict[str, int] = {"APPROVE": 0, "REVISE": 0, "HOLD": 0, "TBD": 0}
-    team_reviewed_eligible: list[str] = []
+    approved_eligible: list[str] = []
     question_reviewed_final = 0
     option_reviewed_final = 0
     option_total = 0
 
     for q in questions:
         # reviewer_1/reviewer_2 각각 집계(질문 하나가 두 표에 반영됨 — "슬롯별 분포").
+        # 2.5.5단계: 이 집계 자체는 참고용 분포이며, final_status 계산에는 reviewer_1만
+        # 쓰인다(reviewer_2 집계는 과거 데이터 호환을 위한 참고 표시일 뿐이다).
         for status in (q.review.reviewer_1_status, q.review.reviewer_2_status):
             q_status_counts[status] = q_status_counts.get(status, 0) + 1
         if q.review.final_status != "DRAFT":
             question_reviewed_final += 1
 
-        all_options_team_reviewed = True
+        all_options_approved = True
         for opt in q.options:
             option_total += 1
             for status in (opt.review.reviewer_1_status, opt.review.reviewer_2_status):
                 o_status_counts[status] = o_status_counts.get(status, 0) + 1
             if opt.review.final_status != "DRAFT":
                 option_reviewed_final += 1
-            if opt.review.final_status != "TEAM_REVIEWED":
-                all_options_team_reviewed = False
+            if opt.review.final_status != "APPROVED":
+                all_options_approved = False
 
-        if q.review.final_status == "TEAM_REVIEWED" and all_options_team_reviewed:
-            team_reviewed_eligible.append(q.blueprint_id)
+        if q.review.final_status == "APPROVED" and all_options_approved:
+            approved_eligible.append(q.blueprint_id)
 
     return SummaryResponse(
         question_total=len(questions), question_reviewed_final=question_reviewed_final,
         question_status_counts=q_status_counts,
         option_total=option_total, option_reviewed_final=option_reviewed_final,
         option_status_counts=o_status_counts,
-        team_reviewed_eligible_blueprint_ids=team_reviewed_eligible,
+        approved_eligible_blueprint_ids=approved_eligible,
         question_review_revision=q_rev, option_review_revision=o_rev,
     )
 

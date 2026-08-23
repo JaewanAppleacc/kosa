@@ -184,7 +184,7 @@ aside.sidebar {
 .status-pill.REVISE { background: var(--status-revise-bg); color: var(--status-revise); }
 .status-pill.HOLD { background: var(--status-hold-bg); color: var(--status-hold); }
 .status-pill.TBD, .status-pill.DRAFT { background: var(--status-tbd-bg); color: var(--status-tbd); }
-.status-pill.TEAM_REVIEWED { background: var(--status-approve-bg); color: var(--status-approve); }
+.status-pill.APPROVED { background: var(--status-approve-bg); color: var(--status-approve); }
 .status-pill.REVIEW_REQUIRED { background: var(--status-revise-bg); color: var(--status-revise); }
 
 section.content {

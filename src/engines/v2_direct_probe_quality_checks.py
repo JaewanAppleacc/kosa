@@ -2,7 +2,7 @@
 2.5단계 §9.
 
 여기 있는 검사는 "완벽한 타당성 판정이 아니라 검토 후보를 표시하는 용도"다(§11) —
-전부 통과해도 `review_status`를 자동으로 `team_reviewed`로 바꾸지 않는다. 하드 실패
+전부 통과해도 `review_status`를 자동으로 `approved`로 바꾸지 않는다. 하드 실패
 (LLM이 생성한 질문을 그 자리에서 거부하는 것)는 여전히
 `question_quality_gate.run_quality_gate()`가 담당한다 — 이 모듈은 그 함수를 그대로
 재사용(base_question에도 동일하게 적용)한 뒤, 이 파일에서만 다루는 추가 휴리스틱

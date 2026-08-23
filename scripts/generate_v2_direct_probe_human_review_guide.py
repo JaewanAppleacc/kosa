@@ -182,16 +182,19 @@ def main() -> None:
     lines = [
         "# V2 Direct Probe Human Review Guide",
         "",
-        "2026-08-23 Trait Ontology v2(2.2단계 §17, 2.3단계 §4). 70행 Worksheet"
+        "2026-08-23 Trait Ontology v2(2.2단계 §17, 2.3단계 §4, 2.5.5단계 단일 검토자 정책 전환). "
+        "70행 Worksheet"
         "(`v2_direct_probe_question_review.md`)를 대신하지 않는다 — 그 Worksheet는 Option 단위(PRIMARY·"
         "RELATED·NO_SIGNAL Mapping 타당성)로 더 세밀하게 검토할 때 쓰고, 이 문서는 질문(Trait) 단위로 "
         "빠르게 훑어보는 용도다(Exploration 후보 선택 규칙, 사회적 바람직성, 질문 간 의미 중복, "
         "상황적 Trade-off, Target 길이·구체성). `reviewer_1_status`/`reviewer_2_status`/`final_status`는 "
         "`data/reviews/v2_direct_probe_question_review_status.json`을 그대로 읽어온 값이다 — 이 "
-        "스크립트는 그 파일을 절대 쓰지 않는다(사람이 직접 그 JSON을 채워야 값이 바뀐다). `final_status`는 "
-        "두 검토자 상태로부터 항상 다시 계산한다: 둘 다 APPROVE일 때만 TEAM_REVIEWED, 하나라도 "
-        "REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD 남음)는 DRAFT다. 두 명 모두 APPROVE인 질문만 "
-        "`team_reviewed`로 승격하고, 그다음에만 v2 Career Profile 표시를 진행한다.",
+        "스크립트는 그 파일을 절대 쓰지 않는다(사람이 직접 그 JSON을 채워야 값이 바뀐다). 이 프로젝트는 "
+        "2차 검토를 쓰지 않는다 — `final_status`는 `reviewer_1_status`만으로 항상 다시 계산한다: "
+        "APPROVE면 APPROVED, REVISE/HOLD면 REVIEW_REQUIRED, 그 외(TBD 남음)는 DRAFT다. "
+        "`reviewer_2_status`는 과거 데이터 호환을 위해 열은 남아 있지만 계산에는 관여하지 않는다. "
+        "reviewer_1이 APPROVE인 질문만 `approved`로 승격하고, 그다음에만 v2 Career Profile 표시를 "
+        "진행한다.",
         "",
     ]
     for trait_id, blueprints in V2_DIRECT_PROBE_BLUEPRINTS_BY_TRAIT.items():

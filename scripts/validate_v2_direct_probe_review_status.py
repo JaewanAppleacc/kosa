@@ -1,11 +1,11 @@
-"""V2 Direct Probe 2인 Human Review 상태 Validator CLI — 2026-08-23 Trait Ontology
-v2(2.3단계) §4.
+"""V2 Direct Probe Human Review 상태 Validator CLI — 2026-08-23 Trait Ontology
+v2(2.3단계) §4, 2.5.5단계(단일 검토자 정책 전환).
 
 `data/reviews/v2_direct_probe_question_review_status.json`/
 `v2_direct_probe_option_review_status.json`이 실제 Blueprint 구조와 일치하는지,
-`team_reviewed`로 승격된 항목이 있다면 그 승격이 실제 두 검토자 상태와 모순되지
-않는지 확인한다. 이 스크립트는 검토 상태를 스스로 채우거나 승격시키지 않는다 —
-읽기 전용 검증만 한다.
+`approved`로 승격된 항목이 있다면 그 승격이 실제 reviewer_1 상태와 모순되지
+않는지 확인한다(이 프로젝트는 2차 검토를 쓰지 않는다). 이 스크립트는 검토 상태를
+스스로 채우거나 승격시키지 않는다 — 읽기 전용 검증만 한다.
 
 실행: PYTHONPATH=. ./.venv/bin/python scripts/validate_v2_direct_probe_review_status.py
 """
@@ -41,7 +41,7 @@ def main() -> int:
     for e in options:
         o_counts[e.final_status] = o_counts.get(e.final_status, 0) + 1
 
-    print("[OK] 검토 상태 파일 구조 정상, team_reviewed 승격 불일치 없음.")
+    print("[OK] 검토 상태 파일 구조 정상, approved 승격 불일치 없음.")
     print(f"질문 단위(14개) 상태 분포: {q_counts}")
     print(f"선택지 단위(70개) 상태 분포: {o_counts}")
     return 0

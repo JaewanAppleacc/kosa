@@ -85,7 +85,9 @@ class SavePathsUseTemporaryFilesTest(unittest.TestCase):
             json={"reviewer": "reviewer_1", "status": "APPROVE", "comment": "좋음", "expected_revision": qrev},
         )
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["final_status"], "DRAFT")  # reviewer_2는 아직 TBD
+        # 2.5.5단계: 단일 검토자 정책 — reviewer_1 APPROVE만으로 APPROVED가 된다.
+        # reviewer_2가 TBD인 것은 결과에 영향을 주지 않는다.
+        self.assertEqual(r.json()["final_status"], "APPROVED")
 
         entries = rs.load_question_review_entries(self.q_path)
         entry = next(e for e in entries if e.blueprint_id == bp_id)

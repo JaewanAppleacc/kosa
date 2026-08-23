@@ -1,5 +1,5 @@
-"""V2 Direct Probe 2인 Human Review 상태 로더/Validator — 2026-08-23 Trait Ontology
-v2(2.3단계) §4.
+"""V2 Direct Probe Human Review 상태 로더/Validator — 2026-08-23 Trait Ontology
+v2(2.3단계) §4, 2.5.5단계(단일 검토자 정책 전환).
 
 `data/reviews/v2_direct_probe_question_review_status.json`(질문 14개)과
 `data/reviews/v2_direct_probe_option_review_status.json`(선택지 70개)을 읽고, 다음을
@@ -7,9 +7,11 @@ v2(2.3단계) §4.
 
 - 두 파일이 실제 Blueprint 목록(`V2_DIRECT_PROBE_BLUEPRINTS`)과 정확히 일치하는
   Key 집합을 갖는가(빠짐·중복 없음).
-- `V2DirectProbeBlueprint.review_status`가 `"team_reviewed"`로 이미 승격된 항목이
+- `V2DirectProbeBlueprint.review_status`가 `"approved"`로 이미 승격된 항목이
   있다면, 그 Blueprint의 질문 단위 검토와 5개 선택지 단위 검토가 전부 실제로
-  두 검토자 모두 APPROVE인 상태인가("한쪽만 승인했는데 이미 승격된" 불일치를 잡는다).
+  reviewer_1이 APPROVE인 상태인가("승격됐는데 실제로는 검토자 1이 승인하지 않은"
+  불일치를 잡는다). 2.5.5단계부터 이 프로젝트는 2차 검토를 쓰지 않으므로
+  reviewer_2_status는 이 판정에 관여하지 않는다.
 
 이 모듈은 검토 결과를 스스로 채우거나 승격시키지 않는다 — 오직 읽고 검증만 한다."""
 
@@ -33,7 +35,7 @@ _OPTION_ADAPTER: TypeAdapter[list[OptionReviewEntry]] = TypeAdapter(list[OptionR
 
 class ReviewStatusValidationError(ValueError):
     """검토 상태 파일 자체가 구조적으로 잘못됐거나(중복·누락 Key, 잘못된 enum 값 —
-    Pydantic이 먼저 잡는다), 이미 team_reviewed로 승격된 항목의 실제 두 검토자 상태가
+    Pydantic이 먼저 잡는다), 이미 approved로 승격된 항목의 실제 reviewer_1 상태가
     승격 조건을 만족하지 못할 때."""
 
 
@@ -90,22 +92,21 @@ def validate_review_status_files(
         options_by_blueprint.setdefault(e.blueprint_id, []).append(e)
 
     for blueprint in V2_DIRECT_PROBE_BLUEPRINTS:
-        if blueprint.review_status != "team_reviewed":
+        if blueprint.review_status != "approved":
             continue
-        # §4: 이미 승격된 항목은 질문 단위와 모든 선택지 단위가 전부 실제로 두 검토자
-        # 모두 APPROVE(final_status == TEAM_REVIEWED)여야 한다 — 하나라도 아니면
-        # "team_reviewed로 승격됐지만 실제로는 검토가 끝나지 않은" 불일치다.
+        # §4: 이미 승격된 항목은 질문 단위와 모든 선택지 단위가 전부 실제로
+        # reviewer_1이 APPROVE(final_status == APPROVED)여야 한다 — 하나라도 아니면
+        # "approved로 승격됐지만 실제로는 검토가 끝나지 않은" 불일치다.
         question_entry = question_by_id[blueprint.blueprint_id]
-        if question_entry.final_status != "TEAM_REVIEWED":
+        if question_entry.final_status != "APPROVED":
             raise ReviewStatusValidationError(
-                f"{blueprint.blueprint_id}: Blueprint.review_status는 'team_reviewed'이지만 "
-                f"질문 단위 검토는 아직 TEAM_REVIEWED가 아니다(reviewer_1={question_entry.reviewer_1_status}, "
-                f"reviewer_2={question_entry.reviewer_2_status})"
+                f"{blueprint.blueprint_id}: Blueprint.review_status는 'approved'이지만 "
+                f"질문 단위 검토는 아직 APPROVED가 아니다(reviewer_1={question_entry.reviewer_1_status})"
             )
         for option_entry in options_by_blueprint[blueprint.blueprint_id]:
-            if option_entry.final_status != "TEAM_REVIEWED":
+            if option_entry.final_status != "APPROVED":
                 raise ReviewStatusValidationError(
                     f"{blueprint.blueprint_id}/{option_entry.role_id}: Blueprint.review_status는 "
-                    f"'team_reviewed'이지만 이 선택지 검토는 아직 TEAM_REVIEWED가 아니다"
-                    f"(reviewer_1={option_entry.reviewer_1_status}, reviewer_2={option_entry.reviewer_2_status})"
+                    f"'approved'이지만 이 선택지 검토는 아직 APPROVED가 아니다"
+                    f"(reviewer_1={option_entry.reviewer_1_status})"
                 )

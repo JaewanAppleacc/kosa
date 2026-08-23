@@ -1,12 +1,12 @@
-"""Context Routing 2인 Human Review 상태 로더/Validator — 2026-08-23 Trait Ontology
-v2(2.5단계) §10.
+"""Context Routing Human Review 상태 로더/Validator — 2026-08-23 Trait Ontology
+v2(2.5단계) §10, 2.5.5단계(단일 검토자 정책 전환).
 
 `v2_direct_probe_review_store.py`와 완전히 같은 패턴을 Context Routing Blueprint 3개
 (15개 Option)에 대해 그대로 반복한다 — 파일도, 스키마(`QuestionReviewEntry`/
-`OptionReviewEntry`)도 재사용한다. Routing 질문은 Trait Signal이 구조적으로 없기
-때문에(`ContextRoutingBlueprint`의 model_validator가 이미 강제) `team_reviewed` 승격
-전제 조건을 v2 Direct Probe처럼 별도로 검증할 필요가 없다 — 이 모듈은 Key 집합
-일치만 검증한다."""
+`OptionReviewEntry`)도 재사용한다(단일 검토자 `final_status` 계산 규칙도 그대로
+따른다). Routing 질문은 Trait Signal이 구조적으로 없기 때문에(`ContextRoutingBlueprint`
+의 model_validator가 이미 강제) `approved` 승격 전제 조건을 v2 Direct Probe처럼
+별도로 검증할 필요가 없다 — 이 모듈은 Key 집합 일치만 검증한다."""
 
 from __future__ import annotations
 
