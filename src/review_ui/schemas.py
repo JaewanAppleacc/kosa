@@ -347,3 +347,40 @@ class UpdateContextPackReviewRequest(BaseModel):
     status: ReviewerStatus
     comment: str = ""
     resolution_note: str | None = None
+
+
+class SharedProbeOptionView(BaseModel):
+    """2026-08-23 Trait Ontology v2(2.9단계) §5/§11 — ContextPack 공용 Adaptive Probe
+    Blueprint(`context_pack_shared_probe_blueprints.py`)의 선택지 하나. `weight`는
+    PRIMARY(1.0)만 노출한다 — 이 Blueprint는 원본 14개를 그대로 복사한 것이라
+    RELATED Signal이 없다(원본 자체가 그렇다)."""
+
+    role_id: str
+    text: str
+    mapping_type: Literal["TRAIT_SIGNAL", "NO_SIGNAL"]
+    trait_id: str | None
+    trait_label: str | None
+    weight: float | None
+
+
+class SharedProbeReviewItem(BaseModel):
+    blueprint_id: str
+    trait_id: str
+    trait_label: str
+    trait_definition: str
+    purpose: str
+    allowed_context_ids: list[str]
+    question_text: str
+    options: list[SharedProbeOptionView]
+    review: QuestionReviewView
+    is_active: bool  # 실제로 reviewer_1 APPROVED인가(= Runtime이 이 Blueprint를 쓸 수 있는가).
+
+
+class SharedProbeListResponse(BaseModel):
+    probes: list[SharedProbeReviewItem]
+
+
+class UpdateSharedProbeReviewRequest(BaseModel):
+    status: ReviewerStatus
+    comment: str = ""
+    resolution_note: str | None = None

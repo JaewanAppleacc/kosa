@@ -32,22 +32,23 @@ from pathlib import Path
 from types import ModuleType
 
 from src.data import context_packs as _context_packs_package
+from src.data.contexts.context_activation_batches import ALL_BATCH_CONTEXT_IDS, CONTEXT_ACTIVATION_BATCHES
+from src.data.questions.context_pack_shared_probe_blueprints import CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS
 from src.schemas.context_pack import ContextPack
 from src.schemas.v2_direct_probe_review import QuestionReviewEntry
+from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
+from src.services.context_pack_shared_probe_review_store import (
+    load_shared_probe_review_entries,
+)
 from src.services.trait_ontology_v2 import load_trait_ontology_v2
+from src.services.trait_signal_registry import register_context_pack_signals, register_shared_probe_blueprint_signals
 
 _REVIEW_STATUS_DIR = Path(__file__).resolve().parents[2] / "data" / "reviews" / "context_packs"
 
-# 2026-08-23 §6 — 다음 활성화 배치. Pack이 등록되고 검수(APPROVED)되기 전까지는
-# 이 목록에 있어도 assessment_supported_context_ids()에 포함되지 않는다(Fail-Closed).
-CONTEXT_ACTIVATION_BATCHES: dict[int, frozenset[str]] = {
-    1: frozenset({"business", "science", "sports"}),
-    2: frozenset({"making", "volunteer", "writing", "travel"}),
-    3: frozenset({"art_design", "cooking", "fashion_beauty", "history_humanities", "law_politics"}),
-}
-ALL_BATCH_CONTEXT_IDS: frozenset[str] = frozenset(
-    context_id for batch in CONTEXT_ACTIVATION_BATCHES.values() for context_id in batch
-)
+__all__ = [
+    "ALL_BATCH_CONTEXT_IDS", "CONTEXT_ACTIVATION_BATCHES", "ContextPackRegistry",
+    "ContextPackRegistryError", "discover_context_packs",
+]
 
 
 class ContextPackRegistryError(ValueError):
@@ -98,11 +99,16 @@ class ContextPackRegistry:
     def __init__(
         self, *, known_context_ids: frozenset[str], known_trait_ids: frozenset[str] | None = None,
         review_status_dir: Path | None = None,
+        shared_probe_review_status_path: Path | None = None,
+        shared_probe_pool: list[V2DirectProbeBlueprint] | None = None,
         _discovered: tuple[dict[str, ContextPack], dict[str, str]] | None = None,
     ) -> None:
         """`_discovered`는 테스트 전용 주입 지점이다(실제 `src/data/context_packs/`
         디렉터리를 훑지 않고 미리 구성한 Pack 집합으로 Ontology·검수 검증만 단위
-        테스트하기 위함) — 운영 코드(main.py)는 이 인자를 절대 넘기지 않는다."""
+        테스트하기 위함) — 운영 코드(main.py)는 이 인자를 절대 넘기지 않는다.
+        `shared_probe_review_status_path`/`shared_probe_pool`도 같은 목적의 테스트 전용
+        주입 지점이다(2.9단계 §6/§11 — 실제 공유 검수 파일을 건드리지 않고 승인/미승인
+        시나리오를 재현하기 위함); 기본값은 실제 파일/실제 14개 공용 Blueprint다."""
 
         self._known_context_ids = known_context_ids
         self._known_trait_ids = (
@@ -110,6 +116,10 @@ class ContextPackRegistry:
             else frozenset(t.trait_id for t in load_trait_ontology_v2())
         )
         self._review_status_dir = review_status_dir or _REVIEW_STATUS_DIR
+        self._shared_probe_review_status_path = shared_probe_review_status_path
+        self._shared_probe_pool = (
+            shared_probe_pool if shared_probe_pool is not None else list(CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS)
+        )
         packs, discovery_errors = _discovered if _discovered is not None else discover_context_packs()
         self._packs = dict(packs)
         self._discovery_errors = dict(discovery_errors)
@@ -119,6 +129,15 @@ class ContextPackRegistry:
             if error is not None:
                 self._ontology_errors[context_id] = error
                 del self._packs[context_id]
+
+        # 2026-08-23 2.9단계 §6 — Ontology 검증까지 통과한 Pack만 Exact Trait Signal로
+        # 동적 등록한다(Registry가 생성될 때마다, 즉 main.py/review_ui.app.py/테스트마다
+        # 독립적으로 호출돼도 멱등하다 — register_*_signals()가 이미 그렇게 만들어졌다).
+        # 공용 Adaptive Probe Blueprint도 여기서 함께 등록한다 — Context 이름을 이 파일에
+        # 하드코딩하지 않는다(§6 금지 사항).
+        for pack in self._packs.values():
+            register_context_pack_signals(pack)
+        register_shared_probe_blueprint_signals(self._shared_probe_pool)
 
     def _validate_against_ontology(self, pack: ContextPack) -> str | None:
         if pack.context_id not in self._known_context_ids:
@@ -192,6 +211,22 @@ class ContextPackRegistry:
         return all(
             key in entries and entries[key].final_status == "APPROVED" for key in required
         )
+
+    def shared_probe_blueprints_for_context(self, context_id: str) -> list[V2DirectProbeBlueprint]:
+        """2.9단계 §5/§6 — 검수 승인(reviewer_1 APPROVED)된 공용 Adaptive Probe
+        Blueprint 중 이 Context가 `allowed_context_ids`에 포함된 것만 Fail-Closed로
+        돌려준다. Context 이름을 하드코딩하지 않는다 — `allowed_context_ids` 멤버십과
+        단일 공유 검수 파일만으로 판단한다."""
+
+        approved_ids = self._approved_shared_probe_blueprint_ids()
+        return [
+            bp for bp in self._shared_probe_pool
+            if context_id in bp.allowed_context_ids and bp.blueprint_id in approved_ids
+        ]
+
+    def _approved_shared_probe_blueprint_ids(self) -> set[str]:
+        entries = load_shared_probe_review_entries(self._shared_probe_review_status_path)
+        return {e.blueprint_id for e in entries if e.final_status == "APPROVED"}
 
     def assessment_supported_context_ids(self, base_supported_context_ids: list[str]) -> list[str]:
         """§6 — 기존 Vertical Slice 3개(game/media/school_life, Pack 없이도 항상

@@ -36,7 +36,8 @@ from src.data.questions.tail_option_blueprints import TAIL_OPTION_BLUEPRINTS
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.questions.vertical_slice_seed_questions import VERTICAL_SLICE_SEED_QUESTIONS
-from src.schemas.question import seed_question_to_blueprint
+from src.schemas.context_pack import ContextPack
+from src.schemas.question import FinalizedOption, seed_question_to_blueprint
 from src.schemas.trait_signal import (
     PRIMARY_WEIGHT,
     QuestionFamilyId,
@@ -44,6 +45,7 @@ from src.schemas.trait_signal import (
     TraitSignalRegistryKey,
     TraitSignalResolution,
 )
+from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
 
 
 class TraitSignalRegistryError(ValueError):
@@ -564,6 +566,89 @@ for _v2_bp in V2_DIRECT_PROBE_BLUEPRINTS:
     _register_no_signal(
         "v2_direct_probe", _v2_bp.blueprint_id, _v2_no_signal_role_ids, known_role_ids=_v2_known_role_ids
     )
+
+
+# --- ContextPack 동적 등록 (2026-08-23 2.9단계 §6) ---
+#
+# 위 정적 등록(모듈 import 시점, 고정 14개/6개/3개 Legacy 목록 기반)과 달리, 이 두 함수는
+# `ContextPackRegistry`가 새 Pack을 발견할 때마다(런타임에, main.py/review_ui.app.py/
+# 테스트마다 독립적으로) 호출된다 — 그래서 아래 두 규칙을 지킨다.
+#
+# 1. 하드코딩 금지: role_id → Trait Signal은 항상 그 Pack 자신의 `primary_trait_delta`
+#    (Seed·Anchor Backup) 또는 `option_mappings`(공용 Adaptive Probe)에서 그대로 읽는다.
+#    Context 이름을 조건문으로 나열하는 dict를 이 파일에 추가하지 않는다.
+# 2. 멱등성: 같은 Pack이 여러 Registry 인스턴스(서로 다른 프로세스 안 main.py/review_ui/
+#    테스트)에서 반복 등록돼도 안전해야 한다 — 이미 "완전히 같은 값"으로 등록된 Key는
+#    조용히 건너뛰고, 값이 다른 재등록 시도만 `TraitSignalRegistryError`로 막는다(기존
+#    정적 등록의 순수 Fail-Fast `_register()`와 달리, 이 경로는 재호출을 전제로 한다).
+
+
+def _register_role_signals_idempotent(
+    question_family_id: QuestionFamilyId, blueprint_id: str, options: list[FinalizedOption]
+) -> None:
+    for option in options:
+        key = TraitSignalRegistryKey(
+            question_family_id=question_family_id, blueprint_id=blueprint_id, role_id=option.role_id
+        )
+        if option.primary_trait_delta:
+            trait_id = next(iter(option.primary_trait_delta))
+            signals = (TraitSignal(trait_id=trait_id, signal_role="PRIMARY", weight=PRIMARY_WEIGHT),)
+            if key in _NO_SIGNAL_KEYS:
+                raise TraitSignalRegistryError(f"충돌 재등록(기존 NO_SIGNAL과 다른 값): {key!r}")
+            existing = _REGISTRY.get(key)
+            if existing is not None:
+                if existing != signals:
+                    raise TraitSignalRegistryError(f"충돌 재등록(기존 값과 다름): {key!r}")
+                continue
+            _REGISTRY[key] = signals
+        else:
+            if key in _REGISTRY:
+                raise TraitSignalRegistryError(f"충돌 재등록(기존 TRAIT_SIGNAL과 다른 값): {key!r}")
+            _NO_SIGNAL_KEYS.add(key)
+
+
+def register_context_pack_signals(pack: ContextPack) -> None:
+    """`ContextPackRegistry`가 Ontology 검증까지 통과한 Pack마다 호출한다. Seed는
+    family="seed", blueprint_id=f"{question_id}_blueprint"(main.py가 Seed를 낼 때 쓰는
+    바로 그 값), Anchor Backup은 family="pack_backup", blueprint_id=question_id(접미사
+    없음, 기존 `ANCHOR_BACKUP_QUESTIONS` 등록 관례와 동일)로 등록한다. Direct Probe
+    후보(`pack.direct_probe_candidates`)는 이미 `V2DirectProbeBlueprint` 자체 구조라
+    `register_shared_probe_blueprint_signals()`와 같은 방식으로 등록한다."""
+
+    for seed in pack.seed_anchor_variants:
+        blueprint_id = f"{seed.question.question_id}_blueprint"
+        _register_role_signals_idempotent("seed", blueprint_id, seed.question.options)
+    for backup in pack.anchor_backup_questions:
+        _register_role_signals_idempotent("pack_backup", backup.question.question_id, backup.question.options)
+    if pack.direct_probe_candidates:
+        register_shared_probe_blueprint_signals(list(pack.direct_probe_candidates))
+
+
+def register_shared_probe_blueprint_signals(blueprints: list[V2DirectProbeBlueprint]) -> None:
+    """ContextPack 공용 Adaptive Probe Blueprint(`context_pack_shared_probe_blueprints.py`)
+    또는 Pack이 직접 담은 `direct_probe_candidates`를 family="pack_direct_probe"로
+    등록한다. `option_mappings`에 이미 있는 PRIMARY/RELATED Signal을 그대로 옮긴다 —
+    Legacy 14개 정적 등록(§하단)과 값 형태는 같지만 family가 다르므로 별도 Key다."""
+
+    for bp in blueprints:
+        for mapping in bp.option_mappings:
+            key = TraitSignalRegistryKey(
+                question_family_id="pack_direct_probe", blueprint_id=bp.blueprint_id, role_id=mapping.role_id
+            )
+            if mapping.mapping_type == "NO_SIGNAL":
+                if key in _REGISTRY:
+                    raise TraitSignalRegistryError(f"충돌 재등록(기존 TRAIT_SIGNAL과 다른 값): {key!r}")
+                _NO_SIGNAL_KEYS.add(key)
+                continue
+            signals = tuple(mapping.trait_signals)
+            if key in _NO_SIGNAL_KEYS:
+                raise TraitSignalRegistryError(f"충돌 재등록(기존 NO_SIGNAL과 다른 값): {key!r}")
+            existing = _REGISTRY.get(key)
+            if existing is not None:
+                if existing != signals:
+                    raise TraitSignalRegistryError(f"충돌 재등록(기존 값과 다름): {key!r}")
+                continue
+            _REGISTRY[key] = signals
 
 
 def validate_role_signals(

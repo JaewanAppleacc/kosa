@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.data.contexts.context_definitions import CONTEXT_IDS
+from src.data.questions.context_pack_shared_probe_blueprints import CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS
 from src.review_ui import context_pack_review_service as cprs
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
@@ -27,11 +28,13 @@ from src.review_ui.schemas import (
     QuestionListResponse,
     RoutingQuestionListResponse,
     SeedAnchorQuestionListResponse,
+    SharedProbeListResponse,
     SummaryResponse,
     UpdateContextPackReviewRequest,
     UpdateOptionReviewRequest,
     UpdateQuestionReviewRequest,
     UpdateReviewResponse,
+    UpdateSharedProbeReviewRequest,
 )
 from src.services.context_pack_registry import ContextPackRegistry
 from src.services.trait_ontology_v2 import load_trait_ontology_v2
@@ -341,6 +344,34 @@ def patch_anchor_backup_option(
 @app.get("/internal/review/v2/context-packs", response_model=ContextPackListResponse)
 def get_context_packs() -> ContextPackListResponse:
     return cprs.build_context_pack_list(_context_pack_registry, _trait_definitions_by_id)
+
+
+# 2026-08-23 Trait Ontology v2(2.9단계) §5/§11 — ContextPack 공용 Adaptive Probe
+# Blueprint(신규 12개 Context가 공유) 검수 Endpoint. Context별 목록과 완전히 별개
+# 경로다 — 이 Blueprint는 특정 Context 하나가 아니라 여러 Context가 동시에 참조한다.
+# 아래 일반 `{context_id}/{key:path}` PATCH보다 먼저 등록해야 한다 — Starlette는 경로를
+# 등록 순서대로 매칭하므로, 순서가 바뀌면 "shared-probes"가 context_id로 잘못 잡힌다.
+
+
+@app.get("/internal/review/v2/context-packs/shared-probes", response_model=SharedProbeListResponse)
+def get_shared_probes() -> SharedProbeListResponse:
+    trait_definitions = {t.trait_id: t for t in load_trait_ontology_v2()}
+    return cprs.build_shared_probe_list(CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS, trait_definitions)
+
+
+@app.patch(
+    "/internal/review/v2/context-packs/shared-probes/{blueprint_id}", response_model=UpdateReviewResponse,
+)
+def patch_shared_probe_review(
+    blueprint_id: str, payload: UpdateSharedProbeReviewRequest,
+) -> UpdateReviewResponse:
+    try:
+        return cprs.update_shared_probe_review(
+            CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS, blueprint_id, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+        )
+    except cprs.UnknownSharedProbeError as exc:
+        raise _http_error(422, str(exc)) from exc
 
 
 @app.patch(

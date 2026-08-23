@@ -80,6 +80,11 @@ from src.engines.contrast_context_selector import (
     validate_context_id_list,
     validate_interest_ratings,
 )
+from src.engines.context_pack_adaptive_planner import (
+    compute_pack_context_trait_summaries,
+    select_pack_adaptive_target,
+)
+from src.engines.evidence_engine import decide_stop_or_continue
 from src.engines.matching_engine import (
     compute_major_match,
     compute_student_trait_states,
@@ -703,98 +708,116 @@ def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: s
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
 
+def _pack_context_early_terminate(state: AssessmentState, stop_reason: str) -> "NextQuestionResponse":
+    """이 Context에서 더 낼 질문이 없을 때(Anchor 없음/Seed 없음/정상 Stop/Backup까지
+    소진) 공통으로 쓰는 조기 종료 경로. `stop_reason`은 학생 API에 노출하지 않는
+    내부 진단 문자열이다(§7 Stop Reason 구분, `state.stop_reason` 재사용)."""
+
+    state.stop_reason = stop_reason
+    has_next_context = _advance_to_next_context_or_complete(state)
+    _clear_current_question(state)
+    assessment_complete = not has_next_context
+    # Legacy Context 조기 종료와 같은 규칙(위 §11 Fallback 소진 분기와 동일) — 이
+    # Pack Context가 세션의 마지막 Context였다면, 곧장 완료 처리하지 않고 v2 Direct
+    # Probe 전역 단계로 넘어갈 수 있는지 먼저 확인한다.
+    if not has_next_context and _enter_v2_direct_probe_phase_if_applicable(state):
+        assessment_complete = False
+    _store.save(state)
+    return NextQuestionResponse(
+        session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED, question=None,
+        current_context_id=state.current_context_id, questions_asked_in_current_context=0,
+        assessment_complete=assessment_complete,
+    )
+
+
+def _pack_context_used_blueprint_ids(state: AssessmentState, current_context: str) -> set[str]:
+    return {
+        e.source_blueprint_id
+        for e in state.evidence_ledger
+        if e.context == current_context and e.source_question_family_id == "pack_direct_probe"
+        and e.source_blueprint_id is not None
+    }
+
+
 def _serve_pack_context_question(state: AssessmentState, current_context: str) -> "NextQuestionResponse":
-    """2026-08-23 Trait Ontology v2(2.8단계) §2/§4/§5 — 신규 ContextPack Context 전용
-    질문 서빙. Legacy Tail Option Blueprint(12-Trait 전용)는 전혀 쓰지 않는다 —
-    ContextPack은 Seed/Backup/Direct Probe만 정의한다(개발 가이드 §2). 이번 라운드의
-    최소 연결 범위: Context당 정확히 Seed(위치 0) + 그 뒤 질문 1개(Direct Probe 후보가
-    있으면 그중 하나, 없으면 그 Anchor의 Backup)로 끝난다 — 그 뒤에는 항상 다음
-    Context로 진행한다(§4 "Backup까지 사용할 수 없으면 기존 조기 종료 정책을 따르세요").
-    "게임", "미디어" 같은 이름을 조건문으로 나열하지 않는다 — `_context_pack_runtime`
-    호출 하나로 어떤 신규 Context가 와도 동일하게 동작한다."""
+    """2026-08-23 Trait Ontology v2(2.9단계) §4/§5/§7/§9 — 신규 ContextPack Context
+    전용 질문 서빙. Legacy Tail Option Blueprint(12-Trait 전용)는 전혀 쓰지 않는다 —
+    ContextPack은 Seed/Backup/Direct Probe만 정의한다(개발 가이드 §2).
+
+    흐름: Seed(위치 0, Trait 질문 Counter 1) → Adaptive Tail(공용 Adaptive Probe
+    Blueprint 후보 중 Evidence가 부족한 Trait 우선 — `context_pack_adaptive_planner`)을
+    최소 4개·최대 6개(`evidence_engine.decide_stop_or_continue`, Legacy Tail과 동일한
+    정책·같은 순수 함수 재사용) → 후보가 바닥나고 아직 최소치 미달이면 그 Anchor의
+    Backup을 "질문 생성 실패 대체"로만 사용 → 그래도 없으면 Context 종료. "게임",
+    "미디어" 같은 이름을 조건문으로 나열하지 않는다 — `_context_pack_runtime` 호출
+    하나로 어떤 신규 Context가 와도 동일하게 동작한다."""
 
     anchor_id = state.context_anchor_choices.get(current_context)
     if anchor_id is None:
         # 방어적 분기 — Routing이 이 Context의 Anchor를 항상 먼저 정하므로(위 next_question
         # 본문에서 Routing을 먼저 서빙한다) 정상 흐름에서는 도달하지 않는다.
-        has_next_context = _advance_to_next_context_or_complete(state)
-        _clear_current_question(state)
-        assessment_complete = not has_next_context
-        _store.save(state)
-        return NextQuestionResponse(
-            session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED, question=None,
-            current_context_id=state.current_context_id, questions_asked_in_current_context=0,
-            assessment_complete=assessment_complete,
-        )
+        return _pack_context_early_terminate(state, "PACK_ANCHOR_MISSING")
 
     if state.questions_asked_in_current_context == 0:
         seed_question = _context_pack_runtime.get_seed_question(current_context, anchor_id)
         if seed_question is None:
-            has_next_context = _advance_to_next_context_or_complete(state)
-            _clear_current_question(state)
-            assessment_complete = not has_next_context
-            _store.save(state)
-            return NextQuestionResponse(
-                session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED, question=None,
-                current_context_id=state.current_context_id, questions_asked_in_current_context=0,
-                assessment_complete=assessment_complete,
-            )
+            return _pack_context_early_terminate(state, "PACK_SEED_MISSING")
         question = seed_question
         question_family_id = "seed"
         question_blueprint_id = f"{question.question_id}_blueprint"
         status = QuestionDeliveryStatus.GENERATED
     else:
-        v2_snapshot = _compute_v2_snapshot(state)
+        tail_count = state.questions_asked_in_current_context - 1
         pack_candidates = _context_pack_runtime.get_direct_probe_candidates(current_context)
-        chosen_trait_id: str | None = None
-        chosen_blueprint = None
-        if pack_candidates:
-            candidates = select_v2_probe_candidates(
-                v2_snapshot, set(state.v2_probed_trait_ids), final_contexts=[current_context],
-                used_v2_probe_frame_ids=set(), preferred_context_ids=state.selected_preferred_contexts,
-                interest_ratings=state.interest_ratings,
-            )
-            for trait_id in candidates:
-                blueprint = select_blueprint_for_trait(
-                    trait_id,
-                    related_context_ids=v2_snapshot[trait_id].related_context_ids if trait_id in v2_snapshot else set(),
-                    preferred_context_ids=state.selected_preferred_contexts, final_contexts=[current_context],
-                    used_v2_probe_frame_ids=set(), candidate_pool=pack_candidates,
-                )
-                if blueprint is not None:
-                    chosen_trait_id, chosen_blueprint = trait_id, blueprint
-                    break
+        candidate_trait_ids = {bp.trait_id for bp in pack_candidates}
+        trait_summaries = compute_pack_context_trait_summaries(
+            state.evidence_ledger, state.offered_trait_ids_by_question,
+            context_id=current_context, trait_ids=candidate_trait_ids,
+        )
+        # §4/§7: 최소 4개·최대 6개, Coverage Gap 있으면 계속 — Legacy Tail이 이미 쓰는
+        # 그 순수 함수를 그대로 재사용한다(Explicit Conflict는 Pack Context 범위 밖).
+        stop_decision = decide_stop_or_continue(tail_count, trait_summaries, candidate_trait_ids, set())
 
-        if chosen_blueprint is not None:
-            question_id = generate_question_id(current_context, "v2_probe", 1)
+        chosen = None
+        if stop_decision == "CONTINUE":
+            chosen = select_pack_adaptive_target(
+                candidate_pool=pack_candidates, trait_summaries=trait_summaries,
+                already_used_blueprint_ids=_pack_context_used_blueprint_ids(state, current_context),
+                recent_target_trait_id=(state.recent_target_trait_ids[-1] if state.recent_target_trait_ids else None),
+                used_frame_ids=set(state.used_frame_ids_in_current_context), final_contexts=[current_context],
+            )
+
+        if chosen is not None:
+            question_id = generate_question_id(current_context, "v2_probe", tail_count + 1)
             anchor_presentation = _context_pack_runtime.get_anchor_presentation(current_context, anchor_id)
             outcome = generate_v2_direct_probe_question(
                 question_id=question_id, context_definition=CONTEXT_DEFINITIONS_BY_ID[current_context],
-                blueprint=chosen_blueprint, llm_client=_llm_client, anchor=anchor_presentation,
+                blueprint=chosen.blueprint, llm_client=_llm_client, anchor=anchor_presentation,
             )
-            question = outcome.question
+            # 공용 Adaptive Probe Blueprint는 Fallback base_question에 자리표시자
+            # Context가 박혀 있다(schema 요구사항 — allowed_context_ids 중 하나여야
+            # 함). LLM 경로는 이미 실제 current_context를 돌려주지만, Fallback 경로는
+            # 여기서 명시적으로 덮어써야 Evidence.context가 실제 Context와 어긋나지
+            # 않는다.
+            question = outcome.question.model_copy(update={"context": current_context})
             status = QuestionDeliveryStatus.GENERATED if outcome.source == "llm" else QuestionDeliveryStatus.BACKUP_USED
             question_family_id = "pack_direct_probe"
-            question_blueprint_id = chosen_blueprint.blueprint_id
-            state.current_v2_probe_target_trait_id = chosen_trait_id
-            state.current_v2_probe_blueprint_id = chosen_blueprint.blueprint_id
-        else:
+            question_blueprint_id = chosen.blueprint.blueprint_id
+            state.current_v2_probe_target_trait_id = chosen.trait_id
+            state.current_v2_probe_blueprint_id = chosen.blueprint.blueprint_id
+        elif stop_decision == "CONTINUE" and tail_count < 4:
+            # §9: 후보가 바닥났지만 아직 최소 4개도 못 채웠다 — 이때만 Anchor Backup을
+            # "실패 대체"로 쓴다(정상 후보가 있는 한 Backup은 절대 선택되지 않는다).
             backups = _context_pack_runtime.get_backup_candidates(current_context, anchor_id)
             unused_backups = [b for b in backups if b.question_id not in state.used_backup_question_ids]
             if not unused_backups:
-                has_next_context = _advance_to_next_context_or_complete(state)
-                _clear_current_question(state)
-                assessment_complete = not has_next_context
-                _store.save(state)
-                return NextQuestionResponse(
-                    session_id=state.session_id, status=QuestionDeliveryStatus.CONTEXT_EARLY_TERMINATED,
-                    question=None, current_context_id=state.current_context_id,
-                    questions_asked_in_current_context=state.questions_asked_in_current_context,
-                    assessment_complete=assessment_complete,
-                )
+                return _pack_context_early_terminate(state, f"STOP_CANDIDATE_EXHAUSTED tail_count={tail_count}")
             question = unused_backups[0]
             question_family_id, question_blueprint_id = "pack_backup", question.question_id
             status = QuestionDeliveryStatus.BACKUP_USED
+        else:
+            reason = "STOP_MAX_REACHED" if tail_count >= 6 else "STOP_SUFFICIENT"
+            return _pack_context_early_terminate(state, f"{reason} tail_count={tail_count}")
 
     state.current_question = question
     state.current_question_family_id = question_family_id
@@ -819,11 +842,17 @@ def _serve_pack_context_question(state: AssessmentState, current_context: str) -
 
 
 def _submit_pack_context_probe_answer(state: AssessmentState, selected_option_id: str) -> "AnswerResponse":
-    """2026-08-23 Trait Ontology v2(2.8단계) §5 — Pack Context의 Direct Probe/Backup
-    답변. `_submit_v2_direct_probe_answer()`와 같은 Evidence 생성 원칙(Legacy Stop/
-    Continue·Target Planner를 건드리지 않음)을 따르되, "이 Context는 Seed+질문 1개로
-    끝난다"는 §2.8단계 최소 연결 범위에 맞춰 답변 직후 항상 다음 Context로 진행하거나
-    세션을 완료 처리한다(Legacy처럼 같은 Context에서 추가 질문을 더 내지 않는다)."""
+    """2026-08-23 Trait Ontology v2(2.9단계) §5/§7/§10 — Pack Context의 Adaptive Tail
+    Direct Probe/Backup 답변. `_submit_v2_direct_probe_answer()`와 같은 Evidence 생성
+    원칙(Legacy 12-Trait 전용 Stop/Continue·Target Planner를 건드리지 않음)을 따르되,
+    이 답변 자체가 "이번 Context에서 질문 하나를 더 물었다"는 사실은 Legacy `_evidence_
+    update()`와 동일하게 `questions_asked_in_current_context`/`offered_trait_ids_by_
+    question`/`recent_target_trait_ids`/`used_frame_ids_in_current_context`에 반영한다
+    (§10 "Seed·Adaptive·Backup 출처 구분" — 이 Counter들이 없으면 Adaptive Planner가
+    몇 번째 질문인지, 어떤 Trait·Frame을 이미 썼는지 알 수 없다). 매 답변 뒤에는 항상
+    다음 질문을 다시 `_serve_pack_context_question()`이 결정한다(더 낼지, 다음
+    Context로 넘어갈지는 거기서 Stop/Continue로 판단 — 이 함수는 세션을 강제로 끝내지
+    않는다, 2.8단계와 달리 "무조건 다음 Context로 전진"하지 않는다)."""
 
     question = state.current_question
     selected = next((o for o in question.options if o.option_id == selected_option_id), None)
@@ -871,6 +900,18 @@ def _submit_pack_context_probe_answer(state: AssessmentState, selected_option_id
         )
     )
 
+    # 2026-08-23 2.9단계 §10: Legacy `_evidence_update()`와 같은 Counter들을 여기서도
+    # 채운다 — 이게 없으면 Adaptive Planner(`_serve_pack_context_question`)가 몇 번째
+    # 질문인지, 이 Context에서 이미 어떤 Trait·Frame을 썼는지 알 수 없다.
+    offered_traits: list[str] = []
+    for option in question.options:
+        offered_traits.extend(option.primary_trait_delta.keys())
+    state.offered_trait_ids_by_question[question.question_id] = offered_traits
+    if selected.primary_trait_delta:
+        state.recent_target_trait_ids.append(next(iter(selected.primary_trait_delta)))
+    state.used_frame_ids_in_current_context.append(question.frame_id)
+    state.questions_asked_in_current_context += 1
+
     if is_direct_probe:
         target_trait_id = state.current_v2_probe_target_trait_id or ""
         target_signal_selected = any(
@@ -900,18 +941,18 @@ def _submit_pack_context_probe_answer(state: AssessmentState, selected_option_id
         },
     )
 
-    # §2.8단계 최소 연결 범위: 이 Context는 Seed + 이 질문 하나로 끝난다 — 항상 다음
-    # Context로 진행하거나(있으면) 세션을 완료 처리한다.
-    has_next_context = _advance_to_next_context_or_complete(state)
+    # 2026-08-23 2.9단계 §4/§9: 다음이 Adaptive Tail 질문 하나 더인지, 이 Context가
+    # 끝나 다음 Context로 넘어가는지, 세션이 완전히 끝나는지는 여기서 미리 판단하지
+    # 않는다 — 그다음 `/assessment/next-question` 호출이 `_serve_pack_context_question()`
+    # 을 다시 호출해서 그 자리에서 최신 Evidence로 다시 결정한다(Legacy가 같은
+    # 질문 하나짜리 결정을 답변 시점·다음 질문 시점 두 곳에서 중복 계산하지 않도록
+    # 이미 쓰는 것과 같은 "다음 next-question이 실제 상태를 다시 본다" 원칙). B는
+    # 그냥 다음 next-question을 부르면 된다(§19와 동일한 원칙, CONTEXT_COMPLETE 같은
+    # 별도 신호를 새로 만들지 않는다) — 실제 종료 여부는 그 응답의
+    # `status`/`assessment_complete`가 알려준다.
     _clear_current_question(state)
-    if has_next_context:
-        next_action = "NEXT_QUESTION"
-    elif _enter_v2_direct_probe_phase_if_applicable(state):
-        next_action = "NEXT_QUESTION"
-    else:
-        next_action = "ASSESSMENT_COMPLETE"
     _store.save(state)
-    return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
+    return AnswerResponse(session_id=state.session_id, accepted=True, next_action="NEXT_QUESTION")
 
 
 def _serve_context_routing_question(

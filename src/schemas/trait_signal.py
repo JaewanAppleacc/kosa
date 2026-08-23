@@ -58,7 +58,13 @@ class TraitSignal(BaseModel):
 # NONE_CONFLICT_RESOLUTION으로 조회된다), 그래서 여기 나열하지 않는다.
 # 2026-08-23 2단계 §8: "v2_direct_probe"를 추가한다 — 신규 Trait Direct Probe 질문
 # 전용 계열이다. 이 값은 서버 내부 Registry Key에서만 쓰이고 API에는 노출하지 않는다.
-QuestionFamilyId = Literal["seed", "tail_blueprint", "backup", "mock_placeholder", "v2_direct_probe"]
+# 2026-08-23 2.8/2.9단계: "pack_direct_probe"/"pack_backup"을 추가한다 — 신규
+# ContextPack Context(Legacy game/media/school_life 밖)의 Adaptive Tail Direct
+# Probe·Anchor Backup 답변 전용 계열이다.
+QuestionFamilyId = Literal[
+    "seed", "tail_blueprint", "backup", "mock_placeholder", "v2_direct_probe",
+    "pack_direct_probe", "pack_backup",
+]
 
 
 class TraitSignalRegistryKey(BaseModel):

@@ -81,5 +81,15 @@ class ContextPackRuntime:
         return [entry.question] if entry is not None else []
 
     def get_direct_probe_candidates(self, context_id: str) -> list[V2DirectProbeBlueprint]:
+        """2026-08-23 Trait Ontology v2(2.9단계) §5 — Pack 자신의
+        `direct_probe_candidates`(현재 12개 전부 빈 목록, T·S·L이 나중에 채울 수도
+        있는 자리)에 검수 승인된 공용 Adaptive Probe Blueprint를 더한다
+        (`ContextPackRegistry.shared_probe_blueprints_for_context()`, Fail-Closed —
+        미승인 Blueprint는 절대 섞이지 않는다). Context 이름을 여기 하드코딩하지
+        않는다 — Registry가 `allowed_context_ids` 멤버십과 단일 공유 검수 파일만으로
+        판단한다."""
+
         pack = self._pack_if_active(context_id)
-        return list(pack.direct_probe_candidates) if pack is not None else []
+        if pack is None:
+            return []
+        return list(pack.direct_probe_candidates) + self._registry.shared_probe_blueprints_for_context(context_id)

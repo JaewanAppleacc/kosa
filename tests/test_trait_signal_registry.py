@@ -64,17 +64,27 @@ class RegistryStructureTest(unittest.TestCase):
         """1.5단계 §2/§4: Backup Question도 Registry에 등록돼 있어야 한다(1단계에서는
         전혀 등록돼 있지 않았다 — §1 감사에서 발견한 원인 중 하나). 2단계 §5/§8: 신규
         Trait Direct Probe Blueprint도 별도 계열("v2_direct_probe")로 등록돼 있어야
-        한다."""
+        한다.
+
+        2026-08-23 2.9단계 §6: `unittest discover`가 같은 프로세스에서 `main.py`를
+        import하면 `ContextPackRegistry`가 실제 Context Pack(business 등)과 공용
+        Adaptive Probe를 "seed"/"pack_backup"/"pack_direct_probe" family로 동적
+        등록한다 — 이 4개 Legacy family가 최소한 전부 있는지만 확인한다(초과는 정상)."""
 
         families = {key.question_family_id for key in _REGISTRY}
-        self.assertEqual(families, {"seed", "tail_blueprint", "backup", "v2_direct_probe"})
+        self.assertTrue({"seed", "tail_blueprint", "backup", "v2_direct_probe"} <= families)
 
     def test_registry_has_exactly_205_composite_keys(self) -> None:
         # (Seed 3 + Tail Blueprint 3 + Backup 6(2.5.3단계 REVISE, Runtime 제외) +
         # Anchor Backup 15(2.5.4단계) + V2 Direct Probe 14) × Role 5개 = 205.
         # V2 Direct Probe의 NO_SIGNAL Role, Anchor Backup의 NO_SIGNAL Role은
         # `_REGISTRY`가 아니라 `_NO_SIGNAL_KEYS`에 등록된다 — 둘을 합쳐야 전체 205개다.
-        self.assertEqual(len(_REGISTRY) + len(_NO_SIGNAL_KEYS), 205)
+        #
+        # 2026-08-23 2.9단계 §6: ContextPackRegistry가 동적으로 등록하는 신규
+        # Context Pack Seed/Anchor Backup·공용 Adaptive Probe Signal이 이 값을
+        # 늘린다(같은 프로세스에서 main.py가 먼저 import되면). 205는 이제 "최소
+        # 하한"이다 — 정적 Legacy 등록이 실수로 줄어드는 회귀만 잡는다.
+        self.assertGreaterEqual(len(_REGISTRY) + len(_NO_SIGNAL_KEYS), 205)
 
     def test_no_signal_keys_are_v2_direct_probe_or_backup_and_have_no_overlap_with_registry(self) -> None:
         # 2.5단계 §7: detail_orientation_media_v1의 do_visual_check가 미디어 재정의
@@ -90,9 +100,16 @@ class RegistryStructureTest(unittest.TestCase):
         # 2.5.4단계 §5: Anchor Backup 15개 중 26개 Option이 "행동만으로는 특정 성향을
         # 단정할 근거가 약하다"는 정직한 이유로 NO_SIGNAL이다(v2 Direct Probe와 별개로
         # "backup" 계열도 처음으로 NO_SIGNAL을 갖는다, 15 → 41).
-        self.assertEqual(len(_NO_SIGNAL_KEYS), 41)
+        # 2026-08-23 2.9단계 §6: 신규 Context Pack Seed/Anchor Backup·공용 Adaptive
+        # Probe도 NO_SIGNAL Option을 가질 수 있어("seed"/"pack_backup"/
+        # "pack_direct_probe" family 추가) 41은 이제 하한이다 — 핵심 불변식은 그대로
+        # "_REGISTRY와 _NO_SIGNAL_KEYS는 절대 겹치지 않는다"다.
+        self.assertGreaterEqual(len(_NO_SIGNAL_KEYS), 41)
         for key in _NO_SIGNAL_KEYS:
-            self.assertIn(key.question_family_id, ("v2_direct_probe", "backup"))
+            self.assertIn(
+                key.question_family_id,
+                ("v2_direct_probe", "backup", "seed", "pack_backup", "pack_direct_probe"),
+            )
         self.assertEqual(set(_REGISTRY) & _NO_SIGNAL_KEYS, set())
 
     def test_full_registry_passes_validation(self) -> None:

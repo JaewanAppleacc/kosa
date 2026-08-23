@@ -21,6 +21,10 @@ from src.services.context_pack_review_store import (
     load_context_pack_review_entries,
     save_context_pack_review_entries,
 )
+from src.services.context_pack_shared_probe_review_store import (
+    load_shared_probe_review_entries,
+    save_shared_probe_review_entries,
+)
 from src.services.context_trait_coverage import compute_context_trait_coverage
 from src.review_ui.schemas import (
     ContextPackAnchorView,
@@ -31,6 +35,9 @@ from src.review_ui.schemas import (
     ContextPackReviewQuestionView,
     QuestionReviewView,
     ReviewerStatus,
+    SharedProbeListResponse,
+    SharedProbeOptionView,
+    SharedProbeReviewItem,
     UpdateReviewResponse,
 )
 
@@ -204,6 +211,70 @@ def build_context_pack_list(
         packs=sorted(items, key=lambda i: i.context_id),
         discovery_errors=registry.discovery_errors(), ontology_errors=registry.ontology_errors(),
     )
+
+
+def build_shared_probe_list(
+    shared_pool: list[V2DirectProbeBlueprint], trait_definitions: dict[str, TraitDefinition],
+) -> SharedProbeListResponse:
+    """2026-08-23 Trait Ontology v2(2.9단계) §11 — ContextPack 공용 Adaptive Probe
+    Blueprint(`context_pack_shared_probe_blueprints.py`)를 그대로 보여준다. 원본 14개
+    Legacy Blueprint의 role_id·Trait Signal을 그대로 복사한 것이라 실제 Runtime
+    변환과 다른 가짜 Preview가 아니다."""
+
+    trait_labels = {t.trait_id: t.label for t in trait_definitions.values()}
+    trait_defs = {t.trait_id: t.definition for t in trait_definitions.values()}
+    review_entries = {e.blueprint_id: e for e in load_shared_probe_review_entries()}
+
+    items: list[SharedProbeReviewItem] = []
+    for bp in shared_pool:
+        options = []
+        for mapping in bp.option_mappings:
+            text = next((o.text for o in bp.base_question.options if o.role_id == mapping.role_id), "")
+            trait_id = mapping.primary_trait_id
+            options.append(
+                SharedProbeOptionView(
+                    role_id=mapping.role_id, text=text, mapping_type=mapping.mapping_type,
+                    trait_id=trait_id, trait_label=trait_labels.get(trait_id) if trait_id else None,
+                    weight=1.0 if mapping.mapping_type == "TRAIT_SIGNAL" else None,
+                )
+            )
+        entry = review_entries.get(bp.blueprint_id)
+        items.append(
+            SharedProbeReviewItem(
+                blueprint_id=bp.blueprint_id, trait_id=bp.trait_id,
+                trait_label=trait_labels.get(bp.trait_id, bp.trait_id),
+                trait_definition=trait_defs.get(bp.trait_id, ""), purpose=bp.purpose,
+                allowed_context_ids=list(bp.allowed_context_ids), question_text=bp.base_question.question_text,
+                options=options, review=_review_view(entry),
+                is_active=entry is not None and entry.final_status == "APPROVED",
+            )
+        )
+    return SharedProbeListResponse(probes=sorted(items, key=lambda i: i.blueprint_id))
+
+
+class UnknownSharedProbeError(ValueError):
+    pass
+
+
+def update_shared_probe_review(
+    shared_pool: list[V2DirectProbeBlueprint], blueprint_id: str, *, status: ReviewerStatus,
+    comment: str, resolution_note: str | None,
+) -> UpdateReviewResponse:
+    if blueprint_id not in {bp.blueprint_id for bp in shared_pool}:
+        raise UnknownSharedProbeError(f"blueprint_id {blueprint_id!r}가 공용 Adaptive Probe 목록에 없다")
+
+    entries = load_shared_probe_review_entries()
+    by_id = {e.blueprint_id: e for e in entries}
+    existing = by_id.get(blueprint_id) or QuestionReviewEntry(blueprint_id=blueprint_id)
+    updated = existing.model_copy(
+        update={
+            "reviewer_1_status": status, "reviewer_1_comment": comment,
+            **({"resolution_note": resolution_note} if resolution_note is not None else {}),
+        }
+    )
+    by_id[blueprint_id] = updated
+    save_shared_probe_review_entries([by_id[k] for k in sorted(by_id)])
+    return UpdateReviewResponse(ok=True, final_status=updated.final_status, new_revision="")
 
 
 def update_context_pack_review(
