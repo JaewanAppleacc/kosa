@@ -1,114 +1,114 @@
 [
   {
-    "blueprint_id": "systems_thinking_game_v1",
     "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_comment": "게임이나 드라마 영화같이 장르가 나뉘는 카테고리들은 선호하는 장르를 먼저 물어보고 장르에 따라 질문을 달리해야될 것같아 게임 중에서도 협동형 게임이 있고, 혼자 플레이하는 게임이 있고 장르가 다양해서 한 질문이 모든 장르를 포괄하긴 어려운것같아",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "systems_thinking_game_v1"
   },
   {
-    "blueprint_id": "systems_thinking_school_life_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "systems_thinking_school_life_v1"
   },
   {
-    "blueprint_id": "detail_orientation_media_v1",
     "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_comment": "내가 말한 미디어는 이런 편집이나 제출의 느낌보다는 영화,드라마,유튜브,뮤지컬,공연 등의 문화생활을 말한거였어",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "detail_orientation_media_v1"
   },
   {
-    "blueprint_id": "detail_orientation_school_life_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "detail_orientation_school_life_v1"
   },
   {
-    "blueprint_id": "persistence_completion_game_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "persistence_completion_game_v1"
   },
   {
-    "blueprint_id": "persistence_completion_school_life_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "persistence_completion_school_life_v1"
   },
   {
-    "blueprint_id": "uncertainty_tolerance_game_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "uncertainty_tolerance_game_v1"
   },
   {
-    "blueprint_id": "uncertainty_tolerance_school_life_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "uncertainty_tolerance_school_life_v1"
   },
   {
-    "blueprint_id": "opinion_expression_media_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "opinion_expression_media_v1"
   },
   {
-    "blueprint_id": "opinion_expression_school_life_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "opinion_expression_school_life_v1"
   },
   {
-    "blueprint_id": "creative_ideation_media_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "creative_ideation_media_v1"
   },
   {
-    "blueprint_id": "creative_ideation_game_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "creative_ideation_game_v1"
   },
   {
-    "blueprint_id": "independent_judgment_game_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_game_v1"
   },
   {
-    "blueprint_id": "independent_judgment_school_life_v1",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_school_life_v1"
   }
 ]

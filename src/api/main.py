@@ -51,6 +51,10 @@ from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
+from src.data.questions.context_routing_blueprints import (
+    CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT,
+    CONTEXT_ROUTING_BLUEPRINTS_BY_ID,
+)
 from src.data.questions.vertical_slice_backup_questions import VERTICAL_SLICE_BACKUP_QUESTIONS
 from src.data.trait_ontology.trait_probe_capabilities_v2 import (
     CORE_TRAIT_IDS,
@@ -146,7 +150,8 @@ from src.schemas.api import (
     SubgraphResponse,
     SubjectsResponse,
 )
-from src.schemas.assessment_state import AnsweredQuestion, AssessmentPhase, AssessmentState
+from src.schemas.assessment_state import AnsweredQuestion, AssessmentPhase, AssessmentState, RoutingAnsweredQuestion
+from src.schemas.context_routing import ContextRoutingBlueprint
 from src.schemas.evidence import AppliedTraitSignal, EvidenceOrigin, EvidenceRecord, V2ProbeOpportunity
 from src.schemas.trait_vector_snapshot import TraitVectorSnapshot
 
@@ -590,6 +595,88 @@ def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: s
     return AnswerResponse(session_id=state.session_id, accepted=True, next_action=next_action)
 
 
+def _serve_context_routing_question(
+    state: AssessmentState, routing_blueprint: "ContextRoutingBlueprint",
+) -> "NextQuestionResponse":
+    """2.5단계 §4 — Context Routing 질문을 낸다. 항상 고정 문구(`base_question`)를
+    그대로 쓴다 — LLM을 호출하지 않는다(§4 "학생에게 특정 상업 게임명이나 장르 지식을
+    요구하지 마세요"와 무관하게, Routing 자체가 Trait 점수와 무관한 고정 분류 질문이라
+    실시간 생성이 필요 없다). 공개 응답은 다른 질문과 똑같은 `FinalizedQuestion`
+    모양이라 B는 아무것도 바꿀 필요가 없다(§10)."""
+
+    question_id = generate_question_id(routing_blueprint.context_id, "routing", 1)
+    question = routing_blueprint.base_question.model_copy(update={"question_id": question_id})
+    state.current_question = question
+    state.current_question_family_id = "context_routing"
+    state.current_question_blueprint_id = routing_blueprint.blueprint_id
+    state.current_question_delivery_status = QuestionDeliveryStatus.GENERATED.value
+    state.current_question_served_context_id = routing_blueprint.context_id
+    _store.save(state)
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Context Routing Question",
+        attributes={
+            "graph_node": "context_routing_question",
+            "context_id": routing_blueprint.context_id,
+            "blueprint_id": routing_blueprint.blueprint_id,
+        },
+    )
+
+    return NextQuestionResponse(
+        session_id=state.session_id,
+        status=QuestionDeliveryStatus.GENERATED,
+        question=question,
+        current_context_id=routing_blueprint.context_id,
+        questions_asked_in_current_context=state.questions_asked_in_current_context,
+        assessment_complete=False,
+    )
+
+
+def _submit_context_routing_answer(state: AssessmentState, selected_option_id: str) -> "AnswerResponse":
+    """2.5단계 §2/§5 — Context Routing 답변은 Legacy/v2 파이프라인을 완전히 우회한다.
+    `evidence_ledger`/`applied_trait_signals_v2`/`trait_summaries`/
+    `offered_trait_ids_by_question`/`v2_probe_opportunities`/Conflict 상태/Legacy
+    `answers`/v2 Direct Probe 카운터 중 어느 것도 건드리지 않는다 — `context_anchor_choices`와
+    별도의 `routing_answer_history`에만 기록한다."""
+
+    question = state.current_question
+    selected = next((o for o in question.options if o.option_id == selected_option_id), None)
+    if selected is None:
+        raise HTTPException(
+            status_code=422,
+            detail=APIError(
+                error_code=APIErrorCode.VALIDATION_ERROR,
+                message=f"selected_option_id {selected_option_id!r}가 질문 {question.question_id!r}의 선택지 목록에 없습니다.",
+            ).model_dump(),
+        )
+
+    routing_blueprint = CONTEXT_ROUTING_BLUEPRINTS_BY_ID[state.current_question_blueprint_id]
+    anchor = routing_blueprint.anchor_for_role(selected.role_id)
+
+    state.context_anchor_choices[routing_blueprint.context_id] = anchor
+    state.routing_answer_history.append(
+        RoutingAnsweredQuestion(
+            context_id=routing_blueprint.context_id, question_id=question.question_id,
+            selected_option_id=selected.option_id, selected_role_id=selected.role_id, context_anchor=anchor,
+        )
+    )
+
+    _tracer.record_stage(
+        trace_id=state.trace_id,
+        stage_name="Context Routing Answer",
+        attributes={
+            "graph_node": "context_routing_answer",
+            "context_id": routing_blueprint.context_id,
+            "context_anchor": anchor,
+        },
+    )
+
+    _clear_current_question(state)
+    _store.save(state)
+    return AnswerResponse(session_id=state.session_id, accepted=True, next_action="NEXT_QUESTION")
+
+
 def _get_state_or_404(session_id: str) -> AssessmentState:
     """2.3단계 §2 — 예외 원자성: `InMemorySessionStore.load()`는 저장된 객체를 참조
     그대로 반환한다(방어적 복사를 하지 않는다, `src/memory/session_store.py`). 이 함수가
@@ -834,6 +921,17 @@ def next_question(session_id: str) -> NextQuestionResponse:
             ).model_dump(),
         )
 
+    # 2026-08-23 Trait Ontology v2(2.5단계) §4/§12 — 이 Context에 처음 진입했고(아직 이
+    # Context의 Routing 답변이 없고) Routing Blueprint가 있으면, Seed보다 먼저 낸다.
+    # v2 기능 Flag가 켜져 있을 때만 동작한다 — "Feature Flag OFF에서 Legacy Flow가
+    # 완전히 그대로 유지돼야 한다"는 기존 불변식(1.5단계부터 모든 라운드에 걸쳐 지켜온
+    # 규칙)을 그대로 지킨다. Context 자체(정의·질문 문구)는 이미 재정의됐지만, "Routing
+    # 질문이 추가로 하나 더 나가는" 흐름 변화는 v2 실험 범위 안에서만 켠다.
+    if trait_vector_v2_direct_probes_enabled() and current_context not in state.context_anchor_choices:
+        routing_blueprint = CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT.get(current_context)
+        if routing_blueprint is not None:
+            return _serve_context_routing_question(state, routing_blueprint)
+
     status = QuestionDeliveryStatus.GENERATED
 
     if state.pending_resolution_contrast_id is not None:
@@ -1008,6 +1106,10 @@ def submit_answer(payload: AnswerRequest) -> AnswerResponse:
     # 2026-08-23 2단계 §9: Direct Probe 질문 답변은 Legacy 파이프라인을 완전히 우회한다.
     if state.current_question_family_id == "v2_direct_probe":
         return _submit_v2_direct_probe_answer(state, payload.selected_option_id)
+
+    # 2.5단계 §5: Context Routing 답변도 마찬가지로 Legacy/v2 파이프라인을 완전히 우회한다.
+    if state.current_question_family_id == "context_routing":
+        return _submit_context_routing_answer(state, payload.selected_option_id)
 
     is_first_context_in_session = state.current_context_index == 0
     result = process_answer_submission(

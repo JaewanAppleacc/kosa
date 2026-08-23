@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 
 from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
+from src.data.questions.context_routing_blueprints import CONTEXT_ROUTING_BLUEPRINTS
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
 from src.engines.v2_direct_probe_quality_checks import question_level_flags, worksheet_row_flags
 from src.review_ui.schemas import (
@@ -23,6 +24,9 @@ from src.review_ui.schemas import (
     OptionReviewView,
     QuestionItem,
     QuestionReviewView,
+    RoutingOptionItem,
+    RoutingQuestionItem,
+    RoutingQuestionListResponse,
     SummaryResponse,
 )
 from src.schemas.v2_direct_probe_review import OptionReviewEntry, QuestionReviewEntry
@@ -32,6 +36,12 @@ from src.services.v2_direct_probe_review_store import (
     QUESTION_REVIEW_PATH,
     load_option_review_entries,
     load_question_review_entries,
+)
+from src.services.context_routing_review_store import (
+    ROUTING_OPTION_REVIEW_PATH,
+    ROUTING_QUESTION_REVIEW_PATH,
+    load_routing_option_review_entries,
+    load_routing_question_review_entries,
 )
 
 _CONTEXT_LABELS = {c.context_id: c.label for c in CONTEXT_DEFINITIONS}
@@ -201,6 +211,66 @@ def build_question_list(
     return questions, _file_revision(question_path), _file_revision(option_path)
 
 
+def build_routing_question_list(
+    *,
+    question_path: Path = ROUTING_QUESTION_REVIEW_PATH,
+    option_path: Path = ROUTING_OPTION_REVIEW_PATH,
+) -> RoutingQuestionListResponse:
+    """2.5단계 §10 — Context Routing 질문 3개 × 선택지 5개를 조합한다. v2 Direct
+    Probe와 달리 Trait Ontology를 전혀 참조하지 않는다 — Routing 질문은 애초에 Trait를
+    측정하지 않으므로 보여줄 Mapping이 없다. `trait_signal_free`는
+    `ContextRoutingBlueprint`의 model_validator가 이미 구조적으로 강제한 사실을 그대로
+    다시 확인해서 보여주는 것뿐이다(이 함수가 새로 판단하지 않는다)."""
+
+    question_reviews = {e.blueprint_id: e for e in load_routing_question_review_entries(question_path)}
+    option_reviews = {(e.blueprint_id, e.role_id): e for e in load_routing_option_review_entries(option_path)}
+
+    questions: list[RoutingQuestionItem] = []
+    for bp in CONTEXT_ROUTING_BLUEPRINTS:
+        anchors = [m.context_anchor for m in bp.option_mappings]
+        options: list[RoutingOptionItem] = []
+        for i, option in enumerate(bp.base_question.options, start=1):
+            mapping = next(m for m in bp.option_mappings if m.role_id == option.role_id)
+            option_review = option_reviews.get((bp.blueprint_id, option.role_id))
+            if option_review is None:
+                raise UnknownRoleError(
+                    f"{bp.blueprint_id}/{option.role_id}: Routing 검수 상태 파일에 항목이 없다 — "
+                    "data/reviews/v2_context_routing_option_review_status.json을 확인하라"
+                )
+            options.append(RoutingOptionItem(
+                role_id=option.role_id, text=option.text, display_order=i,
+                context_anchor=mapping.context_anchor, anchor_label=mapping.anchor_label,
+                review=_option_review_view(option_review),
+            ))
+
+        question_review = question_reviews.get(bp.blueprint_id)
+        if question_review is None:
+            raise UnknownBlueprintError(
+                f"{bp.blueprint_id}: Routing 검수 상태 파일에 항목이 없다 — "
+                "data/reviews/v2_context_routing_question_review_status.json을 확인하라"
+            )
+
+        # 구조적 보장 재확인 — primary_trait_delta는 model_validator가 이미 {}로
+        # 강제했다(생성 시점에 실패했다면 이 코드에 도달하지도 못한다).
+        trait_signal_free = all(o.primary_trait_delta == {} for o in bp.base_question.options)
+
+        questions.append(RoutingQuestionItem(
+            blueprint_id=bp.blueprint_id, context_id=bp.context_id,
+            context_label=_CONTEXT_LABELS.get(bp.context_id, bp.context_id),
+            question_text=bp.base_question.question_text,
+            trait_signal_free=trait_signal_free,
+            distinct_anchor_count=len(set(anchors)), total_anchor_count=len(anchors),
+            options=options,
+            review=_question_review_view(question_review),
+        ))
+
+    return RoutingQuestionListResponse(
+        questions=questions,
+        question_review_revision=_file_revision(question_path),
+        option_review_revision=_file_revision(option_path),
+    )
+
+
 def build_summary(
     *, question_path: Path = QUESTION_REVIEW_PATH, option_path: Path = OPTION_REVIEW_PATH,
 ) -> SummaryResponse:
@@ -344,6 +414,97 @@ def update_option_review(
         updated.append(entry)
     if not found:
         raise UnknownRoleError(f"{blueprint_id}/{role_id}가 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[OptionReviewEntry]).validate_python(payload)
+    _atomic_write_json(option_path, payload)
+    return final_status, _file_revision(option_path)
+
+
+_KNOWN_ROUTING_BLUEPRINT_IDS = {b.blueprint_id for b in CONTEXT_ROUTING_BLUEPRINTS}
+_KNOWN_ROUTING_OPTION_KEYS = {
+    (b.blueprint_id, m.role_id) for b in CONTEXT_ROUTING_BLUEPRINTS for m in b.option_mappings
+}
+
+
+def update_routing_question_review(
+    *, blueprint_id: str, reviewer: str, status: str, comment: str, resolution_note: str | None,
+    expected_revision: str, question_path: Path = ROUTING_QUESTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    """§10 — v2 Direct Probe의 `update_question_review()`와 완전히 같은 저장 순서를
+    Context Routing 질문에 대해 그대로 반복한다."""
+
+    if blueprint_id not in _KNOWN_ROUTING_BLUEPRINT_IDS:
+        raise UnknownBlueprintError(f"blueprint_id {blueprint_id!r}가 실제 Routing Blueprint 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(question_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "Routing 질문 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_routing_question_review_entries(question_path)
+    updated: list[QuestionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.blueprint_id == blueprint_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownBlueprintError(f"blueprint_id {blueprint_id!r}가 Routing 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[QuestionReviewEntry]).validate_python(payload)
+    _atomic_write_json(question_path, payload)
+    return final_status, _file_revision(question_path)
+
+
+def update_routing_option_review(
+    *, blueprint_id: str, role_id: str, reviewer: str, status: str, comment: str,
+    resolution_note: str | None, expected_revision: str, option_path: Path = ROUTING_OPTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    if (blueprint_id, role_id) not in _KNOWN_ROUTING_OPTION_KEYS:
+        raise UnknownRoleError(f"{blueprint_id}/{role_id}가 실제 Routing Option 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(option_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "Routing 선택지 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_routing_option_review_entries(option_path)
+    updated: list[OptionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.blueprint_id == blueprint_id and entry.role_id == role_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownRoleError(f"{blueprint_id}/{role_id}가 Routing 검수 상태 파일에 없다")
 
     payload = [json.loads(e.model_dump_json()) for e in updated]
     from pydantic import TypeAdapter

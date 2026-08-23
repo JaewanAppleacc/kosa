@@ -106,6 +106,45 @@ class SummaryResponse(BaseModel):
     option_review_revision: str
 
 
+class RoutingOptionItem(BaseModel):
+    """2.5단계 §10 — Context Routing 선택지 검수 항목. Trait Mapping 필드가 아예 없다
+    (Trait Signal이 구조적으로 0이라 보여줄 Mapping 자체가 없다) — 대신 어느
+    하위 Context(Anchor)로 연결되는지만 보여준다."""
+
+    role_id: str
+    text: str
+    display_order: int
+    context_anchor: str
+    anchor_label: str
+    review: OptionReviewView
+
+
+class RoutingQuestionItem(BaseModel):
+    """2.5단계 §10 — Context Routing 질문 검수 항목. `trait_id`/`trait_label` 같은 필드가
+    없다 — Routing 질문은 애초에 어떤 Trait도 측정하지 않는다. 대신 구조적으로 이미
+    보장된 사실(trait_signal_free, distinct_anchor_count)을 참고 정보로 보여주고, 나머지
+    (학생 배제 여부, 선택지 의미 중복 여부)는 사람이 직접 판단하도록 체크리스트로만
+    남긴다."""
+
+    blueprint_id: str
+    context_id: str
+    context_label: str
+    question_text: str
+
+    trait_signal_free: bool
+    distinct_anchor_count: int
+    total_anchor_count: int
+
+    options: list[RoutingOptionItem]
+    review: QuestionReviewView
+
+
+class RoutingQuestionListResponse(BaseModel):
+    questions: list[RoutingQuestionItem]
+    question_review_revision: str
+    option_review_revision: str
+
+
 class UpdateQuestionReviewRequest(BaseModel):
     reviewer: ReviewerSlot
     status: ReviewerStatus

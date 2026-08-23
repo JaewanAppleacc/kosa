@@ -6,7 +6,7 @@
 <title>V2 Direct Probe 검수 (로컬 전용)</title>
 <link rel="stylesheet" href="/static/review.css">
 </head>
-<body class="mode-student">
+<body class="mode-student tab-direct_probe">
 <header class="app-header">
   <h1>V2 Direct Probe 검수</h1>
 
@@ -26,6 +26,12 @@
     <button id="mode-mapping-btn" data-mode="mapping" type="button">Mapping 검수 모드</button>
   </div>
 
+  <div class="mode-toggle">
+    <label>질문 유형</label>
+    <button id="tab-direct-probe-btn" class="active" data-tab="direct_probe" type="button">V2 Direct Probe (14)</button>
+    <button id="tab-routing-btn" data-tab="routing" type="button">Context Routing (3)</button>
+  </div>
+
   <span id="save-indicator" class="save-indicator">불러오는 중…</span>
 </header>
 
@@ -33,7 +39,7 @@
   <aside class="sidebar">
     <div class="summary-box" id="summary-box">불러오는 중…</div>
 
-    <div class="filter-group">
+    <div class="filter-group tab-only-direct_probe">
       <h3>상태 필터</h3>
       <label><input type="radio" name="status-filter" value="all" checked> 전체</label>
       <label><input type="radio" name="status-filter" value="TBD"> TBD</label>
@@ -42,7 +48,7 @@
       <label><input type="radio" name="status-filter" value="HOLD"> HOLD</label>
     </div>
 
-    <div class="filter-group">
+    <div class="filter-group tab-only-direct_probe">
       <h3>내용 필터</h3>
       <label><input type="checkbox" id="filter-question-flag"> 질문 단위 문제 있음</label>
       <label><input type="checkbox" id="filter-option-flag"> 선택지 단위 문제 있음</label>
@@ -50,19 +56,24 @@
       <label><input type="checkbox" id="filter-length-history"> 길이 수정 이력 있음</label>
     </div>
 
-    <div class="filter-group">
+    <div class="filter-group tab-only-direct_probe">
       <h3>Trait</h3>
       <select id="filter-trait"><option value="">전체</option></select>
     </div>
 
-    <div class="filter-group">
+    <div class="filter-group tab-only-direct_probe">
       <h3>Context</h3>
       <select id="filter-context"><option value="">전체</option></select>
     </div>
 
-    <div class="filter-group">
+    <div class="filter-group tab-only-direct_probe">
       <h3>질문 목록</h3>
       <ul class="question-nav-list" id="question-nav-list"></ul>
+    </div>
+
+    <div class="filter-group tab-only-routing">
+      <h3>Routing 질문 목록</h3>
+      <ul class="question-nav-list" id="routing-nav-list"></ul>
     </div>
   </aside>
 

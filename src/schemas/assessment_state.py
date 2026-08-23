@@ -42,6 +42,18 @@ class AnsweredQuestion(BaseModel):
     selected_role_id: str
 
 
+class RoutingAnsweredQuestion(BaseModel):
+    """2026-08-23 Trait Ontology v2(2.5단계) §5 — Context Routing 답변 기록. Legacy
+    `answers`(질문 수 집계에 쓰임)와 완전히 분리된 별도 목록에만 남긴다 — Routing
+    답변은 "Legacy 질문 수"에 포함되면 안 된다."""
+
+    context_id: str
+    question_id: str
+    selected_option_id: str
+    selected_role_id: str
+    context_anchor: str
+
+
 class AssessmentState(BaseModel):
     session_id: str
     user_id: str
@@ -163,6 +175,14 @@ class AssessmentState(BaseModel):
     # §10 — Target Signal을 선택하지 않았어도 "질문은 제시했다"는 사실 자체를 남긴다
     # (Counter Evidence로 쓰지 않는다, 사용자 화면에 노출하지 않는다).
     v2_probe_opportunities: list[V2ProbeOpportunity] = Field(default_factory=list)
+
+    # 2026-08-23 Trait Ontology v2(2.5단계) §2/§4/§5 — Context 선택·하위 관심 선택은
+    # "학생이 이해하기 쉬운 질문 배경을 결정"할 뿐 Trait 점수에 직접 반영하지 않는다.
+    # context_id -> context_anchor(예: "strategy_puzzle"). v2 기능 Flag와 무관하게
+    # 항상 채워진다(Context 재정의 자체는 실험적 v2 기능이 아니라 기본 경험 개선이다).
+    context_anchor_choices: dict[str, str] = Field(default_factory=dict)
+    # Legacy `answers`/v2 `v2_probe_opportunities`와 완전히 분리된 감사용 기록.
+    routing_answer_history: list[RoutingAnsweredQuestion] = Field(default_factory=list)
 
     @property
     def current_context_id(self) -> str | None:

@@ -16,10 +16,33 @@ const state = {
   optionRevision: null,
   reviewerSlot: "", // "" | "reviewer_1" | "reviewer_2"
   mode: "student", // "student" | "mapping"
+  tab: "direct_probe", // "direct_probe" | "routing" — 2.5단계 §10 질문 유형 탭
   currentIndex: 0,
   filters: { status: "all", questionFlag: false, optionFlag: false, noSignal: false, lengthHistory: false, trait: "", context: "" },
   dirty: false, // 저장하지 않은 변경사항 존재 여부(현재 열린 편집 영역 기준)
+  // 2.5단계 §10 — Context Routing 탭 전용 상태. v2 Direct Probe 상태와 완전히 분리한다.
+  routingQuestions: [],
+  routingQuestionRevision: null,
+  routingOptionRevision: null,
+  routingCurrentIndex: 0,
 };
+
+// 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
+// 보이는 선택지가 없는가"(사회적 바람직성) 대신 "하위 Context가 서로 겹치지 않게
+// 구분되는가", "특정 학생을 배제하지 않는가", "선택지 의미가 서로 겹치지 않는가",
+// "Trait 채점으로 오인될 위험이 없는가"를 사람이 직접 판단한다.
+const CHECKLIST_ROUTING_QUESTION = [
+  "5개 선택지의 하위 Context(Anchor)가 서로 명확히 구분된다",
+  "특정 플레이 방식·감상 취향·교우 관계를 가진 학생을 배제하지 않는다",
+  "선택지 의미가 서로 겹치지 않는다(하나를 고르면 다른 것도 맞는 것처럼 읽히지 않는다)",
+  "이 질문이나 선택지가 Trait를 채점하는 질문처럼 보이지 않는다",
+];
+
+const CHECKLIST_ROUTING_OPTION = [
+  "이 선택지가 가리키는 하위 Context 이름이 실제 문장과 어울린다",
+  "다른 선택지와 문구가 겹치지 않는다",
+  "이 선택지를 고른다고 해서 특정 성향이 더 낫다는 인상을 주지 않는다",
+];
 
 const CHECKLIST_QUESTION = [
   "고등학생이 이해하기 자연스럽다",
@@ -210,19 +233,19 @@ function stepQuestion(delta) {
   goToIndex(state.questions.indexOf(visible[nextPos]));
 }
 
-function renderReviewerSlotBlock({ scope, blueprintId, roleId, review, onSaved }) {
+function renderReviewerSlotBlock({ scope, blueprintId, roleId, review, onSaved, kind }) {
   const isSlot1Editable = state.reviewerSlot === "reviewer_1";
   const isSlot2Editable = state.reviewerSlot === "reviewer_2";
 
   const block1 = renderSingleSlotBlock({
     slot: "reviewer_1", label: "검토자 1", editable: isSlot1Editable,
     status: review.reviewer_1_status, comment: review.reviewer_1_comment,
-    scope, blueprintId, roleId, onSaved,
+    scope, blueprintId, roleId, onSaved, kind,
   });
   const block2 = renderSingleSlotBlock({
     slot: "reviewer_2", label: "검토자 2", editable: isSlot2Editable,
     status: review.reviewer_2_status, comment: review.reviewer_2_comment,
-    scope, blueprintId, roleId, onSaved,
+    scope, blueprintId, roleId, onSaved, kind,
   });
 
   const finalBadge = el("span", { class: `final-status-badge status-pill ${review.final_status}`, text: review.final_status });
@@ -233,8 +256,11 @@ function renderReviewerSlotBlock({ scope, blueprintId, roleId, review, onSaved }
   ]);
 }
 
-function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, blueprintId, roleId, onSaved }) {
-  const checklistItems = scope === "question" ? CHECKLIST_QUESTION : CHECKLIST_OPTION;
+function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, blueprintId, roleId, onSaved, kind }) {
+  const isRouting = kind === "routing";
+  const checklistItems = isRouting
+    ? (scope === "question" ? CHECKLIST_ROUTING_QUESTION : CHECKLIST_ROUTING_OPTION)
+    : (scope === "question" ? CHECKLIST_QUESTION : CHECKLIST_OPTION);
 
   if (!editable) {
     return el("div", { class: "reviewer-slot-block readonly" }, [
@@ -274,10 +300,13 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
     msg.textContent = "";
     msg.className = "inline-msg";
     try {
-      const revisionKey = scope === "question" ? "questionRevision" : "optionRevision";
+      const routePrefix = isRouting ? "routing-questions" : "questions";
+      const revisionKey = isRouting
+        ? (scope === "question" ? "routingQuestionRevision" : "routingOptionRevision")
+        : (scope === "question" ? "questionRevision" : "optionRevision");
       const path = scope === "question"
-        ? `${API_BASE}/questions/${encodeURIComponent(blueprintId)}`
-        : `${API_BASE}/questions/${encodeURIComponent(blueprintId)}/options/${encodeURIComponent(roleId)}`;
+        ? `${API_BASE}/${routePrefix}/${encodeURIComponent(blueprintId)}`
+        : `${API_BASE}/${routePrefix}/${encodeURIComponent(blueprintId)}/options/${encodeURIComponent(roleId)}`;
       const result = await apiPatch(path, {
         reviewer: slot, status: statusValue.current, comment: commentBox.value,
         expected_revision: state[revisionKey],
@@ -286,13 +315,15 @@ function renderSingleSlotBlock({ slot, label, editable, status, comment, scope, 
       msg.textContent = "저장됨";
       msg.className = "inline-msg ok";
       state.dirty = false;
-      await refreshAfterSave();
+      if (isRouting) await refreshRoutingAfterSave();
+      else await refreshAfterSave();
       if (onSaved) onSaved();
     } catch (err) {
       if (err.status === 409) {
         msg.textContent = "충돌: 다른 곳에서 먼저 저장됨 — 새로고침이 필요합니다";
         msg.className = "inline-msg err";
-        await reloadAfterConflict();
+        if (isRouting) await reloadRoutingAfterConflict();
+        else await reloadAfterConflict();
       } else {
         msg.textContent = err.message || "저장 실패";
         msg.className = "inline-msg err";
@@ -428,6 +459,164 @@ function renderCurrentQuestion() {
   document.getElementById("next-btn").disabled = pos === -1 || pos >= visible.length - 1;
 }
 
+/* ---- 2.5단계 §10: Context Routing 탭 전용 렌더링/로딩 ---- */
+
+async function loadRoutingAll() {
+  setSaveIndicator("Routing 불러오는 중…", "");
+  const resp = await apiGet(`${API_BASE}/routing-questions`);
+  state.routingQuestions = resp.questions;
+  state.routingQuestionRevision = resp.question_review_revision;
+  state.routingOptionRevision = resp.option_review_revision;
+  renderRoutingSidebarList();
+  renderCurrentRoutingQuestion();
+  setSaveIndicator("불러옴", "saved");
+}
+
+async function refreshRoutingAfterSave() {
+  const resp = await apiGet(`${API_BASE}/routing-questions`);
+  const currentBlueprintId = state.routingQuestions[state.routingCurrentIndex]
+    ? state.routingQuestions[state.routingCurrentIndex].blueprint_id : null;
+  state.routingQuestions = resp.questions;
+  state.routingQuestionRevision = resp.question_review_revision;
+  state.routingOptionRevision = resp.option_review_revision;
+  if (currentBlueprintId) {
+    const idx = state.routingQuestions.findIndex((q) => q.blueprint_id === currentBlueprintId);
+    if (idx !== -1) state.routingCurrentIndex = idx;
+  }
+  renderRoutingSidebarList();
+  renderCurrentRoutingQuestion();
+}
+
+async function reloadRoutingAfterConflict() {
+  if (state.dirty) {
+    const proceed = confirm("저장하지 않은 변경사항이 있습니다. 새로고침하면 사라집니다. 계속할까요?");
+    if (!proceed) return;
+  }
+  state.dirty = false;
+  await loadRoutingAll();
+}
+
+function goToRoutingIndex(index) {
+  if (!confirmDiscardIfDirty()) return;
+  state.routingCurrentIndex = index;
+  renderRoutingSidebarList();
+  renderCurrentRoutingQuestion();
+}
+
+function stepRoutingQuestion(delta) {
+  if (state.routingQuestions.length === 0) return;
+  const next = Math.min(Math.max(state.routingCurrentIndex + delta, 0), state.routingQuestions.length - 1);
+  goToRoutingIndex(next);
+}
+
+function renderRoutingSidebarList() {
+  const list = document.getElementById("routing-nav-list");
+  list.replaceChildren();
+  state.routingQuestions.forEach((q, idx) => {
+    const item = el(
+      "li",
+      { class: idx === state.routingCurrentIndex ? "current" : "", onclick: () => goToRoutingIndex(idx) },
+      [el("span", { text: q.context_label }), statusPill(q.review.final_status)],
+    );
+    list.appendChild(item);
+  });
+}
+
+function renderRoutingOptionCard(option, question) {
+  const anchorChip = el("span", { class: "routing-anchor-chip", text: option.anchor_label });
+  const meta = el("div", { class: "option-meta" }, [
+    el("span", { text: `role_id: ${option.role_id}` }),
+    anchorChip,
+    el("span", { class: "mapping-only-inline", text: ` context_anchor: ${option.context_anchor}` }),
+  ]);
+  const reviewPanel = renderReviewerSlotBlock({
+    scope: "option", blueprintId: question.blueprint_id, roleId: option.role_id, review: option.review,
+    kind: "routing",
+  });
+  return el("li", { class: "option-card" }, [
+    el("div", { class: "option-text", text: `${option.display_order}. ${option.text}` }),
+    meta,
+    reviewPanel,
+  ]);
+}
+
+function renderRoutingQuestionCard(question) {
+  const meta = el("div", { class: "meta" }, [
+    el("span", { class: "student-hint", text: `Context: ${question.context_label}` }),
+    el("span", { class: "mapping-only-inline", text: ` · blueprint_id: ${question.blueprint_id} · context_id: ${question.context_id}` }),
+  ]);
+
+  // Trait Mapping을 보여주지 않는다(§10) — 구조적으로 이미 보장된 사실만 확인 정보로
+  // 보여주고, 나머지는 사람이 직접 판단하는 체크리스트로 남긴다.
+  const guaranteePanel = el("div", { class: "trait-panel mapping-only" }, [
+    el("div", {}, [
+      question.trait_signal_free
+        ? el("span", { class: "routing-check-ok", text: "✓ Trait Signal 없음(구조적으로 보장됨 — 이 질문의 답변은 어떤 Trait 점수에도 반영되지 않는다)" })
+        : el("span", { class: "routing-check-manual", text: "⚠ Trait Signal 존재 — 확인 필요" }),
+    ]),
+    el("div", {}, [
+      el("span", { text: `하위 Context(Anchor) ${question.distinct_anchor_count} / ${question.total_anchor_count}개가 서로 구분됨` }),
+    ]),
+  ]);
+
+  const optionList = el("ul", { class: "option-list" }, question.options.map((o) => renderRoutingOptionCard(o, question)));
+
+  const questionReviewPanel = renderReviewerSlotBlock({
+    scope: "question", blueprintId: question.blueprint_id, roleId: null, review: question.review,
+    kind: "routing",
+  });
+
+  return el("div", { class: "question-card" }, [
+    meta,
+    el("div", { class: "question-text", text: question.question_text }),
+    guaranteePanel,
+    questionReviewPanel,
+    optionList,
+  ]);
+}
+
+function renderCurrentRoutingQuestion() {
+  const container = document.getElementById("question-container");
+  container.replaceChildren();
+  const q = state.routingQuestions[state.routingCurrentIndex];
+  if (!q) {
+    container.appendChild(el("p", { text: "표시할 Routing 질문이 없습니다." }));
+    return;
+  }
+  container.appendChild(renderRoutingQuestionCard(q));
+
+  document.getElementById("pager-label").textContent =
+    `${state.routingCurrentIndex + 1} / ${state.routingQuestions.length}`;
+  document.getElementById("prev-btn").disabled = state.routingCurrentIndex <= 0;
+  document.getElementById("next-btn").disabled = state.routingCurrentIndex >= state.routingQuestions.length - 1;
+}
+
+async function setTab(tab) {
+  if (tab === state.tab) return;
+  if (!confirmDiscardIfDirty()) return;
+  state.tab = tab;
+  document.body.classList.toggle("tab-direct_probe", tab === "direct_probe");
+  document.body.classList.toggle("tab-routing", tab === "routing");
+  document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
+  document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
+
+  if (tab === "routing") {
+    if (state.routingQuestions.length === 0) {
+      try {
+        await loadRoutingAll();
+      } catch (err) {
+        setSaveIndicator(`Routing 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderRoutingSidebarList();
+      renderCurrentRoutingQuestion();
+    }
+  } else {
+    renderSidebarList();
+    renderCurrentQuestion();
+  }
+}
+
 function setupControls() {
   document.getElementById("reviewer-select").addEventListener("change", (e) => {
     if (state.dirty) {
@@ -448,8 +637,15 @@ function setupControls() {
   document.getElementById("mode-student-btn").addEventListener("click", () => setMode("student"));
   document.getElementById("mode-mapping-btn").addEventListener("click", () => setMode("mapping"));
 
-  document.getElementById("prev-btn").addEventListener("click", () => stepQuestion(-1));
-  document.getElementById("next-btn").addEventListener("click", () => stepQuestion(1));
+  document.getElementById("tab-direct-probe-btn").addEventListener("click", () => setTab("direct_probe"));
+  document.getElementById("tab-routing-btn").addEventListener("click", () => setTab("routing"));
+
+  document.getElementById("prev-btn").addEventListener("click", () => {
+    if (state.tab === "routing") stepRoutingQuestion(-1); else stepQuestion(-1);
+  });
+  document.getElementById("next-btn").addEventListener("click", () => {
+    if (state.tab === "routing") stepRoutingQuestion(1); else stepQuestion(1);
+  });
 
   document.querySelectorAll('input[name="status-filter"]').forEach((input) => {
     input.addEventListener("change", () => {
@@ -492,8 +688,8 @@ function setupControls() {
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-    if (e.key === "ArrowLeft") stepQuestion(-1);
-    if (e.key === "ArrowRight") stepQuestion(1);
+    if (e.key === "ArrowLeft") { if (state.tab === "routing") stepRoutingQuestion(-1); else stepQuestion(-1); }
+    if (e.key === "ArrowRight") { if (state.tab === "routing") stepRoutingQuestion(1); else stepQuestion(1); }
   });
 
   window.addEventListener("beforeunload", (e) => {

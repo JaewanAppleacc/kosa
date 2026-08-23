@@ -236,6 +236,25 @@ body.mode-mapping .mapping-only-inline { display: inline; }
 body.mode-student .student-hint { display: block; }
 body.mode-mapping .student-hint { display: none; }
 
+/* 2.5단계 §10 — 질문 유형 탭(V2 Direct Probe / Context Routing) 전환. */
+.tab-only-direct_probe { display: none; }
+body.tab-direct_probe .tab-only-direct_probe { display: block; }
+.tab-only-routing { display: none; }
+body.tab-routing .tab-only-routing { display: block; }
+
+.routing-anchor-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--status-tbd-bg);
+  color: var(--text);
+  font-size: 0.85em;
+  margin-right: 6px;
+}
+
+.routing-check-ok { color: var(--status-approve); font-weight: 600; }
+.routing-check-manual { color: var(--muted); }
+
 .trait-panel {
   background: var(--bg);
   border-radius: 8px;

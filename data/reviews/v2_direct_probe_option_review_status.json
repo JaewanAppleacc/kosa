@@ -1,632 +1,632 @@
 [
   {
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_game_v1",
-    "role_id": "st_ripple_check",
+    "role_id": "st_ripple_check"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_game_v1",
-    "role_id": "st_reason_first",
+    "role_id": "st_reason_first"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_game_v1",
-    "role_id": "st_try_it",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
-    "reviewer_2_status": "TBD",
-    "reviewer_2_comment": "",
-    "resolution_note": ""
+    "role_id": "st_try_it"
   },
   {
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "기존 아이템들과 비교해보는건 개인의 특성에 따라 갈리는 영역이 아닌 당연한 영역이야 ",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_game_v1",
-    "role_id": "st_compare_items",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
-    "reviewer_2_status": "TBD",
-    "reviewer_2_comment": "",
-    "resolution_note": ""
+    "role_id": "st_compare_items"
   },
   {
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "팀원들끼리 같이 하는 게임이 아닌 혼자 하는 게임일 수 도 있어",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_game_v1",
-    "role_id": "st_ask_team",
+    "role_id": "st_ask_team"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_school_life_v1",
-    "role_id": "st_map_impact",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
-    "reviewer_2_status": "TBD",
-    "reviewer_2_comment": "",
-    "resolution_note": ""
+    "role_id": "st_map_impact"
   },
   {
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "남은 일정과 순서를 처음부터 다시 짜는건 무조건적으로 1번 선택지인 이 변화가 어떤 영향을 주는지 짚어본 후에야 나올 수 있는 생각인것같아",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_school_life_v1",
-    "role_id": "st_replan",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
-    "reviewer_2_status": "TBD",
-    "reviewer_2_comment": "",
-    "resolution_note": ""
+    "role_id": "st_replan"
   },
   {
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "상황에 맞게 바로 대응한다는 모든 답변을 포괄하는 답변이라 애매한것같아",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_school_life_v1",
-    "role_id": "st_adapt_now",
+    "role_id": "st_adapt_now"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_school_life_v1",
-    "role_id": "st_check_mood",
+    "role_id": "st_check_mood"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "systems_thinking_school_life_v1",
-    "role_id": "st_state_view",
+    "role_id": "st_state_view"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_media_v1",
-    "role_id": "do_scan_errors",
+    "role_id": "do_scan_errors"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_media_v1",
-    "role_id": "do_overall_flow",
+    "role_id": "do_overall_flow"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_media_v1",
-    "role_id": "do_ask_feedback",
+    "role_id": "do_ask_feedback"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_media_v1",
-    "role_id": "do_visual_check",
+    "role_id": "do_visual_check"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_media_v1",
-    "role_id": "do_compare_ref",
+    "role_id": "do_compare_ref"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_school_life_v1",
-    "role_id": "do_check_conditions",
+    "role_id": "do_check_conditions"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_school_life_v1",
-    "role_id": "do_finish_first",
+    "role_id": "do_finish_first"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_school_life_v1",
-    "role_id": "do_priority_pick",
+    "role_id": "do_priority_pick"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_school_life_v1",
-    "role_id": "do_quick_submit",
+    "role_id": "do_quick_submit"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "detail_orientation_school_life_v1",
-    "role_id": "do_ask_help",
+    "role_id": "do_ask_help"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_game_v1",
-    "role_id": "pc_keep_going",
+    "role_id": "pc_keep_going"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_game_v1",
-    "role_id": "pc_analyze_fail",
+    "role_id": "pc_analyze_fail"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_game_v1",
-    "role_id": "pc_take_break",
+    "role_id": "pc_take_break"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_game_v1",
-    "role_id": "pc_watch_others",
+    "role_id": "pc_watch_others"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_game_v1",
-    "role_id": "pc_ask_help",
+    "role_id": "pc_ask_help"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_school_life_v1",
-    "role_id": "pc_finish_through",
+    "role_id": "pc_finish_through"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_school_life_v1",
-    "role_id": "pc_plan_stage",
+    "role_id": "pc_plan_stage"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_school_life_v1",
-    "role_id": "pc_detail_stage",
+    "role_id": "pc_detail_stage"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_school_life_v1",
-    "role_id": "pc_creative_stage",
+    "role_id": "pc_creative_stage"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "persistence_completion_school_life_v1",
-    "role_id": "pc_team_stage",
+    "role_id": "pc_team_stage"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_game_v1",
-    "role_id": "ut_proceed_calm",
+    "role_id": "ut_proceed_calm"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_game_v1",
-    "role_id": "ut_try_now",
+    "role_id": "ut_try_now"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_game_v1",
-    "role_id": "ut_research_first",
+    "role_id": "ut_research_first"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_game_v1",
-    "role_id": "ut_ask_others",
+    "role_id": "ut_ask_others"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_game_v1",
-    "role_id": "ut_plan_ahead",
+    "role_id": "ut_plan_ahead"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_school_life_v1",
-    "role_id": "ut_decide_now",
+    "role_id": "ut_decide_now"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_school_life_v1",
-    "role_id": "ut_wait_more",
+    "role_id": "ut_wait_more"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_school_life_v1",
-    "role_id": "ut_ask_teacher",
+    "role_id": "ut_ask_teacher"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_school_life_v1",
-    "role_id": "ut_pick_safe",
+    "role_id": "ut_pick_safe"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "uncertainty_tolerance_school_life_v1",
-    "role_id": "ut_voice_concern",
+    "role_id": "ut_voice_concern"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_media_v1",
-    "role_id": "oe_state_view",
+    "role_id": "oe_state_view"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_media_v1",
-    "role_id": "oe_mediate",
+    "role_id": "oe_mediate"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_media_v1",
-    "role_id": "oe_gather_data",
+    "role_id": "oe_gather_data"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_media_v1",
-    "role_id": "oe_follow_majority",
+    "role_id": "oe_follow_majority"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_media_v1",
-    "role_id": "oe_read_mood",
+    "role_id": "oe_read_mood"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_school_life_v1",
-    "role_id": "oe_speak_role",
+    "role_id": "oe_speak_role"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_school_life_v1",
-    "role_id": "oe_listen_role",
+    "role_id": "oe_listen_role"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_school_life_v1",
-    "role_id": "oe_organize_role",
+    "role_id": "oe_organize_role"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_school_life_v1",
-    "role_id": "oe_bridge_role",
+    "role_id": "oe_bridge_role"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "opinion_expression_school_life_v1",
-    "role_id": "oe_support_role",
+    "role_id": "oe_support_role"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_media_v1",
-    "role_id": "ci_new_format",
+    "role_id": "ci_new_format"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_media_v1",
-    "role_id": "ci_visual_first",
+    "role_id": "ci_visual_first"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_media_v1",
-    "role_id": "ci_research_trend",
+    "role_id": "ci_research_trend"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_media_v1",
-    "role_id": "ci_plan_steps",
+    "role_id": "ci_plan_steps"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_media_v1",
-    "role_id": "ci_ask_team",
+    "role_id": "ci_ask_team"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_game_v1",
-    "role_id": "ci_invent_rule",
+    "role_id": "ci_invent_rule"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_game_v1",
-    "role_id": "ci_improve_existing",
+    "role_id": "ci_improve_existing"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_game_v1",
-    "role_id": "ci_test_it",
+    "role_id": "ci_test_it"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_game_v1",
-    "role_id": "ci_visual_design",
+    "role_id": "ci_visual_design"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "creative_ideation_game_v1",
-    "role_id": "ci_get_feedback",
+    "role_id": "ci_get_feedback"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "independent_judgment_game_v1",
-    "role_id": "ij_own_call",
+    "role_id": "ij_own_call"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "independent_judgment_game_v1",
-    "role_id": "ij_follow_guide",
+    "role_id": "ij_follow_guide"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "independent_judgment_game_v1",
-    "role_id": "ij_ask_more",
+    "role_id": "ij_ask_more"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "independent_judgment_game_v1",
-    "role_id": "ij_say_thoughts",
+    "role_id": "ij_say_thoughts"
+  },
+  {
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
-  },
-  {
+    "resolution_note": "",
     "blueprint_id": "independent_judgment_game_v1",
-    "role_id": "ij_stay_calm",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
-    "reviewer_2_status": "TBD",
-    "reviewer_2_comment": "",
-    "resolution_note": ""
+    "role_id": "ij_stay_calm"
   },
   {
-    "blueprint_id": "independent_judgment_school_life_v1",
-    "role_id": "ij_set_own_standard",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_school_life_v1",
+    "role_id": "ij_set_own_standard"
   },
   {
-    "blueprint_id": "independent_judgment_school_life_v1",
-    "role_id": "ij_ask_clarify",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_school_life_v1",
+    "role_id": "ij_ask_clarify"
   },
   {
-    "blueprint_id": "independent_judgment_school_life_v1",
-    "role_id": "ij_plan_role",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_school_life_v1",
+    "role_id": "ij_plan_role"
   },
   {
-    "blueprint_id": "independent_judgment_school_life_v1",
-    "role_id": "ij_speak_role",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_school_life_v1",
+    "role_id": "ij_speak_role"
   },
   {
-    "blueprint_id": "independent_judgment_school_life_v1",
-    "role_id": "ij_adapt_role",
     "reviewer_1_status": "TBD",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "independent_judgment_school_life_v1",
+    "role_id": "ij_adapt_role"
   }
 ]

@@ -24,7 +24,7 @@ def is_valid_slug(value: str) -> bool:
     return bool(_SLUG_PATTERN.match(value))
 
 
-def generate_question_id(context_id: str, phase: Literal["seed", "tail", "v2_probe"], index: int) -> str:
+def generate_question_id(context_id: str, phase: Literal["seed", "tail", "v2_probe", "routing"], index: int) -> str:
     if not is_valid_slug(context_id):
         raise ValueError(f"context_id must be snake_case slug, got: {context_id!r}")
     if index < 1:

@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
     QuestionListResponse,
+    RoutingQuestionListResponse,
     SummaryResponse,
     UpdateOptionReviewRequest,
     UpdateQuestionReviewRequest,
@@ -86,6 +87,53 @@ def patch_option(blueprint_id: str, role_id: str, payload: UpdateOptionReviewReq
             blueprint_id=blueprint_id, role_id=role_id, reviewer=payload.reviewer, status=payload.status,
             comment=payload.comment, resolution_note=payload.resolution_note,
             expected_revision=payload.expected_revision, option_path=rs.OPTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+# 2.5단계 §10 — Context Routing 검수 Endpoint. v2 Direct Probe(위)와 완전히 별개
+# 경로다 — Routing 질문은 Trait Mapping이 없으므로 별도 응답 Schema
+# (`RoutingQuestionListResponse`)를 쓴다. 여기서도 매 요청마다
+# `rs.ROUTING_QUESTION_REVIEW_PATH`가 아니라 store 모듈의 경로 상수를 직접 참조한다 —
+# 테스트가 `unittest.mock.patch`로 경로를 바꿔 끼우면 이 App도 그 경로를 그대로 쓴다.
+
+
+@app.get("/internal/review/v2/routing-questions", response_model=RoutingQuestionListResponse)
+def get_routing_questions() -> RoutingQuestionListResponse:
+    return rs.build_routing_question_list(
+        question_path=rs.ROUTING_QUESTION_REVIEW_PATH, option_path=rs.ROUTING_OPTION_REVIEW_PATH,
+    )
+
+
+@app.patch("/internal/review/v2/routing-questions/{blueprint_id}", response_model=UpdateReviewResponse)
+def patch_routing_question(blueprint_id: str, payload: UpdateQuestionReviewRequest) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_routing_question_review(
+            blueprint_id=blueprint_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, question_path=rs.ROUTING_QUESTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+@app.patch(
+    "/internal/review/v2/routing-questions/{blueprint_id}/options/{role_id}",
+    response_model=UpdateReviewResponse,
+)
+def patch_routing_option(blueprint_id: str, role_id: str, payload: UpdateOptionReviewRequest) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_routing_option_review(
+            blueprint_id=blueprint_id, role_id=role_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, option_path=rs.ROUTING_OPTION_REVIEW_PATH,
         )
     except rs.StaleRevisionError as exc:
         raise _http_error(409, str(exc)) from exc

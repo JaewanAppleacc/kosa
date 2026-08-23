@@ -90,13 +90,27 @@ SYSTEMS_THINKING_GAME_V1 = _build(
     question_frame_id="new_tool",
     purpose="systems_thinking Direct Probe(요소 간 상호작용 관찰)",
     context="game",
-    question_text="게임에 새로운 아이템이나 규칙이 추가되면 가장 먼저 무엇을 하나요?",
+    # 2.5단계 §6: "아이템이나 규칙 추가"는 RPG·라이브 서비스 게임 전제라 이야기 탐험·
+    # 퍼즐 등 다른 장르 학생에게 안 맞을 수 있어 "예상하지 못한 새로운 상황이나 요소"로
+    # 넓혔다(사용자 검수 피드백: "장르가 다양해서 한 질문이 모든 장르를 포괄하긴
+    # 어려운것같아").
+    question_text="게임을 하다가 예상하지 못한 새로운 상황이나 요소를 마주치면 가장 먼저 무엇을 하나요?",
     rows=[
-        ("st_ripple_check", "다른 아이템이나 전략에 어떤 영향을 주는지 살펴본다", "systems_thinking", None),
-        ("st_reason_first", "왜 이게 추가됐는지 이유부터 생각해본다", "causal_analysis", None),
-        ("st_try_it", "일단 직접 써보면서 익힌다", "immediate_execution", None),
-        ("st_compare_items", "기존 아이템들과 비교해본다", "information_comparison", None),
-        ("st_ask_team", "팀원들에게 어떻게 쓸지 물어본다", None, _ASK_INFO_REASON),
+        ("st_ripple_check", "그 요소가 다른 부분과 어떻게 연결되어 영향을 주는지 살펴본다", "systems_thinking", None),
+        ("st_reason_first", "왜 이런 상황이 생겼는지 이유부터 생각해본다", "causal_analysis", None),
+        ("st_try_it", "일단 직접 부딪혀보면서 알아간다", "immediate_execution", None),
+        # 사용자 검수 피드백(st_compare_items): "기존 아이템들과 비교해보는건 개인의
+        # 특성에 따라 갈리는 영역이 아닌 당연한 영역이야" — 단순 비교를
+        # "정보를 찾아서 비교"로 구체화하고, pattern_finding 자리를 대신 information_
+        # comparison에 남긴다(과거 회차와 role_id는 그대로 유지).
+        ("st_compare_items", "다른 공략이나 정보를 찾아서 비교해본다", "information_comparison", None),
+        # 사용자 검수 피드백(st_ask_team): "팀원들끼리 같이 하는 게임이 아닌 혼자 하는
+        # 게임일 수 도 있어" — 팀 전제를 완전히 제거하고 혼자·함께 플레이하는 학생
+        # 모두에게 적용되는 NO_SIGNAL 선택지로 바꿨다.
+        (
+            "st_ask_team", "당장은 넘어가고 나중에 다시 생각해본다", None,
+            "지금 판단을 미루는 행동일 뿐 특정 Core Trait를 직접 확인할 만큼 근거가 명확하지 않다",
+        ),
     ],
 )
 
@@ -107,13 +121,24 @@ SYSTEMS_THINKING_SCHOOL_LIFE_V1 = _build(
     question_frame_id="unexpected_result",
     purpose="systems_thinking Direct Probe(요소 간 상호작용 관찰)",
     context="school_life",
-    question_text="조별 프로젝트에서 한 사람의 역할이나 일정이 갑자기 바뀌면 무엇을 가장 먼저 생각하나요?",
+    # 2.5단계 §8: 조별 프로젝트 편중을 줄이고 학업·공부 영역으로 옮겼다(학교생활 6개
+    # 중 조별·그룹활동은 opinion_expression_school_life_v1 하나로 제한). 사용자 검수
+    # 피드백을 반영해 st_replan/st_adapt_now도 다시 썼다.
+    question_text="이번 주 시험공부 계획을 세워뒀는데 한 과목의 시험 범위가 갑자기 바뀌면 가장 먼저 어떻게 하나요?",
     rows=[
-        ("st_map_impact", "이 변화가 다른 역할과 얽혀 영향을 주는지 짚어본다", "systems_thinking", None),
-        ("st_replan", "남은 일정과 순서를 처음부터 다시 짠다", "planning", None),
-        ("st_adapt_now", "일단 상황에 맞게 바로 대응한다", "change_adaptation", None),
-        ("st_check_mood", "역할이 바뀐 친구의 기분을 먼저 살핀다", "emotional_interpretation", None),
-        ("st_state_view", "내 생각을 팀에 분명하게 말한다", "opinion_expression", None),
+        ("st_map_impact", "이 변화가 다른 과목 공부 계획에 어떻게 영향을 주는지 살펴본다", "systems_thinking", None),
+        # 사용자 검수 피드백: "남은 일정과 순서를 처음부터 다시 짜는건 무조건적으로
+        # 1번 선택지인 이 변화가 어떤 영향을 주는지 짚어본 후에야 나올 수 있는
+        # 생각인것같아" — st_map_impact 없이도 바로 선택할 수 있는 독립적 행동으로
+        # 다시 썼다(범위가 바뀌었다는 사실 자체에 바로 반응해 계획을 다시 짜는 것도
+        # 가능한 선택이다).
+        ("st_replan", "남은 공부 시간과 순서를 처음부터 다시 짠다", "planning", None),
+        # 사용자 검수 피드백: "상황에 맞게 바로 대응한다는 모든 답변을 포괄하는
+        # 답변이라 애매한것같아" — change_adaptation을 "원래 계획을 미뤄두고 바뀐
+        # 부분부터 바로 처리한다"는 구체적 행동으로 좁혔다.
+        ("st_adapt_now", "원래 하려던 계획은 미뤄두고 바뀐 범위부터 바로 공부한다", "change_adaptation", None),
+        ("st_check_mood", "바뀐 범위에서 무엇이 정확히 달라졌는지 하나하나 확인한다", "detail_orientation", None),
+        ("st_state_view", "범위가 너무 갑자기 바뀌었다는 내 생각을 선생님께 직접 말씀드린다", "opinion_expression", None),
     ],
 )
 
@@ -126,24 +151,23 @@ DETAIL_ORIENTATION_MEDIA_V1 = _build(
     question_frame_id="problem_check",
     purpose="detail_orientation Direct Probe(세부 정확성 관찰)",
     context="media",
-    question_text="영상이나 자료를 편집해서 제출하기 전에 무엇부터 확인하나요?",
+    # 2.5단계 §7 전면 재작성: 사용자 검수 피드백(질문 메모) — "내가 말한 미디어는
+    # 이런 편집이나 제출의 느낌보다는 영화,드라마,유튜브,뮤지컬,공연 등의 문화생활을
+    # 말한거였어" — 제작·편집 전제를 완전히 걷어내고 감상자 관점으로 다시 썼다.
+    question_text="영화·드라마·공연 같은 작품을 보고 난 뒤 다시 떠올려보는 부분은 무엇인가요?",
     rows=[
-        (
-            "do_scan_errors",
-            "시간이 더 들더라도 작은 오탈자나 어긋난 부분까지 하나하나 짚어본다",
-            "detail_orientation", None,
-        ),
+        ("do_scan_errors", "대사나 장면 속 작은 단서·복선을 다시 짚어본다", "detail_orientation", None),
         (
             "do_overall_flow",
-            "예전에 만들었던 것과 비슷하게 반복되는 편집 패턴이 있는지 확인한다",
+            "이 감독이나 작가의 다른 작품에서도 비슷하게 반복되는 연출이 있었는지 떠올려본다",
             "pattern_finding", None,
         ),
-        ("do_ask_feedback", "친구에게 먼저 보여주고 의견을 듣는다", None, _ASK_FEEDBACK_REASON),
+        ("do_ask_feedback", "같이 본 사람과 어떤 장면이 좋았는지 이야기를 나눈다", None, _ASK_FEEDBACK_REASON),
         (
-            "do_visual_check", "화면 구성과 배치를 다시 살펴본다", None,
-            "다시 확인하는 행동일 뿐, 새로운 시각 요소를 만들어내는 창작·표현 행동이라는 근거가 약하다",
+            "do_visual_check", "화면 구도나 무대·음악 연출이 인상 깊었던 순간을 떠올린다",
+            "visual_expression", None,
         ),
-        ("do_compare_ref", "참고했던 자료와 다시 비교해본다", "information_comparison", None),
+        ("do_compare_ref", "비슷한 장르의 다른 작품과 어떤 점이 다른지 비교해본다", "information_comparison", None),
     ],
 )
 
@@ -154,7 +178,8 @@ DETAIL_ORIENTATION_SCHOOL_LIFE_V1 = _build(
     question_frame_id="limited_time_priority",
     purpose="detail_orientation Direct Probe(세부 정확성 관찰)",
     context="school_life",
-    question_text="과제를 제출하기 직전, 시간이 얼마 없을 때 무엇을 우선 확인하나요?",
+    # 2.5단계 §8: "과제·수행평가" 영역으로 명확히 고정한다(학교생활 분포 기준).
+    question_text="수행평가 결과물을 제출하기 직전인데 시간이 얼마 없다면 무엇을 우선 확인하나요?",
     rows=[
         (
             "do_check_conditions",
@@ -177,21 +202,24 @@ PERSISTENCE_COMPLETION_GAME_V1 = _build(
     question_frame_id="unexpected_result",
     purpose="persistence_completion Direct Probe(어려움 이후 지속 관찰)",
     context="game",
-    question_text="어려운 스테이지나 목표에서 계속 실패할 때 무엇을 하나요?",
+    # 2.5단계 §6: "스테이지"는 레벨 기반 장르 전제라 장르 중립 표현으로 바꿨다.
+    question_text="어려운 목표나 도전에서 계속 뜻대로 안 될 때 무엇을 하나요?",
     rows=[
         (
             "pc_keep_going",
             "잘 안 나와도 다른 목표로 넘어가지 않고 끝까지 이어간다",
             "persistence_completion", None,
         ),
-        ("pc_analyze_fail", "왜 계속 실패하는지 원인을 분석한다", "causal_analysis", None),
+        ("pc_analyze_fail", "왜 잘 안 풀리는지 원인을 분석한다", "causal_analysis", None),
         (
             "pc_take_break", "그 목표 대신 지금 상황에 맞는 다른 목표로 바꾼다", None,
             "목표를 다른 것으로 바꾸는 행동으로, 상황에 맞춰 방식을 능동적으로 바꾸는 change_adaptation의 직접 "
             "근거로 보기엔 단순한 목표 포기·교체에 가깝다",
         ),
         ("pc_watch_others", "다른 사람들은 어떻게 하는지 찾아본다", "information_comparison", None),
-        ("pc_ask_help", "같이 하는 친구에게 도움을 요청한다", None, _ASK_INFO_REASON),
+        # 사용자 검수 원칙(§6): 팀 플레이를 선택하지 않은 학생에게 팀원 상황을 쓰지
+        # 않는다 — "같이 하는 친구"를 요구하지 않는 표현으로 바꿨다.
+        ("pc_ask_help", "온라인이나 주변에 도움을 요청한다", None, _ASK_INFO_REASON),
     ],
 )
 
@@ -202,17 +230,20 @@ PERSISTENCE_COMPLETION_SCHOOL_LIFE_V1 = _build(
     question_frame_id="longest_focus",
     purpose="persistence_completion Direct Probe(어려움 이후 지속 관찰)",
     context="school_life",
-    question_text="길고 지루한 과제를 할 때 어떤 부분에 가장 오래 매달리나요?",
+    # 2.5단계 §8: "학업·공부" 영역(학교생활 분포 기준 2번째)으로 옮겼다.
+    question_text="시험공부처럼 길고 지루한 학업 활동을 할 때 어떤 부분에 가장 오래 매달리나요?",
     rows=[
         (
             "pc_finish_through",
-            "시간이 걸려도 과제를 끝까지 마무리하는 데 가장 오래 매달린다",
+            "시간이 걸려도 끝까지 마무리하는 데 가장 오래 매달린다",
             "persistence_completion", None,
         ),
         ("pc_plan_stage", "처음 계획을 세우는 데 가장 오래 매달린다", "planning", None),
         ("pc_detail_stage", "세부 내용을 확인하는 데 가장 오래 매달린다", "detail_orientation", None),
-        ("pc_creative_stage", "결과물을 보기 좋게 꾸미는 데 가장 오래 매달린다", "visual_expression", None),
-        ("pc_team_stage", "팀원과 역할을 맞추는 데 가장 오래 매달린다", "collaboration_preference", None),
+        ("pc_creative_stage", "정리한 내용을 보기 좋게 꾸미는 데 가장 오래 매달린다", "visual_expression", None),
+        # §6/§9 적용 가능성 원칙: 이미 스터디 그룹이 있다고 전제하지 않고, "함께할
+        # 사람을 구하는" 능동적 행동으로 바꿨다.
+        ("pc_team_stage", "함께 공부할 사람을 구하고 진도를 맞추는 데 가장 오래 매달린다", "collaboration_preference", None),
     ],
 )
 
@@ -234,7 +265,9 @@ UNCERTAINTY_TOLERANCE_GAME_V1 = _build(
         ),
         ("ut_try_now", "정보가 충분히 모이기 전이라도 일단 지금 바로 움직인다", "immediate_execution", None),
         ("ut_research_first", "먼저 관련 정보를 찾아본다", "information_comparison", None),
-        ("ut_ask_others", "다른 사람 의견을 먼저 들어본다", None, _ASK_FEEDBACK_REASON),
+        # §6: 팀 전제를 없애고 "다른 사람들의 의견·후기"로 넓혀 혼자 플레이하는
+        # 학생도 적용할 수 있게 했다.
+        ("ut_ask_others", "다른 사람들의 의견이나 후기를 먼저 찾아본다", None, _ASK_FEEDBACK_REASON),
         (
             "ut_plan_ahead", "선택하기 전에 여러 경우를 미리 따져보고 계획을 세운다",
             "planning", None,
@@ -249,20 +282,26 @@ UNCERTAINTY_TOLERANCE_SCHOOL_LIFE_V1 = _build(
     question_frame_id="conflicting_opinions",
     purpose="uncertainty_tolerance Direct Probe(결과 불확실 상태에서의 진행 관찰)",
     context="school_life",
-    question_text="필요한 정보가 다 모이지 않은 상태에서 결정을 내려야 할 때 어떻게 하나요?",
+    # 2.5단계 §8: 사용자가 지적한 추상적 표현("필요한 정보가 다 모이지 않은 상태에서
+    # 결정을 내려야 할 때")을 실제 고등학생 상황(선택과목·진로 결정)으로 바꿨다 —
+    # "과목·진로 선택" 영역.
+    question_text=(
+        "다음 학기 선택과목 신청 마감이 다가왔는데, 관심 학과와 과목에 대한 정보를 "
+        "아직 충분히 찾지 못했다면 어떻게 하나요?"
+    ),
     rows=[
         (
-            "ut_decide_now", "확실하지 않아도 불안해하지 않고 일단 결정하고 진행한다",
+            "ut_decide_now", "확실한 정보가 없어도 불안해하지 않고 지금 아는 것만으로 신청한다",
             "uncertainty_tolerance", None,
         ),
         (
-            "ut_wait_more", "정보가 더 모일 때까지 결정을 미룬다", None,
-            "결정을 미루는 행동일 뿐 일정을 짜거나 순서를 정하는 것 같은 실제 계획 행동이 드러나지 않아 "
+            "ut_wait_more", "신청 기한을 최대한 늦추면서 정보를 더 찾아본다", None,
+            "기한을 늦추는 행동일 뿐 일정을 짜거나 순서를 정하는 것 같은 실제 계획 행동이 드러나지 않아 "
             "planning의 직접 근거로 보기 어렵다",
         ),
-        ("ut_ask_teacher", "선생님이나 친구에게 먼저 물어본다", None, _ASK_INFO_REASON),
-        ("ut_pick_safe", "그나마 확실한 정보를 비교해서 고른다", "information_comparison", None),
-        ("ut_voice_concern", "불확실하다는 내 생각을 팀에 말한다", "opinion_expression", None),
+        ("ut_ask_teacher", "진로 선생님이나 선배에게 먼저 물어본다", None, _ASK_INFO_REASON),
+        ("ut_pick_safe", "그나마 확실하게 알려진 과목·학과 정보를 비교해서 고른다", "information_comparison", None),
+        ("ut_voice_concern", "정보가 부족해서 걱정된다는 내 생각을 선생님께 말씀드린다", "opinion_expression", None),
     ],
 )
 
@@ -275,19 +314,20 @@ OPINION_EXPRESSION_MEDIA_V1 = _build(
     question_frame_id="conflicting_opinions",
     purpose="opinion_expression Direct Probe(의견 표명 여부 관찰)",
     context="media",
-    question_text="콘텐츠 방향에 대해 사람들 의견이 갈리면 어떻게 하나요?",
+    # 2.5단계 §7 전면 재작성: 감상자 관점 — 같은 작품을 본 친구와 해석이 갈리는 상황.
+    question_text="같은 작품을 본 친구와 인물의 선택이나 결말에 대한 생각이 다를 때 어떻게 하나요?",
     rows=[
         (
             "oe_state_view", "분위기가 어색해져도 내 생각을 먼저 분명하게 말한다",
             "opinion_expression", None,
         ),
-        ("oe_mediate", "서로 다른 의견을 절충할 지점을 찾는다", "opinion_mediation", None),
-        ("oe_gather_data", "관련 사례를 더 찾아서 비교해본다", "information_comparison", None),
+        ("oe_mediate", "서로 다른 해석을 절충할 지점을 찾아본다", "opinion_mediation", None),
+        ("oe_gather_data", "다른 사람들은 어떻게 해석했는지 리뷰나 반응을 찾아본다", "information_comparison", None),
         (
-            "oe_follow_majority", "다수가 원하는 방향을 따른다", None,
-            "다수 의견을 따르는 행동으로, 협업 선호인지 단순한 순응·갈등 회피인지 문맥만으로 구분하기 어렵다",
+            "oe_follow_majority", "다수가 동의하는 해석을 따른다", None,
+            "다수 해석을 따르는 행동으로, 협업 선호인지 단순한 순응·갈등 회피인지 문맥만으로 구분하기 어렵다",
         ),
-        ("oe_read_mood", "사람들이 왜 그렇게 느끼는지 먼저 살핀다", "emotional_interpretation", None),
+        ("oe_read_mood", "친구가 왜 그렇게 생각하는지 먼저 이해해보려 한다", "emotional_interpretation", None),
     ],
 )
 
@@ -323,13 +363,15 @@ CREATIVE_IDEATION_MEDIA_V1 = _build(
     question_frame_id="first_action",
     purpose="creative_ideation Direct Probe(매체 무관 발상 관찰)",
     context="media",
-    question_text="새로운 콘텐츠를 기획할 때 가장 먼저 무엇을 하고 싶나요?",
+    # 2.5단계 §7 전면 재작성: 감상자 관점 — 제작 경험이 없어도 답할 수 있는 "결말을
+    # 바꿔본다면" 가정 질문으로 바꿨다.
+    question_text="인상 깊게 본 작품의 한 장면이나 결말을 바꿔볼 수 있다면 무엇부터 생각하나요?",
     rows=[
-        ("ci_new_format", "기존에 없던 새로운 구성이나 방식을 스스로 떠올려본다", "creative_ideation", None),
-        ("ci_visual_first", "화면이나 이미지를 어떻게 꾸밀지부터 생각한다", "visual_expression", None),
-        ("ci_research_trend", "요즘 인기 있는 콘텐츠를 찾아본다", "information_comparison", None),
-        ("ci_plan_steps", "전체 제작 순서를 미리 계획한다", "planning", None),
-        ("ci_ask_team", "팀원들과 아이디어를 같이 나눈다", "collaboration_preference", None),
+        ("ci_new_format", "그 장면을 완전히 다른 전개로 새롭게 상상해본다", "creative_ideation", None),
+        ("ci_visual_first", "화면이나 무대를 어떻게 다르게 연출할지부터 생각한다", "visual_expression", None),
+        ("ci_research_trend", "비슷하게 결말을 바꾼 다른 작품들을 찾아본다", "information_comparison", None),
+        ("ci_plan_steps", "바뀐 이야기가 앞뒤로 자연스럽게 이어지도록 순서를 정리한다", "planning", None),
+        ("ci_ask_team", "친구와 이야기를 나누며 같이 아이디어를 발전시킨다", "collaboration_preference", None),
     ],
 )
 
@@ -349,7 +391,9 @@ CREATIVE_IDEATION_GAME_V1 = _build(
         ("ci_improve_existing", "기존 규칙 중 반복되는 부분을 찾아 다듬는다", "pattern_finding", None),
         ("ci_test_it", "일단 만들어서 바로 실험해본다", "immediate_execution", None),
         ("ci_visual_design", "어떻게 보여줄지 화면 디자인부터 생각한다", "visual_expression", None),
-        ("ci_get_feedback", "친구들에게 아이디어를 먼저 물어본다", None, _ASK_FEEDBACK_REASON),
+        # §6: "친구들"(팀 전제)을 "다른 사람들"로 넓혀 혼자 플레이하는 학생도 답할 수
+        # 있게 했다.
+        ("ci_get_feedback", "다른 사람들에게 아이디어를 먼저 이야기해본다", None, _ASK_FEEDBACK_REASON),
     ],
 )
 
@@ -379,17 +423,25 @@ INDEPENDENT_JUDGMENT_SCHOOL_LIFE_V1 = _build(
     question_frame_id="problem_check",
     purpose="independent_judgment Direct Probe(판단 주체 관찰)",
     context="school_life",
-    question_text="선생님이나 팀의 지시가 명확하지 않을 때, 다음 행동의 기준을 어떻게 정하나요?",
+    # 2.5단계 §8: 조별·그룹 편중을 줄이려고 "팀의 지시" 전제를 없애고 "친구 관계"
+    # 영역(학교생활 분포 기준)으로 옮겼다 — 조별·그룹활동은 opinion_expression_
+    # school_life_v1 하나로 제한한다.
+    question_text=(
+        "친한 친구의 말이나 행동이 평소와 달라졌는데 이유를 확실히 알 수 없다면, "
+        "다음 행동의 기준을 어떻게 정하나요?"
+    ),
     rows=[
-        ("ij_set_own_standard", "스스로 판단한 기준으로 다음 행동을 정한다", "independent_judgment", None),
         (
-            "ij_ask_clarify", "다른 사람에게 먼저 물어보고 기준을 맞춘다", None,
-            "먼저 물어보고 기준을 맞추는 행동으로, 협업 선호가 직접 드러난다고 보기보다는 단순한 확인 행동에 "
-            "가깝다",
+            "ij_set_own_standard", "다른 설명을 듣기 전에 내가 상황을 보고 판단한 기준대로 행동한다",
+            "independent_judgment", None,
         ),
-        ("ij_plan_role", "전체 일정과 순서부터 다시 계획한다", "planning", None),
-        ("ij_speak_role", "내가 생각한 기준을 다른 사람들에게 먼저 말한다", "opinion_expression", None),
-        ("ij_adapt_role", "상황이 바뀌면 그때그때 기준을 바꾼다", "change_adaptation", None),
+        (
+            "ij_ask_clarify", "친구에게 무슨 일 있는지 직접 물어본다", None,
+            "직접 물어보고 확인하는 행동으로, 협업 선호가 직접 드러난다고 보기보다는 단순한 확인 행동에 가깝다",
+        ),
+        ("ij_plan_role", "내가 할 수 있는 것과 기다려야 하는 것을 나눠서 계획을 세운다", "planning", None),
+        ("ij_speak_role", "내가 느낀 걱정이나 생각을 친구에게 솔직하게 말한다", "opinion_expression", None),
+        ("ij_adapt_role", "친구가 먼저 다르게 대하면 그에 맞춰 내 태도도 바로 바꾼다", "change_adaptation", None),
     ],
 )
 

@@ -662,10 +662,19 @@ class FlaggedQuestionRegressionTest(unittest.TestCase):
         self.assertNotIn("아직", text)
 
     def test_systems_thinking_school_life_distinguishes_from_planning(self) -> None:
+        """2.5단계 §8: 사용자 검수 피드백("남은 일정과 순서를 처음부터 다시 짜는건
+        무조건적으로 1번 선택지인 이 변화가 어떤 영향을 주는지 짚어본 후에야 나올 수
+        있는 생각인것같아")을 반영해 두 선택지를 서로 독립적인 표현으로 다시 썼다 —
+        st_replan은 st_map_impact 없이도 바로 선택할 수 있는 행동이어야 한다."""
+
         systems_text = self._option_text("systems_thinking_school_life_v1", "st_map_impact")
         planning_text = self._option_text("systems_thinking_school_life_v1", "st_replan")
-        self.assertIn("얽혀", systems_text)
-        self.assertIn("일정", planning_text)
+        self.assertIn("영향", systems_text)
+        self.assertIn("다시 짠다", planning_text)
+        # planning 문구가 systems_thinking 문구를 전제하는 표현("짚어본 후"/"그 후에"
+        # 등)을 담지 않는지 확인한다 — 순차 의존 재발 방지.
+        self.assertNotIn("짚어본 후", planning_text)
+        self.assertNotIn("그 후에", planning_text)
         self.assertNotEqual(systems_text, planning_text)
 
     def test_detail_orientation_media_pattern_finding_option_reflects_pattern_not_flow(self) -> None:
@@ -893,7 +902,9 @@ class NoSignalMappingTest(unittest.TestCase):
                         mapping.primary_trait_id == bp.trait_id,
                         f"{bp.blueprint_id}/{mapping.role_id}: NO_SIGNAL이 Target일 수 없다",
                     )
-        self.assertEqual(no_signal_count, 14)
+        # 2.5단계 §7: do_visual_check(detail_orientation_media_v1)가 미디어 재정의로
+        # NO_SIGNAL에서 TRAIT_SIGNAL(visual_expression)로 바뀌었다(14 → 13).
+        self.assertEqual(no_signal_count, 13)
 
     def test_no_signal_options_public_primary_trait_delta_is_empty_dict(self) -> None:
         for bp in V2_DIRECT_PROBE_BLUEPRINTS:

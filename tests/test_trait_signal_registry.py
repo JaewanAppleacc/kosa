@@ -76,7 +76,11 @@ class RegistryStructureTest(unittest.TestCase):
         self.assertEqual(len(_REGISTRY) + len(_NO_SIGNAL_KEYS), 130)
 
     def test_no_signal_keys_are_all_v2_direct_probe_and_have_no_overlap_with_registry(self) -> None:
-        self.assertEqual(len(_NO_SIGNAL_KEYS), 14)
+        # 2.5단계 §7: detail_orientation_media_v1의 do_visual_check가 미디어 재정의
+        # (제작 → 감상)로 "화면 구도·연출을 인상 깊게 떠올린다"는 genuinely 구체적인
+        # visual_expression 근거를 갖게 돼 NO_SIGNAL에서 TRAIT_SIGNAL로 바뀌었다
+        # (14 → 13).
+        self.assertEqual(len(_NO_SIGNAL_KEYS), 13)
         for key in _NO_SIGNAL_KEYS:
             self.assertEqual(key.question_family_id, "v2_direct_probe")
         self.assertEqual(set(_REGISTRY) & _NO_SIGNAL_KEYS, set())

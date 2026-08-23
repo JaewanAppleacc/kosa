@@ -1,0 +1,137 @@
+[
+  {
+    "blueprint_id": "game_context_router_v1",
+    "role_id": "gr_story",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "game_context_router_v1",
+    "role_id": "gr_strategy",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "game_context_router_v1",
+    "role_id": "gr_competition",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "game_context_router_v1",
+    "role_id": "gr_coop",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "game_context_router_v1",
+    "role_id": "gr_creation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "media_context_router_v1",
+    "role_id": "mr_film",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "media_context_router_v1",
+    "role_id": "mr_youtube",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "media_context_router_v1",
+    "role_id": "mr_animation",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "media_context_router_v1",
+    "role_id": "mr_stage",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "media_context_router_v1",
+    "role_id": "mr_documentary",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "school_life_context_router_v1",
+    "role_id": "sr_study",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "school_life_context_router_v1",
+    "role_id": "sr_assignment",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "school_life_context_router_v1",
+    "role_id": "sr_course",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "school_life_context_router_v1",
+    "role_id": "sr_friend",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  },
+  {
+    "blueprint_id": "school_life_context_router_v1",
+    "role_id": "sr_club",
+    "reviewer_1_status": "TBD",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": ""
+  }
+]

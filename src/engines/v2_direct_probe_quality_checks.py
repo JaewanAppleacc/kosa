@@ -1,11 +1,19 @@
-"""V2 Direct Probe 자동 품질 검사(Advisory) — 2026-08-23 Trait Ontology v2(2.1단계) §11.
+"""V2 Direct Probe 자동 품질 검사(Advisory) — 2026-08-23 Trait Ontology v2(2.1단계) §11,
+2.5단계 §9.
 
 여기 있는 검사는 "완벽한 타당성 판정이 아니라 검토 후보를 표시하는 용도"다(§11) —
 전부 통과해도 `review_status`를 자동으로 `team_reviewed`로 바꾸지 않는다. 하드 실패
 (LLM이 생성한 질문을 그 자리에서 거부하는 것)는 여전히
 `question_quality_gate.run_quality_gate()`가 담당한다 — 이 모듈은 그 함수를 그대로
 재사용(base_question에도 동일하게 적용)한 뒤, 이 파일에서만 다루는 추가 휴리스틱
-(극단 표현·길이 편차·역할 선호 문구 등)을 얹는다."""
+(극단 표현·길이 편차·역할 선호 문구·포괄 표현·순차 의존 의심 등)을 얹는다.
+
+2.5단계 §9: "포괄 표현"(예: "상황에 맞게 대응한다")과 "순차 의존 의심"(한 선택지가
+다른 선택지의 결과로만 나올 수 있는 표현) 검사를 추가했다. 순차 의존은 완전히
+자동으로 판정할 수 없다 — 여기서는 "그 후에"/"그다음"/"그러고 나서"/"이어서" 같은
+명시적 순서 접속 표현이 있으면만 검토 후보로 표시한다(그 외의 암묵적 의존 관계는
+사람이 직접 읽고 판단해야 한다 — 자동 검사가 잡아내지 못했다고 해서 "의존 관계가
+없다"고 확정하지 않는다)."""
 
 from __future__ import annotations
 
@@ -21,6 +29,23 @@ from src.schemas.v2_direct_probe import V2DirectProbeBlueprint
 EXTREME_PHRASES: tuple[str, ...] = ("항상", "무조건", "절대", "아무도 안 해본", "누구나 다")
 
 ROLE_PREFERENCE_PHRASES: tuple[str, ...] = ("역할을 맡고 싶", "무슨 역할을",)
+
+# 2.5단계 §9 — 다른 모든 선택지를 포괄해버릴 수 있는 표현. 실제 행동을 구체적으로
+# 드러내지 않고 "알아서 잘 한다"는 식으로 읽혀서, Trait 변별력이 없거나 다른 선택지를
+# 무의미하게 만들 위험이 있다.
+CATCH_ALL_PHRASES: tuple[str, ...] = (
+    "상황에 맞게 대응한다", "상황에 맞게 행동한다", "필요한 것을 한다", "적절히 해결한다", "잘 생각해본다",
+)
+
+# 2.5단계 §9 — 명시적 순서 접속 표현. 이 표현이 있는 선택지는 "다른 선택지가 먼저
+# 일어난 뒤에만 나올 수 있는 생각"일 가능성이 있어 검토 후보로 표시한다.
+SEQUENTIAL_DEPENDENCY_MARKERS: tuple[str, ...] = ("그 후에", "그다음", "그러고 나서", "이어서", "그 다음에")
+
+# 2.5단계 §9 적용 가능성 원칙 — "팀원"/"팀"을 전제하는 표현이 있으면, 혼자 플레이하는
+# 학생에게는 적용되지 않을 수 있다는 신호로 표시한다(§6 "솔로 게임 학생에게 팀원
+# 행동을 요구하지 않음"). game Context에만 적용한다 — school_life/media의 "팀"은
+# 다른 의미(조별활동 등)로 이미 별도 원칙(조별 최대 1개)으로 다룬다.
+TEAM_PRESUPPOSITION_PHRASES: tuple[str, ...] = ("팀원", "팀에게", "같이 하는 친구")
 
 # 옵션 길이 편차가 이 값(글자 수)을 넘으면 검토 후보로 표시한다 — 하드 기준이 아니라
 # 사람이 다시 볼 만한 지점을 표시하는 용도라 다소 여유 있게 잡았다.
@@ -65,6 +90,21 @@ def question_level_flags(blueprint: V2DirectProbeBlueprint) -> list[str]:
     prefixes = [o.text[:6] for o in question.options]
     if len(set(prefixes)) < len(prefixes):
         flags.append("선택지 문두가 겹치는 쌍이 있음(표현만 바뀐 반복 의심)")
+
+    for phrase in CATCH_ALL_PHRASES:
+        if phrase in all_text:
+            flags.append(f"포괄 표현 포함(다른 선택지를 모두 포괄할 위험): {phrase!r}")
+
+    for option in question.options:
+        for marker in SEQUENTIAL_DEPENDENCY_MARKERS:
+            if marker in option.text:
+                flags.append(f"순차 의존 의심(명시적 순서 접속 표현): {option.role_id}에 {marker!r}")
+
+    if question.context == "game":
+        for option in question.options:
+            for phrase in TEAM_PRESUPPOSITION_PHRASES:
+                if phrase in option.text:
+                    flags.append(f"팀 전제 표현 의심(솔로 플레이 학생에게 안 맞을 수 있음): {option.role_id}에 {phrase!r}")
 
     return flags
 
