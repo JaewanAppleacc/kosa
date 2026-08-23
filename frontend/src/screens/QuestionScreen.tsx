@@ -12,7 +12,8 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchContextCatalog, fetchNextQuestion, submitAnswer } from "@/api/endpoints";
 import type { NextQuestionResponse, QuestionDeliveryStatus } from "@/api/contracts";
 import { ErrorView } from "@/components/ErrorView";
-import { Button, Card, ProgressBar, ScreenShell, Spinner, TopBar } from "@/components/ui";
+import { Button, Card, ProgressBar, ScreenShell, Spinner, StateBlock, TopBar } from "@/components/ui";
+import { Modal } from "@/components/ui/Modal";
 import { contextEmoji } from "@/domain/contextEmoji";
 import { useAction, useAsync } from "@/hooks/useAsync";
 import { useAppState } from "@/session/AppState";
@@ -26,14 +27,40 @@ const STATUS_NOTE: Partial<Record<QuestionDeliveryStatus, string>> = {
 
 const ORDINALS = ["첫", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
 
+/**
+ * 답변을 쌓는 동안 아래에 한 줄씩 바뀌며 뜨는 문구. 질문 수가 Adaptive라 "몇 % 남았다"를
+ * 말할 수 없는 자리를 대신 채운다 — 남은 양을 암시하는 표현은 쓰지 않는다.
+ */
+const ENCOURAGEMENTS = [
+  "천천히 읽고, 나만의 속도로 골라도 좋아요.",
+  "정답을 맞히는 게 아니라, 평소의 나를 찾아가는 중이에요.",
+  "고민되면 조금이라도 더 끌리는 쪽으로 가면 돼요.",
+  "솔직하게 고를수록 결과가 나를 더 닮아요.",
+  "비슷해 보이는 선택지도 조금씩 다른 이야기를 담고 있어요.",
+];
+
+function encouragement(answeredTotal: number): string {
+  return ENCOURAGEMENTS[answeredTotal % ENCOURAGEMENTS.length]!;
+}
+
 function ordinal(index: number): string {
   return ORDINALS[index] ? `${ORDINALS[index]} 번째 질문` : `${index + 1}번째 질문`;
+}
+
+/** 지나온 질문 한 건 — 화면에서만 쌓는 기록이다(서버에 조회 API가 없다). */
+interface AnsweredRecord {
+  questionId: string;
+  contextId: string | null;
+  questionText: string;
+  chosenText: string;
 }
 
 export function QuestionScreen() {
   const { state, dispatch } = useAppState();
   const [answeredTotal, setAnsweredTotal] = useState(0);
   const [pendingReload, setPendingReload] = useState(0);
+  const [history, setHistory] = useState<AnsweredRecord[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const catalog = useAsync((signal) => fetchContextCatalog(signal), []);
   const question = useAsync<NextQuestionResponse>(
@@ -53,10 +80,11 @@ export function QuestionScreen() {
     [catalog],
   );
 
-  const answer = useAction(async (questionId: string, optionId: string) => {
+  const answer = useAction(async (record: AnsweredRecord, optionId: string) => {
     if (!state.sessionId) return;
-    const result = await submitAnswer(state.sessionId, questionId, optionId);
+    const result = await submitAnswer(state.sessionId, record.questionId, optionId);
     setAnsweredTotal((n) => n + 1);
+    setHistory((items) => [...items, record]);
     if (result.next_action === "ASSESSMENT_COMPLETE") {
       dispatch({ type: "assessment_completed" });
     } else {
@@ -152,8 +180,18 @@ export function QuestionScreen() {
             {data.questions_asked_in_current_context > 0 ? " · 앞의 답에서 이어진 질문이에요" : ""}
           </span>
           {/* A 확인(2026-08-30): 퍼센트 대신 "완료한 질문 개수"만 보여준다. */}
-          <span className="mut ml-auto text-[13px]" aria-live="polite">
-            {answeredTotal}개 답변함
+          <span className="ml-auto flex items-center gap-2.5">
+            <span className="mut text-[13px]" aria-live="polite">
+              {answeredTotal}개 답변함
+            </span>
+            <button
+              type="button"
+              className="lnk"
+              onClick={() => setShowHistory(true)}
+              disabled={history.length === 0}
+            >
+              지나온 질문
+            </button>
           </span>
         </div>
 
@@ -176,6 +214,7 @@ export function QuestionScreen() {
           </p>
         ) : null}
 
+        <div key={current.question_id} className="qfade">
         <h2 className="mb-2 max-w-[42ch] text-[clamp(19px,3.6vw,26px)] leading-[1.45]">
           {current.question_text}
         </h2>
@@ -189,7 +228,17 @@ export function QuestionScreen() {
                 <button
                   type="button"
                   className="popt"
-                  onClick={() => void answer.run(current.question_id, option.option_id)}
+                  onClick={() =>
+                    void answer.run(
+                      {
+                        questionId: current.question_id,
+                        contextId: currentContextId,
+                        questionText: current.question_text,
+                        chosenText: option.text,
+                      },
+                      option.option_id,
+                    )
+                  }
                   disabled={answer.pending}
                 >
                   <b aria-hidden="true">{String.fromCharCode(65 + index)}</b>
@@ -199,8 +248,13 @@ export function QuestionScreen() {
             ))}
           </ul>
         </fieldset>
+        </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
+        <p className="encr mt-6" aria-live="polite">
+          {encouragement(answeredTotal)}
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <p className="mut flex-1 text-[12.5px]">고른 답은 특성을 관찰하는 데만 쓰여요.</p>
           {answer.pending ? <Spinner label="답변을 반영하는 중" /> : null}
         </div>
@@ -211,7 +265,64 @@ export function QuestionScreen() {
           </div>
         ) : null}
       </Card>
+
+      <Modal
+        open={showHistory}
+        onClose={() => setShowHistory(false)}
+        title="지나온 질문"
+        subtitle="지금까지 고른 답이에요. 답을 다시 고칠 수는 없지만, 무엇을 골랐는지 확인할 수 있어요."
+      >
+        <HistoryList history={history} labelOf={labelOf} />
+      </Modal>
     </Shell>
+  );
+}
+
+/**
+ * 서버에 "이전 질문 조회"나 "답변 수정" API가 없어서, 이 목록은 이번 화면에서 답한
+ * 기록만 보여준다 — 새로고침하거나 이어서 하기로 돌아오면 비어 있는 게 정상이다.
+ */
+function HistoryList({
+  history,
+  labelOf,
+}: {
+  history: AnsweredRecord[];
+  labelOf: (id: string | null) => string;
+}) {
+  if (history.length === 0) {
+    return (
+      <StateBlock
+        title="아직 지나온 질문이 없어요"
+        description="답을 하나 고르면 여기에 쌓여요."
+      />
+    );
+  }
+
+  return (
+    <ol className="flex flex-col gap-2.5">
+      {[...history].reverse().map((record, index) => (
+        <li
+          key={`${record.questionId}-${index}`}
+          className="hrow reveal"
+          style={{ animationDelay: `${Math.min(index, 10) * 25}ms` }}
+        >
+          <span className="hrow-no" aria-hidden="true">
+            {history.length - index}
+          </span>
+          <div className="min-w-0">
+            <p className="mut mb-1 text-[12px]">
+              <span aria-hidden="true">{contextEmoji(record.contextId ?? "")}</span>{" "}
+              {labelOf(record.contextId)}
+            </p>
+            <p className="text-[14.5px] leading-snug">{record.questionText}</p>
+            <p className="hrow-pick mt-2">
+              <span className="sr-only">고른 답: </span>
+              {record.chosenText}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 }
 
