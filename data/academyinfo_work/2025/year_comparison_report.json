@@ -1,0 +1,11 @@
+{
+  "comparison": "2024(file_dataset) vs 2025(API)",
+  "latest_count": 25389,
+  "previous_count": 23029,
+  "stable": 21387,
+  "schl_mjr_id_changed": 86,
+  "new_in_latest": 3916,
+  "missing_in_latest": 1535,
+  "matched_department_count": 21473,
+  "schl_mjr_id_retention_rate": 0.996
+}
