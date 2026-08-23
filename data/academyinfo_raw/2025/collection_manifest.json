@@ -1,0 +1,46 @@
+{
+  "collector_version": "academyinfo_collector_v0.1",
+  "collector_git_sha": "b462883",
+  "public_api_metadata_modified_at": "2026-05-04",
+  "supported_survey_years": [
+    2025,
+    2024,
+    2023
+  ],
+  "selected_survey_year": 2025,
+  "selected_year_reason": "API가 지원하는 조사연도 [2025, 2024, 2023] 중 최신값. 포털 명세 수정일(2026-05-04)은 조사연도가 아니므로 근거로 쓰지 않음.",
+  "previous_survey_year": 2024,
+  "survey_year": 2025,
+  "collected_at": "2026-08-24T01:06:51+09:00",
+  "finished_at": "2026-08-24T01:29:42+09:00",
+  "endpoint_base_url": "https://apis.data.go.kr/B340014",
+  "operations": {
+    "universities": "BasicInformationService_2/getComparisonUniversitySearchList",
+    "departments": "BasicInformationService_1/getUniversityMajorCode"
+  },
+  "official_source_url": "https://www.data.go.kr/data/15158963/openapi.do",
+  "collection_scope": "전국",
+  "university_count": 377,
+  "school_ids_targeted": 377,
+  "department_count": 36866,
+  "failed_school_count": 0,
+  "code_table_counts": {
+    "getCodeByLargeSeries": 6,
+    "getCodeByMiddleSeries": 28,
+    "getCodeBySmallSeries": 158,
+    "getCodeBySeriesSystem": 198,
+    "getCodeByMajorStatus": 7,
+    "getCodeByLessonTerm": 15,
+    "getCodeByDegreeCourse": 17,
+    "getCodeByCollege": 1080,
+    "getCodeByMajorCharacter": 14,
+    "getCodeByOneselfSeries": 6,
+    "getCodeByPrincipalSchoolBranchSchool": 19,
+    "getCodeByDayAndNight": 4,
+    "getCodeByKind": 4,
+    "getCodeByType": 16,
+    "getCodeByRegion": 18,
+    "getComparisonPubYear": 3
+  },
+  "api_call_count": 615
+}
