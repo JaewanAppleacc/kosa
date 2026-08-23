@@ -164,7 +164,9 @@ function DepartmentList({ departments }: { departments: Department[] }) {
                   {department.campus ? ` (${department.campus})` : ""}
                 </p>
                 <p className="mut mt-1.5 text-[12px]">
-                  {department.source_svy_year}년 기준 ·{" "}
+                  {/* source_url은 출처 표시 전용이다(대학알리미 공식 URL) — 학과 홈페이지
+                      버튼으로 쓰지 않는다(README_B §2, 2026-08-24 21차). 권장 문구
+                      "대학알리미 {source_svy_year}년 공시 기준"을 그대로 쓴다. */}
                   <a
                     href={department.source_url}
                     target="_blank"
@@ -172,9 +174,25 @@ function DepartmentList({ departments }: { departments: Department[] }) {
                     className="underline underline-offset-2"
                     style={{ color: "var(--accent)" }}
                   >
-                    출처 보기
+                    대학알리미 {department.source_svy_year}년 공시 기준
                   </a>
                 </p>
+
+                {/* department_url이 있을 때만 "학과 홈페이지" 버튼을 보여준다 — null이면
+                    버튼을 완전히 숨긴다(빈 상태가 정상, 지금 시연 데이터는 전부 null). */}
+                {department.department_url !== null ? (
+                  <p className="mt-1 text-[12px]">
+                    <a
+                      href={department.department_url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="underline underline-offset-2"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      학과 홈페이지
+                    </a>
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>

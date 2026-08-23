@@ -85,11 +85,35 @@ describe("화면에 내부 숫자가 새어나갈 수 있는 지점", () => {
   it("MajorRelevance에는 점수 필드 자체가 없다", () => {
     const major = c.majorRelevanceSchema.parse(majors.relevant_majors[0]);
     expect(Object.keys(major).sort()).toEqual([
+      "description",
       "evidence_sufficiency",
       "label",
       "major_id",
       "relevance_label",
       "repeated_context_count",
     ]);
+  });
+});
+
+describe("MajorRelevance.description 계약(2026-08-24 A3 지시서)", () => {
+  it("Mock 정본의 모든 전공 항목에 description이 채워져 있다", () => {
+    const all = [...majors.relevant_majors, ...majors.explore_together_majors];
+    expect(all.length).toBeGreaterThan(0);
+    for (const item of all) {
+      const parsed = c.majorRelevanceSchema.parse(item);
+      expect(parsed.description.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("description이 누락된 응답은 계약 오류로 탐지한다(임의 문구로 대체하지 않는다)", () => {
+    const { description: _omitted, ...withoutDescription } = majors.relevant_majors[0] as Record<
+      string,
+      unknown
+    >;
+    const result = c.majorRelevanceSchema.safeParse(withoutDescription);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path[0] === "description")).toBe(true);
+    }
   });
 });

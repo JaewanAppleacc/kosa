@@ -34,6 +34,10 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    // url 없이 생성된 jsdom 문서는 origin이 opaque라 localStorage가 SecurityError를
+    // 던진다(Node 26 + jsdom 25에서 재현됨, 2026-08-24 통합 작업 중 발견). 실제
+    // 브라우저 origin과 동일하게 명시한다.
+    environmentOptions: { jsdom: { url: "http://localhost:3000" } },
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     // 테스트는 .env.local과 무관하게 항상 Mock으로 돈다 — 개발자가 live로 바꿔두고
