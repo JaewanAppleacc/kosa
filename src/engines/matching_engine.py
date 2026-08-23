@@ -38,6 +38,12 @@ MINIMUM_USABLE_VECTOR_GROUPS = 2
 
 INSUFFICIENT_EVIDENCE_MESSAGE = "아직 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이 필요합니다."
 
+
+class MissingMajorDescriptionError(ValueError):
+    """A3 지시서(2026-08-24) §7 "description이 누락된 추천 전공은 major_id나 label로
+    대체하지 않고 Fail-Fast" — `descriptions_by_major_id`에 검토된 설명이 없는
+    major_id가 실제로 추천 결과에 들어오면 여기서 막는다(예외를 삼키지 않는다)."""
+
 # 2026-08-21 리뷰: 순수 상대 순위만 쓰면 후보가 1개뿐일 때 그 점수가 아무리 낮아도 무조건
 # 1등이라 "관련성 높음"이 돼버린다. 가중 Trait 충족도는 값이 전부 [0, 1] 범위이므로,
 # 상대 순위 상위 구간이어도 이 절대 하한을 넘지 못하면 "관련성 높음"을 주지 않는다 —
@@ -202,7 +208,8 @@ def _evidence_sufficiency_label(result: MajorMatchResult) -> EvidenceSufficiency
 
 
 def rank_major_relevance(
-    results: list[MajorMatchResult], labels_by_major_id: dict[str, str]
+    results: list[MajorMatchResult], labels_by_major_id: dict[str, str],
+    descriptions_by_major_id: dict[str, str],
 ) -> tuple[list[MajorRelevance], list[MajorRelevance], str | None]:
     """§16 "내부에서는 후보군 내 분포... 기준으로 상대 순위를 계산한다"를 구현한다.
 
@@ -220,6 +227,13 @@ def rank_major_relevance(
        내보이는 건 §16 "가짜 정확도 노출 금지"의 정신과도 어긋난다. 그래서 evidence_sufficiency
        가 "제한적"이면 점수·순위와 무관하게 "관련성 높음"을 주지 않는다(최대 "함께
        탐색해볼 분야").
+
+    2026-08-24 A3 지시서 §6/§7: `descriptions_by_major_id`는 필수 인자다(기본값 없음) —
+    `labels_by_major_id.get(..., major_id)`처럼 major_id로 조용히 대체하지 않는다.
+    실제로 추천 결과에 들어가는 major_id의 설명이 없으면 `MissingMajorDescriptionError`
+    를 던진다(Fail-Fast, §7 "누락 시 major_id나 label로 대체하지 않는다"). Matching
+    공식·순위·relevance_label 계산에는 전혀 관여하지 않는다 — 계산이 끝난 뒤 표시용
+    필드 하나를 채울 뿐이다.
 
     반환값: (관련성 높음 목록, 나머지 목록, 전체가 insufficient일 때의 안내 메시지)."""
 
@@ -252,9 +266,16 @@ def rank_major_relevance(
     for result in computed:
         evidence_sufficiency = _evidence_sufficiency_label(result)
         relevance = relevance_label_for(result.score, evidence_sufficiency)  # type: ignore[arg-type]
+        description = descriptions_by_major_id.get(result.major_id)
+        if not description or not description.strip():
+            raise MissingMajorDescriptionError(
+                f"major_id {result.major_id!r}에 대한 검토된 설명(description)이 없다 — "
+                "canonical_majors.jsonl에 항목을 추가하거나 descriptions_by_major_id 호출을 확인하세요."
+            )
         item = MajorRelevance(
             major_id=result.major_id,
             label=labels_by_major_id.get(result.major_id, result.major_id),
+            description=description,
             relevance_label=relevance,
             evidence_sufficiency=evidence_sufficiency,
             repeated_context_count=result.max_context_count_among_notable,

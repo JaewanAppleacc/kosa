@@ -21,6 +21,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from src.api.main import app
+from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAITS
 from src.engines.matching_engine import (
@@ -226,7 +227,9 @@ class FixedPersonaEndToEndTest(unittest.TestCase):
 
         states = compute_student_trait_states(summaries, self.trait_defs, set())
         results = [compute_major_match(states, m) for m in VERTICAL_SLICE_MAJOR_PROFILES]
-        relevant, _explore, _msg = rank_major_relevance(results, self.labels_by_major_id)
+        relevant, _explore, _msg = rank_major_relevance(
+            results, self.labels_by_major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+        )
         self.assertEqual(len(relevant), 1, f"관련성 높음 전공이 정확히 1개여야 합니다: {relevant}")
         return relevant[0].major_id
 

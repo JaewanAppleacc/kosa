@@ -26,6 +26,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime
 
+from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
 from src.engines.matching_engine import (
     compute_major_match,
     compute_student_trait_states,
@@ -193,7 +194,9 @@ class KnowledgeSubgraphService:
         # 복제하지 않는다. ---
         major_results = [compute_major_match(student_states, m) for m in self._major_profiles]
         labels_by_major_id = {m.major_id: m.label for m in self._major_profiles}
-        relevant, explore_together, _message = rank_major_relevance(major_results, labels_by_major_id)
+        relevant, explore_together, _message = rank_major_relevance(
+            major_results, labels_by_major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+        )
         recommended_major_ids = sorted(
             {r.major_id for r in relevant} | {r.major_id for r in explore_together}
         )

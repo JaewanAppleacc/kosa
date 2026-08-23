@@ -21,10 +21,19 @@ import unicodedata
 from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from src.rag.embed import Embedder, cosine_similarity, default_embedder
 from src.schemas.major import CanonicalMappingResult, Department
+
+# A3 지시서(2026-08-24) §4/§5: 학생 화면에 노출되는 설명이라 "취업 보장"류 표현을
+# 막는다 — Trait Matching 결과 문구("당신에게 잘 맞습니다")도 여기 섞이면 이 필드가
+# 관련도 근거처럼 오인된다(§9 "관련도 근거 문장이 아님"과 정확히 같은 이유).
+_FORBIDDEN_DESCRIPTION_PHRASES = (
+    "취업이 잘", "취업률", "합격이", "합격률", "성공적인", "당신에게", "당신의 적성",
+    "가장 적합", "잘 맞습니다", "잘 맞는", "적성에 맞",
+)
+_MAX_DESCRIPTION_LENGTH = 120
 
 MAPPING_VERSION = "canonical_mapping_v0.1"
 
@@ -42,19 +51,46 @@ _EMBEDDING_CANDIDATE_COUNT = 3
 
 
 class CanonicalMajorEntry(BaseModel):
-    """`data/master/canonical_majors.jsonl`의 한 행."""
+    """`data/master/canonical_majors.jsonl`의 한 행.
+
+    A3 지시서(2026-08-24) §3/§4/§5: `description`은 학생 화면에 그대로 노출되는
+    전공 설명 문장이다(고등학생이 이해할 수 있는 1~2문장, 약 40~100자) — Runtime
+    LLM이 즉흥 생성하지 않고 이 정본 JSONL에서 결정론적으로 조회만 한다. `keywords`를
+    쉼표로 이어붙인 것이 아니라 실제 문장이어야 한다."""
 
     major_id: str
     label: str
+    description: str
     aliases: list[str] = []
     keywords: list[str] = []
     source_url: str
     as_of_date: str
 
+    @field_validator("description")
+    @classmethod
+    def _validate_description(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("description은 빈 문자열이나 공백만 있는 값을 허용하지 않는다")
+        if len(stripped) > _MAX_DESCRIPTION_LENGTH:
+            raise ValueError(
+                f"description이 너무 길다({len(stripped)}자, 최대 {_MAX_DESCRIPTION_LENGTH}자): {stripped!r}"
+            )
+        if "%" in stripped or re.search(r"\d+\s*점", stripped):
+            raise ValueError(f"description에 내부 숫자 점수·백분율 표현을 넣을 수 없다: {stripped!r}")
+        lowered = stripped.replace(" ", "")
+        for phrase in _FORBIDDEN_DESCRIPTION_PHRASES:
+            if phrase.replace(" ", "") in lowered:
+                raise ValueError(f"description에 금지 표현이 포함됐다({phrase!r}): {stripped!r}")
+        return stripped
+
     def match_texts(self) -> list[str]:
         return [self.label, *self.aliases]
 
     def embedding_text(self) -> str:
+        # A3 지시서 §5: description을 embedding_text에 자동으로 섞지 않는다 — 설명
+        # 필드 추가가 Canonical Mapping(Embedding 후보 검색) 결과를 조용히 바꾸면
+        # 안 된다. 기존 그대로 label+aliases+keywords만 쓴다.
         return " ".join([self.label, *self.aliases, *self.keywords])
 
 

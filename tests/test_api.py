@@ -312,6 +312,51 @@ class SessionLifecycleTest(unittest.TestCase):
 
         _assert_no_float(r.json(), "majors_response")
 
+    def test_majors_response_includes_canonical_description_for_every_major(self) -> None:
+        """A3 지시서(2026-08-24) §10 — `/majors/{session_id}`의 relevant_majors·
+        explore_together_majors 양쪽 모두 description이 채워지고, 그 값이
+        canonical_majors.jsonl 정본과 정확히 일치해야 한다(Runtime이 즉흥 생성하지
+        않는다는 증거)."""
+
+        from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+
+        r = client.post("/assessment/session")
+        session_id = r.json()["session_id"]
+        client.post(
+            "/assessment/context-confirm",
+            json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        )
+        # 3개 Context 전부(Seed + Adaptive Tail 4~6개씩)를 완주해야 "관련도 계산 가능"
+        # 기준(MINIMUM_USABLE_TRAITS/MINIMUM_USABLE_VECTOR_GROUPS)을 채운다 — 6턴으로는
+        # 부족하다(다른 majors 테스트들이 6턴만 쓰는 건 애초에 빈 목록도 허용하기 때문).
+        for _ in range(30):
+            r = client.post("/assessment/next-question", params={"session_id": session_id})
+            body = r.json()
+            if body["status"] == "CONTEXT_EARLY_TERMINATED":
+                if body["assessment_complete"]:
+                    break
+                continue
+            question = body["question"]
+            option_id = question["options"][0]["option_id"]
+            ar = client.post(
+                "/assessment/answer",
+                json={"session_id": session_id, "question_id": question["question_id"], "selected_option_id": option_id},
+            )
+            if ar.json()["next_action"] == "ASSESSMENT_COMPLETE":
+                break
+
+        r = client.get(f"/majors/{session_id}")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        all_items = body["relevant_majors"] + body["explore_together_majors"]
+        self.assertTrue(all_items, "이 테스트는 실제로 추천 결과가 나온 상태를 검증해야 한다")
+        for item in all_items:
+            self.assertIn("description", item)
+            self.assertTrue(item["description"].strip())
+            self.assertEqual(item["description"], CANONICAL_MAJOR_DESCRIPTIONS_BY_ID[item["major_id"]])
+            # keywords를 이어붙인 것이 아니라 실제 문장이어야 한다(쉼표로 나열된 형태 금지).
+            self.assertNotRegex(item["description"], r"^[가-힣A-Za-z0-9]+(,\s*[가-힣A-Za-z0-9]+){2,}$")
+
     def test_openapi_schema_is_generated(self) -> None:
         r = client.get("/openapi.json")
         self.assertEqual(r.status_code, 200)

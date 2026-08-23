@@ -346,7 +346,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
         from src.engines.matching_engine import MajorMatchResult
 
         results = [MajorMatchResult(major_id="m1", status="insufficient")]
-        relevant, explore, message = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, explore, message = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertEqual(relevant, [])
         self.assertEqual(explore, [])
         self.assertEqual(message, INSUFFICIENT_EVIDENCE_MESSAGE)
@@ -362,7 +362,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
             MajorMatchResult(major_id="low", status="computed", score=0.1),
         ]
         labels = {"high": "높음전공", "mid": "중간전공", "low": "낮음전공"}
-        relevant, explore, message = rank_major_relevance(results, labels)
+        relevant, explore, message = rank_major_relevance(results, labels, {k: f'{v} 설명' for k, v in labels.items()})
         self.assertIsNone(message)
         self.assertEqual([r.major_id for r in relevant], ["high"])
         self.assertEqual([r.major_id for r in explore], ["mid", "low"])
@@ -375,7 +375,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
         results = [
             MajorMatchResult(major_id="m1", status="computed", score=0.77, notable_strong_count=2, notable_usable_count=2)
         ]
-        relevant, _, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, _, _ = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertNotIn("score", set(type(relevant[0]).model_fields.keys()))
 
     def test_single_low_score_candidate_is_not_automatically_high_relevance(self) -> None:
@@ -385,7 +385,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
         from src.engines.matching_engine import MINIMUM_SCORE_FOR_HIGH_RELEVANCE, MajorMatchResult
 
         results = [MajorMatchResult(major_id="m1", status="computed", score=MINIMUM_SCORE_FOR_HIGH_RELEVANCE - 0.1)]
-        relevant, explore, message = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, explore, message = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertIsNone(message)
         self.assertEqual(relevant, [])
         self.assertEqual(len(explore), 1)
@@ -402,7 +402,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
         results = [
             MajorMatchResult(major_id="m1", status="computed", score=0.95, notable_strong_count=2, notable_usable_count=2)
         ]
-        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertEqual([r.major_id for r in relevant], ["m1"])
         self.assertEqual(explore, [])
 
@@ -413,7 +413,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
         from src.engines.matching_engine import MajorMatchResult
 
         results = [MajorMatchResult(major_id="m1", status="computed", score=0.95)]  # notable_* 기본값 0 → 제한적
-        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertEqual(relevant, [])
         self.assertEqual([r.major_id for r in explore], ["m1"])
         self.assertEqual(explore[0].evidence_sufficiency, "제한적")
@@ -425,7 +425,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
         results = [
             MajorMatchResult(major_id="m1", status="computed", score=0.95, notable_usable_count=2)
         ]  # notable_strong_count=0(<2) but notable_usable_count=2 → "보통"
-        relevant, _, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, _, _ = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertEqual([r.major_id for r in relevant], ["m1"])
 
     def test_low_score_with_sufficient_evidence_is_not_high_relevance(self) -> None:
@@ -440,7 +440,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
                 notable_strong_count=2, notable_usable_count=2,
             )
         ]
-        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"})
+        relevant, explore, _ = rank_major_relevance(results, {"m1": "테스트전공"}, {k: f'{v} 설명' for k, v in {"m1": "테스트전공"}.items()})
         self.assertEqual(relevant, [])
         self.assertEqual([r.major_id for r in explore], ["m1"])
 
@@ -456,7 +456,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
             MajorMatchResult(major_id="low_major", status="computed", score=0.2),
         ]
         labels = {"z_major": "z전공", "a_major": "a전공", "low_major": "낮은전공"}
-        relevant, explore, _ = rank_major_relevance(results, labels)
+        relevant, explore, _ = rank_major_relevance(results, labels, {k: f'{v} 설명' for k, v in labels.items()})
         self.assertEqual({r.major_id for r in relevant}, {"z_major", "a_major"})
         self.assertEqual([r.major_id for r in explore], ["low_major"])
 
@@ -471,7 +471,7 @@ class RankMajorRelevanceTest(unittest.TestCase):
             MajorMatchResult(major_id="thin_evidence", status="computed", score=0.9),  # 동점, Evidence만 부족
         ]
         labels = {"rich_evidence": "근거충분전공", "thin_evidence": "근거부족전공"}
-        relevant, explore, _ = rank_major_relevance(results, labels)
+        relevant, explore, _ = rank_major_relevance(results, labels, {k: f'{v} 설명' for k, v in labels.items()})
         self.assertEqual([r.major_id for r in relevant], ["rich_evidence"])
         self.assertEqual([r.major_id for r in explore], ["thin_evidence"])
 
@@ -555,7 +555,7 @@ class FixedPersonaVerticalSliceMatchingTest(unittest.TestCase):
         states = compute_student_trait_states(summaries, self.trait_defs, set())
         results = [compute_major_match(states, m) for m in self.majors]
         self.assertTrue(any(r.status == "computed" for r in results))  # 실제로 계산 경로를 탔는지 확인
-        relevant, explore, _ = rank_major_relevance(results, self.labels)
+        relevant, explore, _ = rank_major_relevance(results, self.labels, {k: f'{v} 설명' for k, v in self.labels.items()})
 
         for item in relevant + explore:
             for field_name, field_value in item.model_dump().items():

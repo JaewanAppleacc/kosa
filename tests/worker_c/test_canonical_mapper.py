@@ -20,6 +20,7 @@ ENTRIES = [
     CanonicalMajorEntry(
         major_id="computer_science",
         label="컴퓨터·소프트웨어",
+        description="컴퓨터 시스템과 소프트웨어의 원리를 배우는 전공 분야입니다(테스트용).",
         aliases=["컴퓨터공학", "컴퓨터과학", "소프트웨어"],
         keywords=["프로그래밍", "알고리즘"],
         source_url="https://www.career.go.kr/",
@@ -28,6 +29,7 @@ ENTRIES = [
     CanonicalMajorEntry(
         major_id="design",
         label="디자인",
+        description="시각·조형 표현을 배우는 전공 분야입니다(테스트용).",
         aliases=["디자인", "시각디자인"],
         keywords=["조형", "사용자"],
         source_url="https://www.career.go.kr/",
@@ -36,6 +38,7 @@ ENTRIES = [
     CanonicalMajorEntry(
         major_id="education",
         label="교육학",
+        description="사람이 배우고 성장하는 과정을 탐구하는 전공 분야입니다(테스트용).",
         aliases=["교육학"],
         keywords=["수업", "학습"],
         source_url="https://www.career.go.kr/",
@@ -146,6 +149,7 @@ class CanonicalMapperTest(unittest.TestCase):
             CanonicalMajorEntry(
                 major_id="media_design",
                 label="미디어디자인",
+                description="미디어와 디자인이 결합된 표현을 배우는 전공 분야입니다(테스트용).",
                 aliases=["디자인"],  # design과 같은 alias를 일부러 넣는다
                 keywords=[],
                 source_url="https://www.career.go.kr/",

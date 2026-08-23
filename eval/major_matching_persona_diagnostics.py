@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
 from src.engines.matching_engine import (
     MajorMatchResult,
     StudentTraitState,
@@ -126,7 +127,9 @@ def diagnose_persona(
     }
     labels = {m.major_id: m.label for m in majors}
 
-    relevant, _explore, insufficient_message = rank_major_relevance(list(results.values()), labels)
+    relevant, _explore, insufficient_message = rank_major_relevance(
+        list(results.values()), labels, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+    )
 
     # evidence_sufficiency는 rank_major_relevance 내부(_evidence_sufficiency_label)에서만
     # 계산되고 MajorRelevance로 나가는 값이라, 여기서는 computed 항목에 한해 같은 규칙을

@@ -294,6 +294,26 @@ python3 -m venv .venv
 > - 개수 제한·지원 Context 목록을 화면에 하드코딩하지 말고 `GET /contexts`의
 >   `selection_policy`/`assessment_supported`를 그대로 쓰세요(아래 "4-3" 절 참고).
 
+> ⚠️ **`MajorRelevance.description` 신규 필수 필드(2026-08-24, Additive 변경)**:
+> 전공 카드마다 그 전공이 무엇을 배우는 분야인지 설명하는 1~2문장이 추가됐습니다.
+> ```text
+> MajorRelevance.description:
+> - 전공이 무엇을 배우는 분야인지 설명하는 1~2문장
+> - 관련도 근거 문장이 아님
+> - 학생 Trait 분석 문장이 아님
+> - 전공 카드의 전공명 아래에 표시
+> - 프론트에서 keywords를 조합해 설명을 만들지 않음
+> ```
+> 권장 표시:
+> ```text
+> 미디어·커뮤니케이션
+> 미디어 콘텐츠가 만들어지고 전달되는 과정과 사람·사회에 미치는 영향을 탐구하는 전공 분야입니다.
+> 관련성 높음
+> ```
+> `relevant_majors`·`explore_together_majors` 양쪽 모두 이 필드가 채워집니다(Optional
+> 아님). 서버 정본(`data/master/canonical_majors.jsonl`)에서 결정론적으로 가져온
+> 값이라 LLM이 매번 다른 문구를 만들지 않습니다 — 같은 major_id는 항상 같은 문구입니다.
+
 **전공 관련도 정성 Label** (`MajorRelevance.relevance_label` — 절대 숫자 아님, 숫자 필드 자체가 없음):
 `"관련성 높음"` / `"함께 탐색해볼 분야"` / `"비교해볼 만한 분야"`
 

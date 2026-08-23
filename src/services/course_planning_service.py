@@ -28,6 +28,7 @@ from src.engines.matching_engine import (
     compute_student_trait_states,
     rank_major_relevance,
 )
+from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
 from src.engines.policy_guard import guard_offered_status_matches_core_category, guard_subject_must_be_offered
 from src.engines.subject_matching_engine import (
     compute_post_offering_recommendations,
@@ -123,7 +124,9 @@ class CoursePlanningService:
             )
 
         labels_by_major_id = {m.major_id: m.label for m in self._major_profiles}
-        relevant, explore_together, _message = rank_major_relevance(major_results, labels_by_major_id)
+        relevant, explore_together, _message = rank_major_relevance(
+            major_results, labels_by_major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+        )
         recommended_major_ids = {r.major_id for r in relevant} | {r.major_id for r in explore_together}
 
         if selected_major_id not in recommended_major_ids:

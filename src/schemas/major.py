@@ -103,10 +103,25 @@ EvidenceSufficiencyLabel = Literal["충분", "보통", "제한적"]
 
 
 class MajorRelevance(BaseModel):
-    """§16 사용자 노출용. 내부 유사도 점수는 절대 포함하지 않는다(CLAUDE.md 금지 사항)."""
+    """§16 사용자 노출용. 내부 유사도 점수는 절대 포함하지 않는다(CLAUDE.md 금지 사항).
+
+    A3 지시서(2026-08-24) §6: `description`은 이 전공이 무엇을 배우는 분야인지
+    설명하는 필수 필드다 — 관련도 근거 문장도, 학생 Trait 분석 문장도 아니다(전공
+    이름 아래 고정적으로 붙는 정본 소개 문구, `CanonicalMajorEntry.description`을
+    그대로 옮긴 값). Optional이 아니다 — 추천 가능한 Canonical Major라면 검토된
+    설명이 반드시 있어야 하고, 없으면 major_id/label로 대체하지 않고 그 자리에서
+    예외를 낸다(`matching_engine.py`/`matching_engine_v2.py`)."""
 
     major_id: str
     label: str
+    description: str
     relevance_label: RelevanceLabel
     evidence_sufficiency: EvidenceSufficiencyLabel
     repeated_context_count: int
+
+    @field_validator("description")
+    @classmethod
+    def _description_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("MajorRelevance.description은 빈 문자열이나 공백만 있는 값을 허용하지 않는다")
+        return value

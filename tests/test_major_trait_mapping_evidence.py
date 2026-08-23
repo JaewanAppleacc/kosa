@@ -452,7 +452,9 @@ class MatchingRegressionTest(unittest.TestCase):
         )
         self.assertEqual(
             set(MajorRelevance.model_fields),
-            {"major_id", "label", "relevance_label", "evidence_sufficiency", "repeated_context_count"},
+            # A3 지시서(2026-08-24) §6: description(전공 설명, 필수 필드) 추가 — Additive
+            # API 변경이라 기존 필드는 하나도 빠지지 않았다.
+            {"major_id", "label", "description", "relevance_label", "evidence_sufficiency", "repeated_context_count"},
         )
 
     def test_24_fixed_persona_matching_is_deterministic(self) -> None:

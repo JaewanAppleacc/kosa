@@ -61,6 +61,7 @@ class MajorRelevanceNoRawNumberTest(unittest.TestCase):
             MajorRelevance(
                 major_id="media_communication",
                 label="미디어커뮤니케이션",
+                description="미디어 콘텐츠가 만들어지고 전달되는 과정을 탐구하는 전공 분야입니다.",
                 relevance_label="84%",  # type: ignore[arg-type]
                 evidence_sufficiency="충분",
                 repeated_context_count=3,

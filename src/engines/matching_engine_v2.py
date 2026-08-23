@@ -22,6 +22,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from src.engines.matching_engine import MissingMajorDescriptionError
 from src.schemas.major import EvidenceSufficiencyLabel, MajorProfile, MajorRelevance, RelevanceLabel
 from src.schemas.trait_vector_snapshot import TraitVectorEntry
 
@@ -143,10 +144,16 @@ def _evidence_sufficiency_label_v2(result: MajorMatchResultV2) -> EvidenceSuffic
 
 
 def rank_major_relevance_v2(
-    results: list[MajorMatchResultV2], labels_by_major_id: dict[str, str]
+    results: list[MajorMatchResultV2], labels_by_major_id: dict[str, str],
+    descriptions_by_major_id: dict[str, str],
 ) -> tuple[list[MajorRelevance], list[MajorRelevance], str | None]:
     """Legacy `rank_major_relevance()`와 동일한 3가지 방어(고유 점수 구간, 절대 하한,
-    Evidence 충분성)를 그대로 적용한다 — v2도 같은 정직성 원칙을 지킨다."""
+    Evidence 충분성)를 그대로 적용한다 — v2도 같은 정직성 원칙을 지킨다.
+
+    2026-08-24 A3 지시서 §6/§7: `descriptions_by_major_id`도 Legacy와 완전히 같은
+    Fail-Fast 규칙을 따른다(`MissingMajorDescriptionError`) — 호출부는 Legacy와
+    v2가 서로 다른 설명을 만들지 않도록 항상 같은 `CANONICAL_MAJOR_DESCRIPTIONS_BY_ID`
+    를 넘겨야 한다."""
 
     computed = [r for r in results if r.status == "computed"]
     if not computed:
@@ -170,9 +177,15 @@ def rank_major_relevance_v2(
     for result in computed:
         evidence_sufficiency = _evidence_sufficiency_label_v2(result)
         relevance = relevance_label_for(result.score, evidence_sufficiency)  # type: ignore[arg-type]
+        description = descriptions_by_major_id.get(result.major_id)
+        if not description or not description.strip():
+            raise MissingMajorDescriptionError(
+                f"major_id {result.major_id!r}에 대한 검토된 설명(description)이 없다 — "
+                "canonical_majors.jsonl에 항목을 추가하거나 descriptions_by_major_id 호출을 확인하세요."
+            )
         item = MajorRelevance(
             major_id=result.major_id, label=labels_by_major_id.get(result.major_id, result.major_id),
-            relevance_label=relevance, evidence_sufficiency=evidence_sufficiency,
+            description=description, relevance_label=relevance, evidence_sufficiency=evidence_sufficiency,
             repeated_context_count=result.max_evidence_count_among_notable,
         )
         if relevance == "관련성 높음":

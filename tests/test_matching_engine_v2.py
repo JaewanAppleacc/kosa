@@ -134,7 +134,7 @@ class NoInternalScoreInApiOutputTest(unittest.TestCase):
         major = _major("m1", cognitive={"t1": 1.0, "t2": 1.0}, work_style={"t3": 1.0}, interest={"t4": 1.0})
         states = {tid: _entry(tid, tendency=1.0) for tid in ("t1", "t2", "t3", "t4")}
         result = compute_major_match_v2(states, major)
-        relevant, explore, _msg = rank_major_relevance_v2([result], {"m1": "테스트 전공"})
+        relevant, explore, _msg = rank_major_relevance_v2([result], {"m1": "테스트 전공"}, {"m1": "테스트 전공 설명"})
         combined = relevant + explore
         self.assertEqual(len(combined), 1)
         dumped = combined[0].model_dump()

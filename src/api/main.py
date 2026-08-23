@@ -51,6 +51,7 @@ from src.data.contexts.context_anchor_presentations import CONTEXT_ANCHOR_PRESEN
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_IDS, VERTICAL_SLICE_CONTEXT_IDS
 from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
+from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.data.majors.vertical_slice_major_profiles_v2 import VERTICAL_SLICE_MAJOR_PROFILES_V2
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
@@ -1797,7 +1798,7 @@ def get_majors(session_id: str) -> MajorsResponse:
         results_v2 = [compute_major_match_v2(snapshot_entries, major) for major in VERTICAL_SLICE_MAJOR_PROFILES_V2]
         labels_by_major_id_v2 = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES_V2}
         relevant_v2, explore_together_v2, insufficient_message_v2 = rank_major_relevance_v2(
-            results_v2, labels_by_major_id_v2
+            results_v2, labels_by_major_id_v2, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
         )
         gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
         _tracer.record_stage(
@@ -1830,7 +1831,9 @@ def get_majors(session_id: str) -> MajorsResponse:
     )
     results = [compute_major_match(student_states, major) for major in VERTICAL_SLICE_MAJOR_PROFILES]
     labels_by_major_id = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES}
-    relevant, explore_together, insufficient_message = rank_major_relevance(results, labels_by_major_id)
+    relevant, explore_together, insufficient_message = rank_major_relevance(
+        results, labels_by_major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+    )
     return MajorsResponse(
         session_id=session_id,
         relevant_majors=relevant,
