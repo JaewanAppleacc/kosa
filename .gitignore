@@ -19,3 +19,13 @@ venv/
 # Editors
 .vscode/
 .idea/
+
+# 대학알리미 수집 원본 (rationale_c/07 §7-14)
+# gz는 git 델타 압축이 안 먹어서 재수집할 때마다 전량이 새 blob으로 히스토리에 쌓인다.
+# 원본은 각자 수집 스크립트로 재현하고, 재현에 필요한 codes/·manifest만 커밋한다.
+data/academyinfo_raw/*/departments.raw.jsonl.gz
+data/academyinfo_raw/*/universities.raw.jsonl.gz
+data/academyinfo_raw/*/curricula/
+data/academyinfo_raw/*/collection_checkpoint.json
+data/academyinfo_raw/*/collection_errors.jsonl
+data/academyinfo_work/

@@ -1,0 +1,37 @@
+{
+  "collector_version": "academyinfo_collector_v0.1",
+  "git_sha": "7fd7742",
+  "survey_year": 2025,
+  "collected_at": "2026-08-23T22:41:17+09:00",
+  "finished_at": "2026-08-23T22:41:58+09:00",
+  "endpoint_base_url": "https://apis.data.go.kr/B340014",
+  "operations": {
+    "universities": "BasicInformationService_2/getComparisonUniversitySearchList",
+    "departments": "BasicInformationService_1/getUniversityMajorCode"
+  },
+  "official_source_url": "https://www.data.go.kr/data/15158963/openapi.do",
+  "collection_scope": "시연 13개 대학",
+  "university_count": 377,
+  "school_ids_targeted": 17,
+  "department_count": 2380,
+  "failed_school_count": 0,
+  "code_table_counts": {
+    "getCodeByLargeSeries": 6,
+    "getCodeByMiddleSeries": 28,
+    "getCodeBySmallSeries": 158,
+    "getCodeBySeriesSystem": 198,
+    "getCodeByMajorStatus": 7,
+    "getCodeByLessonTerm": 15,
+    "getCodeByDegreeCourse": 17,
+    "getCodeByCollege": 1080,
+    "getCodeByMajorCharacter": 14,
+    "getCodeByOneselfSeries": 6,
+    "getCodeByPrincipalSchoolBranchSchool": 19,
+    "getCodeByDayAndNight": 4,
+    "getCodeByKind": 4,
+    "getCodeByType": 16,
+    "getCodeByRegion": 18,
+    "getComparisonPubYear": 3
+  },
+  "api_call_count": 54
+}
