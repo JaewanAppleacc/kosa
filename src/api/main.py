@@ -37,6 +37,7 @@ load_dotenv()
 
 from src.agents.assessment.answer_processor import submit_answer as process_answer_submission
 from src.agents.assessment.profile_generator import generate_career_profile
+from src.agents.assessment.profile_generator_v2 import generate_career_profile_v2
 from src.agents.assessment.graph.question_generation_graph import classify_generation_failure
 from src.agents.assessment.question_generator import generate_tail_question
 from src.agents.assessment.v2_direct_probe_generator import generate_v2_direct_probe_question
@@ -51,6 +52,7 @@ from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_I
 from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
+from src.data.majors.vertical_slice_major_profiles_v2 import VERTICAL_SLICE_MAJOR_PROFILES_V2
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.context_routing_blueprints import (
     CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT,
@@ -83,6 +85,7 @@ from src.engines.matching_engine import (
     compute_student_trait_states,
     rank_major_relevance,
 )
+from src.engines.matching_engine_v2 import compute_major_match_v2, rank_major_relevance_v2
 from src.engines.trait_vector_snapshot_engine import compute_trait_vector_snapshot_all
 from src.engines.v2_direct_probe_selector import select_blueprint_for_trait, select_v2_probe_candidates
 from src.ids import generate_evidence_id, generate_question_id, generate_session_id
@@ -110,16 +113,27 @@ from src.services.course_planning_service import (
     CoursePlanningService,
     MajorNotSelectableError,
 )
+from src.services.course_planning_service_v2 import (
+    CourseEvidenceNotReadyErrorV2,
+    CoursePlanningServiceV2,
+    MajorNotSelectableErrorV2,
+)
 from src.services.department_recommendation_scope import JsonlDepartmentRecommendationScopePolicy
 from src.services.knowledge_subgraph_service import (
     KnowledgeSubgraphService,
     SubgraphEvidenceNotReadyError,
 )
 from src.services.major_exploration_service import MajorExplorationService
-from src.services.feature_flags import MAX_V2_DIRECT_PROBE_QUESTIONS, trait_vector_v2_direct_probes_enabled
+from src.services.feature_flags import (
+    MAX_V2_DIRECT_PROBE_QUESTIONS,
+    trait_vector_v2_direct_probes_enabled,
+    trait_vector_v2_primary_enabled,
+)
 from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
 from src.services.subject_trait_mapping_evidence import load_subject_trait_mapping_evidence
+from src.services.trait_ontology_v2 import load_trait_ontology_v2
 from src.services.trait_signal_registry import resolve_trait_signals
+from src.services.trait_signal_review_gate import filter_primary_eligible_evidence, gate_primary_eligible_evidence
 from src.services.trait_vector_shadow_repository import InMemoryTraitVectorShadowRepository
 from src.tracing.langsmith_client import LangSmithTraceClient
 from src.tracing.protocols import TraceClient
@@ -155,7 +169,8 @@ from src.schemas.api import (
 from src.schemas.assessment_state import AnsweredQuestion, AssessmentPhase, AssessmentState, RoutingAnsweredQuestion
 from src.schemas.context_routing import ContextRoutingBlueprint
 from src.schemas.evidence import AppliedTraitSignal, EvidenceOrigin, EvidenceRecord, V2ProbeOpportunity
-from src.schemas.trait_vector_snapshot import TraitVectorSnapshot
+from src.schemas.trait import TraitDefinition
+from src.schemas.trait_vector_snapshot import TraitVectorEntry, TraitVectorSnapshot
 
 # 2026-08-23 Trait Ontology v2(2단계) §2 — Shadow 계산 실패는 계속 Fail-Open이지만
 # 완전히 조용하지는 않는다: 예외 "종류"만(원인 파악용) 내부 로그에 남긴다. 학생 데이터
@@ -206,6 +221,11 @@ _store = InMemorySessionStore()
 # Store와 완전히 분리된 별도 객체다: 이 저장소가 뭘 하든(계산 실패든 값이 이상하든)
 # 기존 Career Profile 응답에는 절대 영향을 줄 수 없다는 걸 타입 수준에서도 분리해 둔다.
 _trait_vector_shadow_repository = InMemoryTraitVectorShadowRepository()
+# 2026-08-23 Trait Ontology v2(2.6단계) §9 — Primary 계산 전용 저장소. Shadow 저장소와
+# 별도 인스턴스다(같은 session_id라도 "전체 evidence_ledger로 계산한 Shadow 값"과
+# "Fail-Closed 게이트를 통과한 evidence_ledger로 계산한 Primary 값"은 서로 다른
+# 계산 결과이므로 하나의 저장소에서 덮어쓰면 안 된다).
+_trait_vector_primary_repository = InMemoryTraitVectorShadowRepository()
 
 # 설계안 §1: 공모전 프로토타입은 로그인 없이 demo_user_01 단일 사용자만 지원한다.
 # 2026-08-20 보안 리뷰 반영: 이전에는 create_session이 클라이언트가 보낸 user_id를
@@ -281,6 +301,19 @@ _course_planning_service = CoursePlanningService(
     major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
     trait_definitions=TRAIT_DEFINITIONS_BY_ID,
     course_planning_store=_course_planning_store,
+)
+
+# 2026-08-23 Trait Ontology v2(2.6단계) §6/§8/§9 — PRIMARY Flag가 켜졌을 때만 쓰는 v2
+# 전용 정본·서비스. Legacy 정본(major_profiles.jsonl/subjects.jsonl)과 완전히 분리된
+# 별도 파일을 읽는다 — 앱 시작 시 한 번만 읽는 것도 Legacy와 같은 패턴이다.
+TRAIT_DEFINITIONS_V2_BY_ID: dict[str, TraitDefinition] = {t.trait_id: t for t in load_trait_ontology_v2()}
+_subject_repository_v2 = JsonlSubjectRepository(
+    path=Path(__file__).resolve().parents[2] / "data" / "master" / "subject_profiles_v2.jsonl"
+)
+_course_planning_service_v2 = CoursePlanningServiceV2(
+    _subject_repository_v2,
+    major_profiles=VERTICAL_SLICE_MAJOR_PROFILES_V2,
+    trait_definitions=TRAIT_DEFINITIONS_V2_BY_ID,
 )
 
 # 2026-08-26 16차 리뷰: POST /course/upload — 실제 Parser를 연결한다. Alias 표도 학과·
@@ -366,6 +399,32 @@ def _compute_v2_snapshot(state: AssessmentState) -> dict:
         state.evidence_ledger, legacy_states, state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS,
         v2_probe_opportunities=state.v2_probe_opportunities,
     )
+
+
+def _compute_v2_primary_snapshot(
+    state: AssessmentState,
+) -> tuple[dict[str, TraitVectorEntry], list[EvidenceRecord]]:
+    """2026-08-23 Trait Ontology v2(2.6단계) §3/§9 — PRIMARY 전용 계산. `_compute_v2_
+    snapshot()`(Shadow 기록·V2 Direct Probe 후보 선택용, 검수 상태와 무관하게 항상 전체
+    evidence_ledger를 쓴다)과 별도 함수다 — 질문 목표 결정 로직은 검수 상태를 몰라도
+    되고 몰라야 한다(§3은 "출력 근거"만 제한한다). Fail-Closed 게이트를 통과한
+    evidence_ledger로 같은 엔진을 다시 호출할 뿐, 계산 공식 자체는 전혀 바꾸지 않는다.
+
+    반환값의 두 번째 항목(필터링된 evidence_ledger)은 Profile의 "실제 답변 근거" 절과
+    Major/Subject 추천 이유 문구가 검수 미완료 질문의 선택지 문구를 인용하지 않도록
+    호출하는 쪽에 그대로 넘긴다."""
+
+    legacy_states = compute_student_trait_states(
+        state.trait_summaries, TRAIT_DEFINITIONS_BY_ID,
+        unresolved_conflict_trait_ids=state.unresolved_conflict_trait_ids,
+        resolutions=state.contrast_resolutions,
+    )
+    primary_evidence = filter_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+    entries = compute_trait_vector_snapshot_all(
+        primary_evidence, legacy_states, state.unresolved_conflict_trait_ids, CORE_TRAIT_IDS,
+        v2_probe_opportunities=state.v2_probe_opportunities,
+    )
+    return entries, primary_evidence
 
 
 def _v2_probe_should_continue(state: AssessmentState) -> bool:
@@ -548,6 +607,10 @@ def _submit_v2_direct_probe_answer(state: AssessmentState, selected_option_id: s
         source_type="v2_direct_probe_question",
         generator_version="v1",
         quality_gate_status="passed",
+        # 2.6단계 §3: Fail-Closed 검수 게이트용 — V2 Direct Probe는 항상 blueprint_id가
+        # 곧 검수 상태 조회 Key다(v2_direct_probe_review_store.py).
+        source_question_family_id="v2_direct_probe",
+        source_blueprint_id=state.current_question_blueprint_id,
     )
     state.evidence_ledger.append(evidence)
     state.answers.append(
@@ -1247,6 +1310,41 @@ def get_profile(session_id: str) -> ProfileResponse:
                 "답변한 뒤 다시 호출하세요.",
             ).model_dump(),
         )
+    # 2026-08-23 Trait Ontology v2(2.6단계) §5/§9 — PRIMARY Flag가 켜졌으면 v2
+    # TraitVectorSnapshot(Fail-Closed 게이트를 통과한 Evidence만)을 실제 입력으로 쓴다.
+    # Legacy 결과와 절대 섞지 않는다 — v2 Evidence가 부족해도 Legacy로 조용히 대체하지
+    # 않고, generate_career_profile_v2 자체가 항상 이 세션의 실제 v2 값만으로 정직한
+    # highlight(부족하면 "충분히 확인되지 않았다")를 만든다(§9).
+    if trait_vector_v2_primary_enabled():
+        snapshot_entries, primary_evidence = _compute_v2_primary_snapshot(state)
+        profile = generate_career_profile_v2(
+            session_id=state.session_id,
+            user_id=state.user_id,
+            snapshot_entries=snapshot_entries,
+            all_trait_definitions=TRAIT_DEFINITIONS_V2_BY_ID,
+            evidence_ledger=primary_evidence,
+            llm_client=_llm_client,
+            resolutions=state.contrast_resolutions,
+        )
+        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+        _tracer.record_stage(
+            trace_id=state.trace_id,
+            stage_name="Profile Summary Generator",
+            attributes={
+                "graph_node": "profile_summary_generator",
+                "used_llm": _llm_client is not None,
+                "highlight_count": len(profile.highlights),
+                "trait_engine_version": "trait_vector_v2",
+                "primary_signal_count": len(gate.approved_evidence_ids),
+                "excluded_unreviewed_signal_count": len(gate.excluded_evidence_ids),
+                "usable_trait_count": sum(1 for e in snapshot_entries.values() if e.tendency_score is not None),
+                "profile_generation_path": "v2_primary",
+            },
+        )
+        _trait_vector_primary_repository.save(state.session_id, TraitVectorSnapshot(entries=snapshot_entries))
+        _compute_and_store_trait_vector_shadow_snapshot(state)
+        return profile
+
     profile = generate_career_profile(
         session_id=state.session_id,
         user_id=state.user_id,
@@ -1271,6 +1369,8 @@ def get_profile(session_id: str) -> ProfileResponse:
             "graph_node": "profile_summary_generator",
             "used_llm": _llm_client is not None,
             "highlight_count": len(profile.highlights),
+            "trait_engine_version": "legacy",
+            "profile_generation_path": "legacy",
         },
     )
     _compute_and_store_trait_vector_shadow_snapshot(state)
@@ -1347,6 +1447,40 @@ def get_majors(session_id: str) -> MajorsResponse:
     빈 목록 + insufficient_evidence_message가 나온다. 그래서 별도 분기가 필요 없다."""
 
     state = _get_state_or_404(session_id)
+
+    # 2026-08-23 Trait Ontology v2(2.6단계) §7/§9 — PRIMARY Flag가 켜졌으면 v2
+    # TraitVectorSnapshot(Fail-Closed 게이트 통과분)과 v2 Major Profile(24-Trait,
+    # 별도 정본)로 다시 계산한다. Legacy 결과와 절대 섞지 않는다(§9 "Profile만 v2,
+    # Matching은 Legacy처럼 섞지 않는다") — Legacy compute_major_match()는 여기서
+    # 아예 호출하지 않는다.
+    if trait_vector_v2_primary_enabled():
+        snapshot_entries, _primary_evidence = _compute_v2_primary_snapshot(state)
+        results_v2 = [compute_major_match_v2(snapshot_entries, major) for major in VERTICAL_SLICE_MAJOR_PROFILES_V2]
+        labels_by_major_id_v2 = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES_V2}
+        relevant_v2, explore_together_v2, insufficient_message_v2 = rank_major_relevance_v2(
+            results_v2, labels_by_major_id_v2
+        )
+        gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+        _tracer.record_stage(
+            trace_id=state.trace_id,
+            stage_name="Major Matching",
+            attributes={
+                "graph_node": "major_matching",
+                "trait_engine_version": "trait_vector_v2",
+                "matching_engine_version": "matching_engine_v2",
+                "primary_signal_count": len(gate.approved_evidence_ids),
+                "excluded_unreviewed_signal_count": len(gate.excluded_evidence_ids),
+                "usable_trait_count": sum(1 for e in snapshot_entries.values() if e.tendency_score is not None),
+                "computed_major_count": sum(1 for r in results_v2 if r.status == "computed"),
+            },
+        )
+        return MajorsResponse(
+            session_id=session_id,
+            relevant_majors=relevant_v2,
+            explore_together_majors=explore_together_v2,
+            insufficient_evidence_message=insufficient_message_v2,
+        )
+
     student_states = compute_student_trait_states(
         state.trait_summaries,
         TRAIT_DEFINITIONS_BY_ID,
@@ -1400,6 +1534,52 @@ def get_subjects(
     지킨다)."""
 
     state = _get_state_or_404(session_id)
+
+    # 2026-08-23 Trait Ontology v2(2.6단계) §8/§9 — PRIMARY Flag가 켜지고 PRE_SURVEY
+    # 단계(아직 실제 개설과목이 확정되지 않음)면 v2 경로를 쓴다. POST_OFFERING(학교
+    # 실제 개설과목 업로드 이후 재추천)은 이번 Vertical Slice E2E 범위 밖이라 아직 v2로
+    # 옮기지 않았다 — 이 경우에만 Legacy 경로를 그대로 쓴다(완료 보고 §18에 한계로
+    # 명시한다. "v2 Evidence 부족을 Legacy로 조용히 대체"하는 것과는 다르다 — 이건
+    # Evidence 문제가 아니라 아직 이식하지 않은 기능이다).
+    if trait_vector_v2_primary_enabled():
+        planning_state = _course_planning_store.load(session_id)
+        is_post_offering = (
+            planning_state is not None
+            and planning_state.selected_major_id == selected_major_id
+            and planning_state.upload_status == "CONFIRMED"
+        )
+        if not is_post_offering:
+            try:
+                snapshot_entries, _primary_evidence = _compute_v2_primary_snapshot(state)
+                course_profile = _course_planning_service_v2.build_pre_survey_course_profile_v2(
+                    state, selected_major_id, snapshot_entries, TRAIT_DEFINITIONS_V2_BY_ID,
+                )
+            except CourseEvidenceNotReadyErrorV2 as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
+                ) from exc
+            except MajorNotSelectableErrorV2 as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),
+                ) from exc
+            gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices)
+            _tracer.record_stage(
+                trace_id=state.trace_id,
+                stage_name="Subject Matching",
+                attributes={
+                    "graph_node": "subject_matching",
+                    "trait_engine_version": "trait_vector_v2",
+                    "matching_engine_version": "subject_matching_engine_v2",
+                    "primary_signal_count": len(gate.approved_evidence_ids),
+                    "excluded_unreviewed_signal_count": len(gate.excluded_evidence_ids),
+                    "usable_trait_count": sum(1 for e in snapshot_entries.values() if e.tendency_score is not None),
+                    "recommendation_count": len(course_profile.recommendations),
+                },
+            )
+            return course_profile
+
     try:
         return _course_planning_service.get_course_profile(state, selected_major_id)
     except CourseEvidenceNotReadyError as exc:

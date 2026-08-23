@@ -148,6 +148,10 @@ def _evidence_update(g: AnswerGraphState) -> dict:
         ),
         generator_version="v1",
         quality_gate_status="passed",
+        # 2.6단계 §3: Fail-Closed 검수 게이트가 이 질문의 검수 상태를 나중에 조회할 수
+        # 있게, 답변 처리 시점의 family/blueprint id를 그대로 옮겨 담는다.
+        source_question_family_id=state.current_question_family_id,
+        source_blueprint_id=state.current_question_blueprint_id,
     )
     state.evidence_ledger.append(evidence)
     state.answers.append(

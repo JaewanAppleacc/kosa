@@ -80,6 +80,15 @@ class EvidenceRecord(BaseModel):
     # 이라 아예 없는지) 감사·Coverage 측정용으로 남긴다. None은 이 필드가 생기기 전
     # 과거(1단계) 기록과의 하위 호환용이다 — API 응답에는 노출하지 않는다.
     trait_signal_mapping_source_v2: MappingSource | None = None
+    # 2026-08-23 Trait Ontology v2(2.6단계) §3: v2 Primary Fail-Closed 검수 게이트가 이
+    # Evidence를 만든 질문의 검수 상태를 조회하기 위한 값. `state.current_question_
+    # family_id`/`current_question_blueprint_id`를 답변 처리 시점에 그대로 옮겨 담을
+    # 뿐이며, 이 필드 자체는 검수 상태를 판정하지 않는다(판정은
+    # src/services/trait_signal_review_gate.py가 한다). 기본값 None은 이 필드가 생기기
+    # 전(2.6단계 이전) 과거 기록과의 하위 호환용이다 — 기존 Evidence Ledger를 바꾸거나
+    # 지우지 않는다(CLAUDE.md/§4 "기존 Evidence Ledger를 변경하거나 삭제하지 않는다").
+    source_question_family_id: str | None = None
+    source_blueprint_id: str | None = None
 
 
 class V2ProbeOpportunity(BaseModel):

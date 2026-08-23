@@ -60,6 +60,27 @@ class TraitVectorEntry(BaseModel):
     related_frame_count: int = 0
     related_context_ids: set[str] = Field(default_factory=set)
     v2_direct_primary_evidence_count: int = 0
+    # 2026-08-23 Trait Ontology v2(2.6단계) §4 — "추천 근거는 Evidence까지 역추적
+    # 가능해야 한다"(CLAUDE.md)를 v2 Profile에서도 만족하기 위한 값. PRIMARY/RELATED
+    # Evidence의 evidence_id를 그대로 담는다(중복 없이, 등장 순서 보존) — 원문·점수는
+    # 담지 않고 Evidence Ledger를 다시 찾아갈 수 있는 Key만 남긴다.
+    supporting_evidence_ids: list[str] = Field(default_factory=list)
+
+    @property
+    def evidence_count(self) -> int:
+        """§4 — PRIMARY·RELATED Evidence를 합친 총 개수(저장하지 않고 계산한다,
+        primary_evidence_count/related_evidence_count의 파생값이라 별도로 들고 다니면
+        불일치 위험만 커진다)."""
+
+        return self.primary_evidence_count + self.related_evidence_count
+
+    @property
+    def conflict_status(self) -> bool:
+        """§4 — tendency_score/evidence_confidence와 분리된 별도 축. `status`가 이미
+        "CONFLICTING"을 표현하지만, Profile·Matching 쪽 호출자가 상태 문자열을 직접
+        비교하지 않고 의미가 분명한 이름으로 물을 수 있게 한다."""
+
+        return self.status == "CONFLICTING"
 
 
 class TraitVectorSnapshot(BaseModel):

@@ -148,6 +148,9 @@ def compute_trait_vector_snapshot(
     v2_direct_primary_evidence_count = len(
         [r for r in primary_records if r.evidence_origin == EvidenceOrigin.V2_DIRECT_PROBE]
     )
+    # 2.6단계 §4: 등장 순서를 보존한 중복 없는 evidence_id 목록(dict를 순서 보존 집합
+    # 대용으로 쓴다 — set은 순서가 없어 같은 입력에도 매번 다른 순서가 나올 수 있다).
+    supporting_evidence_ids = list(dict.fromkeys(r.evidence_id for r in observed_records))
 
     if trait_id in unresolved_conflict_trait_ids:
         status = "CONFLICTING"
@@ -199,6 +202,7 @@ def compute_trait_vector_snapshot(
         related_frame_count=related_frame_count,
         related_context_ids=related_context_ids,
         v2_direct_primary_evidence_count=v2_direct_primary_evidence_count,
+        supporting_evidence_ids=supporting_evidence_ids,
     )
 
 

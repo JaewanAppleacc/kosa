@@ -238,6 +238,39 @@ class SanitizeTraceAttributesTest(unittest.TestCase):
         self.assertEqual(sanitize_trace_attributes({"backup_candidates_rejected": 1.5}), {})
         self.assertEqual(sanitize_trace_attributes({"backup_candidates_checked": "2"}), {})
 
+    def test_trait_v2_primary_stage_metadata_is_preserved(self) -> None:
+        """2026-08-23 Trait Ontology v2(2.6단계) §10 — Profile Summary Generator(v2
+        경로)/Major Matching/Subject Matching Stage가 남기는 집계·고정 문구 필드만
+        허용한다. 학생 답변 원문·option_text·Trait 내부 점수(tendency_score 등)는 Key
+        자체가 없어 구조적으로 샐 수 없다."""
+
+        attributes = {
+            "trait_engine_version": "trait_vector_v2",
+            "profile_generation_path": "v2_primary",
+            "matching_engine_version": "matching_engine_v2",
+            "primary_signal_count": 5,
+            "excluded_unreviewed_signal_count": 2,
+            "usable_trait_count": 8,
+            "computed_major_count": 2,
+            "recommendation_count": 3,
+        }
+        self.assertEqual(sanitize_trace_attributes(attributes), attributes)
+        self.assertEqual(
+            sanitize_trace_attributes({"trait_engine_version": "legacy"}), {"trait_engine_version": "legacy"}
+        )
+        self.assertEqual(
+            sanitize_trace_attributes({"profile_generation_path": "legacy"}),
+            {"profile_generation_path": "legacy"},
+        )
+
+    def test_trait_v2_primary_stage_metadata_rejects_free_text_or_negative(self) -> None:
+        self.assertEqual(sanitize_trace_attributes({"trait_engine_version": "학생이 쓴 문장"}), {})
+        self.assertEqual(sanitize_trace_attributes({"matching_engine_version": "cosine_similarity"}), {})
+        for key in ("primary_signal_count", "excluded_unreviewed_signal_count", "usable_trait_count"):
+            with self.subTest(key=key):
+                self.assertEqual(sanitize_trace_attributes({key: -1}), {})
+                self.assertEqual(sanitize_trace_attributes({key: "3"}), {})
+
     def test_session_id_and_raw_answer_text_have_no_allowlisted_key(self) -> None:
         """session_id/학생 답변 원문/질문 원문은 Key 자체가 Allowlist에 없어 어떤 값을
         보내도 구조적으로 샐 수 없다."""

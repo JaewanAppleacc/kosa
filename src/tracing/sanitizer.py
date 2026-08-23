@@ -43,6 +43,13 @@ _ALLOWED_ERROR_TYPES: frozenset[str] = frozenset(
     {"llm_call_error", "role_id_mismatch", "quality_gate_failure", "trace_error", "unknown_error"}
 )
 _TOKEN_USAGE_KEYS: frozenset[str] = frozenset({"prompt_tokens", "completion_tokens", "total_tokens"})
+# 2026-08-23 Trait Ontology v2(2.6단계) §10 — Profile/Major/Subject가 어느 엔진 경로로
+# 계산됐는지는 고정된 두 값 중 하나뿐이다(자유 텍스트가 아니다).
+_ALLOWED_TRAIT_ENGINE_VERSIONS: frozenset[str] = frozenset({"legacy", "trait_vector_v2"})
+_ALLOWED_PROFILE_GENERATION_PATHS: frozenset[str] = frozenset({"legacy", "v2_primary"})
+_ALLOWED_MATCHING_ENGINE_VERSIONS: frozenset[str] = frozenset(
+    {"matching_engine_v2", "subject_matching_engine_v2"}
+)
 _ERROR_CODE_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
 _SHORT_TOKEN_PATTERN = re.compile(r"^[a-zA-Z0-9_.\-]{1,80}$")
 
@@ -172,6 +179,18 @@ _VALUE_VALIDATORS: dict[str, Callable[[object], bool]] = {
     "structurally_not_probed_trait_count": _is_nonneg_int,
     "observed_in_session_count": _is_nonneg_int,
     "not_observed_in_session_count": _is_nonneg_int,
+    # 2026-08-23 Trait Ontology v2(2.6단계) §10 — Profile Summary Generator/Major
+    # Matching/Subject Matching Stage(PRIMARY 경로)가 보내는 메타데이터. 학생 답변
+    # 원문·option_text·Trait 내부 점수(tendency_score 등)는 애초에 이 Allowlist에
+    # Key 자체가 없으므로 구조적으로 샐 수 없다 — 개수·고정 문구만 허용한다.
+    "trait_engine_version": _allow_none(lambda v: v in _ALLOWED_TRAIT_ENGINE_VERSIONS),
+    "profile_generation_path": _allow_none(lambda v: v in _ALLOWED_PROFILE_GENERATION_PATHS),
+    "matching_engine_version": _allow_none(lambda v: v in _ALLOWED_MATCHING_ENGINE_VERSIONS),
+    "primary_signal_count": _is_nonneg_int,
+    "excluded_unreviewed_signal_count": _is_nonneg_int,
+    "usable_trait_count": _is_nonneg_int,
+    "computed_major_count": _is_nonneg_int,
+    "recommendation_count": _is_nonneg_int,
 }
 
 ALLOWED_TRACE_ATTRIBUTE_KEYS: frozenset[str] = frozenset(_VALUE_VALIDATORS.keys())
