@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V2 Direct Probe 검수 (로컬 전용)</title>
+<link rel="stylesheet" href="/static/review.css">
+</head>
+<body class="mode-student">
+<header class="app-header">
+  <h1>V2 Direct Probe 검수</h1>
+
+  <div class="reviewer-select">
+    <label for="reviewer-select">검토자</label>
+    <select id="reviewer-select">
+      <option value="">선택 안 함</option>
+      <option value="reviewer_1">검토자 1</option>
+      <option value="reviewer_2">검토자 2</option>
+    </select>
+    <span id="reviewer-warning" class="reviewer-warning"></span>
+  </div>
+
+  <div class="mode-toggle">
+    <label>보기 모드</label>
+    <button id="mode-student-btn" class="active" data-mode="student" type="button">학생 화면 모드</button>
+    <button id="mode-mapping-btn" data-mode="mapping" type="button">Mapping 검수 모드</button>
+  </div>
+
+  <span id="save-indicator" class="save-indicator">불러오는 중…</span>
+</header>
+
+<main class="layout">
+  <aside class="sidebar">
+    <div class="summary-box" id="summary-box">불러오는 중…</div>
+
+    <div class="filter-group">
+      <h3>상태 필터</h3>
+      <label><input type="radio" name="status-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="status-filter" value="TBD"> TBD</label>
+      <label><input type="radio" name="status-filter" value="APPROVE"> APPROVE</label>
+      <label><input type="radio" name="status-filter" value="REVISE"> REVISE</label>
+      <label><input type="radio" name="status-filter" value="HOLD"> HOLD</label>
+    </div>
+
+    <div class="filter-group">
+      <h3>내용 필터</h3>
+      <label><input type="checkbox" id="filter-question-flag"> 질문 단위 문제 있음</label>
+      <label><input type="checkbox" id="filter-option-flag"> 선택지 단위 문제 있음</label>
+      <label><input type="checkbox" id="filter-no-signal"> NO_SIGNAL 포함</label>
+      <label><input type="checkbox" id="filter-length-history"> 길이 수정 이력 있음</label>
+    </div>
+
+    <div class="filter-group">
+      <h3>Trait</h3>
+      <select id="filter-trait"><option value="">전체</option></select>
+    </div>
+
+    <div class="filter-group">
+      <h3>Context</h3>
+      <select id="filter-context"><option value="">전체</option></select>
+    </div>
+
+    <div class="filter-group">
+      <h3>질문 목록</h3>
+      <ul class="question-nav-list" id="question-nav-list"></ul>
+    </div>
+  </aside>
+
+  <section class="content">
+    <div class="pager">
+      <button id="prev-btn" type="button">← 이전 (←)</button>
+      <span id="pager-label"></span>
+      <button id="next-btn" type="button">다음 (→) →</button>
+    </div>
+    <div id="question-container"></div>
+  </section>
+</main>
+
+<script src="/static/review.js"></script>
+</body>
+</html>

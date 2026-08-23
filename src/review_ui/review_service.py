@@ -1,0 +1,353 @@
+"""V2 Direct Probe 검수 UI 서비스 계층 — 2026-08-23 Trait Ontology v2(2.4단계) §2/§3/§9.
+
+Blueprint 원문(`src/data/questions/trait_v2_direct_probe_blueprints.py`)·Trait
+Ontology 정본(`src/services/trait_ontology_v2.py`)·검수 상태 정본
+(`data/reviews/v2_direct_probe_*_review_status.json`)을 그대로 읽어 조합한다 — 질문·
+Trait의 새 복제본을 만들지 않는다. 이 모듈은 어떤 항목도 스스로 APPROVE/REVISE/HOLD로
+바꾸지 않는다 — 오직 사람이 보낸 요청을 그대로 저장할 뿐이다."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import tempfile
+from pathlib import Path
+
+from src.data.questions.trait_v2_direct_probe_blueprints import V2_DIRECT_PROBE_BLUEPRINTS
+from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
+from src.engines.v2_direct_probe_quality_checks import question_level_flags, worksheet_row_flags
+from src.review_ui.schemas import (
+    MappingSignalView,
+    OptionItem,
+    OptionReviewView,
+    QuestionItem,
+    QuestionReviewView,
+    SummaryResponse,
+)
+from src.schemas.v2_direct_probe_review import OptionReviewEntry, QuestionReviewEntry
+from src.services.trait_ontology_v2 import load_trait_ontology_v2
+from src.services.v2_direct_probe_review_store import (
+    OPTION_REVIEW_PATH,
+    QUESTION_REVIEW_PATH,
+    load_option_review_entries,
+    load_question_review_entries,
+)
+
+_CONTEXT_LABELS = {c.context_id: c.label for c in CONTEXT_DEFINITIONS}
+_TRAIT_ONTOLOGY_BY_ID = {t.trait_id: t for t in load_trait_ontology_v2()}
+
+# 2.3단계 §3(v2_direct_probe_target_length_review.md)에서 실제로 문구를 수정한 7개
+# (blueprint_id, role_id) — 그 문서에 이미 적힌 수정 전/후/이유를 그대로 옮긴다. 새로운
+# 판단을 추가하지 않는다 — 검수 페이지가 참고 정보로 보여주기만 한다.
+LENGTH_REVIEW_HISTORY: dict[tuple[str, str], dict[str, str]] = {
+    ("systems_thinking_game_v1", "st_ripple_check"): {
+        "before": "이게 다른 아이템이나 전략에 어떤 영향을 주는지 같이 살펴본다",
+        "after": "다른 아이템이나 전략에 어떤 영향을 주는지 살펴본다",
+        "reason": "'이게'/'같이'는 의미에 기여하지 않는 군더더기 — 삭제해도 핵심 행동은 그대로다.",
+    },
+    ("systems_thinking_school_life_v1", "st_map_impact"): {
+        "before": "이 변화가 다른 사람의 역할과 어떻게 서로 얽혀 영향을 주는지 짚어본다",
+        "after": "이 변화가 다른 역할과 얽혀 영향을 주는지 짚어본다",
+        "reason": "'사람의'/'서로'/'어떻게'를 정리했다. '얽혀'는 유지해 관계망(systems_thinking) 의미를 지켰다.",
+    },
+    ("detail_orientation_school_life_v1", "do_check_conditions"): {
+        "before": "시간이 촉박해도 제출 조건을 하나하나 놓치지 않았는지 세세히 확인한다",
+        "after": "촉박해도 조건을 하나하나 놓치지 않는지 확인한다",
+        "reason": "'시간이'/'제출'/'세세히'는 중복 표현이었다. '하나하나 놓치지 않는지'(핵심)와 '촉박해도'(Trade-off)는 유지했다.",
+    },
+    ("persistence_completion_game_v1", "pc_keep_going"): {
+        "before": "결과가 잘 안 나오고 다른 목표를 시작할 시간이 늦어져도, 지금 목표는 그대로 두고 끝까지 시도를 이어간다",
+        "after": "잘 안 나와도 다른 목표로 넘어가지 않고 끝까지 이어간다",
+        "reason": "Trade-off 절이 장황했다 — 같은 기회비용을 더 짧게 표현했다. '같은 목표를 유지'하는 핵심은 그대로다.",
+    },
+    ("persistence_completion_school_life_v1", "pc_finish_through"): {
+        "before": "다른 일에 쓸 시간이 줄어들어도, 지루한 과제를 끝까지 마무리하는 데 가장 오래 매달린다",
+        "after": "시간이 걸려도 과제를 끝까지 마무리하는 데 가장 오래 매달린다",
+        "reason": "Trade-off 절을 '시간이 걸려도'로 압축했다.",
+    },
+    ("opinion_expression_media_v1", "oe_state_view"): {
+        "before": "분위기가 어색해질 수 있어도 내 생각을 먼저 분명하게 말한다",
+        "after": "분위기가 어색해져도 내 생각을 먼저 분명하게 말한다",
+        "reason": "'질 수 있어도'→'져도'로 축약. 의미·Trade-off 동일.",
+    },
+    ("creative_ideation_game_v1", "ci_invent_rule"): {
+        "before": "여러 요소를 새롭게 엮어서 지금까지와 다른 방식을 스스로 만들어본다",
+        "after": "여러 요소를 새롭게 엮어서 다른 방식을 스스로 만들어본다",
+        "reason": "'지금까지와'를 삭제해도 '다른 방식'이 이미 차별성을 전달한다.",
+    },
+}
+
+
+class ReviewServiceError(Exception):
+    """검수 UI 서비스 계층에서 발생하는 오류의 공통 기반 클래스."""
+
+
+class UnknownBlueprintError(ReviewServiceError):
+    pass
+
+
+class UnknownRoleError(ReviewServiceError):
+    pass
+
+
+class InvalidReviewStatusError(ReviewServiceError):
+    pass
+
+
+class StaleRevisionError(ReviewServiceError):
+    """§9: 낙관적 잠금 실패 — 호출자가 오래된 revision으로 저장을 시도했다."""
+
+
+def _file_revision(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _blueprint_by_id(blueprint_id: str):
+    for bp in V2_DIRECT_PROBE_BLUEPRINTS:
+        if bp.blueprint_id == blueprint_id:
+            return bp
+    raise UnknownBlueprintError(f"blueprint_id {blueprint_id!r}가 존재하지 않는다")
+
+
+def _question_review_view(entry: QuestionReviewEntry) -> QuestionReviewView:
+    return QuestionReviewView(
+        reviewer_1_status=entry.reviewer_1_status, reviewer_1_comment=entry.reviewer_1_comment,
+        reviewer_2_status=entry.reviewer_2_status, reviewer_2_comment=entry.reviewer_2_comment,
+        final_status=entry.final_status, resolution_note=entry.resolution_note,
+    )
+
+
+def _option_review_view(entry: OptionReviewEntry) -> OptionReviewView:
+    return OptionReviewView(
+        reviewer_1_status=entry.reviewer_1_status, reviewer_1_comment=entry.reviewer_1_comment,
+        reviewer_2_status=entry.reviewer_2_status, reviewer_2_comment=entry.reviewer_2_comment,
+        final_status=entry.final_status, resolution_note=entry.resolution_note,
+    )
+
+
+def build_question_list(
+    *, question_path: Path = QUESTION_REVIEW_PATH, option_path: Path = OPTION_REVIEW_PATH,
+) -> tuple[list[QuestionItem], str, str]:
+    """14개 질문 × 5개 선택지를 실제 Blueprint·Ontology·검수 상태에서 조합한다.
+    반환값은 (질문 목록, 질문 파일 revision, 선택지 파일 revision)이다."""
+
+    question_reviews = {e.blueprint_id: e for e in load_question_review_entries(question_path)}
+    option_reviews = {(e.blueprint_id, e.role_id): e for e in load_option_review_entries(option_path)}
+
+    questions: list[QuestionItem] = []
+    for bp in V2_DIRECT_PROBE_BLUEPRINTS:
+        trait = _TRAIT_ONTOLOGY_BY_ID.get(bp.trait_id)
+        auto_flags = question_level_flags(bp)
+        has_no_signal = any(m.mapping_type == "NO_SIGNAL" for m in bp.option_mappings)
+        has_length_history = any(
+            (bp.blueprint_id, m.role_id) in LENGTH_REVIEW_HISTORY for m in bp.option_mappings
+        )
+
+        options: list[OptionItem] = []
+        for i, option in enumerate(bp.base_question.options, start=1):
+            mapping = bp.mapping_by_role(option.role_id)
+            is_target = mapping.mapping_type == "TRAIT_SIGNAL" and mapping.primary_trait_id == bp.trait_id
+            row_flags = worksheet_row_flags(bp, option)
+            length_outlier = "Target Option 문장이 김(구체성 편중 검토)" in row_flags or any(
+                "길이" in f for f in row_flags
+            )
+            history = LENGTH_REVIEW_HISTORY.get((bp.blueprint_id, option.role_id))
+            option_review = option_reviews.get((bp.blueprint_id, option.role_id))
+            if option_review is None:
+                raise UnknownRoleError(
+                    f"{bp.blueprint_id}/{option.role_id}: 검수 상태 파일에 항목이 없다 — "
+                    "data/reviews/v2_direct_probe_option_review_status.json을 확인하라"
+                )
+            options.append(OptionItem(
+                role_id=option.role_id, text=option.text, length=len(option.text), display_order=i,
+                mapping_type=mapping.mapping_type, is_target=is_target,
+                signals=[
+                    MappingSignalView(trait_id=s.trait_id, signal_role=s.signal_role, weight=s.weight)
+                    for s in mapping.trait_signals
+                ],
+                no_signal_reason=mapping.no_signal_reason,
+                quality_flags=row_flags,
+                length_outlier=length_outlier,
+                length_review_before=history["before"] if history else None,
+                length_review_after=history["after"] if history else None,
+                length_review_reason=history["reason"] if history else None,
+                review=_option_review_view(option_review),
+            ))
+
+        question_review = question_reviews.get(bp.blueprint_id)
+        if question_review is None:
+            raise UnknownBlueprintError(
+                f"{bp.blueprint_id}: 검수 상태 파일에 항목이 없다 — "
+                "data/reviews/v2_direct_probe_question_review_status.json을 확인하라"
+            )
+
+        questions.append(QuestionItem(
+            blueprint_id=bp.blueprint_id, context_id=bp.base_question.context,
+            context_label=_CONTEXT_LABELS.get(bp.base_question.context, bp.base_question.context),
+            frame_id=bp.question_frame_id, question_text=bp.base_question.question_text,
+            trait_id=bp.trait_id,
+            trait_label=trait.label if trait else bp.trait_id,
+            trait_definition=trait.definition if trait else "",
+            neighboring_trait_ids=list(trait.neighboring_trait_ids) if trait else [],
+            distinction_notes=trait.distinction_notes if trait else "",
+            question_quality_flags=auto_flags,
+            has_no_signal_option=has_no_signal,
+            has_length_review_history=has_length_history,
+            options=options,
+            review=_question_review_view(question_review),
+        ))
+
+    return questions, _file_revision(question_path), _file_revision(option_path)
+
+
+def build_summary(
+    *, question_path: Path = QUESTION_REVIEW_PATH, option_path: Path = OPTION_REVIEW_PATH,
+) -> SummaryResponse:
+    questions, q_rev, o_rev = build_question_list(question_path=question_path, option_path=option_path)
+
+    q_status_counts: dict[str, int] = {"APPROVE": 0, "REVISE": 0, "HOLD": 0, "TBD": 0}
+    o_status_counts: dict[str, int] = {"APPROVE": 0, "REVISE": 0, "HOLD": 0, "TBD": 0}
+    team_reviewed_eligible: list[str] = []
+    question_reviewed_final = 0
+    option_reviewed_final = 0
+    option_total = 0
+
+    for q in questions:
+        # reviewer_1/reviewer_2 각각 집계(질문 하나가 두 표에 반영됨 — "슬롯별 분포").
+        for status in (q.review.reviewer_1_status, q.review.reviewer_2_status):
+            q_status_counts[status] = q_status_counts.get(status, 0) + 1
+        if q.review.final_status != "DRAFT":
+            question_reviewed_final += 1
+
+        all_options_team_reviewed = True
+        for opt in q.options:
+            option_total += 1
+            for status in (opt.review.reviewer_1_status, opt.review.reviewer_2_status):
+                o_status_counts[status] = o_status_counts.get(status, 0) + 1
+            if opt.review.final_status != "DRAFT":
+                option_reviewed_final += 1
+            if opt.review.final_status != "TEAM_REVIEWED":
+                all_options_team_reviewed = False
+
+        if q.review.final_status == "TEAM_REVIEWED" and all_options_team_reviewed:
+            team_reviewed_eligible.append(q.blueprint_id)
+
+    return SummaryResponse(
+        question_total=len(questions), question_reviewed_final=question_reviewed_final,
+        question_status_counts=q_status_counts,
+        option_total=option_total, option_reviewed_final=option_reviewed_final,
+        option_status_counts=o_status_counts,
+        team_reviewed_eligible_blueprint_ids=team_reviewed_eligible,
+        question_review_revision=q_rev, option_review_revision=o_rev,
+    )
+
+
+_VALID_STATUSES = {"APPROVE", "REVISE", "HOLD", "TBD"}
+_KNOWN_BLUEPRINT_IDS = {b.blueprint_id for b in V2_DIRECT_PROBE_BLUEPRINTS}
+_KNOWN_OPTION_KEYS = {(b.blueprint_id, m.role_id) for b in V2_DIRECT_PROBE_BLUEPRINTS for m in b.option_mappings}
+
+
+def _atomic_write_json(path: Path, payload: list[dict]) -> None:
+    """§9 저장 순서의 마지막 두 단계 — 임시 파일에 기록한 뒤 성공 시 os.replace로
+    원자적으로 교체한다. 중간에 실패해도 원본 파일은 그대로 남는다."""
+
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        os.replace(tmp_name, path)
+    except BaseException:
+        if os.path.exists(tmp_name):
+            os.remove(tmp_name)
+        raise
+
+
+def update_question_review(
+    *, blueprint_id: str, reviewer: str, status: str, comment: str, resolution_note: str | None,
+    expected_revision: str, question_path: Path = QUESTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    """§9 저장 순서를 그대로 따른다: Schema 검증(호출자가 이미 Pydantic으로 했다는
+    전제) → blueprint_id 존재 확인 → 선택한 reviewer 슬롯의 필드만 변경 → 전체 Review
+    JSON 재검증 → 임시 파일 기록 → 원자적 교체. 반환값은 (계산된 final_status, 새
+    revision)이다. `final_status`는 저장하지 않는다 — 매번 다시 계산할 뿐이다."""
+
+    if blueprint_id not in _KNOWN_BLUEPRINT_IDS:
+        raise UnknownBlueprintError(f"blueprint_id {blueprint_id!r}가 실제 Blueprint 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(question_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "질문 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_question_review_entries(question_path)
+    updated: list[QuestionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.blueprint_id == blueprint_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownBlueprintError(f"blueprint_id {blueprint_id!r}가 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    # 전체 Review JSON 재검증(§9) — Pydantic으로 다시 한번 왕복시켜 구조가 깨지지
+    # 않았는지 확인한다.
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[QuestionReviewEntry]).validate_python(payload)
+    _atomic_write_json(question_path, payload)
+    return final_status, _file_revision(question_path)
+
+
+def update_option_review(
+    *, blueprint_id: str, role_id: str, reviewer: str, status: str, comment: str,
+    resolution_note: str | None, expected_revision: str, option_path: Path = OPTION_REVIEW_PATH,
+) -> tuple[str, str]:
+    if (blueprint_id, role_id) not in _KNOWN_OPTION_KEYS:
+        raise UnknownRoleError(f"{blueprint_id}/{role_id}가 실제 Option 목록에 없다")
+    if status not in _VALID_STATUSES:
+        raise InvalidReviewStatusError(f"status {status!r}는 APPROVE/REVISE/HOLD/TBD 중 하나여야 한다")
+    if reviewer not in ("reviewer_1", "reviewer_2"):
+        raise InvalidReviewStatusError(f"reviewer {reviewer!r}는 reviewer_1/reviewer_2 중 하나여야 한다")
+
+    current_revision = _file_revision(option_path)
+    if current_revision != expected_revision:
+        raise StaleRevisionError(
+            "선택지 검토 상태 파일이 그 사이 다른 곳에서 바뀌었다 — 최신 상태를 다시 불러온 뒤 다시 시도하라"
+        )
+
+    entries = load_option_review_entries(option_path)
+    updated: list[OptionReviewEntry] = []
+    found = False
+    final_status = "DRAFT"
+    for entry in entries:
+        if entry.blueprint_id == blueprint_id and entry.role_id == role_id:
+            found = True
+            update: dict[str, object] = {f"{reviewer}_status": status, f"{reviewer}_comment": comment}
+            if resolution_note is not None:
+                update["resolution_note"] = resolution_note
+            entry = entry.model_copy(update=update)
+            final_status = entry.final_status
+        updated.append(entry)
+    if not found:
+        raise UnknownRoleError(f"{blueprint_id}/{role_id}가 검수 상태 파일에 없다")
+
+    payload = [json.loads(e.model_dump_json()) for e in updated]
+    from pydantic import TypeAdapter
+
+    TypeAdapter(list[OptionReviewEntry]).validate_python(payload)
+    _atomic_write_json(option_path, payload)
+    return final_status, _file_revision(option_path)

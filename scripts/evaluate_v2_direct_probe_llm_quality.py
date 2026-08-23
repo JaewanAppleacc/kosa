@@ -1,5 +1,10 @@
 """V2 Direct Probe LLM 생성 품질 평가(opt-in, 실제 네트워크 호출) — 2026-08-23
-Trait Ontology v2(2.1단계 §12, 2.2단계 §16).
+Trait Ontology v2(2.1단계 §12, 2.2단계 §16, 2.4단계 §1).
+
+2.4단계 §1: `main()`/`_write_report()`가 `output_path`를 주입받을 수 있다 — 실제 CLI
+실행(`python scripts/evaluate_v2_direct_probe_llm_quality.py`)은 인자 없이 호출되므로
+계속 커밋된 실제 `OUTPUT_PATH`를 쓰고, `tests/test_v2_direct_probe_llm_quality_script.py`는
+`TemporaryDirectory` 안의 경로를 넘겨 커밋된 보고서를 절대 건드리지 않는다.
 
 기본 테스트 실행(`unittest discover`)에서는 이 스크립트를 부르지 않는다 — 실제 API Key로
 실제 요금이 발생하는 네트워크 호출을 한다. 명시적으로 opt-in해야만 실행된다.
@@ -65,7 +70,14 @@ class _CallBudgetedLLMClient:
         )
 
 
-def _write_report(samples: list[dict] | None, *, total_calls: int, skipped_reason: str | None) -> None:
+def _write_report(
+    samples: list[dict] | None, *, total_calls: int, skipped_reason: str | None,
+    output_path: Path = OUTPUT_PATH,
+) -> None:
+    """2.4단계 §1: `output_path`를 주입할 수 있게 한다 — 실제 CLI 실행은 기존
+    `OUTPUT_PATH`(커밋된 실제 보고서)를 그대로 쓰고, 테스트는 `TemporaryDirectory` 안의
+    경로를 넘겨서 커밋된 파일을 절대 건드리지 않는다."""
+
     lines = [
         "# V2 Direct Probe LLM 생성 품질 평가 보고서",
         "",
@@ -84,9 +96,11 @@ def _write_report(samples: list[dict] | None, *, total_calls: int, skipped_reaso
             "근거가 없다는 뜻이다.",
             "",
         ])
-        OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        OUTPUT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        print(f"wrote {OUTPUT_PATH} (실검증 미실행)")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        # §1: 마지막에 빈 줄이 겹치지 않게(EOF 빈 줄 경고 방지) 끝 공백을 정리한 뒤
+        # 파일 끝에 개행 하나만 남긴다.
+        output_path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+        print(f"wrote {output_path} (실검증 미실행)")
         return
 
     assert samples is not None
@@ -136,12 +150,12 @@ def _write_report(samples: list[dict] | None, *, total_calls: int, skipped_reaso
         "코드 경로의 성질이라 실제 LLM 백엔드와 무관하고, 반복 검증에 실제 요금이 드는 "
         "네트워크 호출을 쓸 이유가 없다.",
     ])
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {OUTPUT_PATH} ({len(samples)} samples, {total_calls} LLM calls)")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+    print(f"wrote {output_path} ({len(samples)} samples, {total_calls} LLM calls)")
 
 
-def main() -> None:
+def main(output_path: Path = OUTPUT_PATH) -> None:
     if os.environ.get("RUN_V2_DIRECT_PROBE_LLM_REVIEW", "").strip().lower() not in {"1", "true", "yes"}:
         _write_report(
             None, total_calls=0,
@@ -149,6 +163,7 @@ def main() -> None:
                 "RUN_V2_DIRECT_PROBE_LLM_REVIEW 환경변수가 설정되지 않았다(opt-in 안 됨) — "
                 "기본 실행에서는 네트워크를 호출하지 않는다."
             ),
+            output_path=output_path,
         )
         return
 
@@ -157,7 +172,7 @@ def main() -> None:
     try:
         settings = load_chat_llm_settings()
     except LLMSettingsError as exc:
-        _write_report(None, total_calls=0, skipped_reason=f"LLM 설정이 불완전하다: {exc}")
+        _write_report(None, total_calls=0, skipped_reason=f"LLM 설정이 불완전하다: {exc}", output_path=output_path)
         return
 
     from src.agents.assessment.v2_direct_probe_generator import generate_v2_direct_probe_question
@@ -226,7 +241,7 @@ def main() -> None:
                 "target_length_outlier": "예" if target_length_outlier else "아니오",
             })
 
-    _write_report(samples, total_calls=budgeted_client.call_count, skipped_reason=None)
+    _write_report(samples, total_calls=budgeted_client.call_count, skipped_reason=None, output_path=output_path)
 
 
 if __name__ == "__main__":

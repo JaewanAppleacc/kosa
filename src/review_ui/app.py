@@ -1,0 +1,102 @@
+"""V2 Direct Probe 검수 UI — 내부 전용 FastAPI App — 2026-08-23 Trait Ontology
+v2(2.4단계) §2/§10.
+
+`src/api/main.py`(공개 서비스 API)와 완전히 별개의 App이다. 이 파일을 `src/api/main.py`의
+Router로 등록하지 않는다 — `scripts/run_v2_direct_probe_review_ui.py`가 이 App을 직접
+`127.0.0.1`에만 바인딩해서 띄운다. 학생 답변이나 개인정보는 다루지 않는다 — 검수
+대상은 고정 Blueprint·Mapping과 두 검토자의 판단뿐이다.
+
+이 App은 어떤 항목도 스스로 승인하지 않는다 — `review_service`가 그대로 반영한다."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from src.review_ui import review_service as rs
+from src.review_ui.schemas import (
+    QuestionListResponse,
+    SummaryResponse,
+    UpdateOptionReviewRequest,
+    UpdateQuestionReviewRequest,
+    UpdateReviewResponse,
+)
+
+_STATIC_DIR = Path(__file__).resolve().parent / "static"
+
+app = FastAPI(
+    title="V2 Direct Probe Review (Internal, Local Only)",
+    description=(
+        "개발자용 로컬 전용 검수 도구 — 학생용 서비스 API(src/api/main.py)와 완전히 분리돼 "
+        "있다. 127.0.0.1에만 바인딩해서 실행해야 한다."
+    ),
+)
+
+
+def _http_error(status_code: int, message: str) -> HTTPException:
+    return HTTPException(status_code=status_code, detail={"error": message})
+
+
+# 2.4단계 §13: 매 요청마다 `rs.QUESTION_REVIEW_PATH`/`rs.OPTION_REVIEW_PATH`를 모듈
+# 속성으로 "그때그때" 다시 읽는다(함수 기본 인자로 한 번만 바인딩하지 않는다) — 그래야
+# 테스트가 `unittest.mock.patch("src.review_ui.review_service.QUESTION_REVIEW_PATH", ...)`
+# 로 임시 파일 경로를 주입했을 때 이 App도 실제로 그 경로를 쓴다(커밋된 실제 JSON을
+# 절대 건드리지 않고 테스트할 수 있다).
+
+
+@app.get("/internal/review/v2/questions", response_model=QuestionListResponse)
+def get_questions() -> QuestionListResponse:
+    questions, q_rev, o_rev = rs.build_question_list(
+        question_path=rs.QUESTION_REVIEW_PATH, option_path=rs.OPTION_REVIEW_PATH,
+    )
+    return QuestionListResponse(
+        questions=questions, question_review_revision=q_rev, option_review_revision=o_rev,
+    )
+
+
+@app.get("/internal/review/v2/summary", response_model=SummaryResponse)
+def get_summary() -> SummaryResponse:
+    return rs.build_summary(question_path=rs.QUESTION_REVIEW_PATH, option_path=rs.OPTION_REVIEW_PATH)
+
+
+@app.patch("/internal/review/v2/questions/{blueprint_id}", response_model=UpdateReviewResponse)
+def patch_question(blueprint_id: str, payload: UpdateQuestionReviewRequest) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_question_review(
+            blueprint_id=blueprint_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, question_path=rs.QUESTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+@app.patch(
+    "/internal/review/v2/questions/{blueprint_id}/options/{role_id}", response_model=UpdateReviewResponse,
+)
+def patch_option(blueprint_id: str, role_id: str, payload: UpdateOptionReviewRequest) -> UpdateReviewResponse:
+    try:
+        final_status, new_revision = rs.update_option_review(
+            blueprint_id=blueprint_id, role_id=role_id, reviewer=payload.reviewer, status=payload.status,
+            comment=payload.comment, resolution_note=payload.resolution_note,
+            expected_revision=payload.expected_revision, option_path=rs.OPTION_REVIEW_PATH,
+        )
+    except rs.StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+    except (rs.UnknownBlueprintError, rs.UnknownRoleError, rs.InvalidReviewStatusError) as exc:
+        raise _http_error(422, str(exc)) from exc
+    return UpdateReviewResponse(ok=True, final_status=final_status, new_revision=new_revision)
+
+
+@app.get("/")
+def index() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
