@@ -308,6 +308,9 @@ CONTEXT_PACK = ContextPack(
         "학생이 실험 장비를 다뤄본 경험이 있다는 전제",
         "결과가 항상 명확하게 나온다는 전제",
     ],
-    review_artifact_paths=["outputs/context_packs/science_mapping_audit.md"],
+    review_artifact_paths=[
+        "data/reviews/context_packs/science_review_status.json",
+        "outputs/context_packs/science_mapping_audit.md",
+    ],
     pack_version="context_pack_technical_draft_v0.1",
 )

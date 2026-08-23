@@ -310,6 +310,9 @@ CONTEXT_PACK = ContextPack(
         "코딩을 좋아하면 분석적 성향이라는 자동 연결",
         "학생이 전자기기·장비를 자유롭게 쓸 수 있다는 전제",
     ],
-    review_artifact_paths=["outputs/context_packs/making_mapping_audit.md"],
+    review_artifact_paths=[
+        "data/reviews/context_packs/making_review_status.json",
+        "outputs/context_packs/making_mapping_audit.md",
+    ],
     pack_version="context_pack_technical_draft_v0.1",
 )

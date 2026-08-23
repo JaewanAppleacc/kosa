@@ -95,6 +95,17 @@ class DeterminismTest(unittest.TestCase):
         self.assertEqual(json1, json2, "재실행마다 JSON 보고서가 달라진다")
         self.assertEqual(md1, md2, "재실행마다 Markdown 보고서가 달라진다")
 
+    def test_markdown_report_ends_with_exactly_one_newline_no_trailing_blank_line(self) -> None:
+        """2026-08-24 검수 시작 전 점검: `git show --check`가 잡아낸 "new blank line
+        at EOF"를 재발 방지한다 — 파일을 손으로 고치는 대신 생성기(`_render_markdown`)
+        자체가 정확히 한 개의 마지막 개행으로만 끝나도록 만든다."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            _run_main_into_temp(Path(tmp))
+            md = (Path(tmp) / "context_pack_matrix_report.md").read_bytes()
+        self.assertTrue(md.endswith(b"\n"), "Markdown 파일이 개행으로 끝나지 않는다")
+        self.assertFalse(md.endswith(b"\n\n"), "Markdown 파일 끝에 불필요한 빈 줄이 있다")
+
 
 class ReportShapeTest(unittest.TestCase):
     """생성된 보고서가 지시서 §5가 요구하는 필드를 실제로 채우는지 확인한다."""

@@ -317,6 +317,9 @@ CONTEXT_PACK = ContextPack(
         "학생이 많은 돈을 벌고 싶어한다는 전제",
         "학생이 이미 팀의 리더 역할을 맡고 있다는 전제",
     ],
-    review_artifact_paths=["outputs/context_packs/business_mapping_audit.md"],
+    review_artifact_paths=[
+        "data/reviews/context_packs/business_review_status.json",
+        "outputs/context_packs/business_mapping_audit.md",
+    ],
     pack_version="context_pack_technical_draft_v0.1",
 )

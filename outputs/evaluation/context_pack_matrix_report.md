@@ -139,4 +139,3 @@
 | fashion_beauty | style_combination | 14 | 6 | 6 | 0 | False | 2 | independent_judgment,information_comparison,novelty_seeking,opinion_mediation,pattern_finding | 없음 |
 | history_humanities | conflicting_records | 14 | 6 | 6 | 0 | False | 2 | independent_judgment,information_comparison,opinion_mediation,pattern_finding | 없음 |
 | law_politics | rule_conflict | 14 | 6 | 6 | 0 | False | 2 | causal_analysis,independent_judgment,information_comparison,opinion_mediation,pattern_finding | 없음 |
-

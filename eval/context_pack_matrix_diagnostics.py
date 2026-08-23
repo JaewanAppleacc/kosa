@@ -954,7 +954,11 @@ def _render_markdown(report: MatrixReport) -> str:
         )
     lines.append("")
 
-    return "\n".join(lines) + "\n"
+    # 섹션마다 구분용 빈 줄을 append해온 결과, 마지막 요소도 ""라 join 후 개행이
+    # 하나 남고 그 뒤에 다시 "\n"을 붙이면 EOF에 빈 줄이 하나 더 생긴다(2026-08-24
+    # 검수 서버 재시작 전 점검에서 git show --check로 발견). rstrip으로 끝의 빈
+    # 줄들을 걷어내고 정확히 한 개의 개행으로만 끝낸다.
+    return "\n".join(lines).rstrip("\n") + "\n"
 
 
 def build_report(

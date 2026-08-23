@@ -314,6 +314,9 @@ CONTEXT_PACK = ContextPack(
         "특정 입장이 도덕적으로 옳다고 전제하는 것",
         "실제 선거·정당 활동 경험을 전제하는 것",
     ],
-    review_artifact_paths=["outputs/context_packs/law_politics_mapping_audit.md"],
+    review_artifact_paths=[
+        "data/reviews/context_packs/law_politics_review_status.json",
+        "outputs/context_packs/law_politics_mapping_audit.md",
+    ],
     pack_version="context_pack_technical_draft_v0.1",
 )

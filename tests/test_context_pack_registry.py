@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import tempfile
@@ -11,6 +12,7 @@ from pathlib import Path
 from src.data.context_packs._example_pack_builder import build_example_context_pack
 from src.data.contexts.context_definitions import CONTEXT_IDS
 from src.services.context_pack_registry import (
+    ALL_BATCH_CONTEXT_IDS,
     CONTEXT_ACTIVATION_BATCHES,
     ContextPackRegistry,
     discover_context_packs,
@@ -193,6 +195,89 @@ class RealDirectoryAutoDiscoveryTest(unittest.TestCase):
         self.assertEqual(errors, {})
         self.assertIn("example_context", packs)
         self.assertEqual(packs["example_context"].context_id, "example_context")
+
+
+class ReviewArtifactPathConsistencyTest(unittest.TestCase):
+    """2026-08-24 사람 검수 시작 전 정합성 점검 — `review_artifact_paths`가 실제
+    검수 상태 JSON을 가리키지 않으면 검수 화면에서 그 Pack의 실제 검수 파일을 찾을
+    수 없다(business/science/making/law_politics 4개 Pack이 Mapping Audit 문서만
+    가리키고 있던 버그). 12개 Pack 전부에 이 불변식을 강제한다."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.repo_root = Path(__file__).resolve().parents[1]
+        cls.packs, cls.discovery_errors = discover_context_packs()
+
+    def test_all_12_batch_packs_discovered_without_errors(self) -> None:
+        self.assertEqual(self.discovery_errors, {})
+        self.assertEqual(set(ALL_BATCH_CONTEXT_IDS), set(self.packs) & set(ALL_BATCH_CONTEXT_IDS))
+        self.assertEqual(len(ALL_BATCH_CONTEXT_IDS), 12)
+
+    def test_every_pack_review_artifact_paths_include_own_review_status_json(self) -> None:
+        for context_id in ALL_BATCH_CONTEXT_IDS:
+            pack = self.packs[context_id]
+            expected = f"data/reviews/context_packs/{context_id}_review_status.json"
+            self.assertIn(
+                expected,
+                pack.review_artifact_paths,
+                f"{context_id}: review_artifact_paths에 실제 검수 상태 JSON 경로가 "
+                f"없다 — {pack.review_artifact_paths}",
+            )
+
+    def test_review_status_json_path_context_id_matches_pack_context_id(self) -> None:
+        for context_id in ALL_BATCH_CONTEXT_IDS:
+            pack = self.packs[context_id]
+            for path in pack.review_artifact_paths:
+                if path.startswith("data/reviews/context_packs/") and path.endswith("_review_status.json"):
+                    filename = Path(path).name
+                    path_context_id = filename[: -len("_review_status.json")]
+                    self.assertEqual(
+                        path_context_id,
+                        context_id,
+                        f"{context_id} Pack의 review_artifact_paths에 다른 Context "
+                        f"({path_context_id})의 검수 파일 경로가 섞여 있다: {path}",
+                    )
+
+    def test_every_review_artifact_path_actually_exists_on_disk(self) -> None:
+        for context_id in ALL_BATCH_CONTEXT_IDS:
+            pack = self.packs[context_id]
+            self.assertGreater(len(pack.review_artifact_paths), 0, f"{context_id}: review_artifact_paths가 비어있다")
+            for path in pack.review_artifact_paths:
+                full_path = self.repo_root / path
+                self.assertTrue(full_path.is_file(), f"{context_id}: {path} 파일이 실제로 없다")
+
+    def test_no_duplicate_review_artifact_paths_within_a_pack(self) -> None:
+        for context_id in ALL_BATCH_CONTEXT_IDS:
+            paths = self.packs[context_id].review_artifact_paths
+            self.assertEqual(
+                len(paths), len(set(paths)), f"{context_id}: review_artifact_paths에 중복 경로가 있다: {paths}"
+            )
+
+    def test_reading_review_artifact_paths_does_not_modify_real_review_json(self) -> None:
+        """이 파일이 12개 Pack의 review_artifact_paths를 읽고 실제 파일 존재를
+        확인하는 과정 자체가 실제 검수 상태 JSON 내용을 바이트 하나도 바꾸지 않는다는
+        것을 SHA-256으로 증명한다(지시서 §4 "작업 전후 SHA-256 또는 byte 비교
+        테스트를 추가하세요")."""
+
+        review_dir = self.repo_root / "data" / "reviews" / "context_packs"
+        shared_probe_path = (
+            self.repo_root / "data" / "reviews" / "context_pack_shared_probes_review_status.json"
+        )
+
+        def _snapshot() -> dict[str, str]:
+            snapshot = {
+                str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(review_dir.glob("*.json"))
+            }
+            if shared_probe_path.exists():
+                snapshot[str(shared_probe_path)] = hashlib.sha256(shared_probe_path.read_bytes()).hexdigest()
+            return snapshot
+
+        before = _snapshot()
+        for context_id in ALL_BATCH_CONTEXT_IDS:
+            for path in self.packs[context_id].review_artifact_paths:
+                (self.repo_root / path).is_file()  # 존재 확인만 — 읽기 전용 접근
+        after = _snapshot()
+        self.assertEqual(before, after, "검수 상태 JSON 내용이 바뀌었다 — 절대 금지 위반")
 
 
 if __name__ == "__main__":
