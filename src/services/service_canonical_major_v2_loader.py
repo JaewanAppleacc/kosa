@@ -1,7 +1,7 @@
 """Service Canonical Major v2 Loader — 2026-08-25 지시서(a/service-major-catalog-v2)
-§3.
+§3, 2026-08-25 후속 보완(04096a4 후속) §4.
 
-`data/master/service_canonical_majors_v2.jsonl`(38개 서비스 추천 Major)과
+`data/master/service_canonical_majors_v2.jsonl`(39개 서비스 추천 Major)과
 `data/master/canonical_major_group_to_service_major_v2.jsonl`(42개 Group 전부의
 Migration/Bridge 기록)을 Fail-Fast로 읽는다 — 형식 오류·불변식 위반을 조용히
 넘기지 않고 즉시 예외를 던진다(`JsonlDepartmentRepository`·
@@ -14,10 +14,16 @@ Migration/Bridge 기록)을 Fail-Fast로 읽는다 — 형식 오류·불변식 
        보장한다.
     2. 별칭 중복 감사 — 같은 Major 안의 중복은 Schema가 막고, **서로 다른 Major
        사이에서 같은 alias 문자열을 공유**하면(매칭이 모호해진다) Loader가 막는다.
-    3. 공식 Group 존재 확인 — `canonical_major_group_id`가 실제
-       `data/canonical_major_groups.draft.jsonl`(42개)에 있는 값인지 대조한다.
-    4. 예체능 4개 ACTIVE 금지 — Schema가 이미 막지만, Loader 수준에서도 다시 확인한다
-       (다른 경로로 만든 데이터를 이 Loader로 읽었을 때도 방어선이 있어야 한다).
+    3. 공식 Group 존재 확인 — `canonical_major_group_id`(FULL_GROUP Major)와
+       `source_group_ids`(DEPARTMENT_LEVEL_ONLY Major, 예: hci_ux)가 가리키는
+       모든 Group ID가 실제 `data/canonical_major_groups.draft.jsonl`(42개)에
+       있는 값인지 대조한다.
+    4. 예체능 4개 ACTIVE 금지 — FULL_GROUP Major에는 Schema가 이미 막지만, Loader
+       수준에서도 다시 확인한다(다른 경로로 만든 데이터를 이 Loader로 읽었을 때도
+       방어선이 있어야 한다). DEPARTMENT_LEVEL_ONLY Major(hci_ux)는
+       `canonical_major_group_id`가 없어 이 검사 대상이 아니다 — `source_group_ids`
+       에 추천 제외 Group이 있어도 그 Group 전체가 ACTIVE로 승격되는 게 아니므로
+       위반이 아니다(모듈 docstring 참고).
     5. description 금지 표현(적합 보장·취업 보장·점수 표현) — Schema Validator가
        이미 강제한다(같은 이유로 Loader에서 다시 확인한다).
 """
@@ -39,7 +45,12 @@ DEFAULT_SERVICE_CANONICAL_MAJORS_V2_PATH = _ROOT / "data" / "master" / "service_
 DEFAULT_CANONICAL_MAJOR_GROUP_BRIDGE_V2_PATH = (
     _ROOT / "data" / "master" / "canonical_major_group_to_service_major_v2.jsonl"
 )
-EXPECTED_ACTIVE_MAJOR_COUNT = 38
+# 38개 Group 기반 ACTIVE Major + hci_ux(DEPARTMENT_LEVEL_ONLY 특수 융합 Major) 1개
+# = 39(04096a4 후속 보완). Bridge 파일 자체는 여전히 42행(ACTIVE 38 + EXCLUDED 4)
+# 그대로다 — hci_ux는 어느 Group의 "기본 서비스 Major"도 아니라 Bridge에 없다.
+EXPECTED_ACTIVE_MAJOR_COUNT = 39
+EXPECTED_FULL_GROUP_MAJOR_COUNT = 38
+EXPECTED_DEPARTMENT_LEVEL_ONLY_MAJOR_COUNT = 1
 
 
 class DuplicateServiceMajorIdError(ValueError):
@@ -90,9 +101,14 @@ def load_service_canonical_majors_v2(
             raise DuplicateServiceMajorIdError(entry.major_id)
         by_id[entry.major_id] = entry
 
-        if entry.canonical_major_group_id not in valid_group_ids:
+        if entry.canonical_major_group_id is not None and entry.canonical_major_group_id not in valid_group_ids:
             raise UnknownCanonicalMajorGroupError(
                 f"{entry.major_id}: 존재하지 않는 canonical_major_group_id — {entry.canonical_major_group_id!r}"
+            )
+        unknown_source_groups = [g for g in entry.source_group_ids if g not in valid_group_ids]
+        if unknown_source_groups:
+            raise UnknownCanonicalMajorGroupError(
+                f"{entry.major_id}: 존재하지 않는 source_group_ids — {unknown_source_groups}"
             )
 
         if entry.canonical_major_group_id in EXCLUDED_RECOMMENDATION_GROUP_IDS:

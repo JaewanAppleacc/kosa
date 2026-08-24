@@ -1,16 +1,18 @@
 """Service Canonical Major v2 Catalog 생성 — 2026-08-25 지시서(a/service-major-
-catalog-v2) §1/§2/§4.
+catalog-v2) §1/§2/§4, 2026-08-25 후속 보완(04096a4 후속) §1/§2/§3.
 
 42개 Canonical Major Group(`data/canonical_major_groups.draft.jsonl`, 분류
 Ontology 초안) 중 추천 제외 예체능 4개(fine_arts_design/music/
-performing_media_arts/sports_dance)를 뺀 38개를 서비스 추천 후보 Major로 확정해
-다음 두 파일을 만든다.
+performing_media_arts/sports_dance)를 뺀 38개를 서비스 추천 후보 Major로 확정하고,
+여기에 Group 기반이 아닌 특수 융합 Major 1개(hci_ux)를 더해 다음 두 파일을 만든다.
 
-    - data/master/service_canonical_majors_v2.jsonl (38행)
+    - data/master/service_canonical_majors_v2.jsonl (39행 — FULL_GROUP 38 +
+      DEPARTMENT_LEVEL_ONLY 1)
     - data/master/canonical_major_group_to_service_major_v2.jsonl (42행,
-      Group 전부에 대한 Migration/Bridge)
+      Group 전부에 대한 Migration/Bridge — hci_ux는 어느 Group의 "기본 서비스
+      Major"도 아니라 여기 없다, ACTIVE 38 + EXCLUDED_RECOMMENDATION 4는 그대로)
 
-새로 만들어내는 값이 없다 — 모든 필드는 다음 세 정본에서만 가져온다.
+새로 만들어내는 값이 없다 — 모든 필드는 다음 네 정본에서만 가져온다.
 
     1. `data/canonical_major_groups.draft.jsonl` — Group label/description/
        included_official_small_series_codes(공식 소계열 코드) 그대로.
@@ -18,15 +20,22 @@ performing_media_arts/sports_dance)를 뺀 38개를 서비스 추천 후보 Majo
        기존 Major와 겹치면(직접 동일 ID 또는 지시서가 명시한 business→
        business_administration/mechanical_transport→mechanical_engineering Bridge)
        그 Major의 label/description/aliases/keywords를 그대로 재사용한다(§1 "기존
-       10개 ID·설명은 가능한 한 보존").
+       10개 ID·설명은 가능한 한 보존"). hci_ux도 이 파일에서 label/description/
+       aliases/keywords를 완전히 그대로 재사용한다(04096a4 후속 §1).
     3. 대학알리미 공식 표준분류 소계열 코드표(`getCodeBySmallSeries`,
        `data/academyinfo_raw/2025/codes/getCodeBySmallSeries.jsonl.gz`) — 기존
        Major와 안 겹치는 30개 Group의 keywords는 그 Group에 실제로 속한 공식
        소계열 이름을 그대로 쓴다(임의로 지어내지 않는다).
+    4. `data/master/canonical_major_group_bridge.draft.jsonl` — hci_ux의
+       `source_group_ids`(computer_science/fine_arts_design)는 이 파일에 이미
+       실제로 기록된 두 행(computer_science Group=REVIEW_REQUIRED·scope_type=
+       DEPARTMENT_REVIEW_REQUIRED, fine_arts_design Group=EXCLUDED_RECOMMENDATION)
+       에서 그대로 가져온다 — 둘 다 "Group 전체를 hci_ux에 넘긴다"는 근거가 아니라
+       "학과 단위로만 검토 가능하다"는 근거다(04096a4 후속 §2, 아래
+       `_build_hci_ux_entry()` 참고).
 
-design·hci_ux(기존 10개 중 2개)는 이번 38개에 들어가지 않는다 — design은 추천
-제외 Group(fine_arts_design)에 해당하고, hci_ux는 애초에 42개 Group 어디에도
-없는(여러 Group 경계에 걸친 교차 개념) 값이라 이 Group 기반 승격 대상이 아니다.
+design(기존 10개 중 1개)은 이번 39개에 들어가지 않는다 — 추천 제외 Group
+(fine_arts_design)에 해당하고, hci_ux처럼 학과 단위 예외를 둘 근거가 아직 없다.
 """
 
 from __future__ import annotations
@@ -64,6 +73,15 @@ RENAME_BRIDGE: dict[str, str] = {
     "business": "business_administration",
     "mechanical_transport": "mechanical_engineering",
 }
+
+# 04096a4 후속 보완 — hci_ux는 Group 기반이 아니라 특수 융합 Major다. 아래 두 Group
+# 은 실제로 data/master/canonical_major_group_bridge.draft.jsonl에 hci_ux 후보로
+# 기록돼 있지만 **둘 다 "Group 전체를 넘긴다"는 근거가 아니다** — computer_science는
+# REVIEW_REQUIRED(공식 소계열 158개 중 HCI·UX·인터랙션에 정확히 대응하는 코드 없음),
+# fine_arts_design은 그 자체가 추천 제외 Group이다. 참고용 출처로만 남긴다
+# (source_group_ids) — 이 목록에 있다는 사실 자체가 그 Group 소속 학과를 자동으로
+# hci_ux에 편입시키는 근거가 아니다.
+HCI_UX_SOURCE_GROUP_IDS: list[str] = ["computer_science", "fine_arts_design"]
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -106,6 +124,8 @@ def _build_new_entry(
         "aliases": _aliases_from_label(group.label),
         "keywords": keywords,
         "canonical_major_group_id": group.canonical_major_id,
+        "source_group_ids": [],
+        "mapping_scope": "FULL_GROUP",
         "recommendation_status": "ACTIVE",
         "official_source_urls": list(group.official_source_urls),
         "catalog_version": CATALOG_VERSION,
@@ -128,8 +148,32 @@ def _build_carried_over_entry(
         "aliases": list(old_major["aliases"]),
         "keywords": list(old_major["keywords"]),
         "canonical_major_group_id": group.canonical_major_id,
+        "source_group_ids": [],
+        "mapping_scope": "FULL_GROUP",
         "recommendation_status": "ACTIVE",
         "official_source_urls": merged_urls,
+        "catalog_version": CATALOG_VERSION,
+    }
+
+
+def _build_hci_ux_entry(old_major: dict[str, Any]) -> dict[str, Any]:
+    """04096a4 후속 보완 §1/§2 — hci_ux를 ACTIVE 서비스 Major로 복구하되, 어느
+    Group에도 통째로 속하지 않는다는 사실을 Schema에 명시적으로 남긴다
+    (mapping_scope=DEPARTMENT_LEVEL_ONLY, canonical_major_group_id=None). label/
+    description/aliases/keywords는 기존 canonical_majors.jsonl에서 완전히 그대로
+    가져온다(§1 "완전 보존") — 이 함수는 한 글자도 새로 짓지 않는다."""
+
+    return {
+        "major_id": old_major["major_id"],
+        "label": old_major["label"],
+        "description": old_major["description"],
+        "aliases": list(old_major["aliases"]),
+        "keywords": list(old_major["keywords"]),
+        "canonical_major_group_id": None,
+        "source_group_ids": list(HCI_UX_SOURCE_GROUP_IDS),
+        "mapping_scope": "DEPARTMENT_LEVEL_ONLY",
+        "recommendation_status": "ACTIVE",
+        "official_source_urls": [old_major["source_url"]],
         "catalog_version": CATALOG_VERSION,
     }
 
@@ -193,6 +237,12 @@ def build_catalog_and_bridge(
                 "decision_reason": decision_reason,
             }
         )
+
+    # 04096a4 후속 보완 §1/§2 — hci_ux는 42개 Group 순회 결과가 아니다(어느
+    # Group도 이 Major를 통째로 넘기지 않았다). Bridge에는 추가하지 않는다 — Group의
+    # "기본 서비스 Major"가 아니기 때문이다(§2 "computer_science Group의 기본
+    # 서비스 Major는 computer_science 유지").
+    catalog_rows.append(_build_hci_ux_entry(old_majors_by_id["hci_ux"]))
 
     _remove_ambiguous_cross_major_aliases(catalog_rows)
 
@@ -262,14 +312,30 @@ def validate_invariants(
         raise ValueError("EXCLUDED_RECOMMENDATION Group 목록이 지시서 4개와 다르다")
 
     catalog_major_ids = [r["major_id"] for r in catalog_rows]
-    if len(catalog_rows) != 38:
-        raise ValueError(f"서비스 Major 총 개수가 38이 아니다: {len(catalog_rows)}")
+    if len(catalog_rows) != 39:
+        raise ValueError(f"서비스 Major 총 개수가 39가 아니다: {len(catalog_rows)}")
     if len(catalog_major_ids) != len(set(catalog_major_ids)):
         raise ValueError("서비스 Major ID 중복이 있다")
 
+    full_group_rows = [r for r in catalog_rows if r["mapping_scope"] == "FULL_GROUP"]
+    department_level_rows = [r for r in catalog_rows if r["mapping_scope"] == "DEPARTMENT_LEVEL_ONLY"]
+    if len(full_group_rows) != 38:
+        raise ValueError(f"FULL_GROUP 서비스 Major 수가 38이 아니다: {len(full_group_rows)}")
+    if len(department_level_rows) != 1:
+        raise ValueError(f"DEPARTMENT_LEVEL_ONLY 서비스 Major 수가 1이 아니다: {len(department_level_rows)}")
+    if department_level_rows[0]["major_id"] != "hci_ux":
+        raise ValueError(f"DEPARTMENT_LEVEL_ONLY Major가 hci_ux가 아니다: {department_level_rows[0]['major_id']}")
+
+    # 04096a4 후속 §2 — hci_ux는 어느 Group의 "기본 서비스 Major"도 아니다. Bridge의
+    # ACTIVE service_major_id 집합은 FULL_GROUP Catalog 행과 정확히 같아야 하고
+    # (부분집합이 아니라 동일 집합 — computer_science는 여전히 computer_science
+    # 자신에게만 연결된다), hci_ux는 그 집합에 나타나면 안 된다.
     bridge_active_major_ids = {r["service_major_id"] for r in active_bridge}
-    if bridge_active_major_ids != set(catalog_major_ids):
-        raise ValueError("Bridge의 ACTIVE service_major_id 집합과 Catalog의 major_id 집합이 다르다")
+    full_group_major_ids = {r["major_id"] for r in full_group_rows}
+    if bridge_active_major_ids != full_group_major_ids:
+        raise ValueError("Bridge의 ACTIVE service_major_id 집합과 Catalog의 FULL_GROUP major_id 집합이 다르다")
+    if "hci_ux" in bridge_active_major_ids:
+        raise ValueError("hci_ux가 Bridge에 어느 Group의 ACTIVE service_major_id로도 등장하면 안 된다")
 
     # Pydantic Schema로 다시 한번 전체를 검증한다 — 여기서 실패하면 원인이 그대로 전파된다.
     for row in catalog_rows:
@@ -295,11 +361,15 @@ def main(argv: list[str] | None = None) -> int:
         r["major_id"] for r in catalog_rows
         if r["major_id"] in {m["major_id"] for m in old_majors}
     ]
+    full_group_count = sum(1 for r in catalog_rows if r["mapping_scope"] == "FULL_GROUP")
+    department_level_count = sum(1 for r in catalog_rows if r["mapping_scope"] == "DEPARTMENT_LEVEL_ONLY")
     print("Service Canonical Major v2 Catalog 생성 완료")
-    print(f"  서비스 Major(ACTIVE): {len(catalog_rows)}건")
-    print(f"  추천 제외(EXCLUDED_RECOMMENDATION): {sum(1 for r in bridge_rows if r['recommendation_status'] == 'EXCLUDED_RECOMMENDATION')}건")
+    print(f"  서비스 Major(ACTIVE) 전체: {len(catalog_rows)}건")
+    print(f"    Group 기반(FULL_GROUP): {full_group_count}건")
+    print(f"    특수 융합(DEPARTMENT_LEVEL_ONLY): {department_level_count}건")
+    print(f"  추천 제외(EXCLUDED_RECOMMENDATION) Group: {sum(1 for r in bridge_rows if r['recommendation_status'] == 'EXCLUDED_RECOMMENDATION')}건")
     print(f"  기존 10개 중 보존됨: {sorted(preserved)} ({len(preserved)}개)")
-    print(f"  기존 10개 중 미포함(design/hci_ux 예상): {sorted(set(m['major_id'] for m in old_majors) - set(preserved))}")
+    print(f"  기존 10개 중 미포함(design 예상): {sorted(set(m['major_id'] for m in old_majors) - set(preserved))}")
     return 0
 
 
