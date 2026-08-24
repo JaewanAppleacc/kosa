@@ -343,6 +343,32 @@ A 결정 3건을 반영했다. 정책·근거는 `academyinfo_a_decisions.md` §
 - 전국 입력이 없으면 사유를 출력하며 명시적으로 Skip한다.
 - Fixture 실행은 `--data-dir`로 격리해 커밋된 Queue의 Hash가 변하지 않음을 검사한다.
 
+### 중복·충돌 테스트 제거 (A 지적 반영)
+
+기존 `test_academyinfo_review_queues.py`의 `DeterminismTest`가 생성기를 **무조건**
+실행하고 `check=True`였다. clean clone에서는 생성기가 0이 아닌 코드로 끝나면서
+**Skip이 아니라 오류로 실패**했다 — "입력이 없으면 명시적으로 Skip한다"는 이번 정책과
+정면으로 어긋난다. 게다가 `NationwideRegenerationTest`가 같은 검사를 이미 한다.
+
+**제거했다.** 결정론성 검증은 두 곳으로 나뉜다.
+
+```
+FixtureDeterminismTest       작은 Fixture로 항상 검증 (입력 불필요)
+NationwideRegenerationTest   전국 입력이 있을 때만, 없으면 사유 출력 후 Skip
+```
+
+제거 사유는 해당 위치에 주석으로 남겨, 나중에 "왜 여기 결정론성 테스트가 없지"를
+되짚을 수 있게 했다.
+
+**실제 clean clone 환경으로 검증했다.** 생성 입력 2개를 치우고 전체 테스트를 돌렸다.
+
+```
+입력 없음 (clean clone)   978 통과 · 1 Skip   ← Skip은 전국 재생성 1건뿐
+입력 있음                 978 통과 · 0 Skip
+```
+
+입력이 없어도 **Fixture 결정론성·커밋 Queue 검사·입력누락 방어는 그대로 돈다.**
+
 ### 테스트가 잡아낸 것
 
 상태 필터를 넣자 기존 대조 테스트 4개가 깨졌다. **Queue는 승격 후보만 담는데 정규화·분류

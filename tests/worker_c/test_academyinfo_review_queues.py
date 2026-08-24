@@ -7,8 +7,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 import unittest
 from pathlib import Path
 
@@ -258,22 +256,16 @@ class UrlAuditTest(unittest.TestCase):
             self.assertTrue(any("HTTP만 제공" in f for f in u["findings"]))
 
 
-class DeterminismTest(unittest.TestCase):
-    def test_regeneration_is_byte_identical(self) -> None:
-        """§6: 결정론적 재생성."""
-        targets = [
-            "duplicate_department_review_queue.jsonl",
-            "classification_review_queue.jsonl",
-            "unmapped_nce_queue.jsonl",
-            "department_url_scope_audit.jsonl",
-        ]
-        before = {t: (WORK / t).read_bytes() for t in targets}
-        subprocess.run(
-            [sys.executable, "scripts/career_build_academyinfo_review_queues.py", "--survey-year", "2025"],
-            cwd=ROOT, capture_output=True, timeout=600, check=True,
-        )
-        for t in targets:
-            self.assertEqual(before[t], (WORK / t).read_bytes(), f"{t}가 재생성마다 달라진다")
+# 결정론성 검사는 test_academyinfo_queue_clean_clone.py로 옮겼다.
+#
+# 여기 있던 DeterminismTest는 생성기를 **무조건** 실행하고 check=True였다. 그래서
+# clean clone(생성 입력이 .gitignore 대상이라 없는 환경)에서는 생성기가 0이 아닌 코드로
+# 끝나면서 **Skip이 아니라 오류로 실패**했다 — "입력이 없으면 명시적으로 Skip한다"는
+# 정책과 정면으로 어긋난다.
+#
+# 이제 두 곳에서 나눠 검증한다.
+#   FixtureDeterminismTest        작은 Fixture로 **항상** 결정론성 검증 (입력 불필요)
+#   NationwideRegenerationTest    전국 입력이 있을 때만 Byte 비교, 없으면 사유 출력 후 Skip
 
 
 class SecretAndMasterUnchangedTest(unittest.TestCase):
