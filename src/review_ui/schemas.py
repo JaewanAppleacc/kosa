@@ -529,3 +529,157 @@ class UpdateBridgeScopeReviewRequest(BaseModel):
     status: ReviewerStatus | None = None
     comment: str | None = None
     resolution_note: str | None = None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) — 대학알리미 P1 분류 REVIEW
+# (374건)·N.C.E 재검토 가능 중계열(24개 클러스터·584건) 검수 탭. Bridge Mapping/
+# Scope와 마찬가지로 물리적으로 완전히 분리된 두 축이다(P1 Store는 N.C.E Store를,
+# 그 반대도 절대 import하지 않는다).
+# ══════════════════════════════════════════════════════════════════════════
+
+P1ReviewDecisionLiteral = Literal[
+    "TBD", "APPROVE_PROPOSED_CANDIDATE", "EXCLUDE_ARTS_RECOMMENDATION", "KEEP_UNMAPPED",
+    "NEEDS_OFFICIAL_CURRICULUM", "REVISE_CANDIDATE", "HOLD",
+]
+
+
+class P1ReviewView(BaseModel):
+    decision: P1ReviewDecisionLiteral
+    reviewer_comment: str
+    resolution_note: str
+    revision: int
+
+
+class P1ClassificationRowView(BaseModel):
+    """P1 패킷 374행 중 한 행 + 그 행의 사람 검수 상태. Draft 원본과 검수 상태를
+    조인한 View일 뿐, 이 응답 자체가 두 파일 중 어느 것도 바꾸지 않는다."""
+
+    candidate_id: str
+    university_name: str
+    college_name: str
+    department_name: str
+    official_large_series_name: str
+    official_middle_series_name: str
+    official_small_series_name: str
+    p1_cluster: Literal["CONTENT_MEDIA", "DESIGN_HCI_UX"]
+    judgment_candidate: str
+    judgment_candidate_reason: str
+    judgment_evidence_sufficient: bool
+    candidate_canonical_major_ids: list[str]
+    arts_sports_possibility: Literal["POSSIBLE_NEEDS_CHECK", "UNLIKELY"]
+    official_curriculum_available: bool
+    official_curriculum_summary: str | None
+    official_evidence_needed: list[str]
+    # APPROVE_PROPOSED_CANDIDATE를 실제로 선택할 수 있는 행인지 화면이 미리
+    # 알 수 있게 한다(서버가 이미 계산한 값 — 프론트가 같은 규칙을 다시
+    # 구현하지 않는다). False여도 사람이 시도하면 서버가 다시 한번 막는다
+    # (Schema 우회 대비 방어 검증, Bridge Scope와 같은 원칙).
+    approve_eligible: bool
+    review: P1ReviewView
+
+
+class P1ClassificationSummary(BaseModel):
+    total: int
+    content_media_count: int
+    design_hci_ux_count: int
+    judgment_candidate_counts: dict[str, int]
+    evidence_sufficient_count: int
+    evidence_insufficient_count: int
+    decision_counts: dict[str, int]
+    reviewed_count: int
+    unreviewed_count: int
+
+
+class P1ClassificationListResponse(BaseModel):
+    rows: list[P1ClassificationRowView]
+    summary: P1ClassificationSummary
+
+
+class UpdateP1ClassificationReviewRequest(BaseModel):
+    """None = 변경 없음(부분 저장). `expected_revision`은 필수 — 낙관적 잠금이라
+    항상 "지금 내가 보고 있는 값이 몇 번째 수정본인지"를 함께 보내야 한다."""
+
+    decision: P1ReviewDecisionLiteral | None = None
+    comment: str | None = None
+    resolution_note: str | None = None
+    expected_revision: int
+
+
+class UpdateP1ClassificationReviewResponse(BaseModel):
+    ok: bool
+    decision: P1ReviewDecisionLiteral
+    new_revision: int
+
+
+NceMiddleSeriesDecisionLiteral = Literal[
+    "TBD", "ACCEPT_GROUP_AS_REVIEW_CANDIDATE", "REQUIRE_DEPARTMENT_LEVEL_REVIEW",
+    "INSUFFICIENT_OFFICIAL_EVIDENCE", "HOLD",
+]
+
+
+class NceReviewView(BaseModel):
+    decision: NceMiddleSeriesDecisionLiteral
+    reviewer_comment: str
+    resolution_note: str
+    revision: int
+
+
+class NceCandidateGroupView(BaseModel):
+    canonical_major_group_id: str
+    label: str
+
+
+class NceMemberView(BaseModel):
+    candidate_id: str
+    university_name: str
+    college_name: str
+    department_name: str
+
+
+class NceClusterRowView(BaseModel):
+    """중계열 클러스터 24개 중 하나 + 그 클러스터의 사람 검수 상태."""
+
+    official_middle_series_code: str
+    official_middle_series_name: str
+    official_middle_series_code_source: str
+    group_linkage_status: Literal["PROPOSED_GROUP_CANDIDATE", "DEPARTMENT_LEVEL_REVIEW_REQUIRED"]
+    candidate_canonical_major_groups: list[NceCandidateGroupView]
+    is_single_candidate: bool  # candidate_canonical_major_groups가 정확히 1개인가("후보 1개/복수" 필터 기준).
+    candidate_canonical_major_group_basis: str
+    unlinkable_or_too_broad_reason: str
+    additional_official_evidence_needed: list[str]
+    row_count: int
+    sample_members: list[NceMemberView]  # 대표 학과 표본(최대 5개).
+    all_members: list[NceMemberView]  # 전체 학과 목록("펼치기" 대상).
+    review: NceReviewView
+
+
+class NceMiddleSeriesSummary(BaseModel):
+    cluster_total: int
+    department_total: int
+    proposed_group_candidate_cluster_count: int
+    proposed_group_candidate_department_count: int
+    department_level_review_required_cluster_count: int
+    department_level_review_required_department_count: int
+    decision_counts: dict[str, int]
+    reviewed_count: int
+    unreviewed_count: int
+
+
+class NceMiddleSeriesListResponse(BaseModel):
+    clusters: list[NceClusterRowView]
+    summary: NceMiddleSeriesSummary
+
+
+class UpdateNceMiddleSeriesReviewRequest(BaseModel):
+    decision: NceMiddleSeriesDecisionLiteral | None = None
+    comment: str | None = None
+    resolution_note: str | None = None
+    expected_revision: int
+
+
+class UpdateNceMiddleSeriesReviewResponse(BaseModel):
+    ok: bool
+    decision: NceMiddleSeriesDecisionLiteral
+    new_revision: int
