@@ -13,7 +13,7 @@
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
       "canonical_major_id": "media_communication",
-      "department_url": null
+      "department_url": "https://mediacom.khu.ac.kr/media/user/main/view.do"
     },
     {
       "department_id": "dept_595124d3fa674d6a4acf5da6",
@@ -27,7 +27,7 @@
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
       "canonical_major_id": "media_communication",
-      "department_url": null
+      "department_url": "https://mediacom.korea.ac.kr/"
     },
     {
       "department_id": "dept_94f12354268af9359e245775",
@@ -41,7 +41,7 @@
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
       "canonical_major_id": "media_communication",
-      "department_url": null
+      "department_url": "https://jas.sogang.ac.kr/jas/index_new.html"
     },
     {
       "department_id": "dept_17bb4a41dc9efcc0d144e96e",
@@ -55,7 +55,7 @@
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
       "canonical_major_id": "media_communication",
-      "department_url": null
+      "department_url": "https://cmc.cau.ac.kr/"
     }
   ]
 }
