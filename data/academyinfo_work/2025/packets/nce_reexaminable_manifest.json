@@ -1,0 +1,22 @@
+{
+  "survey_year": 2025,
+  "source_triage_group": "REEXAMINABLE_BY_OFFICIAL_EVIDENCE",
+  "input_hashes": {
+    "canonical_major_groups.draft.jsonl": "fdb94f0b763ce3bb9212d41ba2679eba699472fa1f6c823dd57787cf78bcce20",
+    "getCodeByMiddleSeries.jsonl.gz": "ce68a1739a492096feae3f05442d8d8d626bff9634c80026210a3ca4f8c7bef7",
+    "nce_triage_queue.jsonl": "81ee44418cdc4e9b913fded457ae4812b7b61235e0c61a514a12a5a782e5628a"
+  },
+  "output_hashes": {
+    "nce_reexaminable_middle_series_clusters.jsonl": "2f1fb9a355b397b5cfacdac82d395ed1c02b5036a13cfb4f8f32b61ef2e9f969",
+    "nce_reexaminable_review_packet.html": "b7e87a0ecd5aa3e3aed4ab7b8d0efafb53d7a8b36daff9d8be7152312425030d",
+    "nce_reexaminable_review_packet.md": "0ead4c8c2834814239dcca9915a7c79334f60ed1015e30fdf856e80b18fbb90f"
+  },
+  "cluster_count": 24,
+  "row_total": 584,
+  "group_linkage_status_breakdown": {
+    "DEPARTMENT_LEVEL_REVIEW_REQUIRED": 9,
+    "PROPOSED_GROUP_CANDIDATE": 15
+  },
+  "auto_approved_clusters": 0,
+  "note": "auto_approved_clusters가 0이라는 것이 자동 승인하지 않았다는 증명이다. 모든 군집은 decision_status=PENDING · reviewer_1_status=TBD다. PROPOSED_GROUP_CANDIDATE는 제안일 뿐 승인이 아니다."
+}
