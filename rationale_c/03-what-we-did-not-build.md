@@ -35,11 +35,16 @@
 
 테스트가 고정한다 — `test_sample_documents_are_marked_as_non_official`.
 
-## 3-3. `schl_id`가 임시값임을 매 검사마다 보고한다
+## 3-3. `schl_id` 임시값을 숨기지 않았다 — 이후 전국 수집으로 해소
 
-대학알리미 Key가 없어 `schl_id`가 `ACADEMYINFO_PENDING_*`다. `department_id`는 이 값을 해싱하니
-Key가 나오면 **전부 바뀐다**. 조용히 두면 나중에 세션 데이터가 끊긴다. 품질 검사가 매번
-`schl_id_placeholder` INFO로 보고해, 잊고 지나갈 수 없게 했다.
+초기에는 대학알리미 Key가 없어 `schl_id`가 `ACADEMYINFO_PENDING_*`였다. `department_id`는
+이 값을 해싱하므로 Key가 나오면 전부 바뀔 위험이 있었고, 품질 검사가 매번
+`schl_id_placeholder` INFO로 보고하게 했다.
+
+이 위험은 이후 전국 API 수집으로 실제 `schlId`를 확보하면서 해소됐다. 2024 파일과 2025 API를
+비교한 결과 `schlMjrId` 유지율은 99.6%였지만 86건은 실제로 바뀌었고, 원본 행 ID를
+`department_id`로 쓰지 않은 결정이 유지됐다([§7-26](07-academyinfo-collection.md)). 이 절은
+현재 미결 상태가 아니라 **초기 불확실성을 어떻게 드러내고 실측으로 닫았는지**에 대한 기록이다.
 
 ---
 

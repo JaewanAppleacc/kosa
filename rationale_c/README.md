@@ -11,6 +11,11 @@
 
 숫자로 정한 것은 감이 아니라 실제 데이터에서 잰 값이고, 그 측정은 다시 돌릴 수 있다.
 
+이 폴더의 숫자는 두 층으로 나뉜다. §1~§6의 대학 10개·학과 30개·문서 6건은 **초기
+Vertical Slice가 각 분기를 실행하는지 확인한 규모**이고, §7의 2025 전국 수치는
+**수집·정규화·검토 Queue를 실제 규모로 실행한 결과**다. 초기 fixture 성능을 전국 추천
+성능으로, 전국 데이터 규모를 학생 추천 정확도로 바꿔 말하지 않는다.
+
 ```bash
 python scripts/career_measure_thresholds.py     # 임계값 근거 재측정
 python scripts/career_audit_data_quality.py     # 데이터 품질 검사
@@ -29,6 +34,8 @@ python -m unittest discover -s tests            # 근거가 깨지면 테스트�
 | [§4 숫자를 그렇게 정한 근거 (실측)](04-thresholds-measured.md) | 0.82 / 0.3 / 700 을 실제로 재서 정한 기록 |
 | [§5 구조 결정](05-structure-decisions.md) | RRF, 한 그룹만 반환, 4가지 상태, 표준 라이브러리, 손계산 Fixture |
 | [§6 재검토 트리거](06-review-triggers.md) | 조건이 바뀌면 무효가 되는 근거 목록 |
+| [§7 전국 대학알리미 수집](07-academyinfo-collection.md) | 공식 코드, 연도, ID, 제외·Lineage를 전국 규모에서 판단한 과정 |
+| [§8 실무 검토 질문](08-practical-review-questions.md) | 무엇을 증명했고 무엇은 아직 못 말하는지, 소수 Persona·성능·운영 한계 |
 
 ## 발표에서 이 문서를 쓰는 법
 
@@ -40,6 +47,10 @@ python -m unittest discover -s tests            # 근거가 깨지면 테스트�
 - **"이 숫자는 왜 이 값인가요?"** → [§4](04-thresholds-measured.md). 실측치와 재측정 명령.
 - **"입결 숫자가 왜 비어 있죠?"** → [§3-1](03-what-we-did-not-build.md). 확인 못 한 값을 만들지 않는다.
 - **"근거 없는 답이 나오면요?"** → [§4-2 바닥선](04-thresholds-measured.md) + [§5-3 상태 구분](05-structure-decisions.md).
+- **"그래서 추천 성능이 몇 퍼센트인가요?"** → [§8](08-practical-review-questions.md). 구현 안정성·데이터 품질과 학생 추천 정확도를 구분한다.
+- **"LLM이 충분하다고 멈추면 믿어도 되나요?"** → [§8 책임 경계](08-practical-review-questions.md). C 데이터는 LLM의 종료 문장을 승인 근거로 쓰지 않으며, 종료 타당도는 A의 별도 평가 대상이다.
+- **"호텔경영 같은 소수 관심도 되나요?"** → [§8-3](08-practical-review-questions.md). 관광학 데이터 커버리지와 개인화 추천 성능을 분리해 답한다.
+- **"실서비스에서 어디가 먼저 깨지나요?"** → [§8-6](08-practical-review-questions.md). 현재 방어와 남은 개선을 함께 말한다.
 
 ---
 
