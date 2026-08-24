@@ -51,6 +51,8 @@ python -m unittest discover -s tests            # 근거가 깨지면 테스트�
 - **"LLM이 충분하다고 멈추면 믿어도 되나요?"** → [§8 책임 경계](08-practical-review-questions.md). C 데이터는 LLM의 종료 문장을 승인 근거로 쓰지 않으며, 종료 타당도는 A의 별도 평가 대상이다.
 - **"호텔경영 같은 소수 관심도 되나요?"** → [§8-3](08-practical-review-questions.md). 관광학 데이터 커버리지와 개인화 추천 성능을 분리해 답한다.
 - **"실서비스에서 어디가 먼저 깨지나요?"** → [§8-6](08-practical-review-questions.md). 현재 방어와 남은 개선을 함께 말한다.
+- **"그럼 C가 혼자 무엇을 개선할 수 있나요?"** → [§8-7](08-practical-review-questions.md). C 단독 작업의 목적·안전선·완료 조건을 구분했다.
+- **"왜 멀티턴·LLM·화면까지 바로 고치지 않았나요?"** → [§8-8](08-practical-review-questions.md). 다른 작업자 소유라 이번에는 건드리지 않고 필요한 협의 항목만 정리했다.
 
 ---
 
