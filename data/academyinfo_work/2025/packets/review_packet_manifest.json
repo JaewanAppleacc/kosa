@@ -1,0 +1,35 @@
+{
+  "survey_year": 2025,
+  "input_hashes": {
+    "classification_results.jsonl": "88e57b6a7a61c6140bd4119780e2d6b7405fd7a36b31d373f11e3278218f800e",
+    "classification_review_queue.jsonl": "f70703490b85d9a779d27c0e8550f471e7a34bab4967a30550e9ad47b8857887",
+    "departments.normalized.jsonl": "7e49b6523bff08538207778153e4164b82a9afadf743462eb26cd168fdb9dd56",
+    "duplicate_department_review_queue.jsonl": "16cbfa72b9f7fc065d7141a352338d11d3ca30b83339575434a4bb94f74c17e0",
+    "unmapped_nce_queue.jsonl": "71ea232a50667d7f92adbe768400d82bd1050c74c32a3f3da7ecc98bfd276e83"
+  },
+  "output_hashes": {
+    "classification_cluster_summary.json": "d97e54ba55cd71a4a580c95e35758f06721bb6d7d0a662998f278c70a2a7d002",
+    "classification_cluster_summary.md": "82a6799876ff522c1257d97d51c1d8125dadbcb3104d4339d17e087405006d58",
+    "duplicate_decision_draft.jsonl": "10995d49b54e6d55dbf7782022d9df869f4eed8f48208db36114138821fb4af2",
+    "duplicate_review_packet.html": "46c34ed62f1450155211dca627cf51524887b5c88fe8e243666f36ee3e1ee075",
+    "nce_review_packet.html": "1dff3e43f4ea6ff2051ad204ee3c69ead568609b63c32c21b61b1c18d40b582a",
+    "nce_triage_queue.jsonl": "88a5a07db9b75c873186579a295973d3af73321a72392d2fcaf69623ae5ee109"
+  },
+  "counts": {
+    "duplicate_decision_draft": 6,
+    "classification_review_total": 1936,
+    "classification_cluster_count": 10,
+    "nce_triage": 1903
+  },
+  "duplicate_recommendation_breakdown": {
+    "DISTINCT_DEPARTMENTS_KEEP_SEPARATE": 6
+  },
+  "nce_triage_breakdown": {
+    "NAME_ALONE_INSUFFICIENT": 896,
+    "NEEDS_CANONICAL_GROUP_EXPANSION": 423,
+    "REEXAMINABLE_BY_OFFICIAL_EVIDENCE": 584
+  },
+  "human_review_rows_total": 3845,
+  "auto_approved_rows": 0,
+  "note": "auto_approved_rows가 0이라는 것이 자동 승인하지 않았다는 증명이다. 모든 검수 행은 reviewer_1_status=TBD · resolution_status=PENDING이다."
+}

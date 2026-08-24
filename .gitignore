@@ -48,3 +48,6 @@ data/academyinfo_work/*/*
 !data/academyinfo_work/*/department_url_scope_audit.jsonl
 # 야간·원격 제외분. "삭제하지 않았다"의 증빙이라 검토자가 열어볼 수 있어야 한다.
 !data/academyinfo_work/*/out_of_recommendation_scope.jsonl
+# 사람이 실제로 열어볼 검수 패킷. 생성 입력이 .gitignore 대상이라 클론한 사람은
+# 재생성할 수 없다 — 커밋하지 않으면 검수 자체가 불가능하다. 최대 2.2MB로 5MB 미만.
+!data/academyinfo_work/*/packets/

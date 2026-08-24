@@ -1,0 +1,646 @@
+{
+  "total": 1936,
+  "cluster_count": 10,
+  "clusters": [
+    {
+      "cluster_code": "CONTENT_MEDIA",
+      "cluster_label": "콘텐츠·미디어 경계",
+      "count": 275,
+      "review_priority": 1,
+      "why_review_needed": "제작 실기 중심인지 이론·공학 중심인지에 따라 전공군과 예체능 판정이 갈린다.",
+      "required_official_evidence": [
+        "공식 교육과정",
+        "공식 단과대학 소속",
+        "입학전형의 실기 반영 여부"
+      ],
+      "top_official_small_series": {
+        "언론·방송·매체학": 86,
+        "N.C.E.": 47,
+        "응용소프트웨어공학": 28,
+        "전산학·컴퓨터공학": 13,
+        "문화·민속·미술사학": 11
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "media_communication": 93,
+        "computer_science": 43,
+        "humanities": 23,
+        "foreign_language": 19,
+        "korean_literature": 15
+      },
+      "examples": [
+        {
+          "department_id": "dept_0177428f478c227e45e1d099",
+          "university_name": "성신여자대학교",
+          "department_name": "미디어커뮤니케이션학과",
+          "college_name": "사회과학대학",
+          "official_small_series_name": "언론·방송·매체학",
+          "candidate_canonical_major_ids": [
+            "media_communication"
+          ]
+        },
+        {
+          "department_id": "dept_03923fa5753c2a1b9d26934f",
+          "university_name": "한신대학교",
+          "department_name": "디지털영상문화콘텐츠학",
+          "college_name": "인문융합대학",
+          "official_small_series_name": "N.C.E.",
+          "candidate_canonical_major_ids": []
+        },
+        {
+          "department_id": "dept_03a3173a7ac3447fcee66d0e",
+          "university_name": "수원대학교",
+          "department_name": "미디어SW",
+          "college_name": "지능형SW융합대학",
+          "official_small_series_name": "N.C.E.",
+          "candidate_canonical_major_ids": []
+        },
+        {
+          "department_id": "dept_04056c389a12dd9a3fd0b1d6",
+          "university_name": "대구대학교",
+          "department_name": "미디어커뮤니케이션학부",
+          "college_name": "사회과학대학",
+          "official_small_series_name": "언론·방송·매체학",
+          "candidate_canonical_major_ids": [
+            "media_communication"
+          ]
+        },
+        {
+          "department_id": "dept_0435b5689cac4f9fa2684d36",
+          "university_name": "상지대학교",
+          "department_name": "문화콘텐츠학과",
+          "college_name": "미래인재대학",
+          "official_small_series_name": "언론·방송·매체학",
+          "candidate_canonical_major_ids": [
+            "media_communication"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "DESIGN_HCI_UX",
+      "cluster_label": "디자인·HCI·UX 경계",
+      "count": 99,
+      "review_priority": 1,
+      "why_review_needed": "명칭만으로는 예체능 여부를 못 정한다. 추천 노출에 직접 영향이 간다.",
+      "required_official_evidence": [
+        "공식 교육과정(개설 교과목)",
+        "공식 단과대학 소속",
+        "입학전형의 실기 반영 여부"
+      ],
+      "top_official_small_series": {
+        "건축학": 24,
+        "N.C.E.": 20,
+        "조경학": 8,
+        "의류·의상학": 6,
+        "기계공학": 5
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "civil_architecture": 39,
+        "clothing_housing": 8,
+        "mechanical_transport": 6,
+        "business": 4,
+        "media_communication": 3
+      },
+      "examples": [
+        {
+          "department_id": "dept_00ecb6e9d8c65bef28d84e2f",
+          "university_name": "전남대학교",
+          "department_name": "건축디자인학과",
+          "college_name": "공학대학",
+          "official_small_series_name": "건축학",
+          "candidate_canonical_major_ids": [
+            "civil_architecture"
+          ]
+        },
+        {
+          "department_id": "dept_011aa5b71f7fa57678d290c4",
+          "university_name": "성결대학교",
+          "department_name": "도시디자인정보공학과",
+          "college_name": "IT공과대학",
+          "official_small_series_name": "도시공학",
+          "candidate_canonical_major_ids": [
+            "civil_architecture"
+          ]
+        },
+        {
+          "department_id": "dept_036444398972e37845a40a48",
+          "university_name": "안양대학교",
+          "department_name": "화장품발명디자인학과",
+          "college_name": "예술대학",
+          "official_small_series_name": "산업공학",
+          "candidate_canonical_major_ids": [
+            "industrial_engineering"
+          ]
+        },
+        {
+          "department_id": "dept_03d14976c71aee6bb070b7c5",
+          "university_name": "강원대학교",
+          "department_name": "관광전공",
+          "college_name": "인문사회？디자인스포츠대학",
+          "official_small_series_name": "관광학",
+          "candidate_canonical_major_ids": [
+            "tourism"
+          ]
+        },
+        {
+          "department_id": "dept_047eaf5756978d3a187baf2b",
+          "university_name": "대전대학교",
+          "department_name": "뷰티디자인학과",
+          "college_name": "디자인·아트대학",
+          "official_small_series_name": "피부미용",
+          "candidate_canonical_major_ids": [
+            "fine_arts_design"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "SERIES_NAME_CONFLICT",
+      "cluster_label": "공식 소계열과 학과명 충돌",
+      "count": 0,
+      "review_priority": 2,
+      "why_review_needed": "공식 소계열과 학과명이 어긋난다. 표기 차이인지 분류 오류인지 확인이 필요하다.",
+      "required_official_evidence": [
+        "공식 소계열 코드 근거",
+        "학과 교육목표"
+      ],
+      "top_official_small_series": {},
+      "is_empty": true,
+      "current_auto_candidates": {},
+      "examples": []
+    },
+    {
+      "cluster_code": "BIO_MED_ENG",
+      "cluster_label": "생명과학·생명공학·의공학 경계",
+      "count": 133,
+      "review_priority": 3,
+      "why_review_needed": "연구 중심(생명과학)과 응용·생산(생명공학·의공학)의 경계가 흐리다.",
+      "required_official_evidence": [
+        "공식 교육과정",
+        "학과 교육목표",
+        "졸업 후 진로 공식 자료"
+      ],
+      "top_official_small_series": {
+        "생명과학": 25,
+        "N.C.E.": 24,
+        "생명공학": 16,
+        "의공학": 11,
+        "바이오테크놀로지학": 11
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "life_science": 36,
+        "bio_medical_engineering": 27,
+        "food_nutrition": 12,
+        "computer_science": 8,
+        "agriculture_fisheries": 8
+      },
+      "examples": [
+        {
+          "department_id": "dept_00df607cf8d2aaafaeb7c9bd",
+          "university_name": "용인대학교",
+          "department_name": "자연계열전공학부",
+          "college_name": "AI바이오융합대학",
+          "official_small_series_name": "N.C.E.",
+          "candidate_canonical_major_ids": []
+        },
+        {
+          "department_id": "dept_01127f936411a6fc75341a72",
+          "university_name": "경상국립대학교",
+          "department_name": "동물생명융합학부",
+          "college_name": "농업생명과학대학",
+          "official_small_series_name": "축산학",
+          "candidate_canonical_major_ids": [
+            "agriculture_fisheries"
+          ]
+        },
+        {
+          "department_id": "dept_019a139eceb5df078c42a232",
+          "university_name": "경기대학교",
+          "department_name": "생명과학전공",
+          "college_name": "융합과학대학",
+          "official_small_series_name": "생명과학",
+          "candidate_canonical_major_ids": [
+            "life_science"
+          ]
+        },
+        {
+          "department_id": "dept_02051fc346de041887749646",
+          "university_name": "단국대학교",
+          "department_name": "바이오소재융합공학과",
+          "college_name": "프리무스국제대학",
+          "official_small_series_name": "생명공학",
+          "candidate_canonical_major_ids": [
+            "bio_medical_engineering"
+          ]
+        },
+        {
+          "department_id": "dept_0647e4096aa1e8ba307e4222",
+          "university_name": "강원대학교",
+          "department_name": "스마트팜융합바이오시스템공학과",
+          "college_name": "농업생명과학대학",
+          "official_small_series_name": "농림수산바이오시스템공학",
+          "candidate_canonical_major_ids": [
+            "agriculture_fisheries"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "BUSINESS_FINANCE",
+      "cluster_label": "경영·회계·금융·경영정보 경계",
+      "count": 104,
+      "review_priority": 3,
+      "why_review_needed": "경영정보학은 IT와, 금융·회계는 경영과 겹친다.",
+      "required_official_evidence": [
+        "공식 교육과정",
+        "학과 교육목표"
+      ],
+      "top_official_small_series": {
+        "경영학": 46,
+        "N.C.E.": 18,
+        "관광학": 7,
+        "금융·보험학": 6,
+        "무역·유통학": 4
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "business": 57,
+        "tourism": 7,
+        "trade_logistics": 6,
+        "industrial_engineering": 3,
+        "social_welfare": 3
+      },
+      "examples": [
+        {
+          "department_id": "dept_01e27ba30cfc2e3b86ce60e5",
+          "university_name": "고려대학교(세종)",
+          "department_name": "융합경영학부",
+          "college_name": "글로벌비즈니스대학",
+          "official_small_series_name": "경영학",
+          "candidate_canonical_major_ids": [
+            "business"
+          ]
+        },
+        {
+          "department_id": "dept_02f249e52356ef0db874e761",
+          "university_name": "대구한의대학교",
+          "department_name": "자기경영헬스전공",
+          "college_name": "글로컬융합대학",
+          "official_small_series_name": "N.C.E.",
+          "candidate_canonical_major_ids": []
+        },
+        {
+          "department_id": "dept_054c41bae49e6f65e58868a0",
+          "university_name": "위덕대학교",
+          "department_name": "스마트경영학과",
+          "college_name": "라이프up융합대학",
+          "official_small_series_name": "경영학",
+          "candidate_canonical_major_ids": [
+            "business"
+          ]
+        },
+        {
+          "department_id": "dept_0b32f5cf9d1923c6fb48e54e",
+          "university_name": "한림대학교",
+          "department_name": "AI기술경영융합전공",
+          "college_name": "정보과학대학",
+          "official_small_series_name": "인공지능공학",
+          "candidate_canonical_major_ids": [
+            "computer_science"
+          ]
+        },
+        {
+          "department_id": "dept_0ba982a65b96e5453bbacf73",
+          "university_name": "대구한의대학교",
+          "department_name": "경영학과",
+          "college_name": "글로컬융합대학",
+          "official_small_series_name": "경영학",
+          "candidate_canonical_major_ids": [
+            "business"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "MECH_TRANSPORT",
+      "cluster_label": "기계·자동차·항공·조선 경계",
+      "count": 60,
+      "review_priority": 4,
+      "why_review_needed": "설계(공학)와 운항·조종(실무)이 같은 명칭 아래 섞인다.",
+      "required_official_evidence": [
+        "공식 교육과정",
+        "학과 교육목표"
+      ],
+      "top_official_small_series": {
+        "기계공학": 20,
+        "자동차공학": 11,
+        "N.C.E.": 7,
+        "제어계측공학": 4,
+        "조선·해양공학": 3
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "mechanical_transport": 38,
+        "electrical_electronic": 7,
+        "computer_science": 2,
+        "tourism": 2,
+        "business": 1
+      },
+      "examples": [
+        {
+          "department_id": "dept_01710ae0f0a3c00b0bb8e140",
+          "university_name": "가톨릭관동대학교",
+          "department_name": "항공운항전공",
+          "college_name": "트리니티융합대학",
+          "official_small_series_name": "항공운항학",
+          "candidate_canonical_major_ids": [
+            "mechanical_transport"
+          ]
+        },
+        {
+          "department_id": "dept_01883b250fee34a82037d667",
+          "university_name": "경일대학교",
+          "department_name": "기계전기융합학부 전기에너지전공",
+          "college_name": "SMART엔지니어링대학",
+          "official_small_series_name": "전기공학",
+          "candidate_canonical_major_ids": [
+            "electrical_electronic"
+          ]
+        },
+        {
+          "department_id": "dept_01a986868f64417c4ab3ba8f",
+          "university_name": "서울과학기술대학교",
+          "department_name": "융합기계공학과",
+          "college_name": "미래융합대학",
+          "official_small_series_name": "기계공학",
+          "candidate_canonical_major_ids": [
+            "mechanical_transport"
+          ]
+        },
+        {
+          "department_id": "dept_054eac986c38a38336cd494c",
+          "university_name": "국립한국해양대학교",
+          "department_name": "조선해양시스템공학부(조선해양시스템공학전공)",
+          "college_name": "해양과학기술융합대학",
+          "official_small_series_name": "조선·해양공학",
+          "candidate_canonical_major_ids": [
+            "mechanical_transport"
+          ]
+        },
+        {
+          "department_id": "dept_13e7fe8cb04042e512a4d56b",
+          "university_name": "한라대학교",
+          "department_name": "기계자동차공학과",
+          "college_name": "스마트모빌리티융합대학",
+          "official_small_series_name": "기계공학",
+          "candidate_canonical_major_ids": [
+            "mechanical_transport"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "EDUCATION",
+      "cluster_label": "교육학·교원양성 경계",
+      "count": 13,
+      "review_priority": 4,
+      "why_review_needed": "교과교육은 해당 교과 전공군과도 겹친다.",
+      "required_official_evidence": [
+        "공식 단과대학 소속",
+        "교원자격 취득 여부 공식 자료"
+      ],
+      "top_official_small_series": {
+        "유아교육": 6,
+        "N.C.E.": 4,
+        "자연과학교육": 2,
+        "공학교육": 1
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "education": 9
+      },
+      "examples": [
+        {
+          "department_id": "dept_082ab72aacda75c9ec616b51",
+          "university_name": "선문대학교",
+          "department_name": "산학협력교육학부",
+          "college_name": "자유전공대학",
+          "official_small_series_name": "N.C.E.",
+          "candidate_canonical_major_ids": []
+        },
+        {
+          "department_id": "dept_0faf9be8fbdd540741fdee23",
+          "university_name": "호서대학교",
+          "department_name": "유아교육과",
+          "college_name": "글로벌융합대학",
+          "official_small_series_name": "유아교육",
+          "candidate_canonical_major_ids": [
+            "education"
+          ]
+        },
+        {
+          "department_id": "dept_180deabcb26ccc9d587b7137",
+          "university_name": "건국대학교(글로컬)",
+          "department_name": "유아교육과",
+          "college_name": "인문사회융합대학",
+          "official_small_series_name": "유아교육",
+          "candidate_canonical_major_ids": [
+            "education"
+          ]
+        },
+        {
+          "department_id": "dept_630ca3608c970e0ab1b9154b",
+          "university_name": "동국대학교(WISE)",
+          "department_name": "수학교육과",
+          "college_name": "글로컬문화융합대학",
+          "official_small_series_name": "자연과학교육",
+          "candidate_canonical_major_ids": [
+            "education"
+          ]
+        },
+        {
+          "department_id": "dept_71625e57aa966e1f4c032dc9",
+          "university_name": "선문대학교",
+          "department_name": "IT 교육학부",
+          "college_name": "자유전공대학",
+          "official_small_series_name": "공학교육",
+          "candidate_canonical_major_ids": [
+            "education"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "INDUSTRIAL_SAFETY",
+      "cluster_label": "산업공학·안전·방재 경계",
+      "count": 13,
+      "review_priority": 4,
+      "why_review_needed": "산업공학·안전·방재가 학교마다 다른 단위로 묶인다.",
+      "required_official_evidence": [
+        "공식 교육과정",
+        "학과 교육목표"
+      ],
+      "top_official_small_series": {
+        "행정학": 4,
+        "방재공학": 3,
+        "산업공학": 2,
+        "건축공학": 2,
+        "안전공학": 2
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "industrial_engineering": 7,
+        "public_administration": 4,
+        "civil_architecture": 2
+      },
+      "examples": [
+        {
+          "department_id": "dept_1e6e9bb3602cc57dcc76f35c",
+          "university_name": "수원대학교",
+          "department_name": "소방행정",
+          "college_name": "인문사회융합대학",
+          "official_small_series_name": "행정학",
+          "candidate_canonical_major_ids": [
+            "public_administration"
+          ]
+        },
+        {
+          "department_id": "dept_21c2f9933d36d4b333495ac7",
+          "university_name": "초당대학교",
+          "department_name": "소방행정학과",
+          "college_name": "창의융합대학",
+          "official_small_series_name": "행정학",
+          "candidate_canonical_major_ids": [
+            "public_administration"
+          ]
+        },
+        {
+          "department_id": "dept_3261f15eca0e076acef008c4",
+          "university_name": "김천대학교",
+          "department_name": "경찰소방학과",
+          "college_name": "지역혁신융합대학",
+          "official_small_series_name": "행정학",
+          "candidate_canonical_major_ids": [
+            "public_administration"
+          ]
+        },
+        {
+          "department_id": "dept_5d3618b31b9cb615a8810540",
+          "university_name": "호서대학교",
+          "department_name": "산업안전공학과",
+          "college_name": "글로벌융합대학",
+          "official_small_series_name": "안전공학",
+          "candidate_canonical_major_ids": [
+            "industrial_engineering"
+          ]
+        },
+        {
+          "department_id": "dept_6ee5feb04cdf4cbb56765af0",
+          "university_name": "을지대학교",
+          "department_name": "안전공학전공",
+          "college_name": "미래융합대학",
+          "official_small_series_name": "안전공학",
+          "candidate_canonical_major_ids": [
+            "industrial_engineering"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "CONVERGENCE",
+      "cluster_label": "융합·복합 학과명",
+      "count": 1239,
+      "review_priority": 5,
+      "why_review_needed": "융합 명칭만으로는 어느 전공군인지 알 수 없다.",
+      "required_official_evidence": [
+        "공식 교육과정",
+        "학과 교육목표",
+        "공식 소계열 근거"
+      ],
+      "top_official_small_series": {
+        "N.C.E.": 377,
+        "전산학·컴퓨터공학": 90,
+        "응용소프트웨어공학": 62,
+        "인공지능공학": 51,
+        "정보·통신공학": 46
+      },
+      "is_empty": false,
+      "current_auto_candidates": {
+        "computer_science": 203,
+        "electrical_electronic": 101,
+        "mechanical_transport": 43,
+        "social_welfare": 41,
+        "semiconductor_materials": 40
+      },
+      "examples": [
+        {
+          "department_id": "dept_0003df7344de2e8838f0c6c4",
+          "university_name": "연세대학교(미래)",
+          "department_name": "교양과",
+          "college_name": "RC융합대학",
+          "official_small_series_name": "N.C.E.",
+          "candidate_canonical_major_ids": []
+        },
+        {
+          "department_id": "dept_00373ead51bbd39913df960e",
+          "university_name": "상명대학교",
+          "department_name": "지능·데이터융합학부",
+          "college_name": "융합공과대학",
+          "official_small_series_name": "정보·통신공학",
+          "candidate_canonical_major_ids": [
+            "electrical_electronic"
+          ]
+        },
+        {
+          "department_id": "dept_0109a652ecbc65e21afdbc87",
+          "university_name": "삼육대학교",
+          "department_name": "상담심리학과",
+          "college_name": "창의융합대학",
+          "official_small_series_name": "심리학",
+          "candidate_canonical_major_ids": [
+            "psychology"
+          ]
+        },
+        {
+          "department_id": "dept_0127c410fe183f018a0799b0",
+          "university_name": "우송대학교",
+          "department_name": "소프트웨어학부 컴퓨터·소프트웨어전공",
+          "college_name": "소프트웨어(SW)융합대학",
+          "official_small_series_name": "응용소프트웨어공학",
+          "candidate_canonical_major_ids": [
+            "computer_science"
+          ]
+        },
+        {
+          "department_id": "dept_01619f7915f4751a4720602b",
+          "university_name": "우석대학교",
+          "department_name": "수소에너지공학과",
+          "college_name": "수소테크융합대학",
+          "official_small_series_name": "에너지공학",
+          "candidate_canonical_major_ids": [
+            "chemical_energy"
+          ]
+        }
+      ]
+    },
+    {
+      "cluster_code": "OTHER",
+      "cluster_label": "기타",
+      "count": 0,
+      "review_priority": 5,
+      "why_review_needed": "위 군집 어디에도 해당하지 않아 개별 확인이 필요하다.",
+      "required_official_evidence": [
+        "공식 소계열 근거",
+        "학과 교육목표"
+      ],
+      "top_official_small_series": {},
+      "is_empty": true,
+      "current_auto_candidates": {},
+      "examples": []
+    }
+  ],
+  "note": "review_priority는 '자동 확정 가능성'이 아니라 '먼저 봐야 하는 정도'다. 어떤 군집도 자동으로 EVIDENCED·APPROVED로 올리지 않는다."
+}

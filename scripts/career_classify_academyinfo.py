@@ -121,6 +121,11 @@ def classify(row: dict[str, Any], index: dict[str, list[str]], excluded_codes: s
         "official_small_series_code": small or None,
         "official_small_series_name": cls.get("small_series_name"),
         "official_large_series_code": large or None,
+        # 이름도 함께 내보낸다. 코드만 있으면 검수 패킷에서 사람이 못 읽고,
+        # 하위 Queue가 이름을 읽으려다 전부 None을 받는다(2026-08-24 실측 버그).
+        "official_large_series_name": cls.get("large_series_name"),
+        "official_middle_series_code": (cls.get("middle_series_code") or "").strip() or None,
+        "official_middle_series_name": cls.get("middle_series_name"),
         "self_series_name": self_series,
         "candidate_canonical_major_ids": candidates,
         "mapping_status": status,
