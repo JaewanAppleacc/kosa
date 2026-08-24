@@ -26,6 +26,17 @@ Context/Frame 도달 가능성 규칙(정적으로 구조에서만 계산, 실�
   (frame_role_map.py — Blueprint와 Frame은 서로 독립된 축이다). 그래서 Tail Blueprint는
   Context 3개·Frame 9개 전부를 "도달 가능"으로 센다 — 이건 구조적 상한이지, 실제 한
   세션에서 전부 관찰된다는 뜻이 아니다(실제 관찰 수치는 §11/§14 Persona 실측이 낸다).
+
+2026-08-24 Import 순서 KeyError 수정: 이 파일은 Legacy 3-Context 전용으로 설계됐다.
+ContextPack(art_design 등)의 Seed는 `question_family_id`가 우연히 Legacy Seed와 같은
+`"seed"`를 쓰지만, `src.api.main`/`src.review_ui.app`가 각자 독립적으로
+`ContextPackRegistry()`를 만들며 그 등록 시점이 이 모듈의 Import 시점보다 먼저일 수도
+나중일 수도 있다 — 있는 그대로 조회하면 KeyError로 죽거나(먼저 등록된 경우) 조용히
+빠지는(나중에 등록된 경우) 결과가 Import 순서에 따라 달라진다. `_is_tracked_by_this_
+diagnostic()`이 이 파일이 정적으로 아는 등록(Legacy Seed/Backup/v2 Direct
+Probe/Tail Blueprint)만 걸러서 집계하므로, ContextPack 등록은 아예 보지 않는다 — 그
+결과 `TRAIT_PROBE_CAPABILITIES`는 Import 순서와 무관하게 항상 같은 값을 낸다.
+ContextPack 자체의 Coverage 진단은 이 파일이 아니라 전용 도구가 담당한다.
 """
 
 from __future__ import annotations
@@ -67,6 +78,34 @@ _BACKUP_BLUEPRINT_CONTEXT: dict[str, str] = {
 _BACKUP_BLUEPRINT_CONTEXT.update({q.question_id: q.context for q in ANCHOR_BACKUP_QUESTIONS})
 
 
+def _is_tracked_by_this_diagnostic(question_family_id: str, blueprint_id: str) -> bool:
+    """이 Shadow 진단이 Context·Frame 도달 가능성을 구조적으로 아는 등록인지 판정한다.
+
+    이 파일은 Legacy 3-Context(§7/§8 작성 시점 기준) 전용으로 설계됐다 — Seed·Backup은
+    자신이 속한 Context를 정적 표(`_SEED_BLUEPRINT_CONTEXT`/`_BACKUP_BLUEPRINT_CONTEXT`)로,
+    v2 Direct Probe는 `V2_DIRECT_PROBE_BLUEPRINTS_BY_ID`로 안다. ContextPack(art_design 등,
+    이 파일보다 나중에 추가된 별도 서브시스템)의 Seed는 `question_family_id`가 우연히 같은
+    `"seed"`를 쓰지만 이 정적 표에는 없다 — `src.api.main`과 `src.review_ui.app`이 각자
+    독립적으로 `ContextPackRegistry()`를 만들면서 그 등록 시점이 이 모듈이 Import되는
+    시점보다 먼저일 수도 나중일 수도 있으므로(Registry는 두 모듈이 공유하는 전역 상태),
+    있는 그대로 조회하면 이 진단의 결과 자체가 Import 순서에 따라 달라지거나 KeyError로
+    죽는다. 그래서 이 함수가 모르는 등록(ContextPack Seed 포함)은 애초에 집계하지 않는다
+    — "등록 완료 여부가 불확실한 범위는 애초에 안 본다"는 명시적 초기화 경계다.
+    ContextPack 자체 진단은 `eval/context_pack_matrix_diagnostics.py` 등 전용 도구가
+    따로 담당하므로 이 배제가 실제 관찰 가능성을 가리지 않는다."""
+
+    if question_family_id == "seed":
+        return blueprint_id in _SEED_BLUEPRINT_CONTEXT
+    if question_family_id == "backup":
+        return blueprint_id in _BACKUP_BLUEPRINT_CONTEXT
+    if question_family_id == "v2_direct_probe":
+        return blueprint_id in V2_DIRECT_PROBE_BLUEPRINTS_BY_ID
+    if question_family_id == "tail_blueprint":
+        return True
+    # "pack_backup" / "pack_direct_probe" / 그 밖의 미래 family — 이 진단의 설계 범위 밖.
+    return False
+
+
 def _reachable_context_and_frame_ids(question_family_id: str, blueprint_id: str) -> tuple[set[str], set[str]]:
     if question_family_id == "seed":
         return {_SEED_BLUEPRINT_CONTEXT[blueprint_id]}, {"seed_frame"}
@@ -87,6 +126,8 @@ def _compute_capabilities() -> dict[str, TraitProbeCapability]:
         trait_id: TraitProbeCapability(trait_id=trait_id) for trait_id in CORE_TRAIT_IDS
     }
     for key, signals in all_registrations().items():
+        if not _is_tracked_by_this_diagnostic(key.question_family_id, key.blueprint_id):
+            continue
         contexts, frames = _reachable_context_and_frame_ids(key.question_family_id, key.blueprint_id)
         for signal in signals:
             cap = capabilities[signal.trait_id]
@@ -112,6 +153,8 @@ def _compute_directly_measurable() -> frozenset[str]:
 
     primary_only: dict[str, dict[str, set[str]]] = {}
     for key, signals in all_registrations().items():
+        if not _is_tracked_by_this_diagnostic(key.question_family_id, key.blueprint_id):
+            continue
         primary_trait_ids = {s.trait_id for s in signals if s.signal_role == "PRIMARY"}
         if not primary_trait_ids:
             continue
