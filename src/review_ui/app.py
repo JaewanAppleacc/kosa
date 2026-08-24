@@ -21,6 +21,7 @@ from src.data.questions.context_pack_shared_probe_blueprints import CONTEXT_PACK
 from src.review_ui import academyinfo_nce_middle_series_review_service as nces
 from src.review_ui import academyinfo_p1_classification_review_service as p1s
 from src.review_ui import canonical_major_group_bridge_review_service as cmgbrs
+from src.review_ui import canonical_major_group_review_service as cmgrs
 from src.review_ui import context_pack_review_service as cprs
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
@@ -28,6 +29,7 @@ from src.review_ui.schemas import (
     BackupAnchorPreviewResponse,
     BackupQuestionListResponse,
     BridgeReviewListResponse,
+    CanonicalMajorGroupListResponse,
     ContextPackListResponse,
     NceMiddleSeriesListResponse,
     P1ClassificationListResponse,
@@ -38,6 +40,8 @@ from src.review_ui.schemas import (
     SummaryResponse,
     UpdateBridgeReviewRequest,
     UpdateBridgeScopeReviewRequest,
+    UpdateCanonicalMajorGroupReviewRequest,
+    UpdateCanonicalMajorGroupReviewResponse,
     UpdateContextPackReviewRequest,
     UpdateNceMiddleSeriesReviewRequest,
     UpdateNceMiddleSeriesReviewResponse,
@@ -522,6 +526,41 @@ def patch_academyinfo_nce_reexaminable(
     except nces.UnknownNceMiddleSeriesCodeError as exc:
         raise _http_error(422, str(exc)) from exc
     except nces.NceStaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+
+
+# 2026-08-24 지시서(a/canonical-major-group-review-ui) — Canonical Major
+# Group(42개) 자체를 "분류 Ontology로 계속 쓸 수 있는가"만 사람이 독립적으로
+# 판단하는 Endpoint. Draft(data/canonical_major_groups.draft.jsonl)는 읽기만
+# 하고 절대 쓰지 않는다. PATCH는 별도 파일
+# (data/reviews/canonical_major_group_review_status.jsonl)에만 반영된다.
+# APPROVE_AS_CLASSIFICATION_GROUP은 서비스 Major 승인·전국 학과 자동 승격·예체능
+# 추천 허용·Bridge Mapping/Scope 승인 중 어느 것도 의미하지 않는다 — 이 Endpoint는
+# 그 네 축의 파일을 전혀 열지 않는다(cmgrs 모듈 상단 import 목록에서 확인 가능).
+# revision이 어긋나면 409로 거부된다(낙관적 잠금).
+
+
+@app.get("/internal/review/v2/canonical-major-groups", response_model=CanonicalMajorGroupListResponse)
+def get_canonical_major_groups() -> CanonicalMajorGroupListResponse:
+    return cmgrs.build_canonical_major_group_review_list(review_status_path=cmgrs.REVIEW_STATUS_PATH)
+
+
+@app.patch(
+    "/internal/review/v2/canonical-major-groups/{canonical_major_group_id}",
+    response_model=UpdateCanonicalMajorGroupReviewResponse,
+)
+def patch_canonical_major_group_review(
+    canonical_major_group_id: str, payload: UpdateCanonicalMajorGroupReviewRequest,
+) -> UpdateCanonicalMajorGroupReviewResponse:
+    try:
+        return cmgrs.update_canonical_major_group_review(
+            canonical_major_group_id, decision=payload.decision, comment=payload.comment,
+            resolution_note=payload.resolution_note, expected_revision=payload.expected_revision,
+            review_status_path=cmgrs.REVIEW_STATUS_PATH,
+        )
+    except cmgrs.UnknownCanonicalMajorGroupIdError as exc:
+        raise _http_error(422, str(exc)) from exc
+    except cmgrs.CanonicalMajorGroupStaleRevisionError as exc:
         raise _http_error(409, str(exc)) from exc
 
 
