@@ -17,6 +17,7 @@ from src.data_sources.academyinfo_codes import (
     is_distance_university,
     recommendation_scope_exclusion,
 )
+from scripts.career_normalize_academyinfo import normalize
 
 ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "data" / "academyinfo_work" / "2025"
@@ -107,6 +108,33 @@ class DistanceUniversityTest(unittest.TestCase):
         self.assertEqual(recommendation_scope_exclusion(r), EXCLUDED_DISTANCE_UNIVERSITY)
 
 
+class ContractDepartmentScopeTest(unittest.TestCase):
+    def test_contract_department_stays_normalized_and_is_also_preserved_out_of_scope(self) -> None:
+        raw = row(
+            schlId="0000029", schlMjrId="0220559", svyYr=2025,
+            korSchlNm="충남대학교", korMjrNm="약학과", clgNm="약학대학",
+            schlMjrCharNm="계약학과", schlMjrStatNm="기존", lsnTrmNm="4년",
+        )
+        included, excluded, out_of_scope = normalize([raw])
+
+        self.assertEqual(excluded, [])
+        self.assertEqual(len(included), 1, "전국 정규화 데이터에서 삭제하면 안 된다")
+        self.assertEqual(included[0]["recommendation_scope"], "OUT_OF_RECOMMENDATION_SCOPE")
+        self.assertEqual(included[0]["exclusion_reason"], "CONTRACT_DEPARTMENT")
+        self.assertEqual(len(out_of_scope), 1)
+        self.assertEqual(out_of_scope[0]["department_status"], "EXISTING")
+
+    def test_general_department_remains_in_scope(self) -> None:
+        included, _, out_of_scope = normalize([row(
+            schlId="0000029", schlMjrId="0010025", svyYr=2025,
+            korSchlNm="충남대학교", korMjrNm="약학과", clgNm="약학대학",
+            schlMjrCharNm="일반과정", schlMjrStatNm="기존", lsnTrmNm="6년",
+        )])
+        self.assertEqual(included[0]["recommendation_scope"], "IN_RECOMMENDATION_SCOPE")
+        self.assertIsNone(included[0]["exclusion_reason"])
+        self.assertEqual(out_of_scope, [])
+
+
 class NormalizedOutputTest(unittest.TestCase):
     """실제 산출물 검증."""
 
@@ -129,8 +157,28 @@ class NormalizedOutputTest(unittest.TestCase):
             self.assertTrue(r.get("recommendation_scope_note"))
 
     def test_every_out_of_scope_row_has_an_auditable_reason(self) -> None:
-        allowed = {EXCLUDED_NIGHT_COURSE, EXCLUDED_DISTANCE_UNIVERSITY, EXCLUDED_UNKNOWN_DAY_NIGHT}
-        self.assertTrue(all(r["recommendation_scope_status"] in allowed for r in OUT_OF_SCOPE))
+        allowed = {EXCLUDED_NIGHT_COURSE, EXCLUDED_DISTANCE_UNIVERSITY,
+                   EXCLUDED_UNKNOWN_DAY_NIGHT, "CONTRACT_DEPARTMENT"}
+        self.assertTrue(all(
+            (r.get("exclusion_reason") or r.get("recommendation_scope_status")) in allowed
+            for r in OUT_OF_SCOPE
+        ))
+
+    def test_six_contract_rows_are_preserved_outside_recommendation_scope(self) -> None:
+        contract = [r for r in OUT_OF_SCOPE if r.get("exclusion_reason") == "CONTRACT_DEPARTMENT"]
+        self.assertEqual(len(contract), 6)
+        self.assertTrue(all(r["recommendation_scope"] == "OUT_OF_RECOMMENDATION_SCOPE"
+                            for r in contract))
+        self.assertTrue(all(r["major_character_name"] == "계약학과" for r in contract))
+        self.assertFalse(any(r["department_status"] == "ABOLISHED" for r in contract))
+
+    def test_six_general_rows_are_kept_in_duplicate_decision_audit(self) -> None:
+        draft = read_jsonl(WORK / "packets" / "duplicate_decision_draft.jsonl")
+        general = [r for g in draft for r in g["records"]
+                   if r.get("major_character_name") == "일반과정"]
+        self.assertEqual(len(general), 6)
+        self.assertTrue(all(r["recommendation_scope"] == "IN_RECOMMENDATION_SCOPE"
+                            for r in general))
 
     def test_raw_still_contains_night_rows(self) -> None:
         """Raw 원본에는 야간이 그대로 있어야 한다."""
@@ -165,6 +213,9 @@ class QueueImpactTest(unittest.TestCase):
     def test_duplicate_queue_shrank(self) -> None:
         """588 → 16. 야간 제외만으로 줄었다(ids.py 변경 없이)."""
         self.assertLess(len(DUPLICATE), 100)
+
+    def test_recommendation_candidates_have_no_duplicate_department_id(self) -> None:
+        self.assertEqual(len(DUPLICATE), 0)
 
 
 class MasterUnchangedTest(unittest.TestCase):

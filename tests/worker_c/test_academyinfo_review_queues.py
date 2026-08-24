@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import unittest
 from pathlib import Path
 
@@ -70,6 +71,15 @@ class QueueCountsMatchReportsTest(unittest.TestCase):
     def test_url_audit_preserves_all_37(self) -> None:
         self.assertEqual(len(URL_AUDIT), 37)
 
+    def test_contract_scope_statistics_are_recalculated(self) -> None:
+        self.assertEqual(QUEUE_REPORT["normalized_daytime_bachelor_total"], 24422)
+        self.assertEqual(QUEUE_REPORT["current_status_candidate_count"], 10063)
+        self.assertEqual(QUEUE_REPORT["recommendation_candidate_count"], 10057)
+        self.assertEqual(QUEUE_REPORT["approvable_candidate_count"], 5449)
+        self.assertEqual(QUEUE_REPORT["out_of_recommendation_scope_count"], 973)
+        self.assertEqual(QUEUE_REPORT["contract_department_exclusion_count"], 6)
+        self.assertEqual(QUEUE_REPORT["review_queue_total_count"], 3837)
+
 
 class DuplicateQueueTest(unittest.TestCase):
     def test_no_duplicate_department_id_across_groups(self) -> None:
@@ -86,14 +96,13 @@ class DuplicateQueueTest(unittest.TestCase):
 
     def test_enrolled_count_is_shown_but_not_used_to_decide(self) -> None:
         """재학생 수는 보여주되 선택 근거가 되지 않는다 — 신설 학과는 0명이다."""
-        with_zero = [
-            q for q in DUPLICATE
-            if any(c.get("enrolled_count") == 0 for c in q["candidates"])
-            and any((c.get("enrolled_count") or 0) > 0 for c in q["candidates"])
-        ]
+        packet = read_jsonl("packets/duplicate_decision_draft.jsonl")
+        with_zero = [g for g in packet
+                     if any(r.get("enrolled_count") == 0 for r in g["records"])
+                     and any((r.get("enrolled_count") or 0) > 0 for r in g["records"])]
         self.assertTrue(with_zero, "재학생 0명 행이 섞인 그룹이 있어야 이 위험이 실재함을 보인다")
-        for q in with_zero:
-            self.assertIsNone(q["selected_source_record_id"])
+        for group in with_zero:
+            self.assertEqual(group["reviewer_1_status"], "TBD")
 
     def test_all_source_records_are_kept(self) -> None:
         for q in DUPLICATE:
@@ -286,6 +295,15 @@ class SecretAndMasterUnchangedTest(unittest.TestCase):
             .read_text(encoding="utf-8").splitlines() if l.strip()
         ]
         self.assertEqual(len(rows), 35, "이번 작업은 Master를 건드리지 않는다")
+
+    def test_existing_35_department_master_sha256_is_unchanged(self) -> None:
+        digest = hashlib.sha256(
+            (ROOT / "data" / "master" / "departments.jsonl").read_bytes()
+        ).hexdigest()
+        self.assertEqual(
+            digest,
+            "afb5a51d55086b07237e16d2914fb065e805cf3a905b3097b2ca06a2610ae37e",
+        )
 
     def test_demo_master_department_url_is_untouched(self) -> None:
         """공개 Master에는 아직 department_url을 넣지 않는다."""

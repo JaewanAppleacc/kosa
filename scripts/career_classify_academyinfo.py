@@ -44,6 +44,8 @@ ELIGIBILITY_REVIEW = "REVIEW_REQUIRED"
 # 이름만으로 예체능 여부를 확정하면 안 되는 학과 (A 지시 §7).
 # 공식 단과대학·교육과정 근거가 불충분하면 REVIEW_REQUIRED로 둔다 — Fail-Closed.
 CONVERGENCE_KEYWORDS = ("디자인", "콘텐츠", "미디어", "HCI", "UX", "융합", "자유전공", "인터랙션")
+OUT_OF_RECOMMENDATION_SCOPE = "OUT_OF_RECOMMENDATION_SCOPE"
+CONTRACT_COURSE = "계약학과"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -72,6 +74,18 @@ def build_series_index(groups: list[dict[str, Any]]) -> dict[str, list[str]]:
 def is_convergence(row: dict[str, Any]) -> bool:
     name = (row.get("department_name") or "") + " " + (row.get("college_name") or "")
     return any(k in name for k in CONVERGENCE_KEYWORDS)
+
+
+def is_in_recommendation_scope(row: dict[str, Any]) -> bool:
+    """계약학과를 분류 후보로 만들기 전에 공식 필드로 제외한다.
+
+    새 정규화 출력은 recommendation_scope를 갖는다. 이전 fixture/중간 산출물도 안전하게
+    처리하도록 공식 major_character_name을 호환 경로로 함께 확인한다.
+    """
+    return (
+        row.get("recommendation_scope") != OUT_OF_RECOMMENDATION_SCOPE
+        and (row.get("major_character_name") or "").strip() != CONTRACT_COURSE
+    )
 
 
 def classify(row: dict[str, Any], index: dict[str, list[str]], excluded_codes: set[str]) -> dict[str, Any]:
@@ -209,7 +223,8 @@ def main(argv: list[str] | None = None) -> int:
     index = build_series_index(groups)
     excluded_codes = set(groups[0].get("excluded_series_codes", [])) if groups else set()
 
-    results = [classify(r, index, excluded_codes) for r in normalized]
+    recommendation_rows = [r for r in normalized if is_in_recommendation_scope(r)]
+    results = [classify(r, index, excluded_codes) for r in recommendation_rows]
     write_jsonl(work / "classification_results.jsonl", results)
     write_jsonl(
         work / "classification_review_queue.jsonl",
@@ -218,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     report = build_dry_run(results, groups, len(normalized), args.survey_year)
+    report["recommendation_scope_candidate_total"] = len(recommendation_rows)
+    report["contract_department_exclusion_count"] = len(normalized) - len(recommendation_rows)
     (work / "classification_dry_run.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )

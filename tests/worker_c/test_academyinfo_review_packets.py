@@ -22,6 +22,7 @@ GENERATION_INPUTS = (
     "unmapped_nce_queue.jsonl",
     "departments.normalized.jsonl",
     "classification_results.jsonl",
+    "out_of_recommendation_scope.jsonl",
 )
 PACKET_FILES = (
     "duplicate_decision_draft.jsonl",
@@ -112,6 +113,30 @@ class DuplicateDraftTest(unittest.TestCase):
         for g in DUP:
             self.assertGreaterEqual(len(g["records"]), 2)
 
+    def test_each_group_records_general_and_contract_scope_separately(self) -> None:
+        for group in DUP:
+            scopes = {r["major_character_name"]: (
+                r["recommendation_scope"], r["exclusion_reason"]
+            ) for r in group["records"]}
+            self.assertEqual(
+                scopes["일반과정"], ("IN_RECOMMENDATION_SCOPE", None),
+                group["department_id"],
+            )
+            self.assertEqual(
+                scopes["계약학과"], ("OUT_OF_RECOMMENDATION_SCOPE", "CONTRACT_DEPARTMENT"),
+                group["department_id"],
+            )
+
+    def test_chungnam_pharmacy_keeps_six_year_general_and_excludes_four_year_contract(self) -> None:
+        group = next(g for g in DUP if g["university_name"] == "충남대학교")
+        by_character = {r["major_character_name"]: r for r in group["records"]}
+        self.assertEqual(by_character["일반과정"]["lesson_term_name"], "6년")
+        self.assertEqual(by_character["일반과정"]["recommendation_scope"],
+                         "IN_RECOMMENDATION_SCOPE")
+        self.assertEqual(by_character["계약학과"]["lesson_term_name"], "4년")
+        self.assertEqual(by_character["계약학과"]["recommendation_scope"],
+                         "OUT_OF_RECOMMENDATION_SCOPE")
+
 
 class ClusterSummaryTest(unittest.TestCase):
     def test_total_matches_classification_queue(self) -> None:
@@ -188,6 +213,26 @@ class ManifestTest(unittest.TestCase):
         blob = json.dumps(MANIFEST, ensure_ascii=False)
         for token in ("generated_at", "created_at", "timestamp", "collected_at"):
             self.assertNotIn(token, blob)
+
+    def test_hashes_match_every_committed_input_and_output(self) -> None:
+        import hashlib
+
+        for name, expected in MANIFEST["input_hashes"].items():
+            path = ((ROOT / "data" / name)
+                    if name == "canonical_major_groups.draft.jsonl" else WORK / name)
+            if path.exists():
+                self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected, name)
+        for name, expected in MANIFEST["output_hashes"].items():
+            path = PACKETS / name
+            self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), expected, name)
+
+    def test_unavailable_inputs_never_keep_a_stale_hash(self) -> None:
+        unavailable = set(MANIFEST.get("unavailable_input_hashes", []))
+        for name in ("departments.normalized.jsonl", "classification_results.jsonl"):
+            path = WORK / name
+            if not path.exists():
+                self.assertIn(name, unavailable)
+                self.assertNotIn(name, MANIFEST["input_hashes"])
 
     def test_human_review_total_matches_queue_sum(self) -> None:
         self.assertEqual(
@@ -271,6 +316,21 @@ class MissingInputSafetyTest(unittest.TestCase):
             )
             self.assertNotEqual(proc.returncode, 0)
             self.assertFalse((data_dir / "academyinfo_work" / "2025" / "packets").exists())
+
+    def test_missing_canonical_groups_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            work = data_dir / "academyinfo_work" / "2025"
+            work.mkdir(parents=True)
+            for name in GENERATION_INPUTS:
+                (work / name).write_text("{}\n", encoding="utf-8")
+            proc = subprocess.run(
+                [sys.executable, "scripts/career_build_academyinfo_review_packets.py",
+                 "--survey-year", "2025", "--data-dir", str(data_dir)],
+                cwd=ROOT, capture_output=True, timeout=300,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertFalse((work / "packets").exists())
 
 
 class ExistingArtifactsUnchangedTest(unittest.TestCase):

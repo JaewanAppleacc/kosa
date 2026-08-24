@@ -31,6 +31,7 @@ QUEUE_FILES = (
     "classification_review_queue.jsonl",
     "unmapped_nce_queue.jsonl",
     "department_url_scope_audit.jsonl",
+    "out_of_recommendation_scope.jsonl",
 )
 GENERATION_INPUTS = ("departments.normalized.jsonl", "classification_results.jsonl")
 
@@ -57,7 +58,10 @@ class CommittedQueueAlwaysCheckedTest(unittest.TestCase):
     def test_queue_files_are_valid_jsonl(self) -> None:
         for name in QUEUE_FILES:
             rows = read_jsonl(WORK / name)
-            self.assertTrue(rows, f"{name}이 비어 있다")
+            if name == "duplicate_department_review_queue.jsonl":
+                self.assertEqual(rows, [], "계약학과 제외 후 추천 후보 중복은 0건이어야 한다")
+            else:
+                self.assertTrue(rows, f"{name}이 비어 있다")
 
     def test_queue_hashes_are_stable_within_a_run(self) -> None:
         """같은 파일을 두 번 읽어도 Hash가 같다 — 읽기만으로 파일이 바뀌지 않는다."""
@@ -117,13 +121,22 @@ class FixtureDeterminismTest(unittest.TestCase):
             return row
 
         normalized = [
-            dept("r1", "d1", "컴퓨터공학과"),
-            dept("r2", "d1", "컴퓨터공학과", major_character_name="계약학과"),  # 중복
+            dept("r1", "d1", "컴퓨터공학과", schl_id="s1"),
+            dept("r2", "d1", "컴퓨터공학과", schl_id="s1",
+                 major_character_name="계약학과"),  # 중복
             dept("r3", "d2", "융합콘텐츠학과"),
             dept("r4", "d3", "폐지학과", status="ABOLISHED"),  # 승격 후보 아님
         ]
         results = [
             {"department_id": "d1", "source_record_id": "r1", "university_name": "픽스처대학교",
+             "department_name": "컴퓨터공학과", "college_name": "공과대학",
+             "department_status": "EXISTING", "official_small_series_name": "전산학·컴퓨터공학",
+             "official_large_series_name": "공학계열", "official_large_series_code": "D",
+             "candidate_canonical_major_ids": ["computer_science"], "mapping_status": "AUTO_CANDIDATE",
+             "decision_reason": "공식 소계열 090 단독 배정", "eligibility_status": "APPROVED",
+             "eligibility_reason": "예체능 아님", "self_series_name": None,
+             "official_middle_series_name": "전기·전자·컴퓨터"},
+            {"department_id": "d1", "source_record_id": "r2", "university_name": "픽스처대학교",
              "department_name": "컴퓨터공학과", "college_name": "공과대학",
              "department_status": "EXISTING", "official_small_series_name": "전산학·컴퓨터공학",
              "official_large_series_name": "공학계열", "official_large_series_code": "D",
@@ -160,6 +173,16 @@ class FixtureDeterminismTest(unittest.TestCase):
         (work / "classification_results.jsonl").write_text(
             "".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in results),
             encoding="utf-8")
+        contract = next(r for r in normalized if r.get("major_character_name") == "계약학과")
+        preserved = dict(contract)
+        preserved.update({
+            "recommendation_scope": "OUT_OF_RECOMMENDATION_SCOPE",
+            "exclusion_reason": "CONTRACT_DEPARTMENT",
+        })
+        (work / "out_of_recommendation_scope.jsonl").write_text(
+            json.dumps(preserved, ensure_ascii=False, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         (data_dir / "raw").mkdir(parents=True, exist_ok=True)
         (data_dir / "raw" / "departments.raw.jsonl").write_text("", encoding="utf-8")
 
@@ -188,6 +211,30 @@ class FixtureDeterminismTest(unittest.TestCase):
             nce = out["unmapped_nce_queue.jsonl"].decode("utf-8")
             self.assertIn("융합콘텐츠학과", nce, "EXISTING 행은 Queue에 있어야 한다")
             self.assertNotIn("폐지학과", nce, "ABOLISHED 행이 Queue에 섞였다")
+
+    def test_contract_department_is_preserved_but_not_a_promotion_candidate(self) -> None:
+        """공식 학과특성이 계약학과인 행은 삭제하지 않고 추천 범위 밖에 보존한다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self._run_in(Path(tmp))
+            duplicate = out["duplicate_department_review_queue.jsonl"].decode("utf-8")
+            preserved = read_jsonl(Path(tmp) / "academyinfo_work" / "2025"
+                                   / "out_of_recommendation_scope.jsonl")
+
+            self.assertEqual(duplicate, "", "계약학과 때문에 생긴 중복이 추천 후보에 남았다")
+            contract = [r for r in preserved if r.get("source_record_id") == "r2"]
+            self.assertEqual(len(contract), 1)
+            self.assertEqual(contract[0]["recommendation_scope"], "OUT_OF_RECOMMENDATION_SCOPE")
+            self.assertEqual(contract[0]["exclusion_reason"], "CONTRACT_DEPARTMENT")
+            self.assertEqual(contract[0]["department_status"], "EXISTING")
+
+    def test_general_course_remains_in_recommendation_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            self._run_in(Path(tmp))
+            report = json.loads((Path(tmp) / "academyinfo_work" / "2025"
+                                 / "review_queue_report.json").read_text(encoding="utf-8"))
+            self.assertEqual(report["current_status_candidate_count"], 3)
+            self.assertEqual(report["recommendation_candidate_count"], 2)
+            self.assertEqual(report["out_of_recommendation_scope_count"], 1)
 
     def test_generation_does_not_touch_repository_queues(self) -> None:
         """--data-dir로 격리 실행하면 저장소의 커밋된 Queue를 건드리지 않는다."""
@@ -242,6 +289,31 @@ class MissingInputSafetyTest(unittest.TestCase):
                     (data_dir / "academyinfo_work" / "2025" / name).exists(),
                     f"입력이 없는데 {name}을 썼다 — 부분 덮어쓰기다",
                 )
+
+    def test_missing_url_audit_raw_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            work = data_dir / "academyinfo_work" / "2025"
+            work.mkdir(parents=True)
+            fixture = {"source_record_id": "r1", "department_id": "d1",
+                       "department_status": "EXISTING", "major_character_name": "일반과정"}
+            for name in GENERATION_INPUTS:
+                (work / name).write_text(
+                    json.dumps(fixture, ensure_ascii=False) + "\n", encoding="utf-8"
+                )
+            (work / "out_of_recommendation_scope.jsonl").write_text("", encoding="utf-8")
+
+            proc = subprocess.run(
+                [sys.executable, "scripts/career_build_academyinfo_review_queues.py",
+                 "--survey-year", "2025", "--data-dir", str(data_dir)],
+                cwd=ROOT, capture_output=True, timeout=300,
+            )
+            self.assertNotEqual(proc.returncode, 0)
+            for name in QUEUE_FILES:
+                if name == "out_of_recommendation_scope.jsonl":
+                    self.assertEqual((work / name).read_text(encoding="utf-8"), "")
+                else:
+                    self.assertFalse((work / name).exists(), f"{name}이 부분 생성됐다")
 
 
 if __name__ == "__main__":

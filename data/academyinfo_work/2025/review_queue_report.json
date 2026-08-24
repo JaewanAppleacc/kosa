@@ -9,19 +9,14 @@
     "SPLIT": 34
   },
   "current_status_candidate_count": 10063,
-  "approvable_candidate_count": 5453,
+  "approvable_candidate_count": 5449,
   "approvable_note": "EXISTING/NEW 중 예체능 제외·분류 REVIEW·N.C.E를 모두 통과한 수. 사람 검토 전이므로 '승인된 수'가 아니라 '승인 가능 후보 수'다.",
-  "duplicate_group_count": 6,
-  "duplicate_record_count": 12,
-  "promotion_pool_nce_count": 1903,
+  "duplicate_group_count": 0,
+  "duplicate_record_count": 0,
+  "promotion_pool_nce_count": 1901,
   "promotion_pool_classification_review_count": 1936,
-  "duplicate_review_batch_breakdown": {
-    "INDIVIDUAL": 6
-  },
-  "duplicate_cause_breakdown": {
-    "UNKNOWN": 5,
-    "TERM_SPLIT": 1
-  },
+  "duplicate_review_batch_breakdown": {},
+  "duplicate_cause_breakdown": {},
   "classification_review_count": 1936,
   "classification_cause_breakdown": {
     "MEDIA_CONTENT": 274,
@@ -33,7 +28,7 @@
     "POSSIBLE_NEEDS_CHECK": 373,
     "UNLIKELY": 1563
   },
-  "nce_queue_count": 1903,
+  "nce_queue_count": 1901,
   "nce_and_classification_overlap_count": 499,
   "overlap_note": "N.C.E(분류 근거 없음)와 분류 REVIEW(추천 적격성 미정)는 서로 다른 축이라 같은 학과가 양쪽에 오를 수 있다. 겹치는 행은 양쪽에 상호 참조 플래그를 붙였다.",
   "url_audit_count": 37,
@@ -46,5 +41,9 @@
     "college": 3
   },
   "public_department_url_candidates": 34,
-  "note": "전부 검토 대기다. 자동 승인·자동 대표 선정·강제 매핑을 하지 않았다."
+  "note": "전부 검토 대기다. 자동 승인·자동 대표 선정·강제 매핑을 하지 않았다.",
+  "recommendation_candidate_count": 10057,
+  "out_of_recommendation_scope_count": 973,
+  "contract_department_exclusion_count": 6,
+  "review_queue_total_count": 3837
 }
