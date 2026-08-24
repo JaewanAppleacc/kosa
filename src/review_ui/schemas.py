@@ -683,3 +683,99 @@ class UpdateNceMiddleSeriesReviewResponse(BaseModel):
     ok: bool
     decision: NceMiddleSeriesDecisionLiteral
     new_revision: int
+
+
+# ============================================================================
+# Canonical Major Group(42개) — 2026-08-24 지시서(a/canonical-major-group-review-ui)
+# ============================================================================
+
+CanonicalMajorGroupReviewDecisionLiteral = Literal[
+    "TBD", "APPROVE_AS_CLASSIFICATION_GROUP", "REVISE_GROUP_DEFINITION", "SPLIT_GROUP",
+    "MERGE_WITH_OTHER_GROUP", "EXCLUDE_FROM_CLASSIFICATION", "HOLD",
+]
+
+
+class CanonicalMajorGroupReviewView(BaseModel):
+    decision: CanonicalMajorGroupReviewDecisionLiteral
+    reviewer_1_status: ReviewerStatus
+    reviewer_1_comment: str
+    reviewer_2_status: ReviewerStatus
+    reviewer_2_comment: str
+    resolution_note: str
+    revision: int
+    final_status: FinalReviewStatus
+
+
+class OfficialSeriesView(BaseModel):
+    """`getCodeByLargeSeries`/`getCodeByMiddleSeries`/`getCodeBySeriesSystem`
+    원본 코드표를 조인해 계산한 공식 대계열·중계열 — Draft의 `middle_series_hint`
+    (저자가 미리 적어둔 힌트)와는 별개 필드다. 두 값이 다를 수 있고, 다르다는
+    사실 자체가 검수자에게 유용한 신호라 둘 다 그대로 노출한다."""
+
+    large_series_codes: list[str]
+    large_series_names: list[str]
+    middle_series_codes: list[str]
+    middle_series_names: list[str]
+    included_small_series_names: list[str]
+
+
+class CanonicalMajorGroupRowView(BaseModel):
+    """42개 Group 중 한 행 + 그 Group의 사람 검수 상태. Draft 원본·공식
+    코드표·전국 학과 후보 수·다른 세 검수 축의 경계 메모를 조인한 View일 뿐,
+    이 응답 자체가 어느 파일도 바꾸지 않는다."""
+
+    canonical_major_group_id: str
+    label: str
+    description: str
+    official_series: OfficialSeriesView
+    included_official_small_series_codes: list[str]
+    middle_series_hint: list[str]
+    boundary_cases: list[str]
+    classification_basis: str
+    official_source_urls: list[str]
+    # Draft 자체의 `review_status`(worker-c 산출, 항상 "draft") — 이 필드는 이
+    # 지시서가 만드는 사람 검수(`review` 아래)와 다른 축이다. 혼동 방지를 위해
+    # "draft_"를 접두로 붙인다.
+    draft_review_status: Literal["draft", "approved"]
+    is_arts_or_sports_group: bool
+    national_department_candidate_count: int | None
+    is_bridge_linked: bool
+    is_nce_related: bool
+    cross_review_boundary_notes: list[str]
+    review: CanonicalMajorGroupReviewView
+
+
+class CanonicalMajorGroupSummary(BaseModel):
+    total: int
+    tbd_count: int
+    approve_count: int
+    revise_count: int
+    hold_count: int
+    excluded_count: int
+    arts_or_sports_count: int
+    bridge_linked_count: int
+    bridge_unlinked_count: int
+    nce_related_count: int
+    reviewed_count: int
+    unreviewed_count: int
+
+
+class CanonicalMajorGroupListResponse(BaseModel):
+    rows: list[CanonicalMajorGroupRowView]
+    summary: CanonicalMajorGroupSummary
+
+
+class UpdateCanonicalMajorGroupReviewRequest(BaseModel):
+    """None = 변경 없음(부분 저장). `expected_revision`은 필수 — 낙관적 잠금이라
+    항상 "지금 내가 보고 있는 값이 몇 번째 수정본인지"를 함께 보내야 한다."""
+
+    decision: CanonicalMajorGroupReviewDecisionLiteral | None = None
+    comment: str | None = None
+    resolution_note: str | None = None
+    expected_revision: int
+
+
+class UpdateCanonicalMajorGroupReviewResponse(BaseModel):
+    ok: bool
+    decision: CanonicalMajorGroupReviewDecisionLiteral
+    new_revision: int

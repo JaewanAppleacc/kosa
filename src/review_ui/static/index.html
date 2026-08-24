@@ -37,6 +37,7 @@
   <button id="tab-bridge-btn" data-tab="bridge" type="button">Canonical Major Group Bridge (44)</button>
   <button id="tab-p1-classification-btn" data-tab="p1_classification" type="button">대학알리미 P1 분류 검수 (374)</button>
   <button id="tab-nce-reexaminable-btn" data-tab="nce_reexaminable" type="button">대학알리미 N.C.E 중계열 검수 (24)</button>
+  <button id="tab-canonical-major-groups-btn" data-tab="canonical_major_groups" type="button">Canonical Major Groups (42)</button>
   </div>
 
   <span id="save-indicator" class="save-indicator">불러오는 중…</span>
@@ -300,6 +301,47 @@
       <h3>DEPARTMENT_LEVEL_REVIEW_REQUIRED</h3>
       <label><input type="checkbox" id="nce-filter-department-review"> DEPARTMENT_LEVEL_REVIEW_REQUIRED만</label>
     </div>
+
+    <div class="filter-group tab-only-canonical_major_groups">
+      <h3>요약</h3>
+      <div class="summary-box" id="cmg-summary-box">불러오는 중…</div>
+    </div>
+
+    <div class="filter-group tab-only-canonical_major_groups">
+      <h3>검수 상태</h3>
+      <label><input type="radio" name="cmg-decision-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="cmg-decision-filter" value="TBD"> 미검수(TBD)</label>
+      <label><input type="radio" name="cmg-decision-filter" value="APPROVE_AS_CLASSIFICATION_GROUP"> APPROVE</label>
+      <label><input type="radio" name="cmg-decision-filter" value="REVISE"> REVISE(정의 수정·분할·병합)</label>
+      <label><input type="radio" name="cmg-decision-filter" value="HOLD"> HOLD</label>
+      <label><input type="radio" name="cmg-decision-filter" value="EXCLUDE_FROM_CLASSIFICATION"> EXCLUDE</label>
+    </div>
+
+    <div class="filter-group tab-only-canonical_major_groups">
+      <h3>예체능</h3>
+      <label><input type="checkbox" id="cmg-filter-arts"> 예체능 Group만</label>
+    </div>
+
+    <div class="filter-group tab-only-canonical_major_groups">
+      <h3>N.C.E</h3>
+      <label><input type="checkbox" id="cmg-filter-nce"> N.C.E 관련 Group만</label>
+    </div>
+
+    <div class="filter-group tab-only-canonical_major_groups">
+      <h3>Bridge 연결</h3>
+      <label><input type="radio" name="cmg-bridge-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="cmg-bridge-filter" value="linked"> 연결 있음</label>
+      <label><input type="radio" name="cmg-bridge-filter" value="unlinked"> 연결 없음</label>
+    </div>
+
+    <div class="filter-group tab-only-canonical_major_groups">
+      <h3>정렬</h3>
+      <select id="cmg-sort-key">
+        <option value="id">Group ID</option>
+        <option value="small_series_count">소계열 수</option>
+        <option value="department_count">학과 후보 수</option>
+      </select>
+    </div>
   </aside>
 
   <section class="content">
@@ -321,6 +363,7 @@
     <div id="bridge-container" class="tab-only-bridge"></div>
     <div id="p1-container" class="tab-only-p1_classification"></div>
     <div id="nce-container" class="tab-only-nce_reexaminable"></div>
+    <div id="cmg-container" class="tab-only-canonical_major_groups"></div>
   </section>
 </main>
 

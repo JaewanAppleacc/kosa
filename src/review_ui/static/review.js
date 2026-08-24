@@ -95,6 +95,13 @@ const state = {
     minDepartmentCount: null, departmentReviewOnly: false,
   },
   nceExpandedClusters: new Set(),
+  // 2026-08-24 지시서(a/canonical-major-group-review-ui) — Canonical Major
+  // Group(42개) 자체를 분류 Ontology로 계속 쓸 수 있는지 검수하는 탭. Bridge/P1/
+  // N.C.E와 같은 원칙: cmgFilters는 전부 순수 클라이언트 필터고, 저장은 각 카드의
+  // 저장 버튼 클릭에서만 나간다 — 필터가 바뀌어도 절대 PATCH를 보내지 않는다.
+  cmgRows: [],
+  cmgSummary: null,
+  cmgFilters: { decision: "all", artsOnly: false, nceOnly: false, bridge: "all", sortKey: "id" },
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -2587,6 +2594,177 @@ function renderNceAll() {
   renderNceContainer();
 }
 
+/* ---- Canonical Major Groups(42) — 2026-08-24 지시서
+ * (a/canonical-major-group-review-ui). "전체 승인" 버튼은 만들지 않는다 — 카드마다
+ * 독립된 저장 버튼 하나씩만 존재한다(§4). */
+
+const CMG_DECISIONS = [
+  "TBD", "APPROVE_AS_CLASSIFICATION_GROUP", "REVISE_GROUP_DEFINITION", "SPLIT_GROUP",
+  "MERGE_WITH_OTHER_GROUP", "EXCLUDE_FROM_CLASSIFICATION", "HOLD",
+];
+const CMG_REVISE_BUCKET = new Set(["REVISE_GROUP_DEFINITION", "SPLIT_GROUP", "MERGE_WITH_OTHER_GROUP"]);
+
+async function loadCmgAll() {
+  const resp = await apiGet(`${API_BASE}/canonical-major-groups`);
+  state.cmgRows = resp.rows;
+  state.cmgSummary = resp.summary;
+  renderCmgAll();
+}
+
+function renderCmgSummary() {
+  const s = state.cmgSummary;
+  const box = document.getElementById("cmg-summary-box");
+  if (!s) { box.textContent = "불러오는 중…"; return; }
+  box.replaceChildren(
+    el("div", { class: "row" }, [el("span", {}, "전체"), el("span", { class: "n" }, String(s.total))]),
+    el("div", { class: "row" }, [el("span", {}, "TBD"), el("span", { class: "n" }, String(s.tbd_count))]),
+    el("div", { class: "row" }, [el("span", {}, "APPROVE"), el("span", { class: "n" }, String(s.approve_count))]),
+    el("div", { class: "row" }, [el("span", {}, "REVISE(정의 수정·분할·병합)"), el("span", { class: "n" }, String(s.revise_count))]),
+    el("div", { class: "row" }, [el("span", {}, "HOLD"), el("span", { class: "n" }, String(s.hold_count))]),
+    el("div", { class: "row" }, [el("span", {}, "EXCLUDE"), el("span", { class: "n" }, String(s.excluded_count))]),
+    el("hr"),
+    el("div", { class: "row" }, [el("span", {}, "예체능 Group"), el("span", { class: "n" }, String(s.arts_or_sports_count))]),
+    el("div", { class: "row" }, [el("span", {}, "N.C.E 관련 Group"), el("span", { class: "n" }, String(s.nce_related_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Bridge 연결 Group"), el("span", { class: "n" }, String(s.bridge_linked_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Bridge 미연결 Group"), el("span", { class: "n" }, String(s.bridge_unlinked_count))]),
+  );
+}
+
+function cmgRowMatchesFilters(row) {
+  const f = state.cmgFilters;
+  if (f.decision === "REVISE") {
+    if (!CMG_REVISE_BUCKET.has(row.review.decision)) return false;
+  } else if (f.decision !== "all" && row.review.decision !== f.decision) {
+    return false;
+  }
+  if (f.artsOnly && !row.is_arts_or_sports_group) return false;
+  if (f.nceOnly && !row.is_nce_related) return false;
+  if (f.bridge === "linked" && !row.is_bridge_linked) return false;
+  if (f.bridge === "unlinked" && row.is_bridge_linked) return false;
+  return true;
+}
+
+function filteredCmgRows() {
+  const rows = state.cmgRows.filter(cmgRowMatchesFilters);
+  const key = state.cmgFilters.sortKey;
+  const sorted = [...rows];
+  if (key === "small_series_count") {
+    sorted.sort((a, b) => a.included_official_small_series_codes.length - b.included_official_small_series_codes.length
+      || a.canonical_major_group_id.localeCompare(b.canonical_major_group_id));
+  } else if (key === "department_count") {
+    sorted.sort((a, b) => (a.national_department_candidate_count ?? -1) - (b.national_department_candidate_count ?? -1)
+      || a.canonical_major_group_id.localeCompare(b.canonical_major_group_id));
+  } else {
+    sorted.sort((a, b) => a.canonical_major_group_id.localeCompare(b.canonical_major_group_id));
+  }
+  return sorted;
+}
+
+function renderCmgRowCard(row) {
+  const card = el("div", { class: "bridge-row-card" });
+  card.appendChild(el("h3", {}, `${row.canonical_major_group_id} — ${row.label}`));
+  card.appendChild(
+    el("div", { class: "meta-row" }, [
+      statusPill(row.review.final_status),
+      row.is_arts_or_sports_group ? el("span", { class: "scope-type-pill EXCLUDED_RECOMMENDATION" }, "예체능") : null,
+      row.is_nce_related ? el("span", { class: "scope-type-pill FULL_GROUP" }, "N.C.E 관련") : null,
+      row.is_bridge_linked
+        ? el("span", { class: "scope-type-pill FULL_GROUP" }, "Bridge 연결")
+        : el("span", { class: "scope-type-pill none" }, "Bridge 미연결"),
+      ` · Draft review_status=${row.draft_review_status}`,
+      ` · 소계열 ${row.included_official_small_series_codes.length}개`,
+      ` · 전국 학과 후보 ${row.national_department_candidate_count == null ? "미상" : row.national_department_candidate_count}건`,
+    ]),
+  );
+  card.appendChild(el("div", { class: "decision-reason" }, row.description));
+  card.appendChild(
+    el("div", { class: "meta-row" },
+      `공식 대계열: ${row.official_series.large_series_names.join(", ") || "없음"} · `
+      + `공식 중계열: ${row.official_series.middle_series_names.join(", ") || "없음"} `
+      + `(middle_series_hint: ${row.middle_series_hint.join(", ") || "없음"})`),
+  );
+  const smallSeriesList = el("ul", { class: "evidence-list" });
+  row.included_official_small_series_codes.forEach((code, i) => {
+    smallSeriesList.appendChild(el("li", {}, `${code} — ${row.official_series.included_small_series_names[i]}`));
+  });
+  card.appendChild(el("h4", { class: "review-section-label" }, "포함 공식 소계열"));
+  card.appendChild(smallSeriesList);
+
+  if (row.boundary_cases.length > 0) {
+    const list = el("ul", { class: "evidence-list" });
+    for (const item of row.boundary_cases) list.appendChild(el("li", {}, item));
+    card.appendChild(el("h4", { class: "review-section-label" }, "경계 사례(Draft 저자 기록)"));
+    card.appendChild(list);
+  }
+
+  if (row.cross_review_boundary_notes.length > 0) {
+    const list = el("ul", { class: "evidence-list" });
+    for (const item of row.cross_review_boundary_notes) list.appendChild(el("li", {}, item));
+    card.appendChild(el("h4", { class: "review-section-label" }, "P1/N.C.E/Bridge 경계 관련 메모(읽기 전용)"));
+    card.appendChild(list);
+  }
+
+  card.appendChild(
+    el("div", { class: "meta-row" }, `분류 근거: ${row.classification_basis} · 출처: ${row.official_source_urls.join(", ")}`),
+  );
+  card.appendChild(
+    el("div", { class: "boundary-notes" },
+      "참고: APPROVE_AS_CLASSIFICATION_GROUP은 \"42개 중간 분류 Ontology로 사용 가능\"이라는 뜻만입니다 — "
+      + "서비스 추천 전공 승인, 전국 학과 자동 승격, 예체능 추천 허용, Bridge Mapping/Scope 승인을 의미하지 않습니다."),
+  );
+
+  const decisionSelect = el("select", {});
+  for (const value of CMG_DECISIONS) {
+    const opt = el("option", { value }, value);
+    if (value === row.review.decision) opt.selected = true;
+    decisionSelect.appendChild(opt);
+  }
+
+  const commentBox = el("textarea", { class: "bridge-comment-box", placeholder: "검토자 코멘트" });
+  commentBox.value = row.review.reviewer_1_comment;
+
+  const msg = el("span", { class: "inline-msg" });
+  const saveBtn = el("button", { class: "save-btn", type: "button", text: "저장" });
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    msg.textContent = "";
+    msg.className = "inline-msg";
+    try {
+      await apiPatch(`${API_BASE}/canonical-major-groups/${encodeURIComponent(row.canonical_major_group_id)}`, {
+        decision: decisionSelect.value, comment: commentBox.value, resolution_note: null,
+        expected_revision: row.review.revision,
+      });
+      await loadCmgAll();
+    } catch (err) {
+      msg.textContent = `저장 실패: ${err.message}`;
+      msg.className = "inline-msg err";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  card.appendChild(el("div", { class: "review-controls" }, [decisionSelect, saveBtn, msg]));
+  card.appendChild(commentBox);
+  return card;
+}
+
+function renderCmgContainer() {
+  const container = document.getElementById("cmg-container");
+  const rows = filteredCmgRows();
+  if (rows.length === 0) {
+    container.replaceChildren(el("div", { class: "bridge-empty-msg" }, "조건에 맞는 Group이 없습니다."));
+    return;
+  }
+  const list = el("div", { class: "bridge-row-list" });
+  for (const row of rows) list.appendChild(renderCmgRowCard(row));
+  container.replaceChildren(list);
+}
+
+function renderCmgAll() {
+  renderCmgSummary();
+  renderCmgContainer();
+}
+
 /* ---- Hash Deep Link(#context-packs, #shared-probes?batch=1 등) — 탭마다 안정적인
  * hash를 매핑해, 새로고침해도 같은 탭이 유지되게 한다. shared_probes 탭은 배치까지
  * "?batch=N" 쿼리로 남긴다(예: #shared-probes?batch=1). 이 프로젝트는 localStorage로
@@ -2598,6 +2776,7 @@ const CONTEXTPACK_TAB_HASH = {
   backup: "backup", anchor_backup: "anchor-backup", shared_probes: "shared-probes",
   context_packs: "context-packs", bridge: "bridge",
   p1_classification: "p1-classification", nce_reexaminable: "nce-reexaminable",
+  canonical_major_groups: "canonical-major-groups",
 };
 const CONTEXTPACK_HASH_TO_TAB = Object.fromEntries(Object.entries(CONTEXTPACK_TAB_HASH).map(([tab, hash]) => [hash, tab]));
 
@@ -2664,6 +2843,7 @@ function applyTabClasses(tab) {
   document.body.classList.toggle("tab-bridge", tab === "bridge");
   document.body.classList.toggle("tab-p1_classification", tab === "p1_classification");
   document.body.classList.toggle("tab-nce_reexaminable", tab === "nce_reexaminable");
+  document.body.classList.toggle("tab-canonical_major_groups", tab === "canonical_major_groups");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
@@ -2674,11 +2854,12 @@ function applyTabClasses(tab) {
   document.getElementById("tab-bridge-btn").classList.toggle("active", tab === "bridge");
   document.getElementById("tab-p1-classification-btn").classList.toggle("active", tab === "p1_classification");
   document.getElementById("tab-nce-reexaminable-btn").classList.toggle("active", tab === "nce_reexaminable");
+  document.getElementById("tab-canonical-major-groups-btn").classList.toggle("active", tab === "canonical_major_groups");
   // 공용 Adaptive Probe 탭과 마찬가지로 "질문 하나 = Pager 한 칸" 모델이 아닌 탭만
   // 여기서 pager-bar를 숨긴다 — 신규 ContextPack 탭은 이 모델을 그대로 쓰므로
-  // (Context 안에서 이전/다음 질문) 계속 보여준다. Bridge·P1·N.C.E 탭도 카드 목록
-  // 모델이라 Pager가 필요 없다.
-  const cardListTabs = ["shared_probes", "bridge", "p1_classification", "nce_reexaminable"];
+  // (Context 안에서 이전/다음 질문) 계속 보여준다. Bridge·P1·N.C.E·Canonical Major
+  // Groups 탭도 카드 목록 모델이라 Pager가 필요 없다.
+  const cardListTabs = ["shared_probes", "bridge", "p1_classification", "nce_reexaminable", "canonical_major_groups"];
   document.getElementById("pager-bar").style.display = cardListTabs.includes(tab) ? "none" : "flex";
 }
 
@@ -2780,6 +2961,16 @@ async function loadOrRenderTab(tab) {
     } else {
       renderNceAll();
     }
+  } else if (tab === "canonical_major_groups") {
+    if (state.cmgRows.length === 0) {
+      try {
+        await loadCmgAll();
+      } catch (err) {
+        setSaveIndicator(`Canonical Major Groups 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderCmgAll();
+    }
   } else {
     if (state.questions.length === 0) {
       try {
@@ -2836,9 +3027,10 @@ function setupControls() {
   document.getElementById("tab-bridge-btn").addEventListener("click", () => setTab("bridge"));
   document.getElementById("tab-p1-classification-btn").addEventListener("click", () => setTab("p1_classification"));
   document.getElementById("tab-nce-reexaminable-btn").addEventListener("click", () => setTab("nce_reexaminable"));
+  document.getElementById("tab-canonical-major-groups-btn").addEventListener("click", () => setTab("canonical_major_groups"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
-    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable"].includes(state.tab)) return; // 이 탭들은 Pager를 쓰지 않는다.
+    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable", "canonical_major_groups"].includes(state.tab)) return; // 이 탭들은 Pager를 쓰지 않는다.
     if (state.tab === "routing") stepRoutingQuestion(-1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
@@ -2847,7 +3039,7 @@ function setupControls() {
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
-    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable"].includes(state.tab)) return;
+    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable", "canonical_major_groups"].includes(state.tab)) return;
     if (state.tab === "routing") stepRoutingQuestion(1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
@@ -2998,10 +3190,30 @@ function setupControls() {
     renderNceContainer();
   });
 
+  // §4 — Canonical Major Groups 필터. 전부 renderCmgContainer()만 호출한다(PATCH 없음).
+  document.querySelectorAll('input[name="cmg-decision-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.cmgFilters.decision = input.value; renderCmgContainer(); });
+  });
+  document.getElementById("cmg-filter-arts").addEventListener("change", (e) => {
+    state.cmgFilters.artsOnly = e.target.checked;
+    renderCmgContainer();
+  });
+  document.getElementById("cmg-filter-nce").addEventListener("change", (e) => {
+    state.cmgFilters.nceOnly = e.target.checked;
+    renderCmgContainer();
+  });
+  document.querySelectorAll('input[name="cmg-bridge-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.cmgFilters.bridge = input.value; renderCmgContainer(); });
+  });
+  document.getElementById("cmg-sort-key").addEventListener("change", (e) => {
+    state.cmgFilters.sortKey = e.target.value;
+    renderCmgContainer();
+  });
+
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable"].includes(state.tab)) return; // 이 탭들은 화살표 키 이동을 쓰지 않는다.
+    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable", "canonical_major_groups"].includes(state.tab)) return; // 이 탭들은 화살표 키 이동을 쓰지 않는다.
     if (e.key === "ArrowLeft") {
       if (state.tab === "routing") stepRoutingQuestion(-1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
