@@ -270,11 +270,98 @@ class ServiceLayerTest(_PreservationTestBase):
     def test_final_status_computed_from_decision(self) -> None:
         entry = CanonicalMajorGroupReview(canonical_major_group_id="x")
         self.assertEqual(entry.final_status, "DRAFT")
-        entry2 = CanonicalMajorGroupReview(canonical_major_group_id="x", decision="APPROVE_AS_CLASSIFICATION_GROUP")
+        entry2 = CanonicalMajorGroupReview(
+            canonical_major_group_id="x", decision="APPROVE_AS_CLASSIFICATION_GROUP", reviewer_1_status="APPROVE",
+        )
         self.assertEqual(entry2.final_status, "APPROVED")
-        for d in ("REVISE_GROUP_DEFINITION", "SPLIT_GROUP", "MERGE_WITH_OTHER_GROUP", "EXCLUDE_FROM_CLASSIFICATION", "HOLD"):
-            entry3 = CanonicalMajorGroupReview(canonical_major_group_id="x", decision=d)
+        for d in ("REVISE_GROUP_DEFINITION", "SPLIT_GROUP", "MERGE_WITH_OTHER_GROUP", "EXCLUDE_FROM_CLASSIFICATION"):
+            entry3 = CanonicalMajorGroupReview(canonical_major_group_id="x", decision=d, reviewer_1_status="REVISE")
             self.assertEqual(entry3.final_status, "REVIEW_REQUIRED", d)
+        entry4 = CanonicalMajorGroupReview(canonical_major_group_id="x", decision="HOLD", reviewer_1_status="HOLD")
+        self.assertEqual(entry4.final_status, "REVIEW_REQUIRED")
+
+    def test_reviewer_1_status_decision_contradiction_rejected(self) -> None:
+        """§3 Group Review 불변식 — decision과 reviewer_1_status가 서로 다른
+        판단을 나타내는 조합은 어떤 경로로도 저장할 수 없어야 한다."""
+
+        from src.schemas.canonical_major_group_review import expected_reviewer_1_status_for_decision
+
+        contradictory_pairs = [
+            ("APPROVE_AS_CLASSIFICATION_GROUP", "TBD"),  # §3 "APPROVE인데 미검수로 표시되지 않음"
+            ("APPROVE_AS_CLASSIFICATION_GROUP", "REVISE"),
+            ("APPROVE_AS_CLASSIFICATION_GROUP", "HOLD"),
+            ("TBD", "APPROVE"),  # §3 "TBD인데 검수 완료로 표시되지 않음"
+            ("TBD", "REVISE"),
+            ("TBD", "HOLD"),
+            ("HOLD", "TBD"),
+            ("HOLD", "APPROVE"),
+            ("REVISE_GROUP_DEFINITION", "TBD"),
+            ("REVISE_GROUP_DEFINITION", "APPROVE"),
+            ("SPLIT_GROUP", "TBD"),
+            ("EXCLUDE_FROM_CLASSIFICATION", "APPROVE"),
+        ]
+        for decision, reviewer_1_status in contradictory_pairs:
+            with self.assertRaises(Exception, msg=f"{decision=} {reviewer_1_status=}"):
+                CanonicalMajorGroupReview(
+                    canonical_major_group_id="x", decision=decision, reviewer_1_status=reviewer_1_status,
+                )
+
+        # 대응하는 값이면 전부 허용돼야 한다(거부 규칙이 지나치게 넓지 않은지 확인).
+        for decision in (
+            "TBD", "APPROVE_AS_CLASSIFICATION_GROUP", "REVISE_GROUP_DEFINITION", "SPLIT_GROUP",
+            "MERGE_WITH_OTHER_GROUP", "EXCLUDE_FROM_CLASSIFICATION", "HOLD",
+        ):
+            allowed_status = expected_reviewer_1_status_for_decision(decision)
+            entry = CanonicalMajorGroupReview(
+                canonical_major_group_id="x", decision=decision, reviewer_1_status=allowed_status,
+            )
+            self.assertEqual(entry.reviewer_1_status, allowed_status)
+
+    def test_reviewer_2_status_not_required_and_not_validated(self) -> None:
+        """§3 "reviewer_2 기본값은 기존대로 유지하되 2차 검토를 요구하지 않음" —
+        reviewer_2_status가 TBD로 남아 있어도(2차 검토 없음) 저장·검증에 전혀
+        영향을 주지 않는다. reviewer_2_status에 임의 값을 넣어도(그 자체로는
+        모순 검사 대상이 아니므로) 거부되지 않는다."""
+
+        entry = CanonicalMajorGroupReview(
+            canonical_major_group_id="x", decision="APPROVE_AS_CLASSIFICATION_GROUP", reviewer_1_status="APPROVE",
+        )
+        self.assertEqual(entry.reviewer_2_status, "TBD")
+        self.assertEqual(entry.reviewer_2_comment, "")
+
+        for reviewer_2_status in ("TBD", "APPROVE", "REVISE", "HOLD"):
+            entry2 = CanonicalMajorGroupReview(
+                canonical_major_group_id="x", decision="APPROVE_AS_CLASSIFICATION_GROUP", reviewer_1_status="APPROVE",
+                reviewer_2_status=reviewer_2_status,
+            )
+            self.assertEqual(entry2.final_status, "APPROVED", reviewer_2_status)
+
+    def test_save_always_syncs_reviewer_1_status_to_decision(self) -> None:
+        """저장 경로(`update_canonical_major_group_review`)를 거치면 decision이
+        바뀔 때마다 reviewer_1_status도 항상 함께 동기화된다 — 화면(review View)·
+        Store(JSONL)·API 응답 세 곳 모두 같은 값을 본다."""
+
+        from src.schemas.canonical_major_group_review import expected_reviewer_1_status_for_decision
+        from src.services.canonical_major_group_review_store import load_canonical_major_group_review_entries_by_key
+
+        for i, decision in enumerate((
+            "APPROVE_AS_CLASSIFICATION_GROUP", "REVISE_GROUP_DEFINITION", "SPLIT_GROUP",
+            "MERGE_WITH_OTHER_GROUP", "EXCLUDE_FROM_CLASSIFICATION", "HOLD", "TBD",
+        )):
+            out = cmgrs.update_canonical_major_group_review(
+                "agriculture_fisheries", decision=decision, comment=None, resolution_note=None,
+                expected_revision=i, review_status_path=self.review_path,
+            )
+            self.assertEqual(out.decision, decision)
+
+            row = next(r for r in self._list().rows if r.canonical_major_group_id == "agriculture_fisheries")
+            expected_status = expected_reviewer_1_status_for_decision(decision)
+            self.assertEqual(row.review.decision, decision)
+            self.assertEqual(row.review.reviewer_1_status, expected_status, decision)
+
+            stored = load_canonical_major_group_review_entries_by_key(self.review_path)["agriculture_fisheries"]
+            self.assertEqual(stored.decision, decision)
+            self.assertEqual(stored.reviewer_1_status, expected_status, decision)
 
     def test_duplicate_key_rejected_on_save(self) -> None:
         dup = [

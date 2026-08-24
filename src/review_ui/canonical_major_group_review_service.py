@@ -40,7 +40,7 @@ from src.review_ui.schemas import (
     OfficialSeriesView,
     UpdateCanonicalMajorGroupReviewResponse,
 )
-from src.schemas.canonical_major_group_review import CanonicalMajorGroupReview
+from src.schemas.canonical_major_group_review import CanonicalMajorGroupReview, expected_reviewer_1_status_for_decision
 from src.services.academyinfo_nce_middle_series_cluster_loader import (
     DEFAULT_NCE_CLUSTER_PATH,
     load_nce_middle_series_clusters,
@@ -382,6 +382,11 @@ def update_canonical_major_group_review(
     if resolution_note is not None:
         merged["resolution_note"] = resolution_note
     merged["revision"] = existing.revision + 1
+    # §3 불변식 — reviewer_1_status는 이 저장 시점의 decision(방금 바뀌었든 그대로
+    # 유지됐든)에서 유일하게 계산되는 값이어야 한다. 이 줄을 지우면 아래
+    # model_validate()가 CanonicalMajorGroupReview의 model_validator에서 즉시
+    # ValueError로 막는다(Fail-Fast) — 여기서는 애초에 모순된 값을 만들지 않는다.
+    merged["reviewer_1_status"] = expected_reviewer_1_status_for_decision(merged["decision"])
 
     updated = CanonicalMajorGroupReview.model_validate(merged)
     by_key[canonical_major_group_id] = updated
