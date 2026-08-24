@@ -1,0 +1,36 @@
+{
+  "survey_year": 2025,
+  "duplicate_group_count": 588,
+  "duplicate_record_count": 1183,
+  "duplicate_cause_breakdown": {
+    "DAY_NIGHT_SPLIT": 573,
+    "STATUS_HISTORY": 112,
+    "UNKNOWN": 12,
+    "TERM_SPLIT": 2
+  },
+  "classification_review_count": 4454,
+  "classification_cause_breakdown": {
+    "MEDIA_CONTENT": 694,
+    "CONVERGENCE": 3515,
+    "DESIGN": 241,
+    "HCI_UX": 4
+  },
+  "arts_possibility_breakdown": {
+    "POSSIBLE_NEEDS_CHECK": 939,
+    "UNLIKELY": 3515
+  },
+  "nce_queue_count": 3657,
+  "nce_and_classification_overlap_count": 984,
+  "overlap_note": "N.C.E(분류 근거 없음)와 분류 REVIEW(추천 적격성 미정)는 서로 다른 축이라 같은 학과가 양쪽에 오를 수 있다. 겹치는 행은 양쪽에 상호 참조 플래그를 붙였다.",
+  "url_audit_count": 37,
+  "url_audit_breakdown": {
+    "DEPARTMENT_SCOPE_CONFIRMED": 34,
+    "COLLEGE_SCOPE_KEEP_INTERNAL": 3
+  },
+  "url_scope_breakdown": {
+    "department": 34,
+    "college": 3
+  },
+  "public_department_url_candidates": 34,
+  "note": "전부 검토 대기다. 자동 승인·자동 대표 선정·강제 매핑을 하지 않았다."
+}

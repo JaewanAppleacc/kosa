@@ -138,6 +138,10 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
         "lesson_term_name": (raw.get("lsnTrmNm") or "").strip() or None,
         "degree_course_name": (raw.get("pbnfDgriCrseDivNm") or "").strip() or None,
         "major_character_name": (raw.get("schlMjrCharNm") or "").strip() or None,
+        # A 지시(중복 Queue): 주야간은 같은 학과가 여러 행으로 오는 흔한 사유라
+        # 검토자가 바로 볼 수 있어야 한다.
+        "day_night_name": (raw.get("dghtDivNm") or "").strip() or None,
+        "campus_division_name": (raw.get("psbsDivNm") or "").strip() or None,
         "enrolled_count": int(raw.get("eschlPscpNum") or 0),
         "graduate_count": int(raw.get("grdtNum") or 0),
         # 교육목표·교과목은 §8-1 3순위 근거다. 교과목 전문은 분리 저장돼 있어 해시만 온다.

@@ -631,5 +631,12 @@
     "수업연한이 4년 미만: 3.5년": 13
   },
   "review_queue_count": 588,
-  "lineage": null
+  "lineage": {
+    "stable": 21387,
+    "schl_mjr_id_changed": 86,
+    "new_in_latest": 3916,
+    "missing_in_latest": 1535,
+    "matched_department_count": 21473,
+    "schl_mjr_id_retention_rate": 0.996
+  }
 }
