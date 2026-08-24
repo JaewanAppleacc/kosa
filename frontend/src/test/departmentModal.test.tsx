@@ -141,8 +141,45 @@ describe("학과 팝업", () => {
   });
 });
 
-describe("Department.department_url 표시 정책(2026-08-24 A2/A4 지시서)", () => {
-  it("department_url이 있으면 '학과 홈페이지' 버튼을 보여준다", async () => {
+describe("Department.department_url 표시 정책(2026-08-24 22차 — source_url 비클릭화)", () => {
+  it("출처 문구에 source_svy_year가 '대학알리미 {연도}년 공시 기준' 형태로 표시된다", async () => {
+    const user = userEvent.setup();
+    renderMajors([department({ department_id: "d1", source_svy_year: 2025 })]);
+
+    const { dialog } = await openModal(user);
+    expect(await within(dialog).findByText("대학알리미 2025년 공시 기준")).toBeInTheDocument();
+  });
+
+  it("공시 문구는 a 태그(클릭 가능한 링크)가 아니다", async () => {
+    const user = userEvent.setup();
+    renderMajors([department({ department_id: "d1", source_svy_year: 2025 })]);
+
+    const { dialog } = await openModal(user);
+    await within(dialog).findByText("대학알리미 2025년 공시 기준");
+    // 대학알리미는 모든 학과가 같은 루트 URL을 공유한다 — 클릭 가능한 "공식 출처"
+    // 링크로 보이면 학생이 그걸 그 학과의 공식 홈페이지로 오해할 수 있다.
+    expect(within(dialog).queryByRole("link", { name: "대학알리미 2025년 공시 기준" })).not.toBeInTheDocument();
+  });
+
+  it("source_url은 화면의 어떤 링크의 href로도 쓰이지 않는다", async () => {
+    const user = userEvent.setup();
+    renderMajors([
+      department({
+        department_id: "d1",
+        university_name: "가나대학교",
+        source_url: "https://www.academyinfo.go.kr/",
+        department_url: "https://media.gana.ac.kr",
+      }),
+    ]);
+
+    const { dialog } = await openModal(user);
+    await within(dialog).findByText("가나대학교 미디어학과");
+    for (const link of within(dialog).getAllByRole("link") as HTMLAnchorElement[]) {
+      expect(link.getAttribute("href")).not.toBe("https://www.academyinfo.go.kr/");
+    }
+  });
+
+  it("department_url이 있으면 '학과 홈페이지 →' 링크를 보여주고, href가 department_url과 정확히 같다", async () => {
     const user = userEvent.setup();
     renderMajors([
       department({
@@ -153,55 +190,65 @@ describe("Department.department_url 표시 정책(2026-08-24 A2/A4 지시서)", 
     ]);
 
     const { dialog } = await openModal(user);
-    const homepageLink = await within(dialog).findByRole("link", { name: "학과 홈페이지" });
+    const homepageLink = await within(dialog).findByRole("link", { name: "학과 홈페이지 →" });
     expect(homepageLink).toHaveAttribute("href", "https://media.gana.ac.kr");
+    expect(homepageLink).toHaveAttribute("target", "_blank");
+    expect(homepageLink).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+    expect(homepageLink).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
 
-  it("department_url이 null이면 '학과 홈페이지' 버튼을 아예 숨긴다", async () => {
+  it("department_url이 null이면 '학과 홈페이지' 링크를 아예 숨긴다", async () => {
     const user = userEvent.setup();
     renderMajors([department({ department_id: "d1", department_url: null })]);
 
     const { dialog } = await openModal(user);
     await within(dialog).findByText("예시대학교 미디어학과");
-    expect(within(dialog).queryByRole("link", { name: "학과 홈페이지" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("link", { name: "학과 홈페이지 →" })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("link", { name: /학과 홈페이지/ })).not.toBeInTheDocument();
   });
 
-  it("source_url은 학과 홈페이지 링크로 쓰지 않는다 — 출처 링크와 href가 다르다", async () => {
+  it("source_url과 department_url이 서로 다른 값이어도 혼용되지 않는다(각자 정확한 자리에만 쓰인다)", async () => {
     const user = userEvent.setup();
     renderMajors([
       department({
         department_id: "d1",
+        source_svy_year: 2024,
         source_url: "https://www.academyinfo.go.kr/",
         department_url: "https://media.gana.ac.kr",
       }),
     ]);
 
     const { dialog } = await openModal(user);
-    const homepageLink = await within(dialog).findByRole("link", { name: "학과 홈페이지" });
+    // 출처 문구는 여전히 source_svy_year로만 만들어진다(a 태그 아님).
+    expect(await within(dialog).findByText("대학알리미 2024년 공시 기준")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("link", { name: "대학알리미 2024년 공시 기준" })).not.toBeInTheDocument();
+    // 홈페이지 링크는 department_url만 가리킨다.
+    const homepageLink = await within(dialog).findByRole("link", { name: "학과 홈페이지 →" });
     expect(homepageLink).toHaveAttribute("href", "https://media.gana.ac.kr");
-    expect(homepageLink).not.toHaveAttribute("href", "https://www.academyinfo.go.kr/");
   });
 
-  it("출처 문구에 source_svy_year가 '대학알리미 {연도}년 공시 기준' 형태로 표시된다", async () => {
-    const user = userEvent.setup();
-    renderMajors([department({ department_id: "d1", source_svy_year: 2025 })]);
-
-    const { dialog } = await openModal(user);
-    expect(await within(dialog).findByText("대학알리미 2025년 공시 기준")).toBeInTheDocument();
-  });
-
-  it("출처 링크는 항상 source_url을 가리킨다(department_url과 별개)", async () => {
+  it("두 학과가 서로 다른 source_url/department_url 조합을 가져도 각 행이 자기 값만 쓴다", async () => {
     const user = userEvent.setup();
     renderMajors([
       department({
         department_id: "d1",
+        university_name: "가나대학교",
         source_url: "https://www.academyinfo.go.kr/",
         department_url: "https://media.gana.ac.kr",
+      }),
+      department({
+        department_id: "d2",
+        university_name: "다라대학교",
+        source_url: "https://www.academyinfo.go.kr/",
+        department_url: null,
       }),
     ]);
 
     const { dialog } = await openModal(user);
-    const sourceLink = await within(dialog).findByRole("link", { name: "대학알리미 2025년 공시 기준" });
-    expect(sourceLink).toHaveAttribute("href", "https://www.academyinfo.go.kr/");
+    await within(dialog).findByText("가나대학교 미디어학과");
+    const links = within(dialog).getAllByRole("link", { name: "학과 홈페이지 →" });
+    // department_url이 있는 학과(가나대학교) 하나만 링크를 갖는다.
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "https://media.gana.ac.kr");
   });
 });
