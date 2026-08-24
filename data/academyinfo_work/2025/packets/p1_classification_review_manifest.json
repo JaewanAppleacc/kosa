@@ -1,0 +1,31 @@
+{
+  "survey_year": 2025,
+  "input_hashes": {
+    "classification_review_queue.jsonl": "ae61f98c193f2be18b03bb9dadf5f531c82e032dc2058d4c615816f337d14929"
+  },
+  "output_hashes": {
+    "p1_classification_review.jsonl": "da95552714666e54d774128117acb9c24b3733fd6dc54fb2e3727fa72f435fc3",
+    "p1_classification_review_packet.html": "e75726dfc8186da9472b22da13f5149a46ab33e29e1e8bbd332286864bd1ebd5"
+  },
+  "source_queue_total": 1936,
+  "p1_total": 374,
+  "p1_cluster_breakdown": {
+    "CONTENT_MEDIA": 275,
+    "DESIGN_HCI_UX": 99
+  },
+  "judgment_candidate_breakdown": {
+    "MEDIA_COMMUNICATION_CANDIDATE": 96,
+    "UNMAPPED": 68,
+    "NEEDS_OFFICIAL_CURRICULUM": 207,
+    "DESIGN_ARTS_EXCLUDED": 1,
+    "HCI_UX_CANDIDATE": 2
+  },
+  "official_evidence_sufficient_count": 97,
+  "official_evidence_insufficient_count": 277,
+  "arts_sports_possibility_breakdown": {
+    "POSSIBLE_NEEDS_CHECK": 373,
+    "UNLIKELY": 1
+  },
+  "auto_approved_rows": 0,
+  "note": "auto_approved_rows가 0이라는 것이 자동 승인하지 않았다는 증명이다. 모든 행은 reviewer_1_status=TBD · resolution_status=PENDING이다. official_evidence_sufficient_count는 '자동 처리 가능한 건수'가 아니라 '공식 필드(candidate_canonical_major_ids)만으로 판단 후보를 매길 근거가 있는 건수'다 — 사람 승인 여부와 무관하다."
+}
