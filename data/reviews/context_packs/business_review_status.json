@@ -1,90 +1,90 @@
 [
   {
-    "blueprint_id": "business::anchor_backup::feedback_reading",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::anchor_backup::feedback_reading"
   },
   {
-    "blueprint_id": "business::anchor_backup::idea_shaping",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::anchor_backup::idea_shaping"
   },
   {
-    "blueprint_id": "business::anchor_backup::plan_decision",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::anchor_backup::plan_decision"
   },
   {
-    "blueprint_id": "business::anchor_backup::resource_budgeting",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::anchor_backup::resource_budgeting"
   },
   {
-    "blueprint_id": "business::anchor_backup::team_role_share",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::anchor_backup::team_role_share"
   },
   {
-    "blueprint_id": "business::routing::business_context_router_v1",
-    "reviewer_1_status": "TBD",
-    "reviewer_1_comment": "",
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "제한된 시간이나 예산을 어떻게 쓸지 정하는 순간,:제한된 시간안에가 더 자연스러운것같아\n여러 방향 중 하나를 결정하는 순간: 말이 너무 모호해",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::routing::business_context_router_v1"
   },
   {
-    "blueprint_id": "business::seed::feedback_reading",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::seed::feedback_reading"
   },
   {
-    "blueprint_id": "business::seed::idea_shaping",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::seed::idea_shaping"
   },
   {
-    "blueprint_id": "business::seed::plan_decision",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::seed::plan_decision"
   },
   {
-    "blueprint_id": "business::seed::resource_budgeting",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::seed::resource_budgeting"
   },
   {
-    "blueprint_id": "business::seed::team_role_share",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "",
+    "blueprint_id": "business::seed::team_role_share"
   }
 ]
