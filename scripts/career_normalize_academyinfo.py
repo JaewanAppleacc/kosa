@@ -46,6 +46,11 @@ from src.ids import generate_department_id  # noqa: E402
 
 ACADEMYINFO_DATASET_NAME = "한국대학교육협의회 대학알리미 대학 기본 정보 (data.go.kr B340014)"
 
+IN_RECOMMENDATION_SCOPE = "IN_RECOMMENDATION_SCOPE"
+OUT_OF_RECOMMENDATION_SCOPE = "OUT_OF_RECOMMENDATION_SCOPE"
+CONTRACT_DEPARTMENT = "CONTRACT_DEPARTMENT"
+CONTRACT_COURSE = "계약학과"
+
 # 대학알리미 `schlMjrStatNm` → 기존 Department.department_status Literal.
 # 기존 career_build_department_master.py의 STATUS_MAP과 같은 표를 쓴다 — 두 곳이
 # 갈라지면 같은 원본이 빌더에 따라 다른 상태로 저장된다.
@@ -94,6 +99,7 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
     department_name = (raw.get("korMjrNm") or "").strip()
     college_name = (raw.get("clgNm") or "").strip()
 
+    is_contract = (raw.get("schlMjrCharNm") or "").strip() == CONTRACT_COURSE
     return {
         # A 지시 §5: 원본 행 식별자와 학과 실체 식별자를 분리한다.
         # source_record_id는 연도를 포함하고, department_id는 포함하지 않는다.
@@ -139,6 +145,10 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
         "lesson_term_name": (raw.get("lsnTrmNm") or "").strip() or None,
         "degree_course_name": (raw.get("pbnfDgriCrseDivNm") or "").strip() or None,
         "major_character_name": (raw.get("schlMjrCharNm") or "").strip() or None,
+        "recommendation_scope": (
+            OUT_OF_RECOMMENDATION_SCOPE if is_contract else IN_RECOMMENDATION_SCOPE
+        ),
+        "exclusion_reason": CONTRACT_DEPARTMENT if is_contract else None,
         # A 지시(중복 Queue): 주야간은 같은 학과가 여러 행으로 오는 흔한 사유라
         # 검토자가 바로 볼 수 있어야 한다.
         "day_night_name": (raw.get("dghtDivNm") or "").strip() or None,
@@ -180,9 +190,22 @@ def normalize(
         if reason is None:
             scope_reason = recommendation_scope_exclusion(raw)
             if scope_reason is None:
-                included.append(normalize_department(raw))
+                row = normalize_department(raw)
+                # 계약학과도 전국 정규화 데이터에는 남긴다. 추천/Master 후보에서만
+                # 제외하며, 되돌릴 수 있도록 같은 정규화 행을 범위 밖 출력에도 보존한다.
+                included.append(row)
+                if row["recommendation_scope"] == OUT_OF_RECOMMENDATION_SCOPE:
+                    row = dict(row)
+                    row["recommendation_scope_status"] = CONTRACT_DEPARTMENT
+                    row["recommendation_scope_note"] = (
+                        "산업체 재직자 대상 계약학과 — 원본·Lineage·Audit에는 보존하되 "
+                        "추천 및 Master 승격 후보에서 제외한다"
+                    )
+                    out_of_scope.append(row)
             else:
                 row = normalize_department(raw)
+                row["recommendation_scope"] = OUT_OF_RECOMMENDATION_SCOPE
+                row["exclusion_reason"] = scope_reason
                 row["recommendation_scope_status"] = scope_reason
                 row["recommendation_scope_note"] = {
                     "EXCLUDED_NIGHT_COURSE": "야간 과정 — 원본·Lineage·Audit에는 보존하되 추천 Master에 승격하지 않는다",

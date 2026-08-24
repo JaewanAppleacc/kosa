@@ -44,6 +44,9 @@ from scripts.career_console import use_utf8_stdout  # noqa: E402
 # 단정해서도 안 된다 — **공식 필드가 실제로 다른지**를 근거로 삼는다.
 CONTRACT_COURSE = "계약학과"
 GENERAL_COURSE = "일반과정"
+IN_RECOMMENDATION_SCOPE = "IN_RECOMMENDATION_SCOPE"
+OUT_OF_RECOMMENDATION_SCOPE = "OUT_OF_RECOMMENDATION_SCOPE"
+CONTRACT_DEPARTMENT = "CONTRACT_DEPARTMENT"
 
 DECISION_SAME = "SAME_DEPARTMENT_DEDUPLICATE"
 DECISION_DISTINCT = "DISTINCT_DEPARTMENTS_KEEP_SEPARATE"
@@ -127,6 +130,59 @@ def review_fields() -> dict[str, Any]:
     return {"reviewer_1_status": "TBD", "reviewer_1_comment": "", "resolution_status": "PENDING"}
 
 
+def build_contract_duplicate_audit(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """추천 Queue에서는 사라진 일반/계약 중복을 사람 검수용 감사 그룹으로 복원한다.
+
+    추천 범위 판정 뒤에는 일반과정만 남아 department_id 중복이 0건이어야 한다. 하지만
+    계약학과 원본과 두 과정의 관계 결정은 삭제하면 안 되므로, 정규화 원본에서 공식
+    학과특성이 정확히 일반과정/계약학과로 갈리는 그룹만 별도 검수 입력으로 만든다.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        if row.get("department_status") not in ("EXISTING", "NEW"):
+            continue
+        grouped[row["department_id"]].append(row)
+
+    out: list[dict[str, Any]] = []
+    fields = (
+        "department_name", "college_name", "campus", "day_night_name",
+        "degree_course_name", "lesson_term_name", "department_status",
+        "major_character_name", "source_svy_year",
+    )
+    for department_id, group in sorted(grouped.items()):
+        characters = {r.get("major_character_name") for r in group}
+        if characters != {GENERAL_COURSE, CONTRACT_COURSE} or len(group) != 2:
+            continue
+        head = group[0]
+        differing = [
+            field for field in fields
+            if len({json.dumps(r.get(field), ensure_ascii=False) for r in group}) > 1
+        ]
+        causes = []
+        if "lesson_term_name" in differing:
+            causes.append({
+                "cause": "TERM_SPLIT", "field": "lesson_term_name",
+                "note": "수업연한이 갈린다",
+            })
+        if not causes:
+            causes.append({
+                "cause": "CONTRACT_DEPARTMENT_SPLIT", "field": "major_character_name",
+                "note": "공식 학과특성이 일반과정/계약학과로 갈린다",
+            })
+        out.append({
+            "department_id": department_id,
+            "university_name": head.get("university_name"),
+            "department_name": head.get("department_name"),
+            "college_name": head.get("college_name"),
+            "differing_fields": differing,
+            "duplicate_cause_candidates": causes,
+            "candidates": [
+                {"source_record_id": r.get("source_record_id")} for r in group
+            ],
+        })
+    return out
+
+
 # ── §2 중복 6건 ──────────────────────────────────────────────────────────
 
 def recommend_duplicate_decision(rows: list[dict[str, Any]]) -> tuple[str, str, list[str]]:
@@ -192,6 +248,16 @@ def build_duplicate_draft(
                     "official_small_series_code": (r.get("official_classification") or {}).get("small_series_code"),
                     "official_small_series_name": (r.get("official_classification") or {}).get("small_series_name"),
                     "major_character_name": r.get("major_character_name"),
+                    "recommendation_scope": (
+                        OUT_OF_RECOMMENDATION_SCOPE
+                        if r.get("major_character_name") == CONTRACT_COURSE
+                        else IN_RECOMMENDATION_SCOPE
+                    ),
+                    "exclusion_reason": (
+                        CONTRACT_DEPARTMENT
+                        if r.get("major_character_name") == CONTRACT_COURSE
+                        else None
+                    ),
                     "degree_course_name": r.get("degree_course_name"),
                     "enrolled_count": r.get("enrolled_count"),
                     "graduate_count": r.get("graduate_count"),
@@ -436,11 +502,12 @@ def render_duplicate_html(rows: list[dict[str, Any]], survey_year: int) -> str:
         cls = {"DISTINCT_DEPARTMENTS_KEEP_SEPARATE": "distinct",
                "SAME_DEPARTMENT_DEDUPLICATE": "same"}.get(r["recommended_decision"], "more")
         head = ["source_record_id", "schl_mjr_id", "학과명", "주야간", "수업연한", "학과특성",
-                "학위과정", "상태", "소계열", "재학", "졸업", "조사연도"]
+                "추천 범위", "제외 사유", "학위과정", "상태", "소계열", "재학", "졸업", "조사연도"]
         body = "".join(
             "<tr>" + "".join(f"<td>{_esc(v)}</td>" for v in (
                 rec["source_record_id"], rec["schl_mjr_id"], rec["department_name"],
                 rec["day_night_name"], rec["lesson_term_name"], rec["major_character_name"],
+                rec["recommendation_scope"], rec["exclusion_reason"],
                 rec["degree_course_name"], rec["department_status"],
                 f'{rec["official_small_series_code"]}:{rec["official_small_series_name"]}',
                 rec["enrolled_count"], rec["graduate_count"], rec["survey_year"],
@@ -553,6 +620,8 @@ def main(argv: list[str] | None = None) -> int:
         "unmapped_nce_queue.jsonl": work / "unmapped_nce_queue.jsonl",
         "departments.normalized.jsonl": work / "departments.normalized.jsonl",
         "classification_results.jsonl": work / "classification_results.jsonl",
+        "out_of_recommendation_scope.jsonl": work / "out_of_recommendation_scope.jsonl",
+        "canonical_major_groups.draft.jsonl": args.data_dir / "canonical_major_groups.draft.jsonl",
     }
     missing = [n for n, p in inputs.items() if not p.exists()]
     if missing:
@@ -565,10 +634,21 @@ def main(argv: list[str] | None = None) -> int:
     nce_queue = read_jsonl(inputs["unmapped_nce_queue.jsonl"])
     normalized = read_jsonl(inputs["departments.normalized.jsonl"])
     classified = read_jsonl(inputs["classification_results.jsonl"])
-    groups_path = args.data_dir / "canonical_major_groups.draft.jsonl"
-    group_labels = {g["canonical_major_id"] for g in read_jsonl(groups_path)}
+    group_labels = {
+        g["canonical_major_id"]
+        for g in read_jsonl(inputs["canonical_major_groups.draft.jsonl"])
+    }
 
     by_record = {r["source_record_id"]: r for r in normalized}
+
+    # 추천 후보 중복 Queue는 계약학과 제외 후 0건이지만, 관계 판단과 원본 보존을
+    # 증명하는 검수 패킷은 정규화 데이터의 일반/계약 쌍 6그룹을 계속 보여준다.
+    contract_audit_queue = build_contract_duplicate_audit(normalized)
+    if contract_audit_queue:
+        # 계약학과 감사 그룹 외의 실제 추천 후보 중복도 버리지 않는다.
+        combined = {group["department_id"]: group for group in dup_queue}
+        combined.update({group["department_id"]: group for group in contract_audit_queue})
+        dup_queue = [combined[department_id] for department_id in sorted(combined)]
 
     dup_draft = build_duplicate_draft(dup_queue, by_record)
     cluster_summary = build_cluster_summary(cls_queue)

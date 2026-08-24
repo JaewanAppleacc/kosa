@@ -13,6 +13,7 @@ from scripts.career_classify_academyinfo import (
     GROUPS_PATH,
     build_series_index,
     classify,
+    is_in_recommendation_scope,
     read_jsonl,
 )
 
@@ -88,6 +89,20 @@ class GroupTableTest(unittest.TestCase):
 
 
 class MappingTest(unittest.TestCase):
+    def test_contract_department_is_excluded_before_classification(self) -> None:
+        contract = dept(
+            "110", "E", name="약학과", major_character_name="계약학과",
+            recommendation_scope="OUT_OF_RECOMMENDATION_SCOPE",
+        )
+        self.assertFalse(is_in_recommendation_scope(contract))
+
+    def test_general_department_is_classified(self) -> None:
+        general = dept(
+            "110", "E", name="약학과", major_character_name="일반과정",
+            recommendation_scope="IN_RECOMMENDATION_SCOPE",
+        )
+        self.assertTrue(is_in_recommendation_scope(general))
+
     def test_single_series_becomes_auto_candidate_not_confirmed(self) -> None:
         """자동 확정이 아니라 후보다 — 이름부터 CONFIRMED가 아니어야 한다."""
         r = run(dept("090", "D"))

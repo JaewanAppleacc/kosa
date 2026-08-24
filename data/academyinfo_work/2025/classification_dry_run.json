@@ -1,26 +1,26 @@
 {
   "survey_year": 2025,
   "included_department_total": 24422,
-  "classified_total": 24422,
+  "classified_total": 24416,
   "mapping_status_breakdown": {
-    "UNMAPPED": 3674,
-    "AUTO_CANDIDATE": 20748
+    "UNMAPPED": 3672,
+    "AUTO_CANDIDATE": 20744
   },
   "auto_candidate_rate": 0.8496,
   "eligibility_breakdown": {
-    "APPROVED": 16576,
+    "APPROVED": 16572,
     "EXCLUDED_ARTS_SPORTS": 3588,
-    "REVIEW_REQUIRED": 4258
+    "REVIEW_REQUIRED": 4256
   },
   "official_small_series_distribution": {
-    "N.C.E.": 3405,
+    "N.C.E.": 3403,
     "경영학": 919,
     "체육": 835,
     "디자인": 785,
     "전산학·컴퓨터공학": 745,
     "행정학": 595,
     "생명과학": 547,
-    "사회복지학": 515,
+    "사회복지학": 513,
     "정보·통신공학": 481,
     "기계공학": 417,
     "관광학": 405,
@@ -44,7 +44,7 @@
     "임상보건": 212,
     "신소재공학": 204
   },
-  "unclassified_nce_count": 3539,
+  "unclassified_nce_count": 3537,
   "multi_group_conflict_count": 0,
   "canonical_group_count": 42,
   "departments_per_canonical_group": {
@@ -57,7 +57,7 @@
     "기계·자동차·항공·조선": 1047,
     "체육·무용": 916,
     "교육학": 810,
-    "사회복지·아동가족": 634,
+    "사회복지·아동가족": 632,
     "행정·정책": 595,
     "생명과학": 595,
     "철학·역사·종교": 591,
@@ -85,7 +85,7 @@
     "물리·천문": 160,
     "의류·주거·소비자": 148,
     "사회학·문헌정보": 126,
-    "약학": 95,
+    "약학": 93,
     "의학": 48,
     "한의학": 17,
     "수의학": 13,
@@ -158,5 +158,7 @@
       "status": "AUTO_CANDIDATE"
     }
   ],
-  "note": "전부 draft다. 사람 검토 없이 학생 화면용 Mapping으로 승격하지 않는다."
+  "note": "전부 draft다. 사람 검토 없이 학생 화면용 Mapping으로 승격하지 않는다.",
+  "recommendation_scope_candidate_total": 24416,
+  "contract_department_exclusion_count": 6
 }
