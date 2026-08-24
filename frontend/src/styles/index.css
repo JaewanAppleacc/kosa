@@ -667,6 +667,47 @@ h1, h2, h3 {
     color: var(--color-accent-800);
     font-size: 13px;
   }
+
+  /* ── 좁은 화면 보정 ────────────────────────────────────────────────
+     360px 안팎에서 카드 안쪽 여백과 버튼이 본문 폭을 잡아먹던 것을 줄인다.
+     값만 줄이고 구조(그리드·순서)는 그대로 둔다 — 화면마다 다른 레이아웃을
+     만들면 두 벌을 유지해야 한다. */
+  @media (max-width: 640px) {
+    .nav2 { padding: 0 16px; gap: 14px; height: 58px; }
+
+    .ct { border-radius: 20px; }
+
+    /* 버튼이 화면을 넘치면 폭에 맞춰 줄어들게 한다. */
+    .pill {
+      height: 48px;
+      padding: 0 20px;
+      font-size: 15px;
+      max-width: 100%;
+    }
+
+    .hlrow { padding: 13px 14px; font-size: 14.5px; }
+    .drow { padding: 12px 14px; }
+    .hrow { padding: 13px 14px; gap: 10px; }
+    .astep { padding: 10px 13px; font-size: 13.5px; }
+    .popt { padding: 10px 14px; font-size: 15px; gap: 11px; }
+    .tile { padding: 13px 8px 12px; font-size: 13px; }
+    .tile em { font-size: 24px; }
+
+    /*
+     * 관찰 지도는 가로로 넘치면 스크롤한다(칸을 줄이면 점을 셀 수 없게 된다).
+     * 다만 영역 이름은 줄바꿈을 허용해서 표 자체가 덜 넓어지게 한다.
+     */
+    .tmap { min-width: 340px; }
+    .tmap tbody th { white-space: normal; max-width: 92px; padding-right: 10px; }
+    .tcell { min-width: 46px; height: 42px; }
+    .tmap-sum { padding-left: 6px !important; }
+    .tspread { min-width: 38px; padding: 6px 8px; }
+  }
+}
+
+/* 카드 안쪽 여백은 유틸리티(p-7)라서 레이어 밖에서 한 번 더 눌러준다. */
+@media (max-width: 640px) {
+  .ct.p-7 { padding: 20px 18px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

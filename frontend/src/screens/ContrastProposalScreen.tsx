@@ -1,8 +1,10 @@
 /**
  * Contrast Context 제안 — 초안 6d 제안 모달.
  *
- * 최종 Context 개수는 final_context_min_count~max_count 범위다(현재 2~3).
- * 제안을 받아들이면 3개, 받아들이지 않으면 처음 고른 2개로 확정한다 — 둘 다 서버가 허용한다.
+ * 최종 Context 개수는 selection_policy의 final_context_min_count~max_count 범위다.
+ * 제안을 받아들이면 고른 것 + 대비 1개, 받아들이지 않으면 고른 것만으로 확정한다 —
+ * 둘 다 서버가 허용하는 범위다. 개수를 화면에 숫자로 박지 않는다: Vertical Slice(2+1)와
+ * 전체 모드(4+1)에서 값이 달라지고, 그 값은 GET /contexts가 알려준다.
  * coverage_replacement_enabled가 false면 교체 UI를 아예 숨긴다.
  */
 import { confirmContexts, fetchContextCatalog } from "@/api/endpoints";
