@@ -308,6 +308,7 @@ def build_shared_probe_list(
                 SharedProbeContextRow(
                     context_id=context_id, context_label=_CONTEXT_LABEL_BY_ID.get(context_id, context_id),
                     review=_shared_probe_review_view(entry), anchors=anchor_views, is_runtime_usable=any_usable,
+                    activation_batch=_ACTIVATION_BATCH_BY_CONTEXT_ID.get(context_id),
                 )
             )
 

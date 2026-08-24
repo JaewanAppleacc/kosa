@@ -96,6 +96,28 @@
     </div>
 
     <div class="filter-group tab-only-shared_probes">
+      <h3>배치</h3>
+      <div class="batch-selector" id="shared-probe-batch-selector"></div>
+    </div>
+
+    <div class="filter-group tab-only-shared_probes">
+      <h3>배치 검수 진행 현황</h3>
+      <div class="batch-summary" id="shared-probe-progress-dashboard"></div>
+    </div>
+
+    <div class="filter-group tab-only-shared_probes">
+      <h3>Context 상태 필터</h3>
+      <label><input type="radio" name="shared-probe-status-filter" value="all"> 전체</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="TBD"> Context 상태 TBD</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="APPROVE"> Context 상태 APPROVE</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="REVISE"> Context 상태 REVISE</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="HOLD"> Context 상태 HOLD</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="anchor_undetermined" checked> 미판정 Anchor 있음</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="runtime_usable"> Runtime 사용 가능</label>
+      <label><input type="radio" name="shared-probe-status-filter" value="runtime_unusable"> Runtime 사용 불가</label>
+    </div>
+
+    <div class="filter-group tab-only-shared_probes">
       <h3>공용 Probe — Anchor 적용 가능성 검수 목록</h3>
       <ul class="question-nav-list" id="shared-probe-nav-list"></ul>
     </div>

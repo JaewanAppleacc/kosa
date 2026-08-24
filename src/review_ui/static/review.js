@@ -46,6 +46,11 @@ const state = {
   // 12개 Context 행이 전부 펼쳐져 보인다.
   sharedProbes: [],
   sharedProbeCurrentBlueprintId: null,
+  // 2026-08-24 배치별 Shared Probe 검수 화면 — 840개(14×12×5) Anchor 판단이 한
+  // 화면에 섞이는 문제를 풀기 위해 배치(1/2/3/"all")·상태 필터를 추가한다. 기본값은
+  // 지시서 §3/§6 그대로 1차 배치 + "미판정 Anchor 있음"이다.
+  sharedProbeBatch: 1, // 1 | 2 | 3 | "all"
+  sharedProbeStatusFilter: "anchor_undetermined",
   // 2026-08-24 신규 ContextPack(business/science/sports 등 12개) 검수 탭 전용 상태.
   // Blueprint→Context→Anchor 3단인 shared_probes와 달리 이 탭은 "배치 → Context →
   // 질문(11개)" 3단이라 currentIndex 하나로는 부족해 batch/context/questionIndex를
@@ -1233,13 +1238,91 @@ function renderCurrentAnchorBackupQuestion() {
   document.getElementById("next-btn").disabled = state.anchorBackupCurrentIndex >= state.anchorBackupQuestions.length - 1;
 }
 
-/* ---- 2026-08-24 2.9.1단계 §5: ContextPack 공용 Adaptive Probe 탭 ----
+/* ---- 2026-08-24 2.9.1단계 §5 + 2026-08-24 배치별 검수: ContextPack 공용
+ * Adaptive Probe 탭 ----
  *
  * 실제 Runtime 변환 함수(ContextPackRegistry.is_shared_probe_approved_for_anchor,
  * run_quality_gate)를 그대로 호출한 값만 보여준다 — 이 파일이 직접 승인 여부나
  * forbidden assumption 결과를 계산하지 않는다(서버 응답을 그대로 렌더링할 뿐이다).
  * 이 탭은 어떤 항목도 자동으로 APPROVE하지 않는다 — 사람이 체크박스로 고른 Anchor
- * 목록만 그대로 서버에 보낸다. */
+ * 목록만 그대로 서버에 보낸다.
+ *
+ * 14개 Probe × 12개 Context × 5개 Anchor(최대 840개 판단)를 한 화면에 다 보여주면
+ * 1차 배치(business/science/sports)만 검수하기 어렵다 — 배치 필터(activation_batch,
+ * 서버가 CONTEXT_ACTIVATION_BATCHES에서 그대로 계산해 내려준 값)로 Context 행을
+ * 좁히고, 상태 필터로 "아직 손대지 않은 것"부터 보이게 한다. 두 필터 모두 이미
+ * 저장된 서버 데이터를 걸러 보여줄 뿐 — 필터를 바꾼다고 서버 상태가 바뀌지 않는다. */
+
+function sharedProbeContextRowMatchesBatch(row) {
+  if (state.sharedProbeBatch === "all") return true;
+  return row.activation_batch === state.sharedProbeBatch;
+}
+
+function sharedProbeContextRowMatchesStatusFilter(row) {
+  switch (state.sharedProbeStatusFilter) {
+    case "all":
+      return true;
+    case "TBD":
+    case "APPROVE":
+    case "REVISE":
+    case "HOLD":
+      return row.review.reviewer_1_status === state.sharedProbeStatusFilter;
+    case "anchor_undetermined":
+      return row.anchors.some((a) => !a.is_approved && !a.is_excluded);
+    case "runtime_usable":
+      return row.is_runtime_usable === true;
+    case "runtime_unusable":
+      return row.is_runtime_usable === false;
+    default:
+      return true;
+  }
+}
+
+function sharedProbeVisibleContextRows(probe) {
+  return probe.contexts.filter((row) => sharedProbeContextRowMatchesBatch(row) && sharedProbeContextRowMatchesStatusFilter(row));
+}
+
+function sharedProbeBatchContextRows(probe) {
+  return probe.contexts.filter((row) => sharedProbeContextRowMatchesBatch(row));
+}
+
+/* §5 진행 현황 — Context 3개 × Probe 14개 같은 배치 전체 범위(상태 필터 무관)와,
+ * 그 범위 안 Context-Probe 검수 완료 수 / Anchor 승인·제외·미판정 수를 실제 서버
+ * 응답을 그대로 집계해서 계산한다(이 함수가 뭔가를 판정하지 않는다 — 세는 것뿐). */
+function computeSharedProbeBatchStats() {
+  const contextIdSet = new Set();
+  let totalPairs = 0;
+  let completedPairs = 0;
+  let approvedAnchors = 0;
+  let excludedAnchors = 0;
+  let undeterminedAnchors = 0;
+  const perContext = new Map();
+  state.sharedProbes.forEach((probe) => {
+    sharedProbeBatchContextRows(probe).forEach((row) => {
+      contextIdSet.add(row.context_id);
+      totalPairs += 1;
+      if (row.review.reviewer_1_status !== "TBD") completedPairs += 1;
+      if (!perContext.has(row.context_id)) perContext.set(row.context_id, { approved: 0, excluded: 0, undetermined: 0 });
+      const bucket = perContext.get(row.context_id);
+      row.anchors.forEach((a) => {
+        if (a.is_approved) {
+          approvedAnchors += 1;
+          bucket.approved += 1;
+        } else if (a.is_excluded) {
+          excludedAnchors += 1;
+          bucket.excluded += 1;
+        } else {
+          undeterminedAnchors += 1;
+          bucket.undetermined += 1;
+        }
+      });
+    });
+  });
+  return {
+    contextIds: [...contextIdSet].sort(), probeCount: state.sharedProbes.length,
+    totalPairs, completedPairs, approvedAnchors, excludedAnchors, undeterminedAnchors, perContext,
+  };
+}
 
 async function loadSharedProbesAll() {
   const resp = await apiGet(`${API_BASE}/context-packs/shared-probes`);
@@ -1247,15 +1330,76 @@ async function loadSharedProbesAll() {
   if (state.sharedProbeCurrentBlueprintId == null && state.sharedProbes.length > 0) {
     state.sharedProbeCurrentBlueprintId = state.sharedProbes[0].blueprint_id;
   }
+  renderSharedProbeBatchSelector();
+  renderSharedProbeProgressDashboard();
   renderSharedProbesSidebarList();
   renderCurrentSharedProbe();
 }
 
+function selectSharedProbeBatch(batchNo, opts) {
+  const options = opts || {};
+  state.sharedProbeBatch = batchNo;
+  if (!options.skipHashSync) syncHash();
+  renderSharedProbeBatchSelector();
+  renderSharedProbeProgressDashboard();
+  renderSharedProbesSidebarList();
+  renderCurrentSharedProbe();
+}
+
+function renderSharedProbeBatchSelector() {
+  const box = document.getElementById("shared-probe-batch-selector");
+  if (!box) return;
+  box.replaceChildren();
+  // 배치 번호 목록은 실제 응답에 나타난 activation_batch 값에서만 뽑는다(하드코딩
+  // 없음) — 서버 정본이 바뀌면 그대로 따라간다.
+  const batchNumbers = [
+    ...new Set(state.sharedProbes.flatMap((p) => p.contexts.map((c) => c.activation_batch)).filter((b) => b != null)),
+  ].sort((a, b) => a - b);
+  batchNumbers.forEach((n) => {
+    box.appendChild(
+      el("button", {
+        type: "button", class: n === state.sharedProbeBatch ? "active" : "",
+        onclick: () => selectSharedProbeBatch(n),
+      }, CONTEXTPACK_BATCH_LABEL[n] || `배치 ${n}`),
+    );
+  });
+  box.appendChild(
+    el("button", {
+      type: "button", class: state.sharedProbeBatch === "all" ? "active" : "",
+      onclick: () => selectSharedProbeBatch("all"),
+    }, "전체"),
+  );
+}
+
+function renderSharedProbeProgressDashboard() {
+  const box = document.getElementById("shared-probe-progress-dashboard");
+  if (!box) return;
+  box.replaceChildren();
+  const stats = computeSharedProbeBatchStats();
+  const batchLabel = state.sharedProbeBatch === "all" ? "전체" : CONTEXTPACK_BATCH_LABEL[state.sharedProbeBatch] || `배치 ${state.sharedProbeBatch}`;
+  box.appendChild(el("div", { class: "row" }, [el("strong", { text: batchLabel }), el("span", { class: "n", text: `Context ${stats.contextIds.length}개` })]));
+  box.appendChild(el("div", { class: "row" }, [el("span", { text: "Shared Probe" }), el("span", { class: "n", text: `${stats.probeCount}개` })]));
+  box.appendChild(
+    el("div", { class: "row" }, [el("span", { text: "Context–Probe 검수 완료" }), el("span", { class: "n", text: `${stats.completedPairs} / ${stats.totalPairs}` })]),
+  );
+  box.appendChild(el("div", { class: "row" }, [el("span", { text: "Anchor 승인" }), el("span", { class: "n", text: String(stats.approvedAnchors) })]));
+  box.appendChild(el("div", { class: "row" }, [el("span", { text: "Anchor 제외" }), el("span", { class: "n", text: String(stats.excludedAnchors) })]));
+  box.appendChild(el("div", { class: "row" }, [el("span", { text: "미판정 Anchor" }), el("span", { class: "n", text: String(stats.undeterminedAnchors) })]));
+  box.appendChild(el("hr"));
+  stats.contextIds.forEach((contextId) => {
+    const bucket = stats.perContext.get(contextId);
+    box.appendChild(
+      el("div", { class: "context-row", text: `${contextId}: 승인 ${bucket.approved} / 제외 ${bucket.excluded} / 미판정 ${bucket.undetermined}` }),
+    );
+  });
+}
+
 function renderSharedProbesSidebarList() {
   const list = document.getElementById("shared-probe-nav-list");
-  list.innerHTML = "";
+  list.replaceChildren();
   state.sharedProbes.forEach((probe) => {
-    const approvedContexts = probe.contexts.filter((c) => c.is_runtime_usable).length;
+    const batchRows = sharedProbeBatchContextRows(probe);
+    const approvedContexts = batchRows.filter((c) => c.is_runtime_usable).length;
     const item = el("li", {
       class: probe.blueprint_id === state.sharedProbeCurrentBlueprintId ? "active" : "",
       onclick: () => {
@@ -1265,7 +1409,7 @@ function renderSharedProbesSidebarList() {
       },
     }, [
       el("div", { text: probe.blueprint_id }),
-      el("div", { class: "meta", text: `${probe.trait_label} · 사용 가능 Context ${approvedContexts}/${probe.contexts.length}` }),
+      el("div", { class: "meta", text: `${probe.trait_label} · 사용 가능 Context ${approvedContexts}/${batchRows.length}` }),
     ]);
     list.appendChild(item);
   });
@@ -1277,23 +1421,42 @@ function renderSharedProbeAnchorCard(probe, contextRow, anchor) {
   const excludeBox = el("input", { type: "checkbox" });
   excludeBox.checked = anchor.is_excluded;
 
+  // §7 — 승인·제외 상호배타. 한쪽을 켜면 다른 쪽을 끈다. 서버로는 저장 버튼을
+  // 눌렀을 때만 이 두 체크박스의 현재 상태를 그대로 보낸다 — 여기서는 화면
+  // 상태만 바꾼다(서버 상태는 저장 전까지 바뀌지 않는다).
+  approveBox.addEventListener("change", () => {
+    if (approveBox.checked) excludeBox.checked = false;
+    markDirty();
+  });
+  excludeBox.addEventListener("change", () => {
+    if (excludeBox.checked) approveBox.checked = false;
+    markDirty();
+  });
+
   const failureList = anchor.forbidden_assumption_failures.length
     ? el("ul", { class: "shared-probe-failure-list" }, anchor.forbidden_assumption_failures.map((f) => el("li", { text: f })))
     : el("div", { class: "routing-check-ok", text: "forbidden assumption 위반 없음" });
 
+  const msg = el("span", { class: "inline-msg" });
   const saveAnchorBtn = el("button", { type: "button", text: "이 Anchor 판정 저장" });
   saveAnchorBtn.addEventListener("click", async () => {
-    const approvedIds = new Set(contextRow.anchors.filter((a) => (a.anchor_id === anchor.anchor_id ? approveBox.checked : a.is_approved)).map((a) => a.anchor_id));
-    const excludedIds = new Set(contextRow.anchors.filter((a) => (a.anchor_id === anchor.anchor_id ? excludeBox.checked : a.is_excluded)).map((a) => a.anchor_id));
+    // approveBox/excludeBox가 change 리스너로 이미 상호배타를 강제하므로 이 시점에
+    // 둘 다 true일 수 없다 — 그래도 방어적으로 한 번 더 배타 처리한다(교집합 없는
+    // 목록만 서버로 보낸다 — 서버 Schema의 교집합 거부 규칙과 이중으로 맞춘다).
+    const approved = approveBox.checked && !excludeBox.checked;
+    const excluded = excludeBox.checked && !approveBox.checked;
+    const approvedIds = new Set(contextRow.anchors.filter((a) => (a.anchor_id === anchor.anchor_id ? approved : a.is_approved)).map((a) => a.anchor_id));
+    const excludedIds = new Set(contextRow.anchors.filter((a) => (a.anchor_id === anchor.anchor_id ? excluded : a.is_excluded)).map((a) => a.anchor_id));
     // 2026-08-24 2.9.1단계 §1-3: 이 버튼은 Anchor 목록만 바꾼다 — status/comment는
     // 아예 보내지 않는다(요청에서 생략 = 서버가 None으로 받아 기존 값 유지). 예전엔
     // 여기서 TBD를 "APPROVE"로 암묵적으로 승격시켜 보냈다 — Anchor 하나 승인이 곧
     // Context 전체 승인으로 새는 버그였다. Context의 reviewer_1_status는 아래
     // "Context 상태 저장" 버튼으로 사람이 select에서 명시적으로 고를 때만 바뀐다.
-    await saveSharedProbeContextReview(probe.blueprint_id, contextRow.context_id, {
-      approved_anchor_ids: Array.from(approvedIds),
-      excluded_anchor_ids: Array.from(excludedIds),
-    });
+    await saveSharedProbeContextReview(
+      probe.blueprint_id, contextRow.context_id,
+      { approved_anchor_ids: Array.from(approvedIds), excluded_anchor_ids: Array.from(excludedIds) },
+      { button: saveAnchorBtn, msg },
+    );
   });
 
   return el("div", { class: "option-card" }, [
@@ -1304,7 +1467,7 @@ function renderSharedProbeAnchorCard(probe, contextRow, anchor) {
     failureList,
     el("label", { class: "shared-probe-anchor-toggle" }, [approveBox, " 이 Anchor 승인"]),
     el("label", { class: "shared-probe-anchor-toggle" }, [excludeBox, " 이 Anchor 제외"]),
-    saveAnchorBtn,
+    el("div", { class: "save-row" }, [saveAnchorBtn, msg]),
   ]);
 }
 
@@ -1315,22 +1478,26 @@ function renderSharedProbeContextRow(probe, contextRow) {
   const statusSelect = el("select", {}, ["TBD", "APPROVE", "REVISE", "HOLD"].map((s) => el("option", { value: s, text: s })));
   statusSelect.value = contextRow.review.reviewer_1_status;
 
+  const msg = el("span", { class: "inline-msg" });
   const saveContextBtn = el("button", { type: "button", text: "Context 상태 저장" });
   saveContextBtn.addEventListener("click", async () => {
-    await saveSharedProbeContextReview(probe.blueprint_id, contextRow.context_id, {
-      status: statusSelect.value, comment: commentBox.value,
-      approved_anchor_ids: null, excluded_anchor_ids: null,
-    });
+    // §8 — Anchor 목록은 명시적으로 null(=변경 안 함)을 보낸다. 이 버튼이 Anchor를
+    // 자동 승인·제외하는 일이 절대 없다(회귀 테스트로 확인).
+    await saveSharedProbeContextReview(
+      probe.blueprint_id, contextRow.context_id,
+      { status: statusSelect.value, comment: commentBox.value, approved_anchor_ids: null, excluded_anchor_ids: null },
+      { button: saveContextBtn, msg },
+    );
   });
 
   return el("div", { class: "question-card" }, [
     el("div", { class: "meta" }, [
       el("strong", { text: contextRow.context_label }),
-      ` (${contextRow.context_id}) — `,
+      ` (${contextRow.context_id}, ${CONTEXTPACK_BATCH_LABEL[contextRow.activation_batch] || "배치 미지정"}) — `,
       statusPill(contextRow.review.final_status),
       contextRow.is_runtime_usable ? el("span", { class: "routing-check-ok", text: " · Runtime 사용 가능" }) : el("span", { class: "routing-check-manual", text: " · 아직 사용 불가(Anchor 미승인)" }),
     ]),
-    el("div", {}, [statusSelect, saveContextBtn]),
+    el("div", {}, [statusSelect, saveContextBtn, msg]),
     commentBox,
     el("div", { class: "option-list" }, contextRow.anchors.map((a) => renderSharedProbeAnchorCard(probe, contextRow, a))),
   ]);
@@ -1338,10 +1505,10 @@ function renderSharedProbeContextRow(probe, contextRow) {
 
 function renderCurrentSharedProbe() {
   const container = document.getElementById("shared-probe-container");
-  container.innerHTML = "";
+  container.replaceChildren();
   const probe = state.sharedProbes.find((p) => p.blueprint_id === state.sharedProbeCurrentBlueprintId);
   if (!probe) {
-    container.appendChild(el("div", { text: "공용 Adaptive Probe가 없습니다." }));
+    container.appendChild(el("div", {}, "공용 Adaptive Probe가 없습니다."));
     return;
   }
 
@@ -1363,16 +1530,44 @@ function renderCurrentSharedProbe() {
     optionList,
   ]));
 
-  probe.contexts.forEach((row) => container.appendChild(renderSharedProbeContextRow(probe, row)));
+  const visibleRows = sharedProbeVisibleContextRows(probe);
+  if (visibleRows.length === 0) {
+    container.appendChild(el("p", {}, "현재 배치·상태 필터에 해당하는 Context가 없습니다(필터를 확인하세요)."));
+    return;
+  }
+  visibleRows.forEach((row) => container.appendChild(renderSharedProbeContextRow(probe, row)));
 }
 
-async function saveSharedProbeContextReview(blueprintId, contextId, payload) {
+async function saveSharedProbeContextReview(blueprintId, contextId, payload, ui) {
+  const button = ui && ui.button;
+  const msg = ui && ui.msg;
+  if (button) button.disabled = true;
+  if (msg) {
+    msg.textContent = "";
+    msg.className = "inline-msg";
+  }
   try {
     await apiPatch(`${API_BASE}/context-packs/shared-probes/${blueprintId}/${contextId}`, payload);
     setSaveIndicator("저장됨", "saved");
+    if (msg) {
+      msg.textContent = "저장됨";
+      msg.className = "inline-msg ok";
+    }
+    state.dirty = false;
     await loadSharedProbesAll();
   } catch (err) {
-    setSaveIndicator(`저장 실패: ${err.message}`, "error");
+    // §12/§14 — 422/409/그 외를 구분해서 보여주고, 실패했을 때 목록을 다시 불러와
+    // 화면을 성공한 것처럼 되돌리지 않는다(현재 입력값을 그대로 유지한다).
+    const text = err.status === 422 ? `입력 오류(422): ${err.message}`
+      : err.status === 409 ? `충돌(409): ${err.message}`
+      : `저장 실패${err.status ? `(${err.status})` : ""}: ${err.message}`;
+    setSaveIndicator(text, "error");
+    if (msg) {
+      msg.textContent = text;
+      msg.className = "inline-msg err";
+    }
+  } finally {
+    if (button) button.disabled = false;
   }
 }
 
@@ -1782,10 +1977,11 @@ function renderContextPackAll() {
   renderContextPackContextPager();
 }
 
-/* ---- Hash Deep Link(#context-packs 등) — 탭마다 안정적인 hash를 매핑해, 새로고침
- * 해도 같은 탭이 유지되게 한다. 이 프로젝트는 localStorage로 탭을 기억하지 않으므로
- * (grep 결과 review.js 전체에 localStorage 사용 없음) hash와 충돌할 기존 저장값이
- * 없다. */
+/* ---- Hash Deep Link(#context-packs, #shared-probes?batch=1 등) — 탭마다 안정적인
+ * hash를 매핑해, 새로고침해도 같은 탭이 유지되게 한다. shared_probes 탭은 배치까지
+ * "?batch=N" 쿼리로 남긴다(예: #shared-probes?batch=1). 이 프로젝트는 localStorage로
+ * 탭을 기억하지 않으므로(grep 결과 review.js 전체에 localStorage 사용 없음) hash와
+ * 충돌할 기존 저장값이 없다 — hash가 항상 유일한 진실이다. */
 
 const CONTEXTPACK_TAB_HASH = {
   direct_probe: "direct-probe", routing: "routing", seed_anchor: "seed-anchor",
@@ -1794,23 +1990,56 @@ const CONTEXTPACK_TAB_HASH = {
 };
 const CONTEXTPACK_HASH_TO_TAB = Object.fromEntries(Object.entries(CONTEXTPACK_TAB_HASH).map(([tab, hash]) => [hash, tab]));
 
-function tabFromLocationHash() {
+/* {tab, batch}를 반환한다. tab이 null이면 "알 수 없는 hash"(안전한 기본 탭으로
+ * 복귀해야 함), batch가 null이면 "hash에 batch가 없거나 1/2/3이 아닌 값"(1차로
+ * 안전하게 복귀해야 함, §4). */
+function parseLocationHash() {
   const raw = (location.hash || "").replace(/^#/, "");
-  return CONTEXTPACK_HASH_TO_TAB[raw] || null; // 알 수 없는 hash는 null → 안전한 기본 탭(direct_probe)으로.
+  const [hashPart, queryPart] = raw.split("?");
+  const tab = CONTEXTPACK_HASH_TO_TAB[hashPart] || null;
+  let batch = null;
+  if (queryPart) {
+    const params = new URLSearchParams(queryPart);
+    const parsed = parseInt(params.get("batch"), 10);
+    batch = [1, 2, 3].includes(parsed) ? parsed : null;
+  }
+  return { tab, batch };
+}
+
+function tabFromLocationHash() {
+  return parseLocationHash().tab;
+}
+
+function currentHashString() {
+  let hash = CONTEXTPACK_TAB_HASH[state.tab];
+  if (state.tab === "shared_probes") {
+    hash += `?batch=${state.sharedProbeBatch === "all" ? "all" : state.sharedProbeBatch}`;
+  }
+  return "#" + hash;
 }
 
 let _suppressHashSync = false;
-function syncHashForTab(tab) {
-  const hash = "#" + CONTEXTPACK_TAB_HASH[tab];
-  if (location.hash === hash) return;
+function syncHash() {
+  const target = currentHashString();
+  if (location.hash === target) return;
   _suppressHashSync = true;
-  location.hash = CONTEXTPACK_TAB_HASH[tab];
+  location.hash = target.slice(1);
   setTimeout(() => { _suppressHashSync = false; }, 0);
 }
 
 window.addEventListener("hashchange", () => {
   if (_suppressHashSync) return;
-  setTab(tabFromLocationHash() || "direct_probe");
+  const { tab, batch } = parseLocationHash();
+  const targetTab = tab || "direct_probe";
+  if (targetTab === "shared_probes" && state.tab === "shared_probes") {
+    // 이미 이 탭에 있으면 setTab()의 "같은 탭이면 무시" 가드에 걸려 배치가 반영되지
+    // 않는다 — 배치만 바꾸는 경로를 따로 둔다(예: #shared-probes?batch=1 →
+    // #shared-probes?batch=2로 주소창에서 직접 바꾼 경우).
+    selectSharedProbeBatch(batch || 1, { skipHashSync: true });
+    return;
+  }
+  if (targetTab === "shared_probes") state.sharedProbeBatch = batch || 1;
+  setTab(targetTab);
 });
 
 function applyTabClasses(tab) {
@@ -1843,6 +2072,8 @@ async function loadOrRenderTab(tab) {
         setSaveIndicator(`공용 Adaptive Probe 불러오기 실패: ${err.message}`, "error");
       }
     } else {
+      renderSharedProbeBatchSelector();
+      renderSharedProbeProgressDashboard();
       renderSharedProbesSidebarList();
       renderCurrentSharedProbe();
     }
@@ -1918,7 +2149,7 @@ async function setTab(tab) {
   if (tab === state.tab) return;
   if (!confirmDiscardIfDirty()) return;
   state.tab = tab;
-  syncHashForTab(tab);
+  syncHash();
   applyTabClasses(tab);
   await loadOrRenderTab(tab);
 }
@@ -1981,6 +2212,14 @@ function setupControls() {
       state.contextPackStatusFilter = input.value;
       renderContextPackQuestionNavList();
       renderCurrentContextPackQuestion();
+    });
+  });
+
+  document.querySelectorAll('input[name="shared-probe-status-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.sharedProbeStatusFilter = input.value;
+      renderSharedProbesSidebarList();
+      renderCurrentSharedProbe();
     });
   });
 
@@ -2062,10 +2301,13 @@ function setMode(mode) {
 
 async function bootstrap() {
   setupControls();
-  // Deep Link(§2): hash가 있으면 그 탭으로 바로 연다(예: #context-packs).
-  // hash가 없거나 알 수 없으면 기존 동작(direct_probe 기본 탭)을 그대로 보존한다.
-  const initialTab = tabFromLocationHash() || "direct_probe";
+  // Deep Link: hash가 있으면 그 탭으로 바로 연다(예: #context-packs,
+  // #shared-probes?batch=1). hash가 없거나 알 수 없으면 기존 동작(direct_probe
+  // 기본 탭, shared_probes면 1차 배치)을 그대로 보존한다.
+  const { tab, batch } = parseLocationHash();
+  const initialTab = tab || "direct_probe";
   state.tab = initialTab;
+  if (initialTab === "shared_probes") state.sharedProbeBatch = batch || 1;
   applyTabClasses(initialTab);
   try {
     await loadOrRenderTab(initialTab);

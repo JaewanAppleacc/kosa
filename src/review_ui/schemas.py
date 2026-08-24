@@ -395,6 +395,10 @@ class SharedProbeContextRow(BaseModel):
     review: QuestionReviewView
     anchors: list[SharedProbeAnchorPreviewView]
     is_runtime_usable: bool  # 이 Context에서 실제로 이 Blueprint가 최소 1개 Anchor에 쓰일 수 있는가.
+    # 2026-08-24 배치별 Shared Probe 검수 화면 — ContextPackReviewItem.activation_batch와
+    # 동일한 이유로 정본(CONTEXT_ACTIVATION_BATCHES)에서 그대로 계산해 내려준다. 프론트가
+    # Context ID→Batch 표를 별도로 복제하지 않는다.
+    activation_batch: int | None = None
 
 
 class SharedProbeReviewItem(BaseModel):
