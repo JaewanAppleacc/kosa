@@ -41,6 +41,15 @@ def read_jsonl(path: Path) -> list[dict]:
     ]
 
 
+# 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-promotion-
+# final-wiring) §2: 새 1,072건은 academyinfo 자체 분류 파이프라인(career_classify_
+# academyinfo.py + Canonical Major Group/Bridge/P1/N.C.E 검수)으로 canonical_major_id를
+# 확정한다 — 이 레거시 CanonicalMapper/canonical_mapping_results.jsonl 파이프라인은
+# 옛 데모 35건 전용이고 새 1,072건에는 애초에 적용되지 않는다(대상 자체가 다르다).
+# 그래서 이 레거시 산출물과 Master를 교차 검증하는 테스트들은 옛 35건 archive를 본다.
+_LEGACY_MASTER_PATH = DATA_DIR / "archive" / "departments_legacy_demo_35.jsonl"
+
+
 class MasterDataTest(unittest.TestCase):
     def test_departments_load_and_are_unique(self) -> None:
         departments = load_departments(DATA_DIR / "master" / "departments.jsonl")
@@ -51,7 +60,9 @@ class MasterDataTest(unittest.TestCase):
             self.assertTrue(department.source_url.startswith("http"))
 
     def test_every_department_has_a_mapping_result(self) -> None:
-        departments = load_departments(DATA_DIR / "master" / "departments.jsonl")
+        """2026-08-25: canonical_mapping_results.jsonl은 옛 데모 35건 전용 산출물이라
+        archive된 Master를 대상으로 확인한다(위 _LEGACY_MASTER_PATH 설명 참고)."""
+        departments = load_departments(_LEGACY_MASTER_PATH)
         results = read_jsonl(DATA_DIR / "master" / "canonical_mapping_results.jsonl")
         self.assertEqual({d.department_id for d in departments}, {r["department_id"] for r in results})
 
@@ -60,9 +71,10 @@ class MasterDataTest(unittest.TestCase):
 
         2026-08-22 8차: CONFIRMED(canonical_mapper.confirm() — 사람이 검토해 확정하는
         유일한 경로)는 AUTO_MAPPED와 마찬가지로 "확정된" 상태라 채워져 있는 게 맞다.
-        아직 확정되지 않은 REVIEW_REQUIRED만 이 검사 대상이다."""
+        아직 확정되지 않은 REVIEW_REQUIRED만 이 검사 대상이다. 2026-08-25: 대상은 옛
+        데모 35건 archive다(위 _LEGACY_MASTER_PATH 설명 참고)."""
 
-        departments = {d.department_id: d for d in load_departments(DATA_DIR / "master" / "departments.jsonl")}
+        departments = {d.department_id: d for d in load_departments(_LEGACY_MASTER_PATH)}
         for row in read_jsonl(DATA_DIR / "master" / "canonical_mapping_results.jsonl"):
             if row["mapping_status"] not in ("AUTO_MAPPED", "CONFIRMED"):
                 self.assertIsNone(departments[row["department_id"]].canonical_major_id)
@@ -72,9 +84,10 @@ class MasterDataTest(unittest.TestCase):
         (사람이 confirm()으로 확정한 것만 CONFIRMED가 된다) — 그래서 이 재현성 검사는
         저장된 data/master/canonical_mapping_manual_confirmations.jsonl을 "현재 데이터"의
         일부로 취급해, map() 결과에 그 확정을 다시 적용한 뒤 비교한다. 그래야 손으로 고쳐
-        저장한 결과와 실제 파이프라인 산출물이 갈라지는 걸 여전히 잡아낸다."""
+        저장한 결과와 실제 파이프라인 산출물이 갈라지는 걸 여전히 잡아낸다. 2026-08-25:
+        대상은 옛 데모 35건 archive다(위 _LEGACY_MASTER_PATH 설명 참고)."""
 
-        repository = JsonlDepartmentRepository(path=DATA_DIR / "master" / "departments.jsonl")
+        repository = JsonlDepartmentRepository(path=_LEGACY_MASTER_PATH)
         mapper = CanonicalMapper(
             load_canonical_majors(DATA_DIR / "master" / "canonical_majors.jsonl"),
             embedder=HashingEmbedder(),

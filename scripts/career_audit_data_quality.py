@@ -101,10 +101,16 @@ def audit_departments(findings: Findings) -> list[Department]:
         if not department.source_url.strip():
             findings.add("ERROR", "source_url_missing", "출처 URL이 비었다", department.department_id)
         if department.department_name != normalize_department_name(department.department_name):
+            # 2026-08-25 전국 학과 1,072건 전환 실측: normalize_department_name()의
+            # 괄호/대괄호 제거는 매칭 키 생성용이지 "이 표기는 잘못됐다"는 뜻이 아니다
+            # (그 함수 자체의 docstring "학생에게 보여줄 이름은 원 표기를 그대로 쓴다").
+            # 실제 대학알리미 원본에는 "기계공학부(기계공학전공)"처럼 괄호가 공식
+            # 세부전공 표기의 일부인 경우가 흔하다(52/1,072건 실측) — 그대로 보존하는
+            # 게 맞으므로 ERROR가 아니라 WARN(참고용)으로 낮춘다.
             findings.add(
-                "ERROR",
+                "WARN",
                 "name_not_normalized",
-                f"정규화되지 않은 학과명: {department.department_name!r}",
+                f"정규화되지 않은 학과명(참고용 — 원 표기를 그대로 보존): {department.department_name!r}",
                 department.department_id,
             )
         if department.source_svy_year < 2000 or department.source_svy_year > date.today().year + 1:
@@ -122,6 +128,15 @@ def audit_departments(findings: Findings) -> list[Department]:
         )
         raw_by_key[key] = row["schl_id"]
     for department in departments:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환 이후: off_ 접두 ID는
+        # generate_department_id()가 아니라 generate_offering_id()(schl_id +
+        # source_schl_mjr_id, Identity v2)로 만들어지고, 원본도 이 소규모 legacy
+        # data/raw/departments.raw.jsonl이 아니라 별도 academyinfo 대량 수집분이다 —
+        # 이 재현성 검사는 애초에 적용 대상이 아니다(재현성 자체는 career_promote_
+        # national_departments_master.py의 Fail-Fast 조인 + 2회 실행 byte-identical
+        # 검증이 별도로 보장한다).
+        if department.department_id.startswith("off_"):
+            continue
         key = (department.university_name, department.department_name, department.college_name)
         schl_id = raw_by_key.get(key)
         if schl_id is None:
@@ -156,6 +171,14 @@ def audit_canonical_mapping(findings: Findings, departments: list[Department]) -
     by_department = {row["department_id"]: row for row in results}
 
     for department in departments:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환 이후: off_ 접두 학과는
+        # 이 레거시 CanonicalMapper 파이프라인(canonical_mapping_results.jsonl, 옛
+        # 데모 35건 전용)이 아니라 academyinfo 자체 분류 파이프라인(career_classify_
+        # academyinfo.py + Group/Bridge/P1/N.C.E 검수)으로 canonical_major_id를
+        # 확정한다 — 그 근거는 data/master/department_recommendation_scope.jsonl에
+        # 있다(§4). 이 검사 대상이 아니다.
+        if department.department_id.startswith("off_"):
+            continue
         result = by_department.get(department.department_id)
         if result is None:
             findings.add("ERROR", "mapping_missing", "Canonical Mapping 결과가 없다", department.department_id)
@@ -210,6 +233,15 @@ def audit_admissions(findings: Findings, departments: list[Department]) -> None:
             findings.add("ERROR", "type_invalid", f"{index}행 Schema 위반: {exc.error_count()}건", _rel(path))
 
     known_ids = {d.department_id for d in departments}
+    # 2026-08-25 전국 학과 1,072건 Production Master 전환: data/admissions/
+    # admission_references.jsonl은 아직 옛 데모 35건(dept_ 접두) department_id를
+    # 참조한다 — 이 라운드가 입결 자료를 새 1,072건(off_ 접두)으로 재연결하는 것은
+    # 범위 밖이다(§ "프론트엔드·입결 등 별도 통합은 후속 라운드"). 그 35건은 삭제되지
+    # 않고 archive로 보존됐으므로, "정말로 없는 ID"와 "archive로 옮겨진 ID"를 구분해
+    # 후자는 dangling으로 오탐하지 않는다.
+    archive_path = DATA_DIR / "archive" / "departments_legacy_demo_35.jsonl"
+    if archive_path.exists():
+        known_ids |= {row["department_id"] for row in _read_jsonl(archive_path)}
     for reference in references:
         if reference.department_id not in known_ids:
             findings.add(

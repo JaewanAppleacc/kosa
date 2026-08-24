@@ -192,13 +192,17 @@ class ExistingMasterFilesUnchangedTest(unittest.TestCase):
         self._assert_unchanged_since_head("data/master/major_profiles_v2.jsonl")
 
     def test_departments_jsonl_unchanged(self) -> None:
-        """A 결정사항 §1 "현재 시연 Master 35개 유지" — 전국 25,389건으로 교체되지
-        않았는지 확인한다."""
+        """A 결정사항 §1 "현재 시연 Master 35개 유지" — 이 Canonical Major Group
+        Draft 라운드 자체가 그 원칙을 지켰는지 확인하던 테스트였다. 2026-08-25
+        전국 학과 1,072건 Production Master 전환(a/national-master-promotion-
+        final-wiring)이 별도로, 의도적으로 Master를 교체했다 — 옛 35건은
+        data/archive/departments_legacy_demo_35.jsonl로 보존됐다. git diff
+        무변경 확인은 더 이상 의미가 없어 제거하고, 행 수만 실제 전국 기준값으로
+        갱신한다."""
 
         path = _REPO_ROOT / "data" / "master" / "departments.jsonl"
         lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        self.assertEqual(len(lines), 35)
-        self._assert_unchanged_since_head("data/master/departments.jsonl")
+        self.assertEqual(len(lines), 1072)
 
 
 class SchemaValidationRejectsBadRowsTest(unittest.TestCase):

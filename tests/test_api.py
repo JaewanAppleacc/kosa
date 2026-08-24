@@ -865,8 +865,10 @@ class DepartmentsEndpointTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertEqual(body["major_id"], "computer_science")
-        # data/master/departments.jsonl 실측: computer_science에 매핑된 학과 10개.
-        self.assertEqual(len(body["departments"]), 10)
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring) 실측: computer_science에 매핑된 학과 209개(옛
+        # 데모 10개는 data/archive/departments_legacy_demo_35.jsonl로 보존됐다).
+        self.assertEqual(len(body["departments"]), 209)
         for dept in body["departments"]:
             self.assertEqual(dept["canonical_major_id"], "computer_science")
 
@@ -903,10 +905,13 @@ class DepartmentsEndpointTest(unittest.TestCase):
                 "department_url",
             },
         )
-        # C의 검증된 URL 데이터가 아직 통합되지 않았으므로 이번 라운드의 35개 시연
-        # 데이터는 전부 department_url이 없다(§3) — None으로 응답에 그대로 노출된다.
+        # 2026-08-25 전국 학과 1,072건 전환 이후 일부 학과는 실제 검증된
+        # department_url을 갖는다(§5 department_url_scope_audit.jsonl 통과분) — 필드가
+        # 항상 노출되고, 값이 있으면 http(s) 절대 URL이라는 계약만 확인한다.
         for d in body["departments"]:
-            self.assertIsNone(d["department_url"])
+            self.assertIn("department_url", d)
+            if d["department_url"] is not None:
+                self.assertTrue(d["department_url"].startswith(("http://", "https://")))
 
     def test_other_endpoints_in_the_same_session_are_unaffected(self) -> None:
         r = client.post("/assessment/session")
@@ -935,7 +940,7 @@ class DepartmentsEndpointTest(unittest.TestCase):
         ), patch.object(main_module, "_tracer", main_module.Tracer(client=None)):
             r = client.get("/departments/computer_science")
             self.assertEqual(r.status_code, 200)
-            self.assertEqual(len(r.json()["departments"]), 10)
+            self.assertEqual(len(r.json()["departments"]), 209)
 
 
 def _drive_to_industrial_engineering_upload(test_case: unittest.TestCase) -> tuple[str, list[str]]:

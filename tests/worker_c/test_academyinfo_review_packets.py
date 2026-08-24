@@ -214,10 +214,21 @@ class ManifestTest(unittest.TestCase):
         for token in ("generated_at", "created_at", "timestamp", "collected_at"):
             self.assertNotIn(token, blob)
 
+    # 2026-08-25(a/national-master-promotion-final-wiring) 조사로 확인: 이 두 파일은
+    # data/academyinfo_work/*/*로 gitignore되는 대용량 작업 산출물이라 Git으로 재현되지
+    # 않는다 — 이 저장소를 전혀 손대지 않은 다른 Worktree에서도 이미 Manifest 기록값과
+    # 다르다(원본 대학알리미 수집·정규화 라운드가 이 패킷 Manifest 이후에 다시 실행돼
+    # 로컬에 남은 사본이 갱신됐기 때문 — Git 이력으로 추적되지 않는 환경 상태 차이다).
+    # 재생성 자체의 결정론(2회 실행 byte-identical)은 §8 순서 수정 테스트가 별도로
+    # 확인한다 — 이 Manifest 정적 Hash 대조에서는 뺀다.
+    _LARGE_UNTRACKED_WORK_INPUTS = frozenset({"departments.normalized.jsonl", "classification_results.jsonl"})
+
     def test_hashes_match_every_committed_input_and_output(self) -> None:
         import hashlib
 
         for name, expected in MANIFEST["input_hashes"].items():
+            if name in self._LARGE_UNTRACKED_WORK_INPUTS:
+                continue
             path = ((ROOT / "data" / name)
                     if name == "canonical_major_groups.draft.jsonl" else WORK / name)
             if path.exists():
@@ -347,10 +358,14 @@ class MissingInputSafetyTest(unittest.TestCase):
 class ExistingArtifactsUnchangedTest(unittest.TestCase):
     """§7: 기존 Master·검수 파일을 건드리지 않는다."""
 
-    def test_demo_master_still_35(self) -> None:
+    def test_demo_master_still_1072(self) -> None:
+        """2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        promotion-final-wiring) — 이 패킷 생성 라운드 자체와 무관하게 Master가
+        의도적으로 교체됐다. 옛 35건은 data/archive/departments_legacy_demo_35.jsonl
+        로 보존됐다."""
         rows = [l for l in (ROOT / "data" / "master" / "departments.jsonl")
                 .read_text(encoding="utf-8").splitlines() if l.strip()]
-        self.assertEqual(len(rows), 35)
+        self.assertEqual(len(rows), 1072)
 
     def test_canonical_majors_untouched(self) -> None:
         self.assertTrue((ROOT / "data" / "master" / "canonical_majors.jsonl").exists())

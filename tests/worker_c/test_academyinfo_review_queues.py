@@ -289,16 +289,22 @@ class SecretAndMasterUnchangedTest(unittest.TestCase):
         for token in ("serviceKey", "DATA_GO_KR_SERVICE_KEY", "apikey", "access_token"):
             self.assertNotIn(token, blob)
 
-    def test_demo_master_still_has_35_departments(self) -> None:
+    def test_demo_master_still_has_1072_departments(self) -> None:
+        """2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        promotion-final-wiring) — 이 테스트가 지키려던 "Master를 건드리지 않는다"는
+        이 review-queue 라운드 자체의 범위였다. 그 옛 35건은 지금
+        `data/archive/departments_legacy_demo_35.jsonl`로 그대로 보존돼 있고(다음
+        SHA-256 테스트가 확인한다), 실제 Master는 이후 라운드가 의도적으로 1,072건
+        으로 교체했다."""
         rows = [
             l for l in (ROOT / "data" / "master" / "departments.jsonl")
             .read_text(encoding="utf-8").splitlines() if l.strip()
         ]
-        self.assertEqual(len(rows), 35, "이번 작업은 Master를 건드리지 않는다")
+        self.assertEqual(len(rows), 1072)
 
-    def test_existing_35_department_master_sha256_is_unchanged(self) -> None:
+    def test_legacy_35_department_archive_sha256_matches_pre_promotion_master(self) -> None:
         digest = hashlib.sha256(
-            (ROOT / "data" / "master" / "departments.jsonl").read_bytes()
+            (ROOT / "data" / "archive" / "departments_legacy_demo_35.jsonl").read_bytes()
         ).hexdigest()
         self.assertEqual(
             digest,

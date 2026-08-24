@@ -116,8 +116,11 @@ class MajorExplorationServiceTest(unittest.TestCase):
             self.assertIn(d.department_status, VISIBLE_DEPARTMENT_STATUSES)
 
     def test_result_is_capped_at_limit(self) -> None:
+        # 2026-08-25 §5: DEFAULT_DEPARTMENT_LIMIT이 30→500으로 올라갔다(전국 학과
+        # 1,072건 전환 이후 Major당 최대 271건까지 나온다) — Fixture 크기도 그
+        # 한도보다 커야 실제로 잘리는지 확인할 수 있다.
         repo = _FakeDepartmentRepository(
-            [_dept(f"d{i}", department_name=f"학과{i:02d}") for i in range(50)]
+            [_dept(f"d{i}", department_name=f"학과{i:04d}") for i in range(DEFAULT_DEPARTMENT_LIMIT + 50)]
         )
         service = MajorExplorationService(repo)
         result = service.list_departments_for_major("computer_science")
@@ -332,17 +335,19 @@ class AllowedServiceMajorIdFailClosedTest(unittest.TestCase):
         result = service.list_departments_for_major("fine_arts_design")
         self.assertEqual([d.department_id for d in result], ["d1"])
 
-    def test_existing_4_3_1_0_results_unchanged_with_real_data(self) -> None:
+    def test_existing_national_results_unchanged_with_real_data(self) -> None:
         """실제 Repository·실제 canonical_majors.jsonl 기반 기본 Allowlist로,
-        기존 4/3/1/0 결과가 그대로인지 End-to-End로 확인한다."""
+        전국 학과 1,072건 전환(2026-08-25) 이후 실제 기준값이 그대로인지 End-to-End로
+        확인한다 — 옛 데모 4/3/1/0은 archive로 옮겨졌다. `fail_closed_major_ids`를
+        지정하지 않아 학과 단위 Scope 정책은 적용되지 않는다(상태·출처 필터만)."""
 
         from src.repositories.department_repository import JsonlDepartmentRepository
 
         repo = JsonlDepartmentRepository()
         service = MajorExplorationService(repo)
-        self.assertEqual(len(service.list_departments_for_major("media_communication")), 4)
-        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 3)
-        self.assertEqual(len(service.list_departments_for_major("hci_ux")), 1)
+        self.assertEqual(len(service.list_departments_for_major("media_communication")), 133)
+        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 53)
+        self.assertEqual(len(service.list_departments_for_major("hci_ux")), 0)
         self.assertEqual(len(service.list_departments_for_major("design")), 0)
 
 

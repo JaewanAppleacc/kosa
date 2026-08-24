@@ -397,11 +397,13 @@ class BuildDeterminismAndImmutabilityTest(unittest.TestCase):
 
     def test_existing_master_files_unchanged_from_head_except_bridge_draft(self) -> None:
         # canonical_major_group_bridge.draft.jsonl 자체는 이번 작업의 대상이므로
-        # 제외하고, 나머지 정본(Major 10개·전국 Department·major_profiles_v2)은
-        # 무변경이어야 한다.
+        # 제외하고, 나머지 정본(Major 10개·major_profiles_v2)은 무변경이어야 한다.
+        # data/master/departments.jsonl은 2026-08-25 전국 학과 1,072건 Production
+        # Master 전환(a/national-master-promotion-final-wiring)이 이 Bridge 작업과
+        # 무관하게 의도적으로 바꾼다 — 옛 35건은 archive로 보존됐다.
         for rel_path in (
             "data/master/canonical_majors.jsonl", "data/master/major_profiles_v2.jsonl",
-            "data/master/departments.jsonl", "data/canonical_major_groups.draft.jsonl",
+            "data/canonical_major_groups.draft.jsonl",
         ):
             result = subprocess.run(
                 ["git", "diff", "--exit-code", "HEAD", "--", rel_path],
@@ -410,8 +412,17 @@ class BuildDeterminismAndImmutabilityTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, f"{rel_path} changed:\n{result.stdout}")
 
     def test_mock_api_and_openapi_outputs_unchanged_from_head(self) -> None:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring) §7이 scripts/generate_mock_json.py를 다시 실행해
+        # departments_normal.json·subgraph_normal.json을 의도적으로 새 Master 기준으로
+        # 재생성했다(공개 OpenAPI Schema 자체는 byte-identical로 남아 있음을 별도로
+        # 확인했다) — 이 Bridge 작업과 무관한 변경이라 diff 대상에서 뺀다.
         result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/"],
+            [
+                "git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/",
+                ":(exclude)outputs/mock_api/departments_normal.json",
+                ":(exclude)outputs/mock_api/subgraph_normal.json",
+            ],
             cwd=_REPO_ROOT, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, f"outputs/mock_api/ changed:\n{result.stdout}")
@@ -460,7 +471,9 @@ class DepartmentCountsUnchangedTest(unittest.TestCase):
     4/3/1/0(media_communication/industrial_engineering/hci_ux/design) + 10(Major
     전체 개수) 결과가 이번 Scope 작업 전후로 그대로다."""
 
-    def test_existing_4_3_1_0_10_results_unchanged_with_real_data(self) -> None:
+    def test_existing_national_results_unchanged_with_real_data(self) -> None:
+        """2026-08-25 전국 학과 1,072건 전환 — 옛 데모 4/3/1/0 대신 실제 전국
+        기준값을 확인한다(archive에 옛 값은 그대로 보존돼 있다)."""
         from src.engines.canonical_mapper import load_canonical_majors
         from src.repositories.department_repository import JsonlDepartmentRepository
         from src.services.canonical_major_group_bridge_loader import DEFAULT_CANONICAL_MAJORS_PATH
@@ -468,9 +481,9 @@ class DepartmentCountsUnchangedTest(unittest.TestCase):
 
         repo = JsonlDepartmentRepository()
         service = MajorExplorationService(repo)
-        self.assertEqual(len(service.list_departments_for_major("media_communication")), 4)
-        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 3)
-        self.assertEqual(len(service.list_departments_for_major("hci_ux")), 1)
+        self.assertEqual(len(service.list_departments_for_major("media_communication")), 133)
+        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 53)
+        self.assertEqual(len(service.list_departments_for_major("hci_ux")), 0)
         self.assertEqual(len(service.list_departments_for_major("design")), 0)
         self.assertEqual(len(load_canonical_majors(DEFAULT_CANONICAL_MAJORS_PATH)), 10)
 
@@ -499,9 +512,13 @@ class RuntimeNotWiredTest(unittest.TestCase):
                 self.assertNotIn(pattern, text, f"{rel_path}: {pattern!r}")
 
     def test_forbidden_files_untouched_from_head(self) -> None:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring) §4/§5가 major_exploration_service.py(fail_closed_
+        # major_ids 10개 통일)와 departments.jsonl(1,072건 교체)을 실제로 바꾼다 —
+        # 이 Bridge 작업과 무관한 변경이라 이 목록에서 뺀다. department_repository.py는
+        # 이번 라운드에서도 변경되지 않았으므로 계속 확인한다.
         for rel_path in (
-            "src/repositories/department_repository.py", "src/services/major_exploration_service.py",
-            "data/master/departments.jsonl",
+            "src/repositories/department_repository.py",
         ):
             result = subprocess.run(
                 ["git", "diff", "--exit-code", "HEAD", "--", rel_path],

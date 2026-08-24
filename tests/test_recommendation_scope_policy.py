@@ -22,7 +22,6 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS
-from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
 from src.repositories.department_repository import load_departments
 from src.schemas.major import Department
 from src.schemas.mcp_contracts import DepartmentSearchCriteria
@@ -32,6 +31,7 @@ from src.services.department_recommendation_scope import (
     load_department_recommendation_scope,
 )
 from src.services.major_exploration_service import (
+    DEFAULT_SERVICE_MAJOR_IDS,
     EXCLUDED_RECOMMENDATION_MAJOR_IDS,
     MajorExplorationService,
 )
@@ -39,11 +39,20 @@ from src.services.major_exploration_service import (
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 SCOPE_PATH = DATA_DIR / "master" / "department_recommendation_scope.jsonl"
+# 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-promotion-
+# final-wiring) §3/§4: 기존 데모 35건 Master와 그 8건 Scope 기록은 archive로 옮겨졌다
+# (live 파일과 department_id 체계가 dept_ vs off_로 아예 달라 절대 섞이지 않는다). 이
+# 옛 데이터를 특정 department_id로 직접 참조하던 회귀 테스트는 이제 그 archive를 읽는다.
+ARCHIVE_MASTER_PATH = DATA_DIR / "archive" / "departments_legacy_demo_35.jsonl"
+ARCHIVE_SCOPE_PATH = DATA_DIR / "archive" / "department_recommendation_scope_legacy_demo_8.jsonl"
 
 SEOUL_WOMENS_INDUSTRIAL_DESIGN_DEPARTMENT_ID = "dept_05f004629e6e8f4060e286a9"
 EWHA_CONVERGENCE_CONTENTS_DEPARTMENT_ID = "dept_73df7dc773a663930a9800f0"
 
-RECOMMENDABLE_MAJOR_IDS = frozenset(m.major_id for m in VERTICAL_SLICE_MAJOR_PROFILES)
+# 2026-08-25 §4: fail_closed_major_ids가 VERTICAL_SLICE_MAJOR_PROFILES(3개)에서 실제
+# 서비스 10개 Canonical Major(DEFAULT_SERVICE_MAJOR_IDS)로 통일됐다 — 이 테스트 파일의
+# "추천 가능한 Major" 정의도 실제 배선과 같은 정본을 따른다.
+RECOMMENDABLE_MAJOR_IDS = DEFAULT_SERVICE_MAJOR_IDS
 
 client = TestClient(app)
 
@@ -101,11 +110,15 @@ class _FakeApprovalPolicy:
 
 
 class OfficialEvidenceQualityTest(unittest.TestCase):
-    """섹션 7 "공식 근거 검증" 1~8."""
+    """섹션 7 "공식 근거 검증" 1~8.
+
+    2026-08-25: 이화여대 융합콘텐츠학과 검토 기록은 기존 데모 35건 시절(dept_ 접두)
+    기록이라 archive(`ARCHIVE_SCOPE_PATH`)에서 읽는다 — live `SCOPE_PATH`는 이제
+    전국 1,072건(off_ 접두)만 담는다."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.rows = _read_jsonl(SCOPE_PATH)
+        cls.rows = _read_jsonl(ARCHIVE_SCOPE_PATH)
         cls.ewha_row = next(r for r in cls.rows if r["department_id"] == EWHA_CONVERGENCE_CONTENTS_DEPARTMENT_ID)
 
     def _all_source_urls(self) -> list[str]:
@@ -235,10 +248,12 @@ class DepartmentLevelPolicyTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["departments"], [])
 
-    def test_industrial_engineering_three_departments_are_exposed(self) -> None:
+    def test_industrial_engineering_departments_are_exposed(self) -> None:
+        """2026-08-25 전국 학과 1,072건 전환 — industrial_engineering 기준값이 옛
+        데모 3건에서 실제 전국 53건으로 바뀌었다."""
         r = client.get("/departments/industrial_engineering")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.json()["departments"]), 3)
+        self.assertEqual(len(r.json()["departments"]), 53)
 
     def test_media_communication_departments_are_exposed(self) -> None:
         r = client.get("/departments/media_communication")
@@ -246,7 +261,10 @@ class DepartmentLevelPolicyTest(unittest.TestCase):
         self.assertGreater(len(r.json()["departments"]), 0)
 
     def test_departments_response_contract_is_unchanged(self) -> None:
-        r = client.get("/departments/hci_ux")
+        # 2026-08-25: hci_ux는 전국 승격 후보가 0건이라(§4, 임의 생성 금지) 이제
+        # 정당하게 빈 목록이다 — Schema 필드 구성 확인에는 실제로 결과가 있는
+        # media_communication을 쓴다.
+        r = client.get("/departments/media_communication")
         body = r.json()
         self.assertEqual(set(body.keys()), {"major_id", "departments"})
         dept = body["departments"][0]
@@ -266,11 +284,16 @@ class DepartmentLevelPolicyTest(unittest.TestCase):
 
 
 class MappingRegressionTest(unittest.TestCase):
-    """직전(9차) 리뷰의 Mapping 회귀 테스트를 유지한다."""
+    """직전(9차) 리뷰의 Mapping 회귀 테스트를 유지한다.
+
+    2026-08-25: 이 클래스가 참조하는 특정 department_id(서울여대 산업디자인학과 등)는
+    기존 데모 35건 시절 것들이라, live Master가 아니라 그 archive
+    (`ARCHIVE_MASTER_PATH`)에서 계속 검증한다 — 이 회귀 사실 자체는 바뀌지 않았고,
+    그 데이터가 있던 위치만 archive로 옮겨졌다."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.departments = load_departments(DATA_DIR / "master" / "departments.jsonl")
+        cls.departments = load_departments(ARCHIVE_MASTER_PATH)
         cls.by_id = {d.department_id: d for d in cls.departments}
 
     def test_seoul_womens_industrial_design_is_not_hci_ux(self) -> None:
@@ -349,8 +372,10 @@ class CrossMajorApprovalRegressionTest(unittest.TestCase):
         service = MajorExplorationService(repo, recommendation_scope_policy=None, fail_closed_major_ids={"hci_ux"})
         self.assertEqual(service.list_departments_for_major("hci_ux"), [])
 
-    def test_recommendable_three_majors_api_result_counts_unchanged(self) -> None:
-        expected = {"media_communication": 4, "industrial_engineering": 3, "hci_ux": 1, "design": 0}
+    def test_recommendable_majors_api_result_counts_unchanged(self) -> None:
+        """2026-08-25 전국 학과 1,072건 전환 — 옛 데모 기준값(4/3/1/0)을 실제 전국
+        기준값으로 갱신한다. hci_ux는 승격 후보가 0건이라(§4) 정당하게 0이다."""
+        expected = {"media_communication": 133, "industrial_engineering": 53, "hci_ux": 0, "design": 0}
         for major_id, count in expected.items():
             r = client.get(f"/departments/{major_id}")
             self.assertEqual(r.status_code, 200)
@@ -564,11 +589,14 @@ class DuplicateDepartmentIdTest(unittest.TestCase):
 
 
 class Ewha2026AdmissionEvidenceTest(unittest.TestCase):
-    """섹션 6 "이화여대 입학 근거 최신화" 4개."""
+    """섹션 6 "이화여대 입학 근거 최신화" 4개.
+
+    2026-08-25: 대상 기록이 기존 데모 35건 시절 것이라 archive에서 읽는다(위
+    OfficialEvidenceQualityTest와 같은 이유)."""
 
     @classmethod
     def setUpClass(cls) -> None:
-        rows = _read_jsonl(SCOPE_PATH)
+        rows = _read_jsonl(ARCHIVE_SCOPE_PATH)
         cls.ewha_row = next(r for r in rows if r["department_id"] == EWHA_CONVERGENCE_CONTENTS_DEPARTMENT_ID)
         cls.admission_evidence = next(
             e for e in cls.ewha_row["classification_evidence"] if e["evidence_type"] == "OFFICIAL_ADMISSION_GUIDE"
@@ -578,7 +606,7 @@ class Ewha2026AdmissionEvidenceTest(unittest.TestCase):
         self.assertIn("20250901114849R2K7DN", self.admission_evidence["source_url"])
 
     def test_old_2024_pdf_url_is_no_longer_present(self) -> None:
-        raw_text = SCOPE_PATH.read_text(encoding="utf-8")
+        raw_text = ARCHIVE_SCOPE_PATH.read_text(encoding="utf-8")
         self.assertNotIn("20230911092013KBG72F", raw_text)
 
     def test_admission_guide_uses_official_admission_office_domain(self) -> None:

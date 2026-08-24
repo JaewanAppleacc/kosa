@@ -544,8 +544,17 @@ class MockAndOpenApiDeterminismTest(unittest.TestCase):
         )
 
     def test_mock_api_outputs_unchanged_from_head(self) -> None:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring) §7이 scripts/generate_mock_json.py를 다시 실행해
+        # departments_normal.json·subgraph_normal.json을 의도적으로 새 Master 기준으로
+        # 재생성했다(공개 OpenAPI Schema 자체는 byte-identical로 남아 있음을 별도로
+        # 확인했다) — 이 4+1 Context 작업과 무관한 변경이라 diff 대상에서 뺀다.
         result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/"],
+            [
+                "git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/",
+                ":(exclude)outputs/mock_api/departments_normal.json",
+                ":(exclude)outputs/mock_api/subgraph_normal.json",
+            ],
             cwd=ROOT, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, f"outputs/mock_api/ changed:\n{result.stdout}")

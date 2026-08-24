@@ -32,10 +32,13 @@ def _dept(department_id: str, *, department_name: str = "테스트학과", unive
 
 
 class NormalLoadTest(unittest.TestCase):
-    def test_real_master_35_departments_load_normally(self) -> None:
+    def test_real_master_1072_departments_load_normally(self) -> None:
+        """2026-08-25 전국 학과 1,072건 Production Master 전환 — 옛 데모 35건은
+        `data/archive/departments_legacy_demo_35.jsonl`로 보존됐고, 이제 실제
+        Repository 기준값은 1,072다."""
         repo = JsonlDepartmentRepository()
-        self.assertEqual(len(repo), 35)
-        self.assertEqual(len(repo.all()), 35)
+        self.assertEqual(len(repo), 1072)
+        self.assertEqual(len(repo.all()), 1072)
 
     def test_no_duplicate_ids_in_real_master(self) -> None:
         repo = JsonlDepartmentRepository()

@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import subprocess
 import unittest
 from pathlib import Path
 
@@ -53,22 +52,24 @@ class ResolveDepartmentUrlForPromotionTest(unittest.TestCase):
 
 class DemoMasterNotRegeneratedTest(unittest.TestCase):
     """이번 라운드에서 시연 Master 35개의 URL이 이 브랜치 안에서 자동으로 바뀌지
-    않았는지 직접 `git diff`로 확인한다."""
+    않았는지 직접 `git diff`로 확인한다.
 
-    def test_departments_jsonl_unchanged_since_head(self) -> None:
-        result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "data/master/departments.jsonl"],
-            cwd=_REPO_ROOT, capture_output=True, text=True,
-        )
-        self.assertEqual(result.returncode, 0, f"data/master/departments.jsonl이 HEAD 대비 변경됨:\n{result.stdout}")
+    2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+    promotion-final-wiring)이 이 URL 통합 라운드와 무관하게 의도적으로
+    `data/master/departments.jsonl`을 교체했다 — 옛 35건(이 URL 통합 라운드가
+    실제로 손대지 않았다는 사실 자체)은 `data/archive/departments_legacy_demo_35.jsonl`
+    로 그대로 보존됐으므로, 그 archive를 대상으로 원래 검증을 계속한다."""
 
-    def test_no_department_in_demo_master_has_a_department_url_yet(self) -> None:
-        """현재 35개 시연 데이터는 전부 `department_url=None`이어야 한다(§1 "시연
-        데이터 35개의 URL도 이번 브랜치에서 자동 변경하지 않는다")."""
+    def test_legacy_35_department_archive_has_no_department_url(self) -> None:
+        """archive된 옛 35개 시연 데이터는 전부 `department_url=None`이어야 한다
+        (§1 "시연 데이터 35개의 URL도 이번 브랜치에서 자동 변경하지 않는다")."""
 
         from src.repositories.department_repository import load_departments
 
-        for dept in load_departments():
+        archive_path = _REPO_ROOT / "data" / "archive" / "departments_legacy_demo_35.jsonl"
+        departments = load_departments(archive_path)
+        self.assertEqual(len(departments), 35)
+        for dept in departments:
             self.assertIsNone(dept.department_url, f"{dept.department_id}에 department_url이 이미 채워짐")
 
 

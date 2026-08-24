@@ -235,13 +235,18 @@ class ErrorMessageDoesNotLeakUrlOrSecretTest(unittest.TestCase):
 
 
 class RepositoryLoadTest(unittest.TestCase):
-    """기존 35개 시연 데이터(department_url 없음)가 Repository를 정상 통과한다."""
+    """2026-08-25 전국 학과 1,072건 Production Master 전환 — 옛 데모 35건(전부
+    department_url 없음)은 `data/archive/departments_legacy_demo_35.jsonl`로
+    보존됐다. 실제 Repository는 이제 1,072건이고, 그중 일부는 대학알리미 URL
+    정책 감사(department_url_scope_audit.jsonl)를 통과한 실제 department_url을
+    갖는다 — "전부 None"은 더 이상 사실이 아니다."""
 
-    def test_existing_35_demo_departments_load_without_department_url(self) -> None:
+    def test_existing_1072_national_departments_load_and_validate_department_url_policy(self) -> None:
         repo = JsonlDepartmentRepository()
-        self.assertEqual(len(repo), 35)
+        self.assertEqual(len(repo), 1072)
         for dept in repo.all():
-            self.assertIsNone(dept.department_url)
+            if dept.department_url is not None:
+                self.assertTrue(dept.department_url.startswith(("http://", "https://")))
 
     def test_repository_round_trips_a_department_with_url(self) -> None:
         """Builder가 만드는 JSONL과 같은 방식(Pydantic → JSON → 재파싱)으로 URL이
@@ -253,17 +258,45 @@ class RepositoryLoadTest(unittest.TestCase):
         self.assertEqual(reloaded.department_url, "https://cs.example.ac.kr")
 
 
-class ApiResponseTest(unittest.TestCase):
-    """§4 API 테스트 — department_url이 없어도/있어도 응답이 정상이어야 한다."""
+class _AlwaysApprovePolicy:
+    """2026-08-25 §4: fail_closed_major_ids가 10개 Canonical Major 전부로 통일된
+    뒤로는(computer_science 포함) 합성 Department 하나만 Repository에 꽂아 넣는
+    것만으로는 부족하다 — 학과 단위 Scope 정책도 그 department_id를 명시적으로
+    APPROVED라고 승인해야 노출된다. 이 대역은 무조건 승인해 Repository/API 응답
+    직렬화 자체(department_url 유무)만 순수하게 검증한다."""
 
-    def test_department_url_absent_in_existing_demo_data_serializes_as_null(self) -> None:
-        r = client.get("/departments/computer_science")
+    def is_approved(self, department_id: str, canonical_major_id: str) -> bool:
+        return True
+
+
+class ApiResponseTest(unittest.TestCase):
+    """§4 API 테스트 — department_url이 없어도/있어도 응답이 정상이어야 한다.
+
+    2026-08-25 전국 학과 1,072건 전환 이후 실제 computer_science 209건 중 일부는
+    이미 department_url이 채워져 있다("전부 None"이 더 이상 사실이 아니다) — 그래서
+    직렬화 계약 자체는 합성 Repository로 각각 독립적으로 검증한다."""
+
+    def _get_with_synthetic(self, department: Department):
+        synthetic_repo = JsonlDepartmentRepository(departments=[department])
+        with (
+            patch.object(main_module._major_exploration_service, "_department_repository", synthetic_repo),
+            patch.object(
+                main_module._major_exploration_service, "_recommendation_scope_policy", _AlwaysApprovePolicy(),
+            ),
+        ):
+            return client.get("/departments/computer_science")
+
+    def test_department_url_absent_serializes_as_null(self) -> None:
+        synthetic = Department(
+            **{**_BASE_DEPARTMENT_KWARGS, "department_id": "dept_test_url_absent"},
+            canonical_major_id="computer_science",
+        )
+        r = self._get_with_synthetic(synthetic)
         self.assertEqual(r.status_code, 200)
         body = r.json()
-        self.assertGreater(len(body["departments"]), 0)
-        for dept in body["departments"]:
-            self.assertIn("department_url", dept)  # 필드 자체는 항상 노출된다.
-            self.assertIsNone(dept["department_url"])
+        self.assertEqual(len(body["departments"]), 1)
+        self.assertIn("department_url", body["departments"][0])  # 필드 자체는 항상 노출된다.
+        self.assertIsNone(body["departments"][0]["department_url"])
 
     def test_department_url_present_is_passed_through_as_is(self) -> None:
         """Repository가 department_url이 채워진 학과를 반환하면 API 응답에 그대로
@@ -274,11 +307,7 @@ class ApiResponseTest(unittest.TestCase):
             canonical_major_id="computer_science",
             department_url="https://cs.example.ac.kr",
         )
-        synthetic_repo = JsonlDepartmentRepository(departments=[synthetic])
-
-        with patch.object(main_module._major_exploration_service, "_department_repository", synthetic_repo):
-            r = client.get("/departments/computer_science")
-
+        r = self._get_with_synthetic(synthetic)
         self.assertEqual(r.status_code, 200)
         body = r.json()
         self.assertEqual(len(body["departments"]), 1)

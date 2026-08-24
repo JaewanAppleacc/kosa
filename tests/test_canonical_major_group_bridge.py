@@ -423,9 +423,12 @@ class ExistingMatchingAndMockUnaffectedTest(unittest.TestCase):
     전혀 건드리지 않았는지 Git과 대조한다(작업 전 기록한 값과 동일해야 한다)."""
 
     def test_existing_master_files_unchanged_from_head(self) -> None:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring)이 data/master/departments.jsonl을 의도적으로
+        # 바꾼다 — 이 Bridge 작업 자체와는 무관한 변경이라 이 목록에서 뺀다(기존
+        # 35건은 data/archive/departments_legacy_demo_35.jsonl로 보존됐다).
         for rel_path in (
             "data/master/canonical_majors.jsonl", "data/master/major_profiles_v2.jsonl",
-            "data/master/departments.jsonl",
         ):
             result = subprocess.run(
                 ["git", "diff", "--exit-code", "HEAD", "--", rel_path],
@@ -434,8 +437,17 @@ class ExistingMatchingAndMockUnaffectedTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, f"{rel_path} changed:\n{result.stdout}")
 
     def test_mock_api_outputs_unchanged_from_head(self) -> None:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring) §7이 scripts/generate_mock_json.py를 다시 실행해
+        # departments_normal.json·subgraph_normal.json을 의도적으로 새 Master 기준으로
+        # 재생성했다(공개 OpenAPI Schema 자체는 byte-identical로 남아 있음을 별도로
+        # 확인했다) — 이 Bridge 작업과 무관한 변경이라 diff 대상에서 뺀다.
         result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/"],
+            [
+                "git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/",
+                ":(exclude)outputs/mock_api/departments_normal.json",
+                ":(exclude)outputs/mock_api/subgraph_normal.json",
+            ],
             cwd=_REPO_ROOT, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, f"outputs/mock_api/ changed:\n{result.stdout}")

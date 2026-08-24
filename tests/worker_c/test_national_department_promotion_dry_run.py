@@ -874,11 +874,25 @@ class RealMasterAndReviewFilesUntouchedTest(unittest.TestCase):
     쓰지 않는다 — git diff가 비어 있어야 한다."""
 
     def test_departments_jsonl_unchanged(self) -> None:
-        result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "data/master/departments.jsonl"],
-            cwd=ROOT, capture_output=True, text=True,
+        """이 테스트가 실제로 지키려는 것은 "이 Dry Run 모듈 자체가 Master를 쓰지
+        않는다"이지 "Master가 이 브랜치에서 영원히 35건이어야 한다"가 아니다.
+        2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        promotion-final-wiring)은 별도의 `scripts/career_promote_national_
+        departments_master.py`가 이 Dry Run의 READY_FOR_PROMOTION 결과를 입력
+        삼아 의도적으로 교체했다 — 옛 35건은 data/archive/departments_legacy_
+        demo_35.jsonl로 보존됐다. 그래서 여기서는 "이 Dry Run 모듈 소스 자체에
+        Master를 쓰는 코드가 없다"만 정적으로 확인한다(모듈 docstring이 이미 명시한
+        "실제 Master도 공개 API/Mock도 절대" 원칙 그대로)."""
+        source = (ROOT / "scripts" / "career_build_national_department_promotion_dry_run.py").read_text(
+            encoding="utf-8"
         )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # "departments.jsonl"(Master 파일명 전체)이 등장하는 곳은 전부 docstring·주석·
+        # 문자열 보고서 문구뿐이다 — 실제로 이 경로에 쓰는 호출(write_jsonl(...)·
+        # .write_text(...)의 대상 인자)로는 한 번도 쓰이지 않는지만 확인한다.
+        for line in source.splitlines():
+            if "departments.jsonl" in line:
+                self.assertNotIn("write_jsonl(", line)
+                self.assertNotIn(".write_text(", line)
 
     # 2026-08(a/final-mapping-review-closeout)가 사용자 최종 결정에 따라 이 5개
     # 파일에 실제 검수 결과를 기록했다 — 이 테스트가 실제로 지키려는 것은 "이 Dry
@@ -1213,10 +1227,29 @@ class RealVsFixtureRunDistinctionTest(unittest.TestCase):
     json/promotion_summary.json/.md)는 커밋 대상이다."""
 
     def test_real_national_generation_inputs_are_present_for_this_integration_round(self) -> None:
-        normalized = ROOT / "data" / "academyinfo_work" / "2025" / "departments.normalized.jsonl"
-        classification = ROOT / "data" / "academyinfo_work" / "2025" / "classification_results.jsonl"
-        self.assertTrue(normalized.exists(), "실제 전국 정규화 결과가 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
-        self.assertTrue(classification.exists(), "실제 전국 분류 결과가 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
+        """2026-08-25(a/national-master-promotion-final-wiring) 정정: departments.
+        normalized.jsonl·classification_results.jsonl은 .gitignore 대상 대용량 작업
+        산출물이라(data/academyinfo_work/*/*) 어느 로컬 세션이 마지막에 재생성했는지에
+        따라 있다가도 없어진다 — Git 이력이 보증하지 않는 상태를 "실행 증거"로 삼으면
+        이 테스트 자체가 세션마다 뒤집힌다. 실제로 커밋되는, 재현 가능한 증거는 전국
+        1,072건 승격 산출물이다: national_master_promotion_candidates.jsonl(1,072건)·
+        national_master_promotion_report.json과, 그 결과로 실제 교체된 운영 Master
+        (data/master/departments.jsonl, 1,072건)."""
+        candidates = (
+            ROOT / "data" / "academyinfo_work" / "2025" / "promotion_dry_run"
+            / "national_master_promotion_candidates.jsonl"
+        )
+        report = (
+            ROOT / "data" / "academyinfo_work" / "2025" / "promotion_dry_run"
+            / "national_master_promotion_report.json"
+        )
+        master = ROOT / "data" / "master" / "departments.jsonl"
+        self.assertTrue(candidates.exists(), "전국 승격 후보 산출물이 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
+        self.assertTrue(report.exists(), "전국 승격 보고서가 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
+        candidate_rows = [l for l in candidates.read_text(encoding="utf-8").splitlines() if l.strip()]
+        master_rows = [l for l in master.read_text(encoding="utf-8").splitlines() if l.strip()]
+        self.assertEqual(len(candidate_rows), 1072)
+        self.assertEqual(len(master_rows), 1072)
 
 
 class DeterminismTest(unittest.TestCase):

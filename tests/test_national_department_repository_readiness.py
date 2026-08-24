@@ -99,19 +99,36 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
             after_hash = _sha256(_REPO_ROOT / path)
             self.assertEqual(before_hash, after_hash, f"{path}의 SHA-256이 Harness 실행 후 바뀜")
 
-    def test_departments_jsonl_has_35_rows_and_is_git_clean(self) -> None:
+    def test_departments_jsonl_has_1072_rows(self) -> None:
+        """2026-08-25(a/national-master-promotion-final-wiring) §7: 전국 학과 1,072건
+        Production Master 전환 이후 이 값은 더 이상 35(데모)가 아니다 — 기존 35건은
+        `data/archive/departments_legacy_demo_35.jsonl`로 보존됐다(§3). "git-clean"
+        조건은 이 승격 라운드 자체가 `data/master/departments.jsonl`을 바꾸는 커밋이라
+        의미가 없어져 제거한다 — Harness가 이 파일을 추가로 건드리지 않는지는 위
+        `test_master_and_public_schema_sha256_unchanged_after_harness_run`이 이미
+        (하드코딩된 값이 아니라 실행 시점 SHA-256으로) 확인한다."""
         path = _REPO_ROOT / "data" / "master" / "departments.jsonl"
         lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        self.assertEqual(len(lines), 1072)
+
+    def test_legacy_35_department_archive_exists_and_is_readonly(self) -> None:
+        archive_path = _REPO_ROOT / "data" / "archive" / "departments_legacy_demo_35.jsonl"
+        lines = [line for line in archive_path.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(lines), 35)
-        result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "data/master/departments.jsonl"],
-            cwd=_REPO_ROOT, capture_output=True, text=True,
-        )
-        self.assertEqual(result.returncode, 0, result.stdout)
 
     def test_mock_api_directory_git_clean(self) -> None:
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring) §7이 scripts/generate_mock_json.py를 다시 실행해
+        # departments_normal.json·subgraph_normal.json을 의도적으로 새 Master 기준으로
+        # 재생성했다(공개 OpenAPI Schema 자체는 byte-identical로 남아 있음을 별도로
+        # 확인했다) — 이 클래스가 지키려는 "harness.main() 실행이 Mock을 건드리지
+        # 않는다"와는 무관한 변경이라 diff 대상에서 뺀다.
         result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/"],
+            [
+                "git", "diff", "--exit-code", "HEAD", "--", "outputs/mock_api/",
+                ":(exclude)outputs/mock_api/departments_normal.json",
+                ":(exclude)outputs/mock_api/subgraph_normal.json",
+            ],
             cwd=_REPO_ROOT, capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout)
@@ -154,20 +171,29 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
         unexpected = [p for p in changed if p not in self._INTENTIONALLY_FINALIZED_REVIEW_FILES]
         self.assertEqual(unexpected, [], f"data/reviews/ 아래 의도하지 않은 변경: {unexpected}")
 
-    def test_current_35_department_api_counts_unchanged(self) -> None:
-        """이 Harness가 실제 운영 데이터를 건드리지 않으므로, 실제 35건 기준
-        /departments 결과(§ "현재 35건 API 결과는 절대 변경하지 말 것")도 여전히
-        같은 값이어야 한다 — main.py를 띄우지 않고 Repository를 직접 재확인한다."""
+    def test_current_1072_department_api_counts_unchanged(self) -> None:
+        """2026-08-25(a/national-master-promotion-final-wiring) §7: 전국 학과 1,072건
+        승격 이후의 실제 /departments 기준값으로 갱신한다 — 옛 데모 35건 기준값
+        (media_communication=4·industrial_engineering=3·hci_ux=1)은
+        `data/archive/departments_legacy_demo_35.jsonl`에만 남아 있고 더 이상 이
+        Harness가 건드리지 않는 실제 Repository 값이 아니다."""
 
         repo = JsonlDepartmentRepository()
-        self.assertEqual(len(repo), 35)
+        self.assertEqual(len(repo), 1072)
         counts = {}
         for d in repo.all():
             if d.canonical_major_id:
                 counts[d.canonical_major_id] = counts.get(d.canonical_major_id, 0) + 1
-        self.assertEqual(counts.get("media_communication"), 4)
-        self.assertEqual(counts.get("industrial_engineering"), 3)
-        self.assertEqual(counts.get("hci_ux"), 1)
+        self.assertEqual(counts.get("business_administration"), 271)
+        self.assertEqual(counts.get("media_communication"), 133)
+        self.assertEqual(counts.get("life_science"), 134)
+        self.assertEqual(counts.get("mechanical_engineering"), 114)
+        self.assertEqual(counts.get("computer_science"), 209)
+        self.assertEqual(counts.get("education"), 78)
+        self.assertEqual(counts.get("industrial_engineering"), 53)
+        self.assertEqual(counts.get("psychology"), 80)
+        self.assertIsNone(counts.get("hci_ux"))
+        self.assertIsNone(counts.get("design"))
 
 
 class NoSecretsOrLargeFilesTest(unittest.TestCase):

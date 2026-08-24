@@ -34,6 +34,11 @@ from src.schemas.evidence import TraitEvidenceSummary
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
+# 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-promotion-
+# final-wiring) §4: 전국 승격 후보에는 hci_ux가 0건이다(임의로 만들어내지 않는다는
+# 명시적 지시) — 옛 데모 35건 시절 hci_ux 1건은 archive로 보존됐다. 이 파일의 "3개
+# 전공 정렬" 전제 자체는 여전히 유효하지만(추천 판정 로직은 그대로), "실제 학과가
+# 있다"는 데이터 전제는 hci_ux에 대해서만 더 이상 성립하지 않는다.
 
 RECOMMENDABLE_MAJOR_IDS = [m.major_id for m in VERTICAL_SLICE_MAJOR_PROFILES]
 
@@ -70,11 +75,17 @@ class DataConsistencyTest(unittest.TestCase):
             )
 
     def test_all_three_recommendable_majors_have_at_least_one_department(self) -> None:
+        """2026-08-25: hci_ux는 전국 승격 후보가 0건이라(§4, 임의 생성 금지) 이 검사
+        대상에서 뺀다 — 그 사실 자체가 정당한 결과이지 결함이 아니다. 나머지 두 전공
+        (media_communication·industrial_engineering)은 계속 ≥1을 요구한다."""
         by_major: dict[str, list] = {}
         for d in self.departments:
             if d.canonical_major_id:
                 by_major.setdefault(d.canonical_major_id, []).append(d)
         for major_id in RECOMMENDABLE_MAJOR_IDS:
+            if major_id == "hci_ux":
+                self.assertEqual(len(by_major.get(major_id, [])), 0, "hci_ux는 전국 승격 후보 0건이어야 한다")
+                continue
             self.assertGreaterEqual(
                 len(by_major.get(major_id, [])), 1,
                 f"{major_id}에 연결된 실제 학과가 없습니다.",
@@ -105,7 +116,12 @@ class DataConsistencyTest(unittest.TestCase):
 
     def test_original_eight_majors_department_counts_are_preserved(self) -> None:
         """2026-08-22 8차 작업 이전에 이미 실제 학과가 연결돼 있던 8개 전공은 이번
-        hci_ux/industrial_engineering 정합화 작업으로 개수가 줄면 안 된다."""
+        hci_ux/industrial_engineering 정합화 작업으로 개수가 줄면 안 된다.
+
+        2026-08-25: `design`은 뺐다 — design은 EXCLUDED_RECOMMENDATION_MAJOR_IDS로
+        애초에 추천 대상이 아니고(§ "예체능 계열 제외"), 전국 승격 파이프라인은 그
+        정책과 일관되게 design 후보를 만들지 않는다(0건이 정당한 결과다). 옛 데모
+        35건 시절 design 3건은 archive로 그대로 보존돼 있다."""
 
         counts: dict[str, int] = {}
         for d in self.departments:
@@ -118,7 +134,6 @@ class DataConsistencyTest(unittest.TestCase):
             "mechanical_engineering": 3,
             "life_science": 2,
             "business_administration": 3,
-            "design": 3,
             "media_communication": 4,
             "education": 2,
         }
@@ -137,10 +152,12 @@ class ApiConsistencyTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertGreater(len(r.json()["departments"]), 0)
 
-    def test_hci_ux_departments_endpoint_is_not_empty(self) -> None:
+    def test_hci_ux_departments_endpoint_returns_200_and_is_now_legitimately_empty(self) -> None:
+        """2026-08-25: 전국 승격 후보 0건 — 임의로 만들어내지 않는다(§4)는 정책이
+        그대로 지켜졌는지 확인한다(200 + 빈 목록도 정상 계약)."""
         r = client.get("/departments/hci_ux")
         self.assertEqual(r.status_code, 200)
-        self.assertGreater(len(r.json()["departments"]), 0)
+        self.assertEqual(r.json()["departments"], [])
 
     def test_industrial_engineering_departments_endpoint_is_not_empty(self) -> None:
         r = client.get("/departments/industrial_engineering")
@@ -153,7 +170,9 @@ class ApiConsistencyTest(unittest.TestCase):
         self.assertEqual(r.json(), {"major_id": "no_such_major_id_at_all", "departments": []})
 
     def test_departments_response_contract_unchanged(self) -> None:
-        r = client.get("/departments/hci_ux")
+        # 2026-08-25: hci_ux는 전국 승격 후보 0건이라(§4) Schema 필드 구성 확인에는
+        # 결과가 있는 media_communication을 쓴다.
+        r = client.get("/departments/media_communication")
         body = r.json()
         self.assertEqual(set(body.keys()), {"major_id", "departments"})
         dept = body["departments"][0]
@@ -185,7 +204,11 @@ class ApiConsistencyTest(unittest.TestCase):
             for major_id in RECOMMENDABLE_MAJOR_IDS:
                 r = client.get(f"/departments/{major_id}")
                 self.assertEqual(r.status_code, 200)
-                self.assertGreater(len(r.json()["departments"]), 0)
+                # 2026-08-25: hci_ux는 전국 승격 후보 0건이 정당한 결과다(§4) — Client
+                # 비활성화 상태에서도 200으로 정상 응답하는지만 확인하고, 결과 개수
+                # 검증은 데이터가 있는 나머지 전공에만 적용한다.
+                if major_id != "hci_ux":
+                    self.assertGreater(len(r.json()["departments"]), 0)
 
 
 class FixedPersonaEndToEndTest(unittest.TestCase):
@@ -265,7 +288,12 @@ class FixedPersonaEndToEndTest(unittest.TestCase):
         for d in departments:
             self.assertEqual(d["canonical_major_id"], top_major_id)
 
-    def test_persona_b_recommends_hci_ux_with_real_departments(self) -> None:
+    def test_persona_b_recommends_hci_ux_but_department_exploration_is_legitimately_empty(self) -> None:
+        """2026-08-25: Matching Engine이 hci_ux를 1위로 판정하는 로직 자체는 여전히
+        유효하다(관심도·Trait 근거만으로 계산 — 학과 데이터와 무관, §16 "관심 Context와
+        추천 학과 범위는 별개다"). 다만 그 뒤 실제 학과 탐색 단계는 전국 승격 후보
+        0건이 정당한 결과다(§4, 임의로 만들어내지 않는다) — 추천은 나오되 학과 목록은
+        빈 채로 사용자에게 정직하게 보여준다."""
         top_major_id = self._top_relevant_major_id(
             strong_traits={
                 "tool_utilization", "audience_response_prediction", "visual_expression", "opinion_mediation",
@@ -278,10 +306,7 @@ class FixedPersonaEndToEndTest(unittest.TestCase):
 
         r = client.get(f"/departments/{top_major_id}")
         self.assertEqual(r.status_code, 200)
-        departments = r.json()["departments"]
-        self.assertGreater(len(departments), 0)
-        for d in departments:
-            self.assertEqual(d["canonical_major_id"], top_major_id)
+        self.assertEqual(r.json()["departments"], [])
 
     def test_persona_c_recommends_industrial_engineering_with_real_departments(self) -> None:
         """tests/test_matching_engine.py::FixedPersonaVerticalSliceMatchingTest와 동일한

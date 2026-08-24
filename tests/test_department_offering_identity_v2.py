@@ -39,6 +39,12 @@ COLLISION_REVIEW_PATH = (
     _REPO_ROOT / "data" / "academyinfo_work" / "2025" / "packets" / "department_identity_collision_review.jsonl"
 )
 MASTER_PATH = _REPO_ROOT / "data" / "master" / "departments.jsonl"
+# 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-promotion-
+# final-wiring) §3: build_migration_map()이 다루는 "Identity v2 이전에 만들어진, schl_id
+# 없는 35건"은 이제 data/master/departments.jsonl(현재는 1,072건, 전부 Identity v2로
+# 만들어졌다)이 아니라 그 archive에 있다 — 이 파일의 모든 build_migration_map() 호출은
+# 명시적으로 이 경로를 넘긴다(기본값에 조용히 의존하지 않는다).
+ARCHIVE_MASTER_PATH = _REPO_ROOT / "data" / "archive" / "departments_legacy_demo_35.jsonl"
 ROW_REVIEW_REAL_PATH = _REPO_ROOT / "data" / "reviews" / "department_identity_collision_row_review_status.jsonl"
 OFFERING_IDENTITY_REAL_PATH = (
     _REPO_ROOT / "data" / "academyinfo_work" / "2025" / "packets" / "department_offering_identity_v2.jsonl"
@@ -243,7 +249,7 @@ class BuilderTest(_PreservationTestBase):
         from scripts.career_build_department_offering_identity_v2 import build_migration_map, build_row_reviews_and_offerings
 
         _, offerings = build_row_reviews_and_offerings()
-        migration = build_migration_map(offerings)
+        migration = build_migration_map(offerings, master_path=ARCHIVE_MASTER_PATH)
         self.assertEqual(len(migration), 51)
         old_ids = [m.old_department_id for m in migration]
         self.assertEqual(len(old_ids), len(set(old_ids)))
@@ -256,7 +262,7 @@ class BuilderTest(_PreservationTestBase):
         from scripts.career_build_department_offering_identity_v2 import build_migration_map, build_row_reviews_and_offerings
 
         _, offerings = build_row_reviews_and_offerings()
-        migration = build_migration_map(offerings)
+        migration = build_migration_map(offerings, master_path=ARCHIVE_MASTER_PATH)
         collision_entries = [m for m in migration if m.migration_status == "RESOLVED_ONE_TO_MANY_COLLISION"]
         for entry in collision_entries:
             self.assertGreaterEqual(len(entry.new_offering_ids), 2, entry.old_department_id)
@@ -268,7 +274,7 @@ class BuilderTest(_PreservationTestBase):
         from scripts.career_build_department_offering_identity_v2 import build_migration_map, build_row_reviews_and_offerings
 
         _, offerings = build_row_reviews_and_offerings()
-        migration = build_migration_map(offerings)
+        migration = build_migration_map(offerings, master_path=ARCHIVE_MASTER_PATH)
         master_entries = [m for m in migration if m.migration_status == "MASTER_UNCHANGED_SOURCE_IDENTIFIERS_UNAVAILABLE"]
         self.assertEqual(len(master_entries), 35)
         for entry in master_entries:
@@ -289,7 +295,7 @@ class BuilderTest(_PreservationTestBase):
             )
 
             reviews, offerings = build_row_reviews_and_offerings()
-            migration = build_migration_map(offerings)
+            migration = build_migration_map(offerings, master_path=ARCHIVE_MASTER_PATH)
             _write_jsonl(row_review_path, [r.model_dump_json() for r in reviews])
             _write_jsonl(offering_path, [o.model_dump_json() for o in offerings])
             _write_jsonl(migration_path, [m.model_dump_json() for m in migration])
