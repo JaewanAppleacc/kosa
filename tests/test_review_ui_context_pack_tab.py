@@ -82,17 +82,27 @@ class StaticSourceTest(unittest.TestCase):
 
     # 2 / 20. #context-packs Deep Link + 새로고침 시 유지.
     def test_hash_deep_link_mapping_and_bootstrap_reads_hash_first(self) -> None:
+        # 2026-08-24 배치별 Shared Probe 검수 화면(a/shared-probe-batch-review-ui)에서
+        # hash 파싱이 tabFromLocationHash() 단독 호출에서 parseLocationHash()가
+        # {tab, batch}를 함께 돌려주는 형태로 바뀌었다(#shared-probes?batch=N 지원
+        # 위해) — tabFromLocationHash()는 이제 그 위에 얹힌 얇은 래퍼다. 동작
+        # ("hash를 loadOrRenderTab보다 먼저 읽는다")은 그대로이므로 parseLocationHash()
+        # 기준으로 같은 것을 확인한다.
         self.assertIn('context_packs: "context-packs"', _JS)
+        self.assertIn("function parseLocationHash(", _JS)
         self.assertIn("function tabFromLocationHash(", _JS)
         self.assertIn("window.addEventListener(\"hashchange\"", _JS)
         bootstrap_body = _js_function_body("bootstrap")
-        hash_pos = bootstrap_body.index("tabFromLocationHash()")
+        hash_pos = bootstrap_body.index("parseLocationHash()")
         load_pos = bootstrap_body.index("loadOrRenderTab(initialTab)")
         self.assertLess(hash_pos, load_pos, "bootstrap()이 hash보다 기본 tab을 먼저 로드한다")
 
     def test_unknown_hash_falls_back_to_direct_probe(self) -> None:
-        # 두 곳 모두(부트스트랩, hashchange) "알 수 없으면 direct_probe" 안전 기본값을 쓴다.
-        self.assertIn('tabFromLocationHash() || "direct_probe"', _JS)
+        # 두 곳 모두(부트스트랩, hashchange) "알 수 없으면 direct_probe" 안전 기본값을
+        # 쓴다. parseLocationHash()가 알 수 없는 hash에 tab=null을 돌려주고,
+        # `tab || "direct_probe"` 형태로 안전 기본값을 적용한다.
+        self.assertIn('const initialTab = tab || "direct_probe";', _JS)
+        self.assertIn('const targetTab = tab || "direct_probe";', _JS)
 
     # 7. Trait Signal / NO_SIGNAL 시각적 구분(기존 탭의 모드 토글에 종속되지 않는
     #    전용 클래스를 쓰는지) + CSS 규칙 존재.
@@ -165,7 +175,10 @@ class StaticSourceTest(unittest.TestCase):
         self.assertNotIn('"science"', _JS)
         self.assertNotIn('"sports"', _JS)
         self.assertIn("p.activation_batch", _JS)
-        self.assertNotIn("CONTEXT_ACTIVATION_BATCHES", _JS)  # 그런 상수를 JS가 따로 두지 않는다.
+        # 2026-08-24 배치별 Shared Probe 검수 화면에서 이 이름이 "서버가 계산한다"는
+        # 설명 주석으로 등장한다 — 실제 JS 객체/배열 정의(=, :, [)로는 여전히 없어야
+        # 한다(있으면 배치 표를 복제하고 있다는 뜻).
+        self.assertNotRegex(_JS, r"CONTEXT_ACTIVATION_BATCHES\s*[=:\[]")
 
 
 class ApiListShapeTest(unittest.TestCase):
