@@ -44,6 +44,12 @@
 소수학과 확장은 학과 이름을 Alias에 많이 추가하는 방식으로 해결하면 안 된다. 호텔경영·해양·
 국방처럼 이름이 비슷해도 진로와 교육과정이 다른 분야가 있기 때문이다. 다음 네 단계로 진행한다.
 
+질문에서 결과까지의 기술적 연결은
+`scripts/career_evaluate_question_major_trace.py`와
+`outputs/evaluation/question_to_minor_major_trace.md`에서 관광·호텔 평가용 draft로 실행했다.
+질문 선택 8건에서 반복 관찰된 Trait만 현재 Matching Engine에 전달하며, 공개 Master와 엔진은
+변경하지 않았다.
+
 ### 3-1. 데이터 커버리지부터 확인
 
 전국 `classification_results.jsonl`에서 관광·호텔, 농업, 해양, 국방, 특수교육, 종교 등
