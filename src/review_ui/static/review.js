@@ -79,6 +79,22 @@ const state = {
     mapping: "all", reviewStatus: "all", boundary: false, major: "all",
     scopeType: "all", scopeReviewStatus: "all", departmentReviewOnly: false,
   },
+  // 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) — P1 분류 REVIEW(374건)·
+  // N.C.E 중계열(24개) 검수 탭. Bridge와 같은 원칙: 필터는 전부 순수 클라이언트
+  // 필터고, 저장은 각 카드의 저장 버튼 클릭에서만 나간다.
+  p1Rows: [],
+  p1Summary: null,
+  p1Filters: {
+    cluster: "all", judgmentCandidate: "all", evidence: "all", artsSports: "all",
+    decision: "all", unreviewedOnly: false,
+  },
+  nceClusters: [],
+  nceSummary: null,
+  nceFilters: {
+    candidateCount: "all", middleSeriesCode: "all", decision: "all",
+    minDepartmentCount: null, departmentReviewOnly: false,
+  },
+  nceExpandedClusters: new Set(),
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -2247,6 +2263,330 @@ function renderBridgeAll() {
   renderBridgeContainer();
 }
 
+/* 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) §1 — 대학알리미 P1 분류
+ * REVIEW(374건) 검수 탭. Bridge 탭과 같은 카드 목록 모델(Pager 없음). 저장은
+ * 각 카드의 저장 버튼 클릭에서만 나가고, expected_revision을 항상 같이 보낸다
+ * (낙관적 잠금 — 다른 검토자가 먼저 저장했으면 409로 거부되고, 그 사실을 화면에
+ * 그대로 보여준 뒤 목록을 다시 불러온다). */
+
+const P1_JUDGMENT_CANDIDATES = [
+  "MEDIA_COMMUNICATION_CANDIDATE", "HCI_UX_CANDIDATE", "DESIGN_ARTS_EXCLUDED",
+  "NEEDS_OFFICIAL_CURRICULUM", "UNMAPPED",
+];
+const P1_DECISIONS = [
+  "TBD", "APPROVE_PROPOSED_CANDIDATE", "EXCLUDE_ARTS_RECOMMENDATION", "KEEP_UNMAPPED",
+  "NEEDS_OFFICIAL_CURRICULUM", "REVISE_CANDIDATE", "HOLD",
+];
+
+async function loadP1All() {
+  const resp = await apiGet(`${API_BASE}/academyinfo/p1-classification`);
+  state.p1Rows = resp.rows;
+  state.p1Summary = resp.summary;
+  renderP1All();
+}
+
+function renderP1Summary() {
+  const s = state.p1Summary;
+  const box = document.getElementById("p1-summary-box");
+  if (!s) { box.textContent = "불러오는 중…"; return; }
+  const rows = [
+    el("div", { class: "row" }, [el("span", {}, "전체"), el("span", { class: "n" }, String(s.total))]),
+    el("div", { class: "row" }, [el("span", {}, "CONTENT_MEDIA"), el("span", { class: "n" }, String(s.content_media_count))]),
+    el("div", { class: "row" }, [el("span", {}, "DESIGN_HCI_UX"), el("span", { class: "n" }, String(s.design_hci_ux_count))]),
+    el("hr"),
+    el("div", { class: "row" }, [el("span", {}, "공식 근거 충분"), el("span", { class: "n" }, String(s.evidence_sufficient_count))]),
+    el("div", { class: "row" }, [el("span", {}, "공식 근거 부족"), el("span", { class: "n" }, String(s.evidence_insufficient_count))]),
+    el("hr"),
+  ];
+  for (const cand of P1_JUDGMENT_CANDIDATES) {
+    rows.push(el("div", { class: "row" }, [el("span", {}, cand), el("span", { class: "n" }, String(s.judgment_candidate_counts[cand] || 0))]));
+  }
+  rows.push(el("hr"));
+  for (const d of P1_DECISIONS) {
+    rows.push(el("div", { class: "row" }, [el("span", {}, `판단: ${d}`), el("span", { class: "n" }, String(s.decision_counts[d] || 0))]));
+  }
+  rows.push(el("hr"));
+  rows.push(el("div", { class: "row" }, [el("span", {}, "검수 완료"), el("span", { class: "n" }, String(s.reviewed_count))]));
+  rows.push(el("div", { class: "row" }, [el("span", {}, "미검수"), el("span", { class: "n" }, String(s.unreviewed_count))]));
+  box.replaceChildren(...rows);
+}
+
+function p1RowMatchesFilters(row) {
+  const f = state.p1Filters;
+  if (f.cluster !== "all" && row.p1_cluster !== f.cluster) return false;
+  if (f.judgmentCandidate !== "all" && row.judgment_candidate !== f.judgmentCandidate) return false;
+  if (f.evidence === "sufficient" && !row.judgment_evidence_sufficient) return false;
+  if (f.evidence === "insufficient" && row.judgment_evidence_sufficient) return false;
+  if (f.artsSports !== "all" && row.arts_sports_possibility !== f.artsSports) return false;
+  if (f.decision !== "all" && row.review.decision !== f.decision) return false;
+  if (f.unreviewedOnly && row.review.decision !== "TBD") return false;
+  return true;
+}
+
+function filteredP1Rows() {
+  return state.p1Rows.filter(p1RowMatchesFilters);
+}
+
+function renderP1RowCard(row) {
+  const card = el("div", { class: "bridge-row-card" });
+  card.appendChild(el("h3", {}, `${row.university_name} · ${row.department_name}`));
+  card.appendChild(el("div", { class: "meta-row" }, `단과대학: ${row.college_name}`));
+  card.appendChild(
+    el("div", { class: "meta-row" },
+      `공식 대/중/소계열: ${row.official_large_series_name} / ${row.official_middle_series_name} / ${row.official_small_series_name}`),
+  );
+  card.appendChild(
+    el("div", { class: "meta-row" }, [
+      scopeTypePill(row.p1_cluster), " ", scopeTypePill(row.judgment_candidate),
+      row.judgment_evidence_sufficient
+        ? el("span", { class: "status-pill APPROVE" }, "근거 충분")
+        : el("span", { class: "status-pill TBD" }, "근거 부족"),
+    ]),
+  );
+  card.appendChild(el("div", { class: "decision-reason" }, `판단 근거: ${row.judgment_candidate_reason}`));
+  card.appendChild(
+    el("div", { class: "meta-row" },
+      `후보 전공 ID: ${row.candidate_canonical_major_ids.length ? row.candidate_canonical_major_ids.join(", ") : "(없음)"}`),
+  );
+  if (row.official_evidence_needed.length > 0) {
+    const list = el("ul", { class: "evidence-list" });
+    for (const item of row.official_evidence_needed) list.appendChild(el("li", {}, `추가 필요 근거: ${item}`));
+    card.appendChild(list);
+  }
+  if (!row.approve_eligible) {
+    card.appendChild(el("div", { class: "boundary-notes" }, "APPROVE_PROPOSED_CANDIDATE 불가 — 후보 1개·공식 근거 충분 조건을 만족하지 않음"));
+  }
+
+  const decisionSelect = el("select", {});
+  for (const value of P1_DECISIONS) {
+    const opt = el("option", { value }, value);
+    if (value === row.review.decision) opt.selected = true;
+    if (value === "APPROVE_PROPOSED_CANDIDATE" && !row.approve_eligible) opt.disabled = true;
+    decisionSelect.appendChild(opt);
+  }
+
+  const commentBox = el("textarea", { class: "bridge-comment-box", placeholder: "검토자 코멘트" });
+  commentBox.value = row.review.reviewer_comment;
+
+  const msg = el("span", { class: "inline-msg" });
+  const saveBtn = el("button", { class: "save-btn", type: "button", text: "저장" });
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    msg.textContent = "";
+    msg.className = "inline-msg";
+    try {
+      await apiPatch(`${API_BASE}/academyinfo/p1-classification/${encodeURIComponent(row.candidate_id)}`, {
+        decision: decisionSelect.value, comment: commentBox.value, resolution_note: null,
+        expected_revision: row.review.revision,
+      });
+      await loadP1All();
+    } catch (err) {
+      msg.textContent = `저장 실패: ${err.message}`;
+      msg.className = "inline-msg err";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  card.appendChild(el("div", { class: "review-controls" }, [decisionSelect, saveBtn, msg]));
+  card.appendChild(commentBox);
+  return card;
+}
+
+function renderP1Container() {
+  const container = document.getElementById("p1-container");
+  const rows = filteredP1Rows();
+  if (rows.length === 0) {
+    container.replaceChildren(el("div", { class: "bridge-empty-msg" }, "조건에 맞는 행이 없습니다."));
+    return;
+  }
+  const list = el("div", { class: "bridge-row-list" });
+  for (const row of rows) list.appendChild(renderP1RowCard(row));
+  container.replaceChildren(list);
+}
+
+function renderP1All() {
+  renderP1Summary();
+  renderP1Container();
+}
+
+/* 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) §2 — 대학알리미 N.C.E 재검토
+ * 가능 중계열(24개 클러스터·584건) 검수 탭. ACCEPT_GROUP_AS_REVIEW_CANDIDATE는
+ * "584개 학과 자동 승인"이 아니다 — 카드에도 그 문구를 그대로 보여준다(§2). */
+
+const NCE_DECISIONS = [
+  "TBD", "ACCEPT_GROUP_AS_REVIEW_CANDIDATE", "REQUIRE_DEPARTMENT_LEVEL_REVIEW",
+  "INSUFFICIENT_OFFICIAL_EVIDENCE", "HOLD",
+];
+
+async function loadNceAll() {
+  const resp = await apiGet(`${API_BASE}/academyinfo/nce-reexaminable`);
+  state.nceClusters = resp.clusters;
+  state.nceSummary = resp.summary;
+  renderNceMiddleSeriesFilterOptions();
+  renderNceAll();
+}
+
+function renderNceMiddleSeriesFilterOptions() {
+  const select = document.getElementById("nce-filter-middle-series");
+  const current = state.nceFilters.middleSeriesCode;
+  select.replaceChildren(el("option", { value: "all" }, "전체"));
+  for (const c of state.nceClusters) {
+    select.appendChild(
+      el("option", { value: c.official_middle_series_code },
+        `${c.official_middle_series_code} — ${c.official_middle_series_name}`),
+    );
+  }
+  select.value = current;
+}
+
+function renderNceSummary() {
+  const s = state.nceSummary;
+  const box = document.getElementById("nce-summary-box");
+  if (!s) { box.textContent = "불러오는 중…"; return; }
+  box.replaceChildren(
+    el("div", { class: "row" }, [el("span", {}, "클러스터 전체"), el("span", { class: "n" }, String(s.cluster_total))]),
+    el("div", { class: "row" }, [el("span", {}, "대상 학과 전체"), el("span", { class: "n" }, String(s.department_total))]),
+    el("hr"),
+    el("div", { class: "row" }, [
+      el("span", {}, "PROPOSED_GROUP_CANDIDATE"),
+      el("span", { class: "n" }, `${s.proposed_group_candidate_cluster_count}개 · ${s.proposed_group_candidate_department_count}건`),
+    ]),
+    el("div", { class: "row" }, [
+      el("span", {}, "DEPARTMENT_LEVEL_REVIEW_REQUIRED"),
+      el("span", { class: "n" }, `${s.department_level_review_required_cluster_count}개 · ${s.department_level_review_required_department_count}건`),
+    ]),
+    el("hr"),
+    ...NCE_DECISIONS.map((d) =>
+      el("div", { class: "row" }, [el("span", {}, `판단: ${d}`), el("span", { class: "n" }, String(s.decision_counts[d] || 0))]),
+    ),
+    el("hr"),
+    el("div", { class: "row" }, [el("span", {}, "검수 완료"), el("span", { class: "n" }, String(s.reviewed_count))]),
+    el("div", { class: "row" }, [el("span", {}, "미검수"), el("span", { class: "n" }, String(s.unreviewed_count))]),
+  );
+}
+
+function nceClusterMatchesFilters(cluster) {
+  const f = state.nceFilters;
+  if (f.candidateCount === "single" && !cluster.is_single_candidate) return false;
+  if (f.candidateCount === "multiple" && cluster.is_single_candidate) return false;
+  if (f.middleSeriesCode !== "all" && cluster.official_middle_series_code !== f.middleSeriesCode) return false;
+  if (f.decision !== "all" && cluster.review.decision !== f.decision) return false;
+  if (f.minDepartmentCount != null && cluster.row_count < f.minDepartmentCount) return false;
+  if (f.departmentReviewOnly && cluster.group_linkage_status !== "DEPARTMENT_LEVEL_REVIEW_REQUIRED") return false;
+  return true;
+}
+
+function filteredNceClusters() {
+  return state.nceClusters.filter(nceClusterMatchesFilters);
+}
+
+function renderNceMemberList(cluster) {
+  const isExpanded = state.nceExpandedClusters.has(cluster.official_middle_series_code);
+  const members = isExpanded ? cluster.all_members : cluster.sample_members;
+  const list = el("ul", { class: "evidence-list" });
+  for (const m of members) {
+    list.appendChild(el("li", {}, `${m.university_name} · ${m.department_name} (${m.college_name})`));
+  }
+  const wrap = el("div", {}, [list]);
+  if (cluster.all_members.length > cluster.sample_members.length || isExpanded) {
+    const toggleBtn = el("button", { class: "save-btn", type: "button" },
+      isExpanded ? "표본만 보기" : `전체 ${cluster.row_count}건 펼치기`);
+    toggleBtn.addEventListener("click", () => {
+      if (isExpanded) state.nceExpandedClusters.delete(cluster.official_middle_series_code);
+      else state.nceExpandedClusters.add(cluster.official_middle_series_code);
+      renderNceContainer();
+    });
+    wrap.appendChild(toggleBtn);
+  }
+  return wrap;
+}
+
+function renderNceClusterCard(cluster) {
+  const card = el("div", { class: "bridge-row-card" });
+  card.appendChild(
+    el("h3", {}, `${cluster.official_middle_series_code} — ${cluster.official_middle_series_name}`),
+  );
+  card.appendChild(el("div", { class: "meta-row" }, `공식 코드 출처: ${cluster.official_middle_series_code_source}`));
+  card.appendChild(
+    el("div", { class: "meta-row" }, [
+      scopeTypePill(cluster.group_linkage_status),
+      ` · 대상 학과 ${cluster.row_count}건 · 후보 전공군 ${cluster.candidate_canonical_major_groups.length}개`,
+    ]),
+  );
+  const groupList = el("ul", { class: "evidence-list" });
+  for (const g of cluster.candidate_canonical_major_groups) {
+    groupList.appendChild(el("li", {}, `${g.canonical_major_group_id} (${g.label})`));
+  }
+  card.appendChild(groupList);
+  card.appendChild(el("div", { class: "decision-reason" }, `후보 판단 근거: ${cluster.candidate_canonical_major_group_basis}`));
+  if (cluster.unlinkable_or_too_broad_reason) {
+    card.appendChild(el("div", { class: "boundary-notes" }, `범위가 넓은 이유: ${cluster.unlinkable_or_too_broad_reason}`));
+  }
+  if (cluster.additional_official_evidence_needed.length > 0) {
+    const list = el("ul", { class: "evidence-list" });
+    for (const item of cluster.additional_official_evidence_needed) list.appendChild(el("li", {}, `추가 필요 근거: ${item}`));
+    card.appendChild(list);
+  }
+  card.appendChild(el("h4", { class: "review-section-label" }, "대표 학과 표본 / 전체 목록"));
+  card.appendChild(renderNceMemberList(cluster));
+
+  const decisionSelect = el("select", {});
+  for (const value of NCE_DECISIONS) {
+    const opt = el("option", { value }, value);
+    if (value === cluster.review.decision) opt.selected = true;
+    decisionSelect.appendChild(opt);
+  }
+  card.appendChild(
+    el("div", { class: "boundary-notes" },
+      "참고: ACCEPT_GROUP_AS_REVIEW_CANDIDATE는 이 클러스터 학과를 자동 승인하지 않습니다 — 학과 개별 승격은 별도 Gate를 통과해야 합니다."),
+  );
+
+  const commentBox = el("textarea", { class: "bridge-comment-box", placeholder: "검토자 코멘트" });
+  commentBox.value = cluster.review.reviewer_comment;
+
+  const msg = el("span", { class: "inline-msg" });
+  const saveBtn = el("button", { class: "save-btn", type: "button", text: "저장" });
+  saveBtn.addEventListener("click", async () => {
+    saveBtn.disabled = true;
+    msg.textContent = "";
+    msg.className = "inline-msg";
+    try {
+      await apiPatch(`${API_BASE}/academyinfo/nce-reexaminable/${encodeURIComponent(cluster.official_middle_series_code)}`, {
+        decision: decisionSelect.value, comment: commentBox.value, resolution_note: null,
+        expected_revision: cluster.review.revision,
+      });
+      await loadNceAll();
+    } catch (err) {
+      msg.textContent = `저장 실패: ${err.message}`;
+      msg.className = "inline-msg err";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  card.appendChild(el("div", { class: "review-controls" }, [decisionSelect, saveBtn, msg]));
+  card.appendChild(commentBox);
+  return card;
+}
+
+function renderNceContainer() {
+  const container = document.getElementById("nce-container");
+  const clusters = filteredNceClusters();
+  if (clusters.length === 0) {
+    container.replaceChildren(el("div", { class: "bridge-empty-msg" }, "조건에 맞는 클러스터가 없습니다."));
+    return;
+  }
+  const list = el("div", { class: "bridge-row-list" });
+  for (const cluster of clusters) list.appendChild(renderNceClusterCard(cluster));
+  container.replaceChildren(list);
+}
+
+function renderNceAll() {
+  renderNceSummary();
+  renderNceContainer();
+}
+
 /* ---- Hash Deep Link(#context-packs, #shared-probes?batch=1 등) — 탭마다 안정적인
  * hash를 매핑해, 새로고침해도 같은 탭이 유지되게 한다. shared_probes 탭은 배치까지
  * "?batch=N" 쿼리로 남긴다(예: #shared-probes?batch=1). 이 프로젝트는 localStorage로
@@ -2257,6 +2597,7 @@ const CONTEXTPACK_TAB_HASH = {
   direct_probe: "direct-probe", routing: "routing", seed_anchor: "seed-anchor",
   backup: "backup", anchor_backup: "anchor-backup", shared_probes: "shared-probes",
   context_packs: "context-packs", bridge: "bridge",
+  p1_classification: "p1-classification", nce_reexaminable: "nce-reexaminable",
 };
 const CONTEXTPACK_HASH_TO_TAB = Object.fromEntries(Object.entries(CONTEXTPACK_TAB_HASH).map(([tab, hash]) => [hash, tab]));
 
@@ -2321,6 +2662,8 @@ function applyTabClasses(tab) {
   document.body.classList.toggle("tab-shared_probes", tab === "shared_probes");
   document.body.classList.toggle("tab-context_packs", tab === "context_packs");
   document.body.classList.toggle("tab-bridge", tab === "bridge");
+  document.body.classList.toggle("tab-p1_classification", tab === "p1_classification");
+  document.body.classList.toggle("tab-nce_reexaminable", tab === "nce_reexaminable");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
@@ -2329,11 +2672,14 @@ function applyTabClasses(tab) {
   document.getElementById("tab-shared-probes-btn").classList.toggle("active", tab === "shared_probes");
   document.getElementById("tab-context-packs-btn").classList.toggle("active", tab === "context_packs");
   document.getElementById("tab-bridge-btn").classList.toggle("active", tab === "bridge");
+  document.getElementById("tab-p1-classification-btn").classList.toggle("active", tab === "p1_classification");
+  document.getElementById("tab-nce-reexaminable-btn").classList.toggle("active", tab === "nce_reexaminable");
   // 공용 Adaptive Probe 탭과 마찬가지로 "질문 하나 = Pager 한 칸" 모델이 아닌 탭만
   // 여기서 pager-bar를 숨긴다 — 신규 ContextPack 탭은 이 모델을 그대로 쓰므로
-  // (Context 안에서 이전/다음 질문) 계속 보여준다. Bridge 탭도 44행 카드 목록
+  // (Context 안에서 이전/다음 질문) 계속 보여준다. Bridge·P1·N.C.E 탭도 카드 목록
   // 모델이라 Pager가 필요 없다.
-  document.getElementById("pager-bar").style.display = tab === "shared_probes" || tab === "bridge" ? "none" : "flex";
+  const cardListTabs = ["shared_probes", "bridge", "p1_classification", "nce_reexaminable"];
+  document.getElementById("pager-bar").style.display = cardListTabs.includes(tab) ? "none" : "flex";
 }
 
 async function loadOrRenderTab(tab) {
@@ -2414,6 +2760,26 @@ async function loadOrRenderTab(tab) {
     } else {
       renderBridgeAll();
     }
+  } else if (tab === "p1_classification") {
+    if (state.p1Rows.length === 0) {
+      try {
+        await loadP1All();
+      } catch (err) {
+        setSaveIndicator(`P1 분류 REVIEW 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderP1All();
+    }
+  } else if (tab === "nce_reexaminable") {
+    if (state.nceClusters.length === 0) {
+      try {
+        await loadNceAll();
+      } catch (err) {
+        setSaveIndicator(`N.C.E 중계열 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderNceAll();
+    }
   } else {
     if (state.questions.length === 0) {
       try {
@@ -2468,9 +2834,11 @@ function setupControls() {
   document.getElementById("tab-shared-probes-btn").addEventListener("click", () => setTab("shared_probes"));
   document.getElementById("tab-context-packs-btn").addEventListener("click", () => setTab("context_packs"));
   document.getElementById("tab-bridge-btn").addEventListener("click", () => setTab("bridge"));
+  document.getElementById("tab-p1-classification-btn").addEventListener("click", () => setTab("p1_classification"));
+  document.getElementById("tab-nce-reexaminable-btn").addEventListener("click", () => setTab("nce_reexaminable"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
-    if (state.tab === "shared_probes" || state.tab === "bridge") return; // 이 탭들은 Pager를 쓰지 않는다.
+    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable"].includes(state.tab)) return; // 이 탭들은 Pager를 쓰지 않는다.
     if (state.tab === "routing") stepRoutingQuestion(-1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
@@ -2479,7 +2847,7 @@ function setupControls() {
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
-    if (state.tab === "shared_probes" || state.tab === "bridge") return;
+    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable"].includes(state.tab)) return;
     if (state.tab === "routing") stepRoutingQuestion(1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
@@ -2587,10 +2955,53 @@ function setupControls() {
     renderBridgeContainer();
   });
 
+  // 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) §3 — P1 필터. 전부
+  // renderP1Container()만 호출한다(apiPatch 없음 — 필터 변경은 저장을 유발하지 않는다).
+  document.querySelectorAll('input[name="p1-cluster-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.p1Filters.cluster = input.value; renderP1Container(); });
+  });
+  document.querySelectorAll('input[name="p1-judgment-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.p1Filters.judgmentCandidate = input.value; renderP1Container(); });
+  });
+  document.querySelectorAll('input[name="p1-evidence-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.p1Filters.evidence = input.value; renderP1Container(); });
+  });
+  document.querySelectorAll('input[name="p1-arts-sports-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.p1Filters.artsSports = input.value; renderP1Container(); });
+  });
+  document.querySelectorAll('input[name="p1-decision-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.p1Filters.decision = input.value; renderP1Container(); });
+  });
+  document.getElementById("p1-filter-unreviewed").addEventListener("change", (e) => {
+    state.p1Filters.unreviewedOnly = e.target.checked;
+    renderP1Container();
+  });
+
+  // §3 — N.C.E 필터. 전부 renderNceContainer()만 호출한다.
+  document.querySelectorAll('input[name="nce-candidate-count-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.nceFilters.candidateCount = input.value; renderNceContainer(); });
+  });
+  document.getElementById("nce-filter-middle-series").addEventListener("change", (e) => {
+    state.nceFilters.middleSeriesCode = e.target.value;
+    renderNceContainer();
+  });
+  document.querySelectorAll('input[name="nce-decision-filter"]').forEach((input) => {
+    input.addEventListener("change", () => { state.nceFilters.decision = input.value; renderNceContainer(); });
+  });
+  document.getElementById("nce-filter-min-department-count").addEventListener("input", (e) => {
+    const parsed = parseInt(e.target.value, 10);
+    state.nceFilters.minDepartmentCount = Number.isFinite(parsed) && e.target.value !== "" ? parsed : null;
+    renderNceContainer();
+  });
+  document.getElementById("nce-filter-department-review").addEventListener("change", (e) => {
+    state.nceFilters.departmentReviewOnly = e.target.checked;
+    renderNceContainer();
+  });
+
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-    if (state.tab === "shared_probes" || state.tab === "bridge") return; // 이 탭들은 화살표 키 이동을 쓰지 않는다.
+    if (["shared_probes", "bridge", "p1_classification", "nce_reexaminable"].includes(state.tab)) return; // 이 탭들은 화살표 키 이동을 쓰지 않는다.
     if (e.key === "ArrowLeft") {
       if (state.tab === "routing") stepRoutingQuestion(-1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);

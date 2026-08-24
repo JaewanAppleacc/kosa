@@ -567,6 +567,12 @@ body.tab-context_packs #context-pack-context-pager { display: flex; }
 .tab-only-bridge { display: none; }
 body.tab-bridge .tab-only-bridge { display: block; }
 
+/* 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) — P1 분류·N.C.E 중계열 검수 탭. */
+.tab-only-p1_classification { display: none; }
+body.tab-p1_classification .tab-only-p1_classification { display: block; }
+.tab-only-nce_reexaminable { display: none; }
+body.tab-nce_reexaminable .tab-only-nce_reexaminable { display: block; }
+
 .bridge-row-list { display: flex; flex-direction: column; gap: 10px; }
 .bridge-row-card {
   border: 1px solid var(--border);
