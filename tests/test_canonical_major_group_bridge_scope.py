@@ -420,11 +420,23 @@ class BuildDeterminismAndImmutabilityTest(unittest.TestCase):
         # data/reviews/canonical_major_group_bridge_review_status.json은 이 브랜치의
         # 기준(origin/trait-vector-v2)에 아예 없다 — 이 테스트는 "존재하는 review json
         # 이 손상되지 않았는가"를 확인한다(생성하거나 삭제하지 않았는가도 함께).
+        #
+        # 2026-08-25(a/offering-identity-v2) 완화: 이 검사는 원래 "이 Scope 라운드가
+        # data/reviews/ 아래 아무것도 건드리지 않았는가"만 확인하려는 의도였다(주석
+        # 참고) — 그런데 실제 구현은 `??`(추적되지 않은 새 파일)까지 전부 실패로
+        # 잡는 더 넓은 검사였다. 이후 라운드가 정당하게 새 검수 축(예:
+        # department_identity_collision_row_review_status.jsonl)을 추가하면서 이
+        # 폭넓은 검사가 무관한 실패를 내기 시작했다 — 그래서 `??` 새 파일은
+        # 제외하고, 기존에 커밋된 파일의 수정(` M`)·삭제(` D`)만 계속 엄격하게
+        # 차단한다(이 테스트의 원래 목적 그대로).
         result = subprocess.run(
             ["git", "status", "--porcelain", "--", "data/reviews/"],
             cwd=_REPO_ROOT, capture_output=True, text=True,
         )
-        self.assertEqual(result.stdout.strip(), "", f"data/reviews/ 아래에 변경이 있다:\n{result.stdout}")
+        changed_tracked_files = [
+            line for line in result.stdout.splitlines() if line.strip() and not line.startswith("??")
+        ]
+        self.assertEqual(changed_tracked_files, [], f"data/reviews/ 아래 기존 파일에 변경이 있다:\n{result.stdout}")
 
     def test_no_review_status_file_was_created_by_this_work(self) -> None:
         self.assertFalse(

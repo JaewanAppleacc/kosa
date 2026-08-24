@@ -65,8 +65,66 @@ def _sha256_prefix(*parts: str, length: int = 24) -> str:
 
 
 def generate_department_id(schl_id: str, department_name: str, college_name: str) -> str:
-    """조사년도(svyYr)는 의도적으로 제외한다 — C 질문 2번 결정 사항."""
+    """조사년도(svyYr)는 의도적으로 제외한다 — C 질문 2번 결정 사항.
+
+    2026-08-25 Identity v2(a/offering-identity-v2) §1·§4-8 감사에서 확인: 이
+    3-tuple만으로는 유일성이 보장되지 않는다 — 같은 (schl_id, department_name,
+    college_name)에 일반과정·계약학과·산업체위탁처럼 서로 다른 실제 편제가
+    동시에 걸리는 경우가 실제로 16 Group·32행 존재한다("SHA-256 Hash
+    Collision"이 아니라 identity-key 설계 자체의 한계). 이 함수 자체는 Master
+    35건이 이미 이 값을 Key로 쓰고 있어 바꾸지 않는다(§5 "기존 35건 즉시 교체
+    금지") — 새 코드는 이 함수 대신 아래 `generate_offering_id()`(Repository
+    유일 키)와 `generate_display_group_id()`(표시용 그룹화 전용)를 쓴다."""
+
     return f"dept_{_sha256_prefix(schl_id, department_name, college_name)}"
+
+
+def generate_offering_id(
+    schl_id: str, source_schl_mjr_id: str, *, provider: str = "academyinfo", survey_year: int | None = None,
+) -> str:
+    """Identity v2(§2) 원천 편제 ID — 새 Repository의 유일 키가 될 값이다.
+    `schl_id`+`source_schl_mjr_id`(대학알리미 schlMjrId, 학교가 실제로
+    관리하는 편제 번호)가 핵심 재료다 — 이 둘이 다르면 표시명이 같아도
+    구조적으로 다른 편제로 취급한다(16 Group·32행이 바로 이 사실을
+    보여준다). `provider`는 데이터 제공자 namespace(기본값
+    "academyinfo") — 다른 제공자가 같은 schl_id·schlMjrId 번호 체계를 우연히
+    재사용해도 충돌하지 않게 한다. `survey_year`는 기본적으로 해시에 넣지
+    않는다(department_id와 같은 원칙 — 재수집 때마다 새 id를 받으면 Lineage
+    보존이 끊긴다) — 특정 제공자가 연도마다 편제 번호를 재사용하는 것으로
+    확인되면 그때만 명시적으로 전달해 충돌을 막는다."""
+
+    parts = [provider, schl_id, source_schl_mjr_id]
+    if survey_year is not None:
+        parts.append(str(survey_year))
+    return f"off_{_sha256_prefix(*parts)}"
+
+
+def generate_display_group_id(schl_id: str, college_name: str, department_name: str) -> str:
+    """Identity v2(§2) 표시명 그룹 ID — 검색·UI 그룹화 전용이다. 계산 재료는
+    `generate_department_id()`와 완전히 같은 3-tuple이지만(우연이 아니라
+    의도적 — 기존 department_id가 실제로 하던 역할이 "표시명 그룹화"였다는
+    사실을 그대로 인정한다), Repository의 유일 키나 department_id 대체로
+    쓰면 안 된다. **이름이 같다는 이유만으로 서로 다른 두 편제를 병합하는
+    근거로 쓰지 않는다** — 일반과정·계약학과·산업체위탁은 이 그룹 안에서
+    여전히 서로 다른 offering_id를 유지해야 한다."""
+
+    return f"dgrp_{_sha256_prefix(schl_id, department_name, college_name)}"
+
+
+def generate_offering_lineage_id(*verified_same_offering_keys: str) -> str:
+    """Identity v2(§2) 연도 간 Stable Lineage ID. 호출자가 이미 검증한 연결
+    근거(예: 여러 조사연도의 offering_id, 또는 사람이 확인한 식별 근거 키)를
+    최소 2개 이상 명시적으로 전달해야만 계산된다 — `source_schl_mjr_id`가
+    같다는 사실 하나만으로 자동으로 만들어지지 않는다(§2 "무조건 동일 편제라고
+    단정하지 않음"). 인자 순서에 무관하게 같은 값이 나오도록 정렬 후
+    해시한다."""
+
+    if len(verified_same_offering_keys) < 2:
+        raise ValueError(
+            "Lineage ID는 최소 2개 이상의 검증된 연결 근거가 있어야 계산할 수 있다 — 근거 없이 단정하지 않는다"
+        )
+    ordered = sorted(verified_same_offering_keys)
+    return f"lin_{_sha256_prefix(*ordered)}"
 
 
 def generate_subject_id(curriculum_code: str, canonical_subject_name: str) -> str:
