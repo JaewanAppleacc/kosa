@@ -1,0 +1,442 @@
+[
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "agriculture_fisheries",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "생명과학과 생명공학·의공학을 전공군 단위로 동일시하지 않는다. 생명공학은 개별 교육과정 검토, 의공학은 별도 전공으로 유지한다.",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "bio_medical_engineering",
+    "canonical_major_id": "life_science",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "경영학 소계열만 포함해야 한다. 경영정보·비서·금융보험·회계세무를 경영학과 목록에 일괄 포함하지 않도록 소계열 범위 지정이 필요하다.",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "business",
+    "canonical_major_id": "business_administration",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "chemical_energy",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "chemistry",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "civil_architecture",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "clothing_housing",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "computer_science",
+    "canonical_major_id": "computer_science",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "컴퓨터과학 전공군 전체를 HCI·UX로 연결하지 않는다. HCI·UX 교과과정과 사용자 연구·인터랙션 과목이 확인되는 개별 학과만 연결한다.",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "computer_science",
+    "canonical_major_id": "hci_ux",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "dentistry",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "earth_environment",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "economics",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "교육학 소계열만 우선 연결한다. 초등·유아·특수·언어교육은 별도 교원양성 분야이므로 전공군 전체 연결은 부적절하다.",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "education",
+    "canonical_major_id": "education",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "electrical_electronic",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "fine_arts_design",
+    "canonical_major_id": "design",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "fine_arts_design",
+    "canonical_major_id": "hci_ux",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "food_nutrition",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "foreign_language",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "health_science",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "humanities",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "산업공학 소계열만 연결한다. 안전공학·방재공학은 산업공학 추천 학과 목록에서 제외하도록 범위 지정이 필요하다.",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "industrial_engineering",
+    "canonical_major_id": "industrial_engineering",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "korean_literature",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "korean_medicine",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "law",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "life_science",
+    "canonical_major_id": "life_science",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "mathematics_statistics",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "REVISE",
+    "reviewer_1_comment": "기계공학 소계열만 연결한다. 자동차·항공우주·조선해양·철도공학은 별도 전공 분야이므로 전체 연결하지 않는다.",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "mechanical_transport",
+    "canonical_major_id": "mechanical_engineering",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "media_communication",
+    "canonical_major_id": "media_communication",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "medicine",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "music",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "nursing",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "performing_media_arts",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "pharmacy",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "physics_astronomy",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "political_science",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "psychology",
+    "canonical_major_id": "psychology",
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "public_administration",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "semiconductor_materials",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "social_welfare",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "sociology",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "sports_dance",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "tourism",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "trade_logistics",
+    "canonical_major_id": null,
+    "revision": "1"
+  },
+  {
+    "reviewer_1_status": "APPROVE",
+    "reviewer_1_comment": "",
+    "reviewer_2_status": "TBD",
+    "reviewer_2_comment": "",
+    "resolution_note": "",
+    "canonical_major_group_id": "veterinary",
+    "canonical_major_id": null,
+    "revision": "1"
+  }
+]
