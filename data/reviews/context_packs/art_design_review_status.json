@@ -1,90 +1,90 @@
 [
   {
-    "blueprint_id": "art_design::anchor_backup::direct_creation",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::anchor_backup::direct_creation"
   },
   {
-    "blueprint_id": "art_design::anchor_backup::planning_composition",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::anchor_backup::planning_composition"
   },
   {
-    "blueprint_id": "art_design::anchor_backup::revision_feedback",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::anchor_backup::revision_feedback"
   },
   {
-    "blueprint_id": "art_design::anchor_backup::tool_material_choice",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::anchor_backup::tool_material_choice"
   },
   {
-    "blueprint_id": "art_design::anchor_backup::visual_appreciation",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::anchor_backup::visual_appreciation"
   },
   {
-    "blueprint_id": "art_design::routing::art_design_routing_blueprint",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::routing::art_design_routing_blueprint"
   },
   {
-    "blueprint_id": "art_design::seed::direct_creation",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::seed::direct_creation"
   },
   {
-    "blueprint_id": "art_design::seed::planning_composition",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::seed::planning_composition"
   },
   {
-    "blueprint_id": "art_design::seed::revision_feedback",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::seed::revision_feedback"
   },
   {
-    "blueprint_id": "art_design::seed::tool_material_choice",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::seed::tool_material_choice"
   },
   {
-    "blueprint_id": "art_design::seed::visual_appreciation",
-    "reviewer_1_status": "TBD",
+    "reviewer_1_status": "APPROVE",
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": ""
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
+    "blueprint_id": "art_design::seed::visual_appreciation"
   }
 ]

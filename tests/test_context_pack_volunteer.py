@@ -116,16 +116,35 @@ class RegistryOntologyValidationTest(unittest.TestCase):
         self.assertIsNotNone(registry.get_pack("volunteer"))
         self.assertEqual(registry.ontology_errors(), {})
 
-    def test_not_approved_without_review_status(self) -> None:
-        """검수 상태 JSON이 전부 TBD인 동안은 활성화되지 않아야 한다(Fail-Closed).
-        실제 저장소의 `data/reviews/context_packs/volunteer_review_status.json`을
-        그대로 읽는다."""
+    def test_not_approved_without_review_status_file(self) -> None:
+        """검수 상태 파일이 아예 없거나 전부 TBD면 활성화되지 않아야 한다(Fail-Closed).
+        2026-08-25 지시서(a/final-integration-master-promotion) §7로 실제 volunteer Pack은
+        이제 승인됐으므로, 이 테스트는 실제 저장소 파일이 아니라 빈 tmp 디렉터리를
+        주입해 Fail-Closed 메커니즘 자체를 검증한다(ambient 실제 검수 상태와 무관해야
+        하는 테스트)."""
+
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = ContextPackRegistry(
+                known_context_ids=frozenset(CONTEXT_IDS),
+                review_status_dir=Path(tmp),
+                _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
+            )
+            self.assertFalse(registry.is_pack_review_approved("volunteer"))
+
+    def test_real_review_status_now_approved_after_section7_closeout(self) -> None:
+        """2026-08-25 지시서 §7 최종 일괄 검수 종결 이후: 실제 저장소의
+        `data/reviews/context_packs/volunteer_review_status.json`은 이제 전부
+        APPROVE다(사용자 최종 결정 — 기존 코멘트로 수정 요청된 문항을 제외하고
+        수정 완료된 질문은 모두 통과)."""
 
         registry = ContextPackRegistry(
             known_context_ids=frozenset(CONTEXT_IDS),
             _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
         )
-        self.assertFalse(registry.is_pack_review_approved("volunteer"))
+        self.assertTrue(registry.is_pack_review_approved("volunteer"))
 
 
 if __name__ == "__main__":

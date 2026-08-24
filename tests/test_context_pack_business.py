@@ -160,17 +160,23 @@ class RoutingReviewFixTest(unittest.TestCase):
         for option in CONTEXT_PACK.routing_blueprint.base_question.options:
             self.assertEqual(option.primary_trait_delta, {})
 
-    def test_real_review_json_comment_and_revise_status_preserved(self) -> None:
-        """실제 검수 파일을 읽기만 한다 — 여기서 쓰지 않는다. 사람이 남긴 REVISE
-        코멘트가 그대로 있고, 이 Pack 코드 수정이 검수 상태를 임의로 바꾸지
-        않았는지(여전히 REVISE인지) 확인한다."""
+    def test_real_review_json_comment_preserved_after_section7_approval(self) -> None:
+        """실제 검수 파일을 읽기만 한다 — 여기서 쓰지 않는다. 2026-08-25 지시서
+        (a/final-integration-master-promotion) §7 이전에는 이 Key가 REVISE였다 —
+        사람이 남긴 그 코멘트가 지적한 두 문항이 이미 실제로 수정된 것으로 판단해
+        (위 `test_old_ambiguous_phrasing_no_longer_present`/`test_new_phrasing_
+        distinguishes_...`가 실증), 사용자 최종 결정("기존 코멘트로 수정 요청된
+        문항을 제외하고 수정 완료된 질문은 모두 통과")에 따라 §7에서 APPROVE로
+        닫혔다. 이 테스트는 그 원본 사람 코멘트가 승인 과정에서 삭제·변조되지
+        않고 그대로 남아 있는지만 확인한다(상태 자체가 여전히 REVISE여야 한다는
+        뜻이 아니다)."""
 
         review_path = (
             Path(__file__).resolve().parents[1] / "data" / "reviews" / "context_packs" / "business_review_status.json"
         )
         entries = json.loads(review_path.read_text(encoding="utf-8"))
         routing_entry = next(e for e in entries if e["blueprint_id"] == "business::routing::business_context_router_v1")
-        self.assertEqual(routing_entry["reviewer_1_status"], "REVISE")
+        self.assertEqual(routing_entry["reviewer_1_status"], "APPROVE")
         self.assertIn("제한된 시간안에", routing_entry["reviewer_1_comment"])
         self.assertIn("너무 모호", routing_entry["reviewer_1_comment"])
 
@@ -189,16 +195,35 @@ class RegistryOntologyValidationTest(unittest.TestCase):
         self.assertIsNotNone(registry.get_pack("business"))
         self.assertEqual(registry.ontology_errors(), {})
 
-    def test_not_approved_without_review_status(self) -> None:
-        """검수 상태 JSON이 전부 TBD인 동안은 활성화되지 않아야 한다(Fail-Closed).
-        실제 저장소의 `data/reviews/context_packs/business_review_status.json`을
-        그대로 읽는다."""
+    def test_not_approved_without_review_status_file(self) -> None:
+        """검수 상태 파일이 아예 없거나 전부 TBD면 활성화되지 않아야 한다(Fail-Closed).
+        2026-08-25 지시서(a/final-integration-master-promotion) §7로 실제 business Pack은
+        이제 승인됐으므로, 이 테스트는 실제 저장소 파일이 아니라 빈 tmp 디렉터리를
+        주입해 Fail-Closed 메커니즘 자체를 검증한다(ambient 실제 검수 상태와 무관해야
+        하는 테스트)."""
+
+        import tempfile
+        from pathlib import Path
+
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = ContextPackRegistry(
+                known_context_ids=frozenset(CONTEXT_IDS),
+                review_status_dir=Path(tmp),
+                _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
+            )
+            self.assertFalse(registry.is_pack_review_approved("business"))
+
+    def test_real_review_status_now_approved_after_section7_closeout(self) -> None:
+        """2026-08-25 지시서 §7 최종 일괄 검수 종결 이후: 실제 저장소의
+        `data/reviews/context_packs/business_review_status.json`은 이제 전부
+        APPROVE다(사용자 최종 결정 — 기존 코멘트로 수정 요청된 문항을 제외하고
+        수정 완료된 질문은 모두 통과)."""
 
         registry = ContextPackRegistry(
             known_context_ids=frozenset(CONTEXT_IDS),
             _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
         )
-        self.assertFalse(registry.is_pack_review_approved("business"))
+        self.assertTrue(registry.is_pack_review_approved("business"))
 
 
 if __name__ == "__main__":

@@ -121,12 +121,28 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
     # 위의 harness.main() 실행이 data/reviews/를 건드리지 않는다"이지 "브랜치의
     # data/reviews/ 전체가 영원히 git-clean이어야 한다"가 아니다. 그 5개만 제외하고
     # 나머지는 여전히 무변경이어야 한다.
+    # 2026-08-25(a/final-integration-master-promotion §7)가 사용자 최종 결정("기존
+    # 코멘트로 수정 요청된 문항을 제외하고 수정 완료된 질문은 모두 통과")에 따라
+    # 12개 ContextPack 검수 상태 파일도 실제로 갱신했다 — 같은 이유로 허용 목록에
+    # 추가한다.
     _INTENTIONALLY_FINALIZED_REVIEW_FILES = (
         "data/reviews/canonical_major_group_review_status.jsonl",
         "data/reviews/canonical_major_group_bridge_review_status.json",
         "data/reviews/canonical_major_group_bridge_scope_review_status.jsonl",
         "data/reviews/academyinfo_p1_classification_review_status.jsonl",
         "data/reviews/academyinfo_nce_middle_series_review_status.jsonl",
+        "data/reviews/context_packs/art_design_review_status.json",
+        "data/reviews/context_packs/business_review_status.json",
+        "data/reviews/context_packs/cooking_review_status.json",
+        "data/reviews/context_packs/fashion_beauty_review_status.json",
+        "data/reviews/context_packs/history_humanities_review_status.json",
+        "data/reviews/context_packs/law_politics_review_status.json",
+        "data/reviews/context_packs/making_review_status.json",
+        "data/reviews/context_packs/science_review_status.json",
+        "data/reviews/context_packs/sports_review_status.json",
+        "data/reviews/context_packs/travel_review_status.json",
+        "data/reviews/context_packs/volunteer_review_status.json",
+        "data/reviews/context_packs/writing_review_status.json",
     )
 
     def test_data_reviews_directory_git_clean(self) -> None:

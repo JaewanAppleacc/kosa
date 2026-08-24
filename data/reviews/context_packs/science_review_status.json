@@ -4,7 +4,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::anchor_backup::cause_exploring"
   },
   {
@@ -12,7 +12,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::anchor_backup::data_comparing"
   },
   {
@@ -20,7 +20,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::anchor_backup::hypothesis_testing"
   },
   {
@@ -28,7 +28,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::anchor_backup::observing"
   },
   {
@@ -36,7 +36,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::anchor_backup::uncertain_result"
   },
   {
@@ -44,7 +44,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::routing::science_context_router_v1"
   },
   {
@@ -52,7 +52,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::seed::cause_exploring"
   },
   {
@@ -60,7 +60,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::seed::data_comparing"
   },
   {
@@ -68,7 +68,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::seed::hypothesis_testing"
   },
   {
@@ -76,7 +76,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::seed::observing"
   },
   {
@@ -84,7 +84,7 @@
     "reviewer_1_comment": "",
     "reviewer_2_status": "TBD",
     "reviewer_2_comment": "",
-    "resolution_note": "",
+    "resolution_note": "사용자 최종 일괄 검수 결정에 따라 기존 코멘트의 수정 요청이 이미 반영된 질문으로 판단해 승인",
     "blueprint_id": "science::seed::uncertain_result"
   }
 ]
