@@ -1,0 +1,1055 @@
+{
+  "context_readiness": [
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "art_design::anchor_backup::direct_creation:TBD",
+        "art_design::anchor_backup::planning_composition:TBD",
+        "art_design::anchor_backup::revision_feedback:TBD",
+        "art_design::anchor_backup::tool_material_choice:TBD",
+        "art_design::anchor_backup::visual_appreciation:TBD",
+        "art_design::routing::art_design_routing_blueprint:TBD",
+        "art_design::seed::direct_creation:TBD",
+        "art_design::seed::planning_composition:TBD",
+        "art_design::seed::revision_feedback:TBD",
+        "art_design::seed::tool_material_choice:TBD",
+        "art_design::seed::visual_appreciation:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "art_design",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "business::routing::business_context_router_v1:REVISE"
+      ],
+      "catalog_registered": true,
+      "context_id": "business",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "APPROVE": 10,
+        "REVISE": 1
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "cooking::anchor_backup::food_choice:TBD",
+        "cooking::anchor_backup::ingredient_substitution:TBD",
+        "cooking::anchor_backup::process_planning:TBD",
+        "cooking::anchor_backup::recipe_understanding:TBD",
+        "cooking::anchor_backup::taste_adjustment:TBD",
+        "cooking::routing::cooking_routing_blueprint:TBD",
+        "cooking::seed::food_choice:TBD",
+        "cooking::seed::ingredient_substitution:TBD",
+        "cooking::seed::process_planning:TBD",
+        "cooking::seed::recipe_understanding:TBD",
+        "cooking::seed::taste_adjustment:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "cooking",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "fashion_beauty::anchor_backup::expression_choice:TBD",
+        "fashion_beauty::anchor_backup::info_comparison:TBD",
+        "fashion_beauty::anchor_backup::situational_fit:TBD",
+        "fashion_beauty::anchor_backup::style_combination:TBD",
+        "fashion_beauty::anchor_backup::trend_adaptation:TBD",
+        "fashion_beauty::routing::fashion_beauty_routing_blueprint:TBD",
+        "fashion_beauty::seed::expression_choice:TBD",
+        "fashion_beauty::seed::info_comparison:TBD",
+        "fashion_beauty::seed::situational_fit:TBD",
+        "fashion_beauty::seed::style_combination:TBD",
+        "fashion_beauty::seed::trend_adaptation:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "fashion_beauty",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [],
+      "catalog_registered": true,
+      "context_id": "game",
+      "context_pack_exists": false,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": true,
+      "pack_review_key_count": null,
+      "pack_review_status_breakdown": null,
+      "routing_present": true,
+      "runtime_activatable": true,
+      "seed_count": 5,
+      "shared_probe_applicable": false,
+      "status": "READY"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "history_humanities::anchor_backup::cause_effect_chain:TBD",
+        "history_humanities::anchor_backup::conflicting_records:TBD",
+        "history_humanities::anchor_backup::figure_choice:TBD",
+        "history_humanities::anchor_backup::historical_context:TBD",
+        "history_humanities::anchor_backup::value_conflict:TBD",
+        "history_humanities::routing::history_humanities_context_router_v1:TBD",
+        "history_humanities::seed::cause_effect_chain:TBD",
+        "history_humanities::seed::conflicting_records:TBD",
+        "history_humanities::seed::figure_choice:TBD",
+        "history_humanities::seed::historical_context:TBD",
+        "history_humanities::seed::value_conflict:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "history_humanities",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "law_politics::anchor_backup::differing_claims:TBD",
+        "law_politics::anchor_backup::public_decision:TBD",
+        "law_politics::anchor_backup::rule_conflict:TBD",
+        "law_politics::anchor_backup::rule_making:TBD",
+        "law_politics::anchor_backup::source_reading:TBD",
+        "law_politics::routing::law_politics_context_router_v1:TBD",
+        "law_politics::seed::differing_claims:TBD",
+        "law_politics::seed::public_decision:TBD",
+        "law_politics::seed::rule_conflict:TBD",
+        "law_politics::seed::rule_making:TBD",
+        "law_politics::seed::source_reading:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "law_politics",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "making::anchor_backup::assembling:TBD",
+        "making::anchor_backup::error_fixing:TBD",
+        "making::anchor_backup::improving:TBD",
+        "making::anchor_backup::tool_using:TBD",
+        "making::anchor_backup::user_perspective:TBD",
+        "making::routing::making_context_router_v1:TBD",
+        "making::seed::assembling:TBD",
+        "making::seed::error_fixing:TBD",
+        "making::seed::improving:TBD",
+        "making::seed::tool_using:TBD",
+        "making::seed::user_perspective:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "making",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [],
+      "catalog_registered": true,
+      "context_id": "media",
+      "context_pack_exists": false,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": true,
+      "pack_review_key_count": null,
+      "pack_review_status_breakdown": null,
+      "routing_present": true,
+      "runtime_activatable": true,
+      "seed_count": 5,
+      "shared_probe_applicable": false,
+      "status": "READY"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [],
+      "catalog_registered": true,
+      "context_id": "school_life",
+      "context_pack_exists": false,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": true,
+      "pack_review_key_count": null,
+      "pack_review_status_breakdown": null,
+      "routing_present": true,
+      "runtime_activatable": true,
+      "seed_count": 5,
+      "shared_probe_applicable": false,
+      "status": "READY"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [],
+      "catalog_registered": true,
+      "context_id": "science",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "APPROVE": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": true,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [],
+      "catalog_registered": true,
+      "context_id": "sports",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "APPROVE": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": true,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "travel::anchor_backup::companion_opinion:TBD",
+        "travel::anchor_backup::culture_info:TBD",
+        "travel::anchor_backup::plan_change:TBD",
+        "travel::anchor_backup::route_decision:TBD",
+        "travel::anchor_backup::unfamiliar_place:TBD",
+        "travel::routing::travel_context_router_v1:TBD",
+        "travel::seed::companion_opinion:TBD",
+        "travel::seed::culture_info:TBD",
+        "travel::seed::plan_change:TBD",
+        "travel::seed::route_decision:TBD",
+        "travel::seed::unfamiliar_place:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "travel",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "volunteer::anchor_backup::cause_selection:TBD",
+        "volunteer::anchor_backup::field_change:TBD",
+        "volunteer::anchor_backup::help_method:TBD",
+        "volunteer::anchor_backup::opinion_difference:TBD",
+        "volunteer::anchor_backup::resource_allocation:TBD",
+        "volunteer::routing::volunteer_context_router_v1:TBD",
+        "volunteer::seed::cause_selection:TBD",
+        "volunteer::seed::field_change:TBD",
+        "volunteer::seed::help_method:TBD",
+        "volunteer::seed::opinion_difference:TBD",
+        "volunteer::seed::resource_allocation:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "volunteer",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    {
+      "anchor_count": 5,
+      "backup_count": 5,
+      "blocking_reasons": [
+        "writing::anchor_backup::expression_style:TBD",
+        "writing::anchor_backup::information_organizing:TBD",
+        "writing::anchor_backup::reader_reaction:TBD",
+        "writing::anchor_backup::source_comparison:TBD",
+        "writing::anchor_backup::story_interpretation:TBD",
+        "writing::routing::writing_context_router_v1:TBD",
+        "writing::seed::expression_style:TBD",
+        "writing::seed::information_organizing:TBD",
+        "writing::seed::reader_reaction:TBD",
+        "writing::seed::source_comparison:TBD",
+        "writing::seed::story_interpretation:TBD"
+      ],
+      "catalog_registered": true,
+      "context_id": "writing",
+      "context_pack_exists": true,
+      "direct_probe_review_status": "SEE_TRAIT_SECTION",
+      "is_legacy": false,
+      "pack_review_key_count": 11,
+      "pack_review_status_breakdown": {
+        "TBD": 11
+      },
+      "routing_present": true,
+      "runtime_activatable": false,
+      "seed_count": 5,
+      "shared_probe_applicable": true,
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    }
+  ],
+  "feature_flags": [
+    {
+      "activatable_today": true,
+      "blocking_reasons": [],
+      "current_value": false,
+      "default": false,
+      "flag": "ENABLE_TRAIT_VECTOR_V2_PRIMARY",
+      "preconditions": "v2 Trait Vector가 Profile/Major/Subject 입력으로 쓰이려면 최소 일부 Major-Trait v2 Evidence 존재 필요(있음, 72행) — 승인 여부와 무관하게 켤 수 있음.",
+      "recommended_activation_order": 4
+    },
+    {
+      "activatable_today": true,
+      "blocking_reasons": [
+        "v2_direct_probe_question_review_status.json 14건 전부 TBD — Evidence는 나가지만 계산에서 제외됨"
+      ],
+      "current_value": false,
+      "default": false,
+      "flag": "ENABLE_TRAIT_VECTOR_V2_DIRECT_PROBES",
+      "preconditions": "Legacy 3-Context v2 Direct Probe 질문 흐름 포함 여부 — 활성화 자체는 Review 승인과 무관(질문은 나가되 Evidence는 미승인 상태로 계산 제외됨).",
+      "recommended_activation_order": 1
+    },
+    {
+      "activatable_today": true,
+      "blocking_reasons": [],
+      "current_value": false,
+      "default": false,
+      "flag": "ENABLE_CONTEXT_PACK_RUNTIME",
+      "preconditions": "최소 1개 이상의 ContextPack이 Pack-level 승인(science/sports 2개 승인됨) — 켜면 승인된 Pack만 실제 서빙된다.",
+      "recommended_activation_order": 2
+    },
+    {
+      "activatable_today": true,
+      "blocking_reasons": [],
+      "current_value": false,
+      "default": false,
+      "flag": "ENABLE_CONTEXT_SELECTION_4_PLUS_1",
+      "preconditions": "ENABLE_CONTEXT_PACK_RUNTIME까지 켰을 때 활성 Context가 5개 이상 — 오늘 기준 5개(['game', 'media', 'school_life', 'science', 'sports'])로 정확히 충족.",
+      "recommended_activation_order": 3
+    }
+  ],
+  "final_verdict": {
+    "overall": "BLOCKED_BY_MAPPING",
+    "per_section": {
+      "context_readiness": "READY_AFTER_HUMAN_REVIEW",
+      "frontend_readiness": "READY_AFTER_HUMAN_REVIEW",
+      "major_department_readiness": "BLOCKED_BY_DATA",
+      "question_flow_readiness": "SHADOW_ONLY",
+      "subject_readiness": "BLOCKED_BY_DATA",
+      "trait_readiness": "BLOCKED_BY_MAPPING"
+    }
+  },
+  "frontend_readiness": {
+    "items": {
+      "assessment_supported_gate": {
+        "found": true,
+        "status": "READY"
+      },
+      "context_catalog_15_display": {
+        "found": true,
+        "path": "frontend/src/screens/ContextSelectScreen.tsx",
+        "status": "READY"
+      },
+      "department_modal_real_data": {
+        "found": true,
+        "runtime_default_mode": "mock (VITE_API_MODE!=='live'면 항상 mock으로 fallback)",
+        "status": "READY_AFTER_HUMAN_REVIEW"
+      },
+      "empty_insufficient_error_states": {
+        "found": true,
+        "status": "READY"
+      },
+      "major_description_display": {
+        "found": true,
+        "status": "READY"
+      },
+      "policy_4plus1_ui": {
+        "found": true,
+        "status": "READY"
+      },
+      "refresh_session_restore_limits": {
+        "found": true,
+        "note": "session_id만 localStorage 보존, 서버 In-Memory Store가 재시작되면 SESSION_NOT_FOUND → 재시작 안내(정상 설계).",
+        "status": "READY"
+      },
+      "source_url_not_clickable_department_url_conditional": {
+        "found": true,
+        "status": "READY"
+      }
+    },
+    "node_modules_installed": true,
+    "npm_scripts": {
+      "build": "tsc -b && vite build",
+      "dev": "vite",
+      "preview": "vite preview",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "typecheck": "tsc -b --noEmit"
+    },
+    "status": "READY_AFTER_HUMAN_REVIEW"
+  },
+  "major_department_readiness": {
+    "blocking_reasons": [
+      "BLOCKED_BY_DATA: departments.normalized.jsonl/classification_results.jsonl 이 이 Worktree 로컬에 없음(Git 제외 입력)",
+      "BLOCKED_BY_MAPPING: Canonical Major Group 42개 전부 review_status=draft",
+      "BLOCKED_BY_MAPPING: P1 분류 검토 374건 중 미승인 374건",
+      "BLOCKED_BY_MAPPING: N.C.E 클러스터 24개 중 미승인 24개",
+      "BLOCKED_BY_MAPPING: Identity-key 충돌 16 Group 미해결"
+    ],
+    "bridge_mapping": {
+      "count": 44,
+      "in_file_review_status_breakdown": {
+        "draft": 44
+      },
+      "mapping_status_breakdown": {
+        "EVIDENCED": 8,
+        "EXCLUDED_RECOMMENDATION": 5,
+        "REVIEW_REQUIRED": 2,
+        "UNMAPPED": 29
+      },
+      "reviewer_status_breakdown": {
+        "APPROVE": 38,
+        "REVISE": 6
+      },
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    "bridge_scope": {
+      "scope_type_breakdown": {
+        "DEPARTMENT_REVIEW_REQUIRED": 2,
+        "EXCLUDED_RECOMMENDATION": 5,
+        "FULL_GROUP": 4,
+        "INCLUDED_SMALL_SERIES_ONLY": 4,
+        "None": 29
+      },
+      "status": "READY_AFTER_HUMAN_REVIEW"
+    },
+    "canonical_major_groups": {
+      "count": 42,
+      "review_status_breakdown": {
+        "draft": 42
+      },
+      "status": "BLOCKED_BY_MAPPING"
+    },
+    "current_master": {
+      "department_count": 35,
+      "status": "READY"
+    },
+    "identity_key_conflicts": {
+      "candidate_row_total": 32,
+      "decision_breakdown": {
+        "TBD": 16
+      },
+      "group_count": 16,
+      "status": "BLOCKED_BY_MAPPING"
+    },
+    "major_trait_evidence": {
+      "legacy_evidence_row_count": 36,
+      "primary_input_flag": "ENABLE_TRAIT_VECTOR_V2_PRIMARY",
+      "status": "SHADOW_ONLY",
+      "v2_evidence_row_count": 72
+    },
+    "national_dry_run": {
+      "blocked_count": null,
+      "note": "scripts/career_build_national_department_promotion_dry_run.py는 존재하고 정상 작동하지만, 이 Worktree에 departments.normalized.jsonl/classification_results.jsonl(둘 다 Git 제외 로컬 입력)이 없어 이번 Audit 에서는 실행하지 않았다 — 실행해도 Canonical Major Group Draft·P1·N.C.E가 전부 미승인이라 구조적으로 BLOCKED_GROUP_DRAFT/BLOCKED_P1_REVIEW_UNRESOLVED/BLOCKED_NCE_UNRESOLVED에 걸린다.",
+      "ready_count": null,
+      "required_local_inputs_present": false,
+      "status": "BLOCKED_BY_DATA"
+    },
+    "nce": {
+      "cluster_count": 24,
+      "member_row_total": 584,
+      "reviewer_1_status_breakdown": {
+        "TBD": 24
+      },
+      "status": "BLOCKED_BY_MAPPING"
+    },
+    "p1_classification": {
+      "count": 374,
+      "reviewer_1_status_breakdown": {
+        "TBD": 374
+      },
+      "status": "BLOCKED_BY_MAPPING"
+    },
+    "service_canonical_majors": {
+      "count": 10,
+      "major_ids": [
+        "business_administration",
+        "computer_science",
+        "design",
+        "education",
+        "hci_ux",
+        "industrial_engineering",
+        "life_science",
+        "mechanical_engineering",
+        "media_communication",
+        "psychology"
+      ],
+      "majors_missing_description": [],
+      "status": "READY"
+    },
+    "status": "BLOCKED_BY_DATA"
+  },
+  "question_flow_readiness": {
+    "backup_safety": {
+      "note": "후보 소진·생성 실패 시에만 Backup 사용(정상 후보가 있는 한 선택되지 않음) — Runtime 코드, 이번에 수정 안 함.",
+      "status": "READY"
+    },
+    "coverage_focused_planner_alternatives": {
+      "note": "a/trait-evidence-coverage-planner-gap에서 만든 A/B/C/D Shadow 대안은 실제 Runtime에 아직 연결되지 않았다 — eval/에만 존재한다.",
+      "status": "SHADOW_ONLY"
+    },
+    "coverage_stop_condition_wiring": {
+      "note": "Trait Evidence Coverage Policy(SUFFICIENT 등)는 실제 Stop/Continue 판단에 연결되지 않았다 — Shadow 전용.",
+      "status": "SHADOW_ONLY"
+    },
+    "flow_2plus1_flag_off": {
+      "final_context_max": 3,
+      "final_context_min": 2,
+      "status": "READY"
+    },
+    "flow_4plus1_flag_on": {
+      "effective_supported_context_count_if_pack_runtime_on": 5,
+      "fail_fast_error_if_under_5": null,
+      "meets_minimum_today": true,
+      "minimum_required": 5,
+      "policy_if_activated": {
+        "final_max": 5,
+        "final_min": 4,
+        "preferred_max": 4,
+        "preferred_min": 4
+      },
+      "status": "READY"
+    },
+    "planner_baseline": {
+      "note": "실제 select_pack_adaptive_target은 Context 안에서 support_count>=2가 되면 그 Trait를 더 이상 Gap으로 보지 않는다(수정 안 함, 그대로 유지).",
+      "status": "READY"
+    },
+    "tail_question_bounds_per_context": {
+      "maximum": 6,
+      "minimum": 4,
+      "status": "READY"
+    }
+  },
+  "subject_readiness": {
+    "actually_offered_course_confirmation": {
+      "note": "data/fixtures/course_offerings/demo_school_offerings.xlsx 1건 — 시연용 Fixture뿐, 실 서비스 규모의 POST_OFFERING 확인 데이터는 없음.",
+      "status": "BLOCKED_BY_DATA"
+    },
+    "majors_with_subject_data": [
+      "hci_ux",
+      "industrial_engineering",
+      "media_communication"
+    ],
+    "majors_without_subject_data": [
+      "business_administration",
+      "computer_science",
+      "design",
+      "education",
+      "life_science",
+      "mechanical_engineering",
+      "psychology"
+    ],
+    "pdf_excel_parsing": {
+      "exists": true,
+      "note": "실제 구현됨(C 소유) — .xlsx는 stdlib zipfile/ElementTree, .pdf는 pypdf 있으면 사용·없으면 최소 FlateDecode 추출기로 폴백, .xls는 명시적으로 미지원(ParseError).",
+      "path": "src/agents/course/course_document_parser.py",
+      "status": "READY"
+    },
+    "per_major": [
+      {
+        "has_subject_data": false,
+        "major_id": "business_administration",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      },
+      {
+        "has_subject_data": false,
+        "major_id": "computer_science",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      },
+      {
+        "has_subject_data": false,
+        "major_id": "design",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      },
+      {
+        "has_subject_data": false,
+        "major_id": "education",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      },
+      {
+        "has_subject_data": true,
+        "major_id": "hci_ux",
+        "status": "READY_AFTER_HUMAN_REVIEW",
+        "subject_major_link_count": 6
+      },
+      {
+        "has_subject_data": true,
+        "major_id": "industrial_engineering",
+        "status": "READY_AFTER_HUMAN_REVIEW",
+        "subject_major_link_count": 6
+      },
+      {
+        "has_subject_data": false,
+        "major_id": "life_science",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      },
+      {
+        "has_subject_data": false,
+        "major_id": "mechanical_engineering",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      },
+      {
+        "has_subject_data": true,
+        "major_id": "media_communication",
+        "status": "READY_AFTER_HUMAN_REVIEW",
+        "subject_major_link_count": 4
+      },
+      {
+        "has_subject_data": false,
+        "major_id": "psychology",
+        "status": "BLOCKED_BY_DATA",
+        "subject_major_link_count": 0
+      }
+    ],
+    "pre_survey_post_offering_mechanism": {
+      "note": "src/schemas/course.py의 Literal['PRE_SURVEY','POST_OFFERING'] source 필드 — 실제 구현됨.",
+      "status": "READY"
+    },
+    "status": "BLOCKED_BY_DATA",
+    "subject_major_link_row_count": 16,
+    "subject_trait_mapping_v1_row_count": 39,
+    "subject_trait_mapping_v2_row_count": 94,
+    "unsupported_majors": [
+      "business_administration",
+      "computer_science",
+      "design",
+      "education",
+      "life_science",
+      "mechanical_engineering",
+      "psychology"
+    ]
+  },
+  "trait_readiness": [
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "aesthetic_sensitivity"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "audience_response_prediction"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "causal_analysis"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "challenge_seeking"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "change_adaptation"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "collaboration_preference"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "creative_ideation"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "detail_orientation"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "emotional_interpretation"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "immediate_execution"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "independent_judgment"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "information_comparison"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "novelty_seeking"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "opinion_expression"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "opinion_mediation"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "pattern_finding"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "persistence_completion"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "personal_goal_priority"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "planning"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "systems_thinking"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "tool_utilization"
+    },
+    {
+      "distinct_context_count": 14,
+      "distinct_frame_count": 2,
+      "mapping_gap": false,
+      "ontology_exists": true,
+      "primary_source_count": 4,
+      "question_signal_count": 4,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "READY_AFTER_HUMAN_REVIEW",
+      "structurally_sufficient_possible_in_4plus1": true,
+      "trait_id": "uncertainty_tolerance"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "verbal_expression"
+    },
+    {
+      "distinct_context_count": 0,
+      "distinct_frame_count": 0,
+      "mapping_gap": true,
+      "ontology_exists": true,
+      "primary_source_count": 0,
+      "question_signal_count": 0,
+      "related_source_count": 0,
+      "reviewed_approved_signal_count": 0,
+      "status": "BLOCKED_BY_MAPPING",
+      "structurally_sufficient_possible_in_4plus1": false,
+      "trait_id": "visual_expression"
+    }
+  ]
+}
