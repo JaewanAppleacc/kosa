@@ -20,8 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "eval" / "trait_evidence_coverage_shadow_diagnostics.py"
 REVIEWS_DIR = ROOT / "data" / "reviews"
-JSON_REPORT = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_shadow_report.json"
-MD_REPORT = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_shadow_report.md"
+JSON_REPORT = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_inventory_ceiling_report.json"
+MD_REPORT = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_inventory_ceiling_report.md"
 
 
 def _hash_tree(root: Path) -> dict[str, str]:

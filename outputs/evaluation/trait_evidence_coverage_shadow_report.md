@@ -1,141 +1,240 @@
-# Trait Evidence Coverage Shadow 진단 보고서
+# Trait Evidence Coverage — 실제 4+1/2+1 세션 시뮬레이션 보고서
 
-브랜치 `a/trait-evidence-coverage-shadow`. **진단 전용이다** — Runtime Stop
-Condition·Matching·학생 API 어디에도 연결하지 않았다. 생성 시각을 담지 않는다
-(같은 코드로 재실행하면 이 파일과 byte-identical해야 한다).
+브랜치 `a/trait-evidence-coverage-shadow`. **이 문서가 주 보고서다** — 이전
+라운드의 158문항/52~56문항 권고는 실제 세션이 아니었다(정정 지시 §7). 그
+수치는 `trait_evidence_coverage_inventory_ceiling_report.md`로 이름을 바꿔
+참고 자료로만 남겼다.
 
-## 1. Coverage Policy 최종 기준
+## 0. 이전 권고를 어떻게 정정했는가
 
-**가중치** — PRIMARY 1.0 · 검수 승인된 RELATED 0.5 · NO_SIGNAL 0 · 승인되지 않은 Signal은 계산에서 제외 · 동일 blueprint_id+frame_id 반복은 1회만 인정
-(Registry의 실제 저장 weight 0.33/0.67과는 별개 — 이 Policy 전용 고정 상수다).
+- 이전 환경 A/B는 15개 Context와 각 Context의 Anchor 5개 전부를 순회한 뒤
+  "질문 수 상한별 SUFFICIENT 개수"를 쟀다 — 한 세션이 실제로 겪는 경로가
+  아니었다.
+- 이번 라운드는 실제 `src.api.main`의 Endpoint 함수(`submit_interest_rating`/
+  `select_contexts`/`confirm_contexts`/`next_question`/`submit_answer`)를
+  그대로 호출해서, Context마다 Anchor 정확히 1개·Seed 1개·Adaptive Tail
+  4~6개만 쓰는 진짜 세션 하나를 재현한다.
+- "최소 52·최대 56"이라는 이전 권고는 폐기한다 — 아래 §7이 실제 세션 기준
+  숫자로 대체한다.
 
-**SUFFICIENT** — Primary 2개 이상 AND 유효 가중치 합계 3.0 이상 AND 서로 다른 Context 2개 이상 AND 서로 다른 Frame 2개 이상 AND 동일 방향 비율 70% 이상 AND unresolved conflict 없음(전부 동시 충족).
+## 1. 환경 A — 실제 3 Context, 2+1 세션 (Persona별 질문 수)
 
-**상태 판정 순서(우선순위)**:
+| Persona | Trait 질문 | Routing | Backup 사용 | UNOBS·LIM·SUP·SUFF·CONF | 상위5 | 상위8 |
+|---|---|---|---|---|---|---|
+| 분석형 | 24 | 3 | 0 | 19·3·0·2·0 | ❌ | ❌ |
+| 창의·시각형 | 23 | 3 | 0 | 17·4·0·3·0 | ❌ | ❌ |
+| 사회·협업형 | 23 | 3 | 0 | 20·2·0·2·0 | ❌ | ❌ |
+| 실행·제작형 | 23 | 3 | 0 | 18·3·0·3·0 | ❌ | ❌ |
+| 언어·인문형 | 24 | 3 | 0 | 19·2·0·3·0 | ❌ | ❌ |
+| 혼합·교차형 | 23 | 3 | 0 | 19·3·0·2·0 | ❌ | ❌ |
+| 니치 관심형 | 23 | 3 | 0 | 19·3·0·2·0 | ❌ | ❌ |
+| Coverage 최대화형 | 25 | 3 | 0 | 7·14·3·0·0 | ❌ | ❌ |
+| Coverage 최소화형(1~2개 Trait 집중) | 24 | 3 | 0 | 18·4·0·2·0 | ❌ | ❌ |
 
-1. Primary·Related 둘 다 0건 → `UNOBSERVED`
-2. 미해결 Conflict 존재 또는 방향 일관성 70% 미만 → `CONFLICTED`
-3. 위 SUFFICIENT 6개 조건 전부 충족 → `SUFFICIENT`
-4. Primary 2개 이상 + Frame 2개 이상(전체 기준 미달) → `SUPPORTED`
-5. 그 외(한 Context/한 Frame에만 집중 등) → `LIMITED`
+## 2. 환경 B — 실제 15 Context, 4+1 세션 (Persona별 질문 수)
 
-> SUFFICIENT는 Trait가 높다는 뜻이 아니다 — 높음/낮음/상황 의존적을 판단할 만큼
-> 근거가 충분하다는 뜻으로만 쓴다.
+| Persona | Trait 질문 | Routing | Backup 사용 | UNOBS·LIM·SUP·SUFF·CONF | 상위5 | 상위8 |
+|---|---|---|---|---|---|---|
+| 분석형 | 35 | 5 | 0 | 22·2·0·0·0 | ❌ | ❌ |
+| 창의·시각형 | 35 | 5 | 0 | 20·2·2·0·0 | ❌ | ❌ |
+| 사회·협업형 | 35 | 5 | 0 | 20·2·0·2·0 | ❌ | ❌ |
+| 실행·제작형 | 35 | 5 | 0 | 23·1·0·0·0 | ❌ | ❌ |
+| 언어·인문형 | 35 | 5 | 0 | 19·3·0·2·0 | ❌ | ❌ |
+| 혼합·교차형 | 35 | 5 | 0 | 21·1·1·1·0 | ❌ | ❌ |
+| 니치 관심형 | 35 | 5 | 0 | 24·0·0·0·0 | ❌ | ❌ |
+| Coverage 최대화형 | 35 | 5 | 0 | 6·14·4·0·0 | ❌ | ❌ |
+| Coverage 최소화형(1~2개 Trait 집중) | 35 | 5 | 0 | 18·4·0·2·0 | ❌ | ❌ |
 
-## 2. 실행 조건 요약
+## 3. 20/25/30/35문항 Checkpoint (환경 B, Persona별)
 
-- **환경 A** — A. 현재 3 Context(2+1 상한 기반 정책, Pool은 전체 고정 콘텐츠)
-  - Pool 38문항(family: {'seed': 3, 'backup': 21, 'v2_direct_probe': 14}), 승인 18문항
-- **환경 B** — B. 임시 승인 Fixture 기반 15 Context(4+1 상한 기반 정책, Pool은 전체 고정 콘텐츠)
-  - Pool 158문항(family: {'seed': 63, 'backup': 21, 'pack_backup': 60, 'v2_direct_probe': 14}), 승인 138문항
-- Persona 정책: 매 질문마다 '지금까지 누적 가중치가 가장 낮은 Trait'를 가리키는
-  선택지를 고르는 결정론적 Coverage 최대화 정책(실제 Adaptive Target Planner와
-  다르다 — §설계 결정과 한계 참고).
+### 분석형 — Context ['science', 'business', 'sports', 'law_politics', 'making']
 
-## 3. 현재 3 Context 결과 (환경 A)
+Anchor: {'business': 'feedback_reading', 'law_politics': 'differing_claims', 'making': 'assembling', 'science': 'cause_exploring', 'sports': 'individual_training'}
 
-| 질문 수 상한 | UNOBSERVED · LIMITED · SUPPORTED · SUFFICIENT · CONFLICTED |
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
 |---|---|
-| 20 | UNOBSERVED 10 · LIMITED 13 · SUPPORTED 1 · SUFFICIENT 0 · CONFLICTED 0 |
-| 30 | UNOBSERVED 7 · LIMITED 16 · SUPPORTED 1 · SUFFICIENT 0 · CONFLICTED 0 |
-| 38 | UNOBSERVED 7 · LIMITED 16 · SUPPORTED 1 · SUFFICIENT 0 · CONFLICTED 0 |
+| 20 | 22·2·0·0·0 |
+| 25 | 22·2·0·0·0 |
+| 30 | 22·2·0·0·0 |
+| 35 | 22·2·0·0·0 |
+| 35(전체) | 22·2·0·0·0 |
 
-- 약 20문항(cap=20) 시점 SUFFICIENT 수: 0
-- 전체 Pool(38문항) 소진 시점 SUFFICIENT 수: 0
-- 원인: V2 Direct Probe 14개 전원 `reviewer_1_status=TBD`(신규 12개 Trait의 유일한
-  PRIMARY 출처), 기존 Backup 6개 전원 `REVISE` — 둘 다 승인 Evidence 계산에서
-  제외된다(실측, 가정 아님). 실제 승인된 재료는 Seed 3개 + Anchor Backup 15개
-  = 18문항뿐이다.
-- Context 2개 조건 때문에 구조적으로 SUFFICIENT 불가능한 Trait: aesthetic_sensitivity, challenge_seeking, novelty_seeking, personal_goal_priority, verbal_expression
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, creative_ideation, emotional_interpretation, immediate_execution, independent_judgment, novelty_seeking, opinion_expression, opinion_mediation, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, creative_ideation, emotional_interpretation, immediate_execution, independent_judgment, novelty_seeking, opinion_expression, opinion_mediation, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: aesthetic_sensitivity, audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, creative_ideation, emotional_interpretation, immediate_execution, novelty_seeking, opinion_expression, opinion_mediation, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
 
-## 4. 15 Context, 임시 승인 Fixture 결과 (환경 B)
+### 창의·시각형 — Context ['art_design', 'media', 'fashion_beauty', 'making', 'writing']
 
-| 질문 수 상한 | UNOBSERVED · LIMITED · SUPPORTED · SUFFICIENT · CONFLICTED |
+Anchor: {'art_design': 'direct_creation', 'fashion_beauty': 'expression_choice', 'making': 'assembling', 'media': 'animation_webcontent', 'writing': 'expression_style'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
 |---|---|
-| 20 | UNOBSERVED 7 · LIMITED 14 · SUPPORTED 3 · SUFFICIENT 0 · CONFLICTED 0 |
-| 30 | UNOBSERVED 3 · LIMITED 16 · SUPPORTED 5 · SUFFICIENT 0 · CONFLICTED 0 |
-| 40 | UNOBSERVED 2 · LIMITED 15 · SUPPORTED 6 · SUFFICIENT 1 · CONFLICTED 0 |
-| 50 | UNOBSERVED 2 · LIMITED 8 · SUPPORTED 10 · SUFFICIENT 4 · CONFLICTED 0 |
-| 158 | UNOBSERVED 0 · LIMITED 0 · SUPPORTED 1 · SUFFICIENT 23 · CONFLICTED 0 |
+| 20 | 20·2·2·0·0 |
+| 25 | 20·2·2·0·0 |
+| 30 | 20·2·2·0·0 |
+| 35 | 20·2·2·0·0 |
+| 35(전체) | 20·2·2·0·0 |
 
-**상위 Trait가 SUFFICIENT에 도달하는 시점(질문 수, 오름차순, 상위 8개):**
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, collaboration_preference, creative_ideation, emotional_interpretation, immediate_execution, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression
+- 질문 Mapping 부족(승인된 기회<2): audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, creative_ideation, emotional_interpretation, immediate_execution, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, verbal_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: audience_response_prediction, challenge_seeking, collaboration_preference, creative_ideation, emotional_interpretation, immediate_execution, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, verbal_expression
 
-| 순위 | Trait | 도달 질문 수 |
+### 사회·협업형 — Context ['school_life', 'volunteer', 'sports', 'business', 'game']
+
+Anchor: {'business': 'feedback_reading', 'game': 'building_creation', 'school_life': 'academic_study', 'sports': 'individual_training', 'volunteer': 'cause_selection'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 20·2·2·0·0 |
+| 25 | 20·2·2·0·0 |
+| 30 | 20·2·1·1·0 |
+| 35 | 20·2·0·2·0 |
+| 35(전체) | 20·2·0·2·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, emotional_interpretation, immediate_execution, independent_judgment, information_comparison, novelty_seeking, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, emotional_interpretation, immediate_execution, independent_judgment, information_comparison, novelty_seeking, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, emotional_interpretation, independent_judgment, information_comparison, novelty_seeking, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+
+### 실행·제작형 — Context ['making', 'cooking', 'science', 'art_design', 'business']
+
+Anchor: {'art_design': 'direct_creation', 'business': 'feedback_reading', 'cooking': 'food_choice', 'making': 'assembling', 'science': 'cause_exploring'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 23·1·0·0·0 |
+| 25 | 23·1·0·0·0 |
+| 30 | 23·1·0·0·0 |
+| 35 | 23·1·0·0·0 |
+| 35(전체) | 23·1·0·0·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, creative_ideation, emotional_interpretation, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, creative_ideation, emotional_interpretation, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: aesthetic_sensitivity, challenge_seeking, change_adaptation, creative_ideation, emotional_interpretation, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+
+### 언어·인문형 — Context ['writing', 'history_humanities', 'law_politics', 'media', 'school_life']
+
+Anchor: {'history_humanities': 'cause_effect_chain', 'law_politics': 'differing_claims', 'media': 'animation_webcontent', 'school_life': 'academic_study', 'writing': 'expression_style'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 24·0·0·0·0 |
+| 25 | 21·2·1·0·0 |
+| 30 | 21·1·1·1·0 |
+| 35 | 19·3·0·2·0 |
+| 35(전체) | 19·3·0·2·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, collaboration_preference, immediate_execution, independent_judgment, novelty_seeking, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, collaboration_preference, immediate_execution, independent_judgment, novelty_seeking, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: aesthetic_sensitivity, audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, immediate_execution, independent_judgment, novelty_seeking, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, visual_expression
+
+### 혼합·교차형 — Context ['game', 'cooking', 'law_politics', 'art_design', 'science']
+
+Anchor: {'art_design': 'direct_creation', 'cooking': 'food_choice', 'game': 'building_creation', 'law_politics': 'differing_claims', 'science': 'cause_exploring'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 21·1·2·0·0 |
+| 25 | 21·1·2·0·0 |
+| 30 | 21·1·1·1·0 |
+| 35 | 21·1·1·1·0 |
+| 35(전체) | 21·1·1·1·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, challenge_seeking, change_adaptation, immediate_execution, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, challenge_seeking, change_adaptation, immediate_execution, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: aesthetic_sensitivity, challenge_seeking, change_adaptation, immediate_execution, information_comparison, novelty_seeking, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+
+### 니치 관심형 — Context ['fashion_beauty', 'travel', 'cooking', 'art_design', 'making']
+
+Anchor: {'art_design': 'direct_creation', 'cooking': 'food_choice', 'fashion_beauty': 'expression_choice', 'making': 'assembling', 'travel': 'companion_opinion'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 24·0·0·0·0 |
+| 25 | 24·0·0·0·0 |
+| 30 | 24·0·0·0·0 |
+| 35 | 24·0·0·0·0 |
+| 35(전체) | 24·0·0·0·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, immediate_execution, information_comparison, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, change_adaptation, immediate_execution, information_comparison, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: aesthetic_sensitivity, audience_response_prediction, causal_analysis, challenge_seeking, immediate_execution, information_comparison, opinion_expression, opinion_mediation, pattern_finding, persistence_completion, planning, systems_thinking, tool_utilization, uncertainty_tolerance, verbal_expression, visual_expression
+
+### Coverage 최대화형 — Context ['science', 'media', 'school_life', 'business', 'making']
+
+Anchor: {'business': 'feedback_reading', 'making': 'assembling', 'media': 'animation_webcontent', 'school_life': 'academic_study', 'science': 'cause_exploring'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 8·12·4·0·0 |
+| 25 | 6·14·4·0·0 |
+| 30 | 6·14·4·0·0 |
+| 35 | 6·14·4·0·0 |
+| 35(전체) | 6·14·4·0·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): aesthetic_sensitivity, challenge_seeking, emotional_interpretation, opinion_mediation, personal_goal_priority, systems_thinking, tool_utilization, verbal_expression, visual_expression
+- 질문 Mapping 부족(승인된 기회<2): aesthetic_sensitivity, challenge_seeking, emotional_interpretation, opinion_mediation, personal_goal_priority, tool_utilization, verbal_expression, visual_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: challenge_seeking, personal_goal_priority, verbal_expression
+
+### Coverage 최소화형(1~2개 Trait 집중) — Context ['game', 'media', 'school_life', 'business', 'science']
+
+Anchor: {'business': 'feedback_reading', 'game': 'building_creation', 'media': 'animation_webcontent', 'school_life': 'academic_study', 'science': 'cause_exploring'}
+
+| 질문 수 Checkpoint | UNOBSERVED·LIMITED·SUPPORTED·SUFFICIENT·CONFLICTED |
+|---|---|
+| 20 | 18·4·0·2·0 |
+| 25 | 18·4·0·2·0 |
+| 30 | 18·4·0·2·0 |
+| 35 | 18·4·0·2·0 |
+| 35(전체) | 18·4·0·2·0 |
+
+- 구조적으로 SUFFICIENT 불가능(Context 2개 미달): audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, emotional_interpretation, immediate_execution, information_comparison, novelty_seeking, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, verbal_expression
+- 질문 Mapping 부족(승인된 기회<2): audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, emotional_interpretation, immediate_execution, information_comparison, novelty_seeking, opinion_mediation, pattern_finding, persistence_completion, personal_goal_priority, planning, tool_utilization, uncertainty_tolerance, verbal_expression
+- Context 선택 때문에 관찰 자체가 없는 Trait: audience_response_prediction, challenge_seeking, change_adaptation, collaboration_preference, emotional_interpretation, immediate_execution, information_comparison, novelty_seeking, opinion_mediation, pattern_finding, personal_goal_priority, tool_utilization, uncertainty_tolerance, verbal_expression
+
+
+## 4. 상위 5·8개 Trait 충족 여부 요약
+
+- 상위 5개 전부 SUFFICIENT인 Persona: 0/9(환경 B 기준)
+- 상위 8개 전부 SUFFICIENT인 Persona: 0/9(환경 B 기준)
+
+## 5. 구조적으로 불가능한 Trait
+
+**Coverage 최대화형(의도적으로 Context를 넓히려 한 Persona) 기준**: aesthetic_sensitivity, challenge_seeking, emotional_interpretation, opinion_mediation, personal_goal_priority, systems_thinking, tool_utilization, verbal_expression, visual_expression
+
+참고 — 환경 B 9개 Persona **전부**에서 Context 2개 조건을 못 채운 Trait(교집합, 더 보수적인 기준): challenge_seeking, personal_goal_priority, tool_utilization, verbal_expression
+
+## 6. 현재 기준을 Runtime에 연결해도 되는가
+
+**결론: B** — 9개 Persona 중 상위 5개 Trait가 전부 SUFFICIENT에 도달한 경우는 0건뿐이다 (상위 8개는 0건). 실제 4+1 세션(35문항 상한) 안에서는 현재 구조로 Coverage 기반 종료 조건을 충족하기 어렵다.
+
+**원인.** 네 가지 후보(질문 Mapping 부족/Context 2개 조건 과도/RELATED 가중치 과소/4+1 Context 수 부족) 중 어느 하나로 깔끔히 떨어지지 않는다 — 실측 결과 더 구체적인 원인은 **실제 Adaptive Target Planner(`select_pack_adaptive_target`, 수정 금지)가 'Evidence 부족(Gap)' 판정을 `support_count>=2`에서 멈춘다**는 것이다. 한 Trait가 Primary 2개(서로 다른 Context 포함)를 얻으면 그 Trait는 더 이상 'Gap'이 아니라고 보고 Planner가 다른 Trait로 넘어간다. 그런데 이번 Coverage Policy의 SUFFICIENT는 Primary 2개만으로는 가중치가 정확히 2.0이라 3.0 문턱을 못 넘는다(§ 아래 실측 사례) — **Primary 2개를 요구하는 조건과 가중치 3.0을 요구하는 조건이 서로 다른 것을 요구한다**(실질적으로 가중치 조건이 더 엄격해 Primary 3개 또는 Primary 2개+RELATED 2개 이상이 필요하다). 이건 Persona의 답변 선택 정책 문제가 아니다 — Pack Context Direct Probe 질문은 5개 선택지 중 목표 Trait에 신호가 있는 선택지가 정확히 1개뿐이라 (나머지 4개는 NO_SIGNAL), Persona가 무엇을 고르든 선택의 여지가 사실상 없다.
+
+**구체 사례.** 환경 B `coverage_maximizing` Persona: causal_analysis가 서로 다른 Context 2곳에서 Primary 2개(가중치 2.0)를 얻어 Frame·Context 조건은 통과했지만, SUFFICIENT의 '가중치 3.0 이상' 조건 하나만 미충족으로 SUPPORTED에 머물렀다(missing_requirements: 'effective_evidence_weight>=3.0 미충족(현재 2.0)'만 남고 나머지 조건은 전부 충족).
+
+## 7. 전체 Inventory 상한과 실제 세션 결과 차이
+
+| | 전체 Inventory 상한(참고용, 실제 세션 아님) | 실제 세션(이 보고서) |
 |---|---|---|
-| 1 | causal_analysis | 38 |
-| 2 | collaboration_preference | 47 |
-| 3 | change_adaptation | 48 |
-| 4 | pattern_finding | 50 |
-| 5 | opinion_mediation | 52 |
-| 6 | persistence_completion | 53 |
-| 7 | planning | 55 |
-| 8 | detail_orientation | 56 |
+| 환경 A 최대 질문 수 | 38(고정 콘텐츠 전부) | 25(2+1, 3 Context) |
+| 환경 B 최대 질문 수 | 158(15 Context×Anchor 5개 전부) | 35(4+1, 5 Context) |
+| 환경 B SUFFICIENT(최선) | 23/24(전체 158문항 다 씀) | 2/24(35문항 상한) |
 
-- Context 2개 조건 때문에 구조적으로 SUFFICIENT 불가능한 Trait: challenge_seeking
-- 전체 Pool(158문항) 소진해도 SUFFICIENT에 못 이른 Trait: challenge_seeking
+실제 세션은 한 Context에서 Anchor 1개만 쓰고 Tail도 4~6개로 끝나므로, Inventory
+상한의 '몇 번째 문항에서 충분해지는가'라는 숫자를 실제 세션 권장치로 쓸 수 없다.
 
-## 5. 가장 자주 미관찰(UNOBSERVED)로 남는 Trait
+## 8. 설계 결정과 한계
 
-aesthetic_sensitivity, challenge_seeking, independent_judgment, pattern_finding, personal_goal_priority, verbal_expression, visual_expression
-
-## 6. 원인 구분 — 질문 Mapping 부족 vs Persona 특성
-
-`MAPPING_GAP`(승인된 기회 자체가 Primary 2개 미만 — Persona가 무엇을 골라도
-SUFFICIENT 불가) / `CONTEXT_GAP`(기회는 있지만 Context가 1개뿐) /
-`POLICY_LIMITED`(기회·Context 조건은 충분한데 이 Coverage 최대화 정책으로도
-SUFFICIENT까지 못 감 — 실제 Persona 다양성 문제에 더 가깝다) / `SUFFICIENT`.
-
-| Trait | 환경 A | 환경 B |
-|---|---|---|
-| aesthetic_sensitivity | MAPPING_GAP | SUFFICIENT |
-| audience_response_prediction | CONTEXT_GAP | SUFFICIENT |
-| causal_analysis | POLICY_LIMITED | SUFFICIENT |
-| challenge_seeking | MAPPING_GAP | CONTEXT_GAP |
-| change_adaptation | POLICY_LIMITED | SUFFICIENT |
-| collaboration_preference | POLICY_LIMITED | SUFFICIENT |
-| creative_ideation | POLICY_LIMITED | SUFFICIENT |
-| detail_orientation | POLICY_LIMITED | SUFFICIENT |
-| emotional_interpretation | POLICY_LIMITED | SUFFICIENT |
-| immediate_execution | CONTEXT_GAP | SUFFICIENT |
-| independent_judgment | MAPPING_GAP | SUFFICIENT |
-| information_comparison | POLICY_LIMITED | SUFFICIENT |
-| novelty_seeking | MAPPING_GAP | SUFFICIENT |
-| opinion_expression | CONTEXT_GAP | SUFFICIENT |
-| opinion_mediation | POLICY_LIMITED | SUFFICIENT |
-| pattern_finding | CONTEXT_GAP | SUFFICIENT |
-| persistence_completion | POLICY_LIMITED | SUFFICIENT |
-| personal_goal_priority | MAPPING_GAP | SUFFICIENT |
-| planning | CONTEXT_GAP | SUFFICIENT |
-| systems_thinking | CONTEXT_GAP | SUFFICIENT |
-| tool_utilization | CONTEXT_GAP | SUFFICIENT |
-| uncertainty_tolerance | MAPPING_GAP | SUFFICIENT |
-| verbal_expression | MAPPING_GAP | SUFFICIENT |
-| visual_expression | MAPPING_GAP | SUFFICIENT |
-
-## 7. 권장 최소·최대 질문 수
-
-- 최소 52문항 — 상위 5개 Trait가 SUFFICIENT에 도달
-- 최대 56문항 — 상위 8개 Trait가 SUFFICIENT에 도달
-- 근거: B 환경(15 Context, 임시 승인 Fixture) 기준 — 상위 5개 Trait가 전부 SUFFICIENT가 되는 최소 질문 수를 최소값으로, 상위 8개가 전부 SUFFICIENT가 되는 질문 수를 최대값으로 잡았다. A 환경(현재 3 Context)은 현재 승인 상태로는 단 하나의 Trait도 SUFFICIENT에 도달하지 못해 권장 범위의 근거로 쓸 수 없다.
-
-## 8. Coverage 기반 종료를 Runtime에 연결해도 되는가
-
-**아직 이르다**
-
-- A 환경(현재 실제 승인 상태)에서 SUFFICIENT Trait 수가 0이다 — Coverage 기반 종료를 지금 Runtime에 연결하면 거의 모든 세션이 Stop 조건을 영원히 못 만족한다.
-- V2 Direct Probe 14개가 전부 reviewer_1_status=TBD라 신규 12개 Trait의 유일한 PRIMARY 출처가 통째로 계산에서 빠진다 — 검수가 먼저 끝나야 한다.
-- 12개 ContextPack이 전부 미검수라 B 환경의 결과는 '검수가 끝난다면'이라는 가정 위의 상한일 뿐, 지금 당장 재현되는 상태가 아니다.
-- 이 진단은 Adaptive Tail(LLM 생성) 질문을 포함하지 않는다 — 실제 세션에는 이 진단이 보지 못한 질문 유형이 더 있다.
-
-## 9. 설계 결정과 한계
-
-- Adaptive Tail(LLM 생성) 질문은 결정론을 지킬 수 없어 이 진단에 포함하지
-  않았다 — 이 보고서의 숫자는 '고정 콘텐츠만으로 도달 가능한' 하한에 가깝다.
-- '2+1'/'4+1'은 실제 세션의 Context 개수 상한(수정 금지)이다. 이 진단은 그
-  상한을 그대로 재현하지 않고, 해당 Context 풀 전체가 제공하는 재료의 상한을
-  본다(§설계 결정, 스크립트 docstring 참고).
-- Persona는 '그럴듯한 학생'이 아니라 Coverage를 의도적으로 최대화하는
-  결정론적 정책이다 — 실제 Adaptive Target Planner의 Gap 우선순위 로직과
-  다르다.
-- 환경 B의 12개 ContextPack 승인은 전부 `tempfile` 안의 가짜 Fixture다.
+- LLM은 네트워크를 호출하지 않는 결정론적 Fake Client로 대체했다(§ 위 flow 설명).
+  실측 결과 Fake조차 없이 LLM을 끄면 Pack Context Adaptive Tail이 매번 즉시
+  Backup으로 빠져 최소 4개도 못 채운다 — 실제 LLM이 붙으면 결과가 달라질 수
+  있다(이 진단은 그 차이를 재현하지 않는다).
+- 환경 B의 "4+1"은 실제 `/assessment/context-select` Endpoint로 만들 수 없다
+  (2/3으로 하드코딩됨, main.py 수정 금지) — 그 Endpoint가 쓰는 순수 함수를
+  직접 호출해 우회했다(§ 위 flow 설명).
+- Anchor는 모든 Context에서 '알파벳 순 첫 Anchor'로 결정론적으로 골랐다 —
+  Persona 주제에 맞는 Anchor를 수작업으로 고르지 않았다(알려진 단순화).
+- Pack Context Direct Probe 질문은 선택지 5개 중 신호가 있는 게 1개뿐이라,
+  Persona의 답변 선택 정책이 Pack Context에서는 사실상 영향이 없다 — 실제
+  영향은 Legacy Tail·Seed·Routing(Anchor) 선택에서만 나타난다.
+- 12개 ContextPack·공용 Adaptive Probe 승인은 전부 tempfile Fixture다.
   `data/reviews/`는 이 스크립트 실행 전후로 바이트 하나도 바뀌지 않는다.

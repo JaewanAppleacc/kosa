@@ -1,4 +1,15 @@
-"""Trait Evidence Coverage Shadow 진단 Harness — a/trait-evidence-coverage-shadow.
+"""Trait Evidence Coverage "전체 Inventory 상한" 진단 Harness (보조 자료) —
+a/trait-evidence-coverage-shadow.
+
+**중요한 정정(후속 라운드)**: 이 파일이 재는 158문항/52~56문항 권고는 **실제 4+1/2+1
+세션이 아니다** — 15개 Context와 각 Context의 Anchor 5개 전부를 순회한 "Inventory
+상한" 수치다. **실제 세션 결과는
+`eval/trait_evidence_coverage_session_diagnostics.py`를 보라** — 그쪽이 이제
+`outputs/evaluation/trait_evidence_coverage_shadow_report.{json,md}`(주 보고서)를
+쓴다. 이 파일의 산출물은 `trait_evidence_coverage_inventory_ceiling_report.{json,md}`
+로 이름을 바꿔 "실제 세션 결과와 명확히 분리"했다(정정 지시 §7) — 완전히 삭제하지
+않은 이유는 "Context/Anchor를 전부 열었을 때 구조적으로 몇 개까지 가능한가"라는
+별도로 유용한 참고 질문에 계속 답하기 때문이다.
 
 **진단 전용이다.** Runtime Stop Condition·Matching·질문 흐름·`src/api/main.py`·공개
 Schema 어디에도 연결하지 않는다. LLM·네트워크·DB를 호출하지 않는다 — 실제 저장소에
@@ -84,8 +95,8 @@ from src.services.trait_signal_review_gate import is_evidence_signal_approved  #
 
 VERTICAL_SLICE_CONTEXT_IDS: tuple[str, ...] = ("game", "media", "school_life")
 QUESTION_CAPS: tuple[int, ...] = (20, 30, 40, 50)
-JSON_OUTPUT_PATH = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_shadow_report.json"
-MD_OUTPUT_PATH = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_shadow_report.md"
+JSON_OUTPUT_PATH = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_inventory_ceiling_report.json"
+MD_OUTPUT_PATH = ROOT / "outputs" / "evaluation" / "trait_evidence_coverage_inventory_ceiling_report.md"
 
 # Native pack_direct_probe 승인 판정은 anchor_id를 실제로 쓰지 않지만(§ 감사 결과,
 # trait_signal_review_gate._pack_native_direct_probe_approved), 바깥 함수
@@ -434,14 +445,16 @@ def _run_environment(
 
 def run_diagnostics() -> dict[str, Any]:
     legacy_pool = _legacy_pool()
-    env_a = _run_environment("A. 현재 3 Context(2+1 상한 기반 정책, Pool은 전체 고정 콘텐츠)", legacy_pool, None)
+    env_a = _run_environment(
+        "A. [Inventory 상한, 실제 세션 아님] 현재 3 Context 전체 고정 콘텐츠", legacy_pool, None
+    )
 
     with tempfile.TemporaryDirectory(prefix="trait_coverage_shadow_fixture_") as tmp:
         fixture_dir = Path(tmp)
         registry = _build_registry_with_fixture_approval(fixture_dir)
         pack_pool = _pack_pool(registry)
         env_b = _run_environment(
-            "B. 임시 승인 Fixture 기반 15 Context(4+1 상한 기반 정책, Pool은 전체 고정 콘텐츠)",
+            "B. [Inventory 상한, 실제 세션 아님] 15 Context 전체 고정 콘텐츠(tempfile 임시 승인)",
             legacy_pool + pack_pool, registry,
         )
 
@@ -566,9 +579,12 @@ def _write_json_report(diagnostics: dict[str, Any]) -> None:
         },
         "cross_environment_summary": _cross_environment_summary(diagnostics["env_a"], diagnostics["env_b"]),
         "note": (
-            "이 보고서는 Shadow(진단 전용) 산출물이다. Runtime Stop Condition·Matching·"
-            "질문 흐름에 아직 연결되지 않았다. 생성 시각·메모리 값을 담지 않는다 — 같은 "
-            "코드에서 재실행하면 byte-identical해야 한다."
+            "이 문서는 실제 세션 결과가 아니라 15개 Context·Anchor 5개 전부를 순회한 "
+            "'전체 Inventory 상한' 참고 자료다(정정 지시 §7) — 실제 4+1/2+1 세션 결과는 "
+            "trait_evidence_coverage_shadow_report.json을 봐야 한다. 이 보고서는 "
+            "Shadow(진단 전용) 산출물이다. Runtime Stop Condition·Matching·질문 흐름에 "
+            "아직 연결되지 않았다. 생성 시각·메모리 값을 담지 않는다 — 같은 코드에서 "
+            "재실행하면 byte-identical해야 한다."
         ),
     }
     JSON_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -588,7 +604,12 @@ def _write_markdown_report(diagnostics: dict[str, Any]) -> None:
     summary = _cross_environment_summary(env_a, env_b)
 
     lines: list[str] = [
-        "# Trait Evidence Coverage Shadow 진단 보고서",
+        "# Trait Evidence Coverage — 전체 Inventory 상한 보고서 (참고 자료)",
+        "",
+        "> **이 문서는 실제 세션 결과가 아니다.** 15개 Context와 각 Context의 Anchor",
+        "> 5개 전부를 순회한 \"구조적 상한\" 수치다 — 실제 4+1/2+1 세션 결과는",
+        "> `outputs/evaluation/trait_evidence_coverage_shadow_report.md`를 봐야 한다.",
+        "> 아래 \"권장 질문 수\"는 실제 세션 권장치로 쓰지 않는다(정정 지시 §7).",
         "",
         "브랜치 `a/trait-evidence-coverage-shadow`. **진단 전용이다** — Runtime Stop",
         "Condition·Matching·학생 API 어디에도 연결하지 않았다. 생성 시각을 담지 않는다",
