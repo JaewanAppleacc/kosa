@@ -307,12 +307,16 @@ class UnrelatedFilesUntouchedTest(unittest.TestCase):
         # departments.jsonl·department_recommendation_scope.jsonl을 의도적으로
         # 바꾸고 departments_promotion_manifest.json을 새로 추가했다(옛 값은
         # data/archive/에 보존) — 이 세 파일만 diff 대상에서 뺀다.
+        # 2026-08-25 Service Canonical Major v2(a/service-major-catalog-v2)도
+        # 이 N.C.E 재검토 작업과 무관하게 새 파일 2개를 추가했다 — 같은 이유로 뺀다.
         self.assertEqual(
             self._diff_paths(
                 "data/master/",
                 ":(exclude)data/master/departments.jsonl",
                 ":(exclude)data/master/department_recommendation_scope.jsonl",
                 ":(exclude)data/master/departments_promotion_manifest.json",
+                ":(exclude)data/master/service_canonical_majors_v2.jsonl",
+                ":(exclude)data/master/canonical_major_group_to_service_major_v2.jsonl",
             ),
             "",
         )
