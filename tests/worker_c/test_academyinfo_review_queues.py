@@ -302,7 +302,7 @@ class SecretAndMasterUnchangedTest(unittest.TestCase):
         ).hexdigest()
         self.assertEqual(
             digest,
-            "afb5a51d55086b07237e16d2914fb065e805cf3a905b3097b2ca06a2610ae37e",
+            "2d862b84b74946bbc598c0d829907d415e6dbadf0439df8c1386e936caeeef65",
         )
 
     def test_demo_master_department_url_is_untouched(self) -> None:

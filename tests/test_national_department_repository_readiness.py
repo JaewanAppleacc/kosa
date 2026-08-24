@@ -35,9 +35,9 @@ class DeterminismTest(unittest.TestCase):
     def test_two_runs_produce_identical_comparable_snapshot(self) -> None:
         import json
 
-        report1 = harness.main()
+        report1 = harness.main(write_report=False)
         snapshot1 = json.dumps(harness.comparable_snapshot(report1), ensure_ascii=False, sort_keys=True)
-        report2 = harness.main()
+        report2 = harness.main(write_report=False)
         snapshot2 = json.dumps(harness.comparable_snapshot(report2), ensure_ascii=False, sort_keys=True)
         self.assertEqual(snapshot1, snapshot2)
 
@@ -62,7 +62,7 @@ class FixtureCleanupTest(unittest.TestCase):
         import tempfile as _tempfile
 
         before = set(glob.glob(f"{_tempfile.gettempdir()}/national_department_readiness_*"))
-        harness.main()
+        harness.main(write_report=False)
         after = set(glob.glob(f"{_tempfile.gettempdir()}/national_department_readiness_*"))
         self.assertEqual(after - before, set(), "Harness가 임시 Fixture 디렉터리를 정리하지 않고 남김")
 
@@ -94,7 +94,7 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
         }
 
     def test_master_and_public_schema_sha256_unchanged_after_harness_run(self) -> None:
-        harness.main()
+        harness.main(write_report=False)
         for path, before_hash in self._before_hashes.items():
             after_hash = _sha256(_REPO_ROOT / path)
             self.assertEqual(before_hash, after_hash, f"{path}의 SHA-256이 Harness 실행 후 바뀜")
@@ -168,7 +168,7 @@ class ScenarioSanityTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.report = harness.main()
+        cls.report = harness.main(write_report=False)
 
     def test_all_required_scenarios_are_present(self) -> None:
         names = {s.name for s in self.report.scenarios}

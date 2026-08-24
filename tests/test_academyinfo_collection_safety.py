@@ -217,7 +217,9 @@ class NceExclusionTest(unittest.TestCase):
         # 줄었다. classification_dry_run.json 자체가 갱신된 결과이지, 이 테스트가
         # 임의로 낮춘 값이 아니다.
         report = _load_json("data/academyinfo_work/2025/classification_dry_run.json")
-        self.assertEqual(report["unclassified_nce_count"], 3539)
+        # 계약학과 6건을 추천 범위에서 제외한 뒤 N.C.E 계약학과 2건도
+        # 분류 모수에서 빠져 3539 -> 3537로 갱신됐다.
+        self.assertEqual(report["unclassified_nce_count"], 3537)
         self.assertIn("N.C.E.", report["official_small_series_distribution"])
         # N.C.E는 UNMAPPED로 잡히지, APPROVED/REVIEW_REQUIRED로 섞이지 않는다.
         self.assertEqual(report["mapping_status_breakdown"]["UNMAPPED"] >= report["unclassified_nce_count"], True)
@@ -227,7 +229,9 @@ class NceExclusionTest(unittest.TestCase):
         # 갱신됐다.
         report = _load_json("data/academyinfo_work/2025/classification_dry_run.json")
         self.assertEqual(report["eligibility_breakdown"]["REVIEW_REQUIRED"], 4258)
-        self.assertEqual(report["eligibility_breakdown"]["EXCLUDED_ARTS_SPORTS"], 3588)
+        # 계약학과 추천 범위 분리 후 예체능 계약학과 2건도 별도 보존 버킷으로
+        # 이동해 3588 -> 3586이 됐다.
+        self.assertEqual(report["eligibility_breakdown"]["EXCLUDED_ARTS_SPORTS"], 3586)
 
 
 class SourceRecordIdAndDepartmentIdYearPolicyTest(unittest.TestCase):

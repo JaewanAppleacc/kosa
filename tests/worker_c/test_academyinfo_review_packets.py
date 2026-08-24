@@ -231,8 +231,19 @@ class ManifestTest(unittest.TestCase):
         for name in ("departments.normalized.jsonl", "classification_results.jsonl"):
             path = WORK / name
             if not path.exists():
-                self.assertIn(name, unavailable)
-                self.assertNotIn(name, MANIFEST["input_hashes"])
+                # 두 정상 상태를 구분한다.
+                # 1) 입력 없이 패킷만 생성: unavailable에 기록하고 Hash를 쓰지 않음.
+                # 2) 입력 보유 환경에서 전국 재생성·검증 후 커밋: 실제 입력 Hash를
+                #    보존하며 clean clone에는 대용량 입력 파일만 존재하지 않음.
+                has_verified_hash = name in MANIFEST["input_hashes"]
+                marked_unavailable = name in unavailable
+                self.assertNotEqual(
+                    has_verified_hash,
+                    marked_unavailable,
+                    f"{name}은 검증 Hash 또는 unavailable 중 정확히 하나로 표현돼야 한다",
+                )
+                if has_verified_hash:
+                    self.assertRegex(MANIFEST["input_hashes"][name], r"^[0-9a-f]{64}$")
 
     def test_human_review_total_matches_queue_sum(self) -> None:
         self.assertEqual(

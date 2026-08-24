@@ -634,7 +634,7 @@ def _render_markdown(report: ReadinessReport) -> str:
         )
     lines.append("")
 
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines).rstrip("\n") + "\n"
 
 
 def comparable_snapshot(report: ReadinessReport) -> dict[str, Any]:
@@ -661,7 +661,7 @@ def comparable_snapshot(report: ReadinessReport) -> dict[str, Any]:
     }
 
 
-def main() -> ReadinessReport:
+def main(*, write_report: bool = True) -> ReadinessReport:
     import tempfile
 
     with tempfile.TemporaryDirectory(prefix="national_department_readiness_") as tmp:
@@ -707,8 +707,9 @@ def main() -> ReadinessReport:
         # 임시 디렉터리를 벗어나기 전에 Fixture는 그냥 with 블록 종료로 자동 삭제된다
         # (§2 "합성 데이터는 테스트 종료 후 삭제하고 Git에 커밋하지 않는다").
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    REPORT_PATH.write_text(_render_markdown(report), encoding="utf-8")
+    if write_report:
+        OUT_DIR.mkdir(parents=True, exist_ok=True)
+        REPORT_PATH.write_text(_render_markdown(report), encoding="utf-8")
     return report
 
 
