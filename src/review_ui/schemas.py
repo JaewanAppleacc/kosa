@@ -427,4 +427,57 @@ class UpdateSharedProbeReviewRequest(BaseModel):
     # (부분 추가/삭제가 아니라 매 저장마다 검토자가 다시 확정한 전체 목록).
     approved_anchor_ids: list[str] | None = None
     excluded_anchor_ids: list[str] | None = None
+
+
+class BridgeReviewRowView(BaseModel):
+    """2026-08-24 지시서(a/canonical-major-bridge-review-ui) §2 — 44개 Bridge Draft
+    행 하나 + 그 행에 대한 사람 검수 상태. `canonical_major_group_bridge.draft.jsonl`
+    (Master Draft, Read-Only)과 별도 검수 상태 파일을 조인한 View일 뿐, 이 응답 자체가
+    Master Draft를 바꾸지 않는다."""
+
+    review_key: str
+    canonical_major_group_id: str
+    canonical_major_group_label: str
+    canonical_major_id: str | None
+    canonical_major_label: str | None
+    mapping_status: Literal["EVIDENCED", "REVIEW_REQUIRED", "UNMAPPED", "EXCLUDED_RECOMMENDATION"]
+    evidence: list[str]
+    decision_reason: str
+    boundary_notes: str
+    is_boundary_case: bool  # boundary_notes가 비어있지 않은 행("경계 사례만" 필터 기준).
+    national_department_candidate_count: int | None  # 조인 실패 시(있을 수 없지만) None.
+    review: QuestionReviewView
+
+
+class BridgeReviewSummary(BaseModel):
+    """§4 — 화면 상단 요약 개수. 전부 서버가 실제 44행 데이터에서 집계한 값이고,
+    HTML/JS에 하드코딩된 숫자는 없다(`build_bridge_review_list()`가 매 요청마다
+    다시 센다)."""
+
+    total: int
+    evidenced_count: int
+    review_required_count: int
+    excluded_recommendation_count: int
+    unmapped_count: int
+    reviewer_tbd_count: int
+    reviewer_approve_count: int
+    reviewer_revise_count: int
+    reviewer_hold_count: int
+    reviewed_count: int  # reviewer_1_status != "TBD"
+    unreviewed_count: int  # reviewer_1_status == "TBD"
+
+
+class BridgeReviewListResponse(BaseModel):
+    rows: list[BridgeReviewRowView]
+    summary: BridgeReviewSummary
+
+
+class UpdateBridgeReviewRequest(BaseModel):
+    # "필터 변경만으로 저장 요청을 보내지 않음" — 이 계약은 status/comment를 필수로
+    # 받아도 지켜진다(필터는 애초에 이 Endpoint를 호출하지 않는다, JS 쪽에서 보장).
+    # 그래도 UpdateSharedProbeReviewRequest와 동일하게 None="변경 없음" 규칙을 따라서,
+    # 코멘트만 저장하거나 상태만 저장하는 부분 저장을 허용한다.
+    status: ReviewerStatus | None = None
+    comment: str | None = None
+    resolution_note: str | None = None
     resolution_note: str | None = None

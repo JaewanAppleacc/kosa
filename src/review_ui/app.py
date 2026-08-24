@@ -18,18 +18,21 @@ from fastapi.staticfiles import StaticFiles
 
 from src.data.contexts.context_definitions import CONTEXT_IDS
 from src.data.questions.context_pack_shared_probe_blueprints import CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS
+from src.review_ui import canonical_major_group_bridge_review_service as cmgbrs
 from src.review_ui import context_pack_review_service as cprs
 from src.review_ui import review_service as rs
 from src.review_ui.schemas import (
     AnchorPreviewResponse,
     BackupAnchorPreviewResponse,
     BackupQuestionListResponse,
+    BridgeReviewListResponse,
     ContextPackListResponse,
     QuestionListResponse,
     RoutingQuestionListResponse,
     SeedAnchorQuestionListResponse,
     SharedProbeListResponse,
     SummaryResponse,
+    UpdateBridgeReviewRequest,
     UpdateContextPackReviewRequest,
     UpdateOptionReviewRequest,
     UpdateQuestionReviewRequest,
@@ -391,6 +394,34 @@ def patch_context_pack_review(
             comment=payload.comment, resolution_note=payload.resolution_note,
         )
     except (cprs.UnknownContextPackError, cprs.UnknownReviewKeyError) as exc:
+        raise _http_error(422, str(exc)) from exc
+
+
+# 2026-08-24 지시서(a/canonical-major-bridge-review-ui) — 44개 Canonical Major
+# Group Bridge Draft 검수 Endpoint. Master Draft(canonical_major_group_bridge.
+# draft.jsonl)는 읽기만 하고 절대 쓰지 않는다 — PATCH는 별도 파일(data/reviews/
+# canonical_major_group_bridge_review_status.json)에만 반영된다. 이 App의 다른
+# Endpoint와 마찬가지로 Runtime Matching·Department 조회 어디에도 연결되지 않는다
+# (이 파일을 import하는 학생 공개 API 코드는 없다).
+
+
+@app.get("/internal/review/v2/canonical-major-group-bridge", response_model=BridgeReviewListResponse)
+def get_canonical_major_group_bridge() -> BridgeReviewListResponse:
+    return cmgbrs.build_bridge_review_list(review_status_path=cmgbrs.BRIDGE_REVIEW_STATUS_PATH)
+
+
+@app.patch(
+    "/internal/review/v2/canonical-major-group-bridge/{review_key}", response_model=UpdateReviewResponse,
+)
+def patch_canonical_major_group_bridge_review(
+    review_key: str, payload: UpdateBridgeReviewRequest,
+) -> UpdateReviewResponse:
+    try:
+        return cmgbrs.update_bridge_review(
+            review_key, status=payload.status, comment=payload.comment, resolution_note=payload.resolution_note,
+            review_status_path=cmgbrs.BRIDGE_REVIEW_STATUS_PATH,
+        )
+    except cmgbrs.UnknownBridgeReviewKeyError as exc:
         raise _http_error(422, str(exc)) from exc
 
 

@@ -64,6 +64,13 @@ const state = {
   contextPackContextId: null,
   contextPackQuestionIndex: 0,
   contextPackStatusFilter: "all",
+  // 2026-08-24 지시서(a/canonical-major-bridge-review-ui) — Canonical Major Group
+  // Bridge(44행) 검수 탭 전용 상태. 44행이라 Pager 없이 필터링된 카드 목록을 한
+  // 화면에 그린다. bridgeFilters는 전부 순수 클라이언트 필터다 — 바뀌어도 저장
+  // 요청을 절대 보내지 않는다(§5 "필터 변경만으로 저장 요청을 보내지 않음").
+  bridgeRows: [],
+  bridgeSummary: null,
+  bridgeFilters: { mapping: "all", reviewStatus: "all", boundary: false, major: "all" },
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -1977,6 +1984,155 @@ function renderContextPackAll() {
   renderContextPackContextPager();
 }
 
+/* 2026-08-24 지시서(a/canonical-major-bridge-review-ui) — Canonical Major Group
+ * Bridge(44행) 검수 탭. 다른 탭과 달리 "질문 하나 = Pager 한 칸" 모델이 아니라
+ * 필터링된 행 전체를 카드 목록으로 한 화면에 그린다(44행은 Pager 없이도 다룰 만한
+ * 크기). PATCH는 각 카드의 "저장" 버튼을 눌렀을 때만 전송되고, 필터 변경 핸들러는
+ * renderBridgeContainer()만 다시 호출한다 — apiPatch를 호출하는 코드 경로가 저장
+ * 버튼 클릭 핸들러 하나뿐이라는 사실 자체가 "필터가 저장을 유발하지 않는다"는
+ * 증거다. */
+
+const BRIDGE_REPRESENTATIVE_MAJOR_IDS = ["media_communication", "industrial_engineering", "hci_ux"];
+
+async function loadBridgeAll() {
+  const resp = await apiGet(`${API_BASE}/canonical-major-group-bridge`);
+  state.bridgeRows = resp.rows;
+  state.bridgeSummary = resp.summary;
+  renderBridgeAll();
+}
+
+function renderBridgeSummary() {
+  const s = state.bridgeSummary;
+  const box = document.getElementById("bridge-summary-box");
+  if (!s) {
+    box.textContent = "불러오는 중…";
+    return;
+  }
+  box.replaceChildren(
+    el("div", { class: "row" }, [el("span", {}, "전체"), el("span", { class: "n" }, String(s.total))]),
+    el("div", { class: "row" }, [el("span", {}, "EVIDENCED"), el("span", { class: "n" }, String(s.evidenced_count))]),
+    el("div", { class: "row" }, [
+      el("span", {}, "REVIEW_REQUIRED"), el("span", { class: "n" }, String(s.review_required_count)),
+    ]),
+    el("div", { class: "row" }, [
+      el("span", {}, "EXCLUDED_RECOMMENDATION"), el("span", { class: "n" }, String(s.excluded_recommendation_count)),
+    ]),
+    el("div", { class: "row" }, [el("span", {}, "UNMAPPED"), el("span", { class: "n" }, String(s.unmapped_count))]),
+    el("hr"),
+    el("div", { class: "row" }, [el("span", {}, "검토자 상태 TBD"), el("span", { class: "n" }, String(s.reviewer_tbd_count))]),
+    el("div", { class: "row" }, [
+      el("span", {}, "검토자 상태 APPROVE"), el("span", { class: "n" }, String(s.reviewer_approve_count)),
+    ]),
+    el("div", { class: "row" }, [
+      el("span", {}, "검토자 상태 REVISE"), el("span", { class: "n" }, String(s.reviewer_revise_count)),
+    ]),
+    el("div", { class: "row" }, [el("span", {}, "검토자 상태 HOLD"), el("span", { class: "n" }, String(s.reviewer_hold_count))]),
+    el("hr"),
+    el("div", { class: "row" }, [el("span", {}, "검수 완료"), el("span", { class: "n" }, String(s.reviewed_count))]),
+    el("div", { class: "row" }, [el("span", {}, "미검수"), el("span", { class: "n" }, String(s.unreviewed_count))]),
+  );
+}
+
+function bridgeRowMatchesFilters(row) {
+  const f = state.bridgeFilters;
+  if (f.mapping !== "all" && row.mapping_status !== f.mapping) return false;
+  if (f.reviewStatus === "unreviewed" && row.review.reviewer_1_status !== "TBD") return false;
+  if (f.reviewStatus === "reviewed" && row.review.reviewer_1_status === "TBD") return false;
+  if (f.boundary && !row.is_boundary_case) return false;
+  if (f.major !== "all") {
+    if (f.major === "other") {
+      if (row.canonical_major_id && BRIDGE_REPRESENTATIVE_MAJOR_IDS.includes(row.canonical_major_id)) return false;
+    } else if (row.canonical_major_id !== f.major) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function filteredBridgeRows() {
+  return state.bridgeRows.filter(bridgeRowMatchesFilters);
+}
+
+function renderBridgeRowCard(row) {
+  const card = el("div", { class: `bridge-row-card${row.is_boundary_case ? " is-boundary" : ""}` });
+  card.appendChild(el("h3", {}, `${row.canonical_major_group_label} (${row.canonical_major_group_id})`));
+  card.appendChild(
+    el(
+      "div", { class: "meta-row" },
+      `연결 후보 서비스 전공: ${row.canonical_major_label ? `${row.canonical_major_label} (${row.canonical_major_id})` : "없음 (UNMAPPED)"}`,
+    ),
+  );
+  card.appendChild(
+    el("div", { class: "meta-row" }, [
+      statusPill(row.mapping_status),
+      ` · 전국 학과 후보 ${row.national_department_candidate_count == null ? "알 수 없음" : `${row.national_department_candidate_count}개`}`,
+    ]),
+  );
+
+  if (row.evidence.length > 0) {
+    const list = el("ul", { class: "evidence-list" });
+    for (const item of row.evidence) list.appendChild(el("li", {}, item));
+    card.appendChild(list);
+  }
+  card.appendChild(el("div", { class: "decision-reason" }, `판단 근거: ${row.decision_reason || "(없음)"}`));
+  if (row.boundary_notes) {
+    card.appendChild(el("div", { class: "boundary-notes" }, `경계 사례 메모: ${row.boundary_notes}`));
+  }
+
+  const statusSelect = el("select", {});
+  for (const value of ["TBD", "APPROVE", "REVISE", "HOLD"]) {
+    const opt = el("option", { value }, value);
+    if (value === row.review.reviewer_1_status) opt.selected = true;
+    statusSelect.appendChild(opt);
+  }
+
+  const commentBox = el("textarea", { class: "bridge-comment-box", placeholder: "검토자 코멘트" });
+  commentBox.value = row.review.reviewer_1_comment;
+
+  const msg = el("span", { class: "inline-msg" });
+  const saveBtn = el("button", { class: "save-btn", type: "button", text: "저장" });
+  saveBtn.addEventListener("click", async () => {
+    // 안전 규칙 "저장 버튼을 눌렀을 때만 상태·코멘트 저장" — apiPatch 호출은 이
+    // 클릭 핸들러 안에만 있다. 필터 변경 핸들러는 이 함수를 호출하지 않는다.
+    saveBtn.disabled = true;
+    msg.textContent = "";
+    msg.className = "inline-msg";
+    try {
+      await apiPatch(`${API_BASE}/canonical-major-group-bridge/${encodeURIComponent(row.review_key)}`, {
+        status: statusSelect.value, comment: commentBox.value, resolution_note: null,
+      });
+      await loadBridgeAll();
+    } catch (err) {
+      msg.textContent = `저장 실패: ${err.message}`;
+      msg.className = "inline-msg err";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  const controls = el("div", { class: "review-controls" }, [statusPill(row.review.final_status), statusSelect, saveBtn, msg]);
+  card.appendChild(controls);
+  card.appendChild(commentBox);
+  return card;
+}
+
+function renderBridgeContainer() {
+  const container = document.getElementById("bridge-container");
+  const rows = filteredBridgeRows();
+  if (rows.length === 0) {
+    container.replaceChildren(el("div", { class: "bridge-empty-msg" }, "조건에 맞는 행이 없습니다."));
+    return;
+  }
+  const list = el("div", { class: "bridge-row-list" });
+  for (const row of rows) list.appendChild(renderBridgeRowCard(row));
+  container.replaceChildren(list);
+}
+
+function renderBridgeAll() {
+  renderBridgeSummary();
+  renderBridgeContainer();
+}
+
 /* ---- Hash Deep Link(#context-packs, #shared-probes?batch=1 등) — 탭마다 안정적인
  * hash를 매핑해, 새로고침해도 같은 탭이 유지되게 한다. shared_probes 탭은 배치까지
  * "?batch=N" 쿼리로 남긴다(예: #shared-probes?batch=1). 이 프로젝트는 localStorage로
@@ -1986,7 +2142,7 @@ function renderContextPackAll() {
 const CONTEXTPACK_TAB_HASH = {
   direct_probe: "direct-probe", routing: "routing", seed_anchor: "seed-anchor",
   backup: "backup", anchor_backup: "anchor-backup", shared_probes: "shared-probes",
-  context_packs: "context-packs",
+  context_packs: "context-packs", bridge: "bridge",
 };
 const CONTEXTPACK_HASH_TO_TAB = Object.fromEntries(Object.entries(CONTEXTPACK_TAB_HASH).map(([tab, hash]) => [hash, tab]));
 
@@ -2050,6 +2206,7 @@ function applyTabClasses(tab) {
   document.body.classList.toggle("tab-anchor_backup", tab === "anchor_backup");
   document.body.classList.toggle("tab-shared_probes", tab === "shared_probes");
   document.body.classList.toggle("tab-context_packs", tab === "context_packs");
+  document.body.classList.toggle("tab-bridge", tab === "bridge");
   document.getElementById("tab-direct-probe-btn").classList.toggle("active", tab === "direct_probe");
   document.getElementById("tab-routing-btn").classList.toggle("active", tab === "routing");
   document.getElementById("tab-seed-anchor-btn").classList.toggle("active", tab === "seed_anchor");
@@ -2057,10 +2214,12 @@ function applyTabClasses(tab) {
   document.getElementById("tab-anchor-backup-btn").classList.toggle("active", tab === "anchor_backup");
   document.getElementById("tab-shared-probes-btn").classList.toggle("active", tab === "shared_probes");
   document.getElementById("tab-context-packs-btn").classList.toggle("active", tab === "context_packs");
+  document.getElementById("tab-bridge-btn").classList.toggle("active", tab === "bridge");
   // 공용 Adaptive Probe 탭과 마찬가지로 "질문 하나 = Pager 한 칸" 모델이 아닌 탭만
   // 여기서 pager-bar를 숨긴다 — 신규 ContextPack 탭은 이 모델을 그대로 쓰므로
-  // (Context 안에서 이전/다음 질문) 계속 보여준다.
-  document.getElementById("pager-bar").style.display = tab === "shared_probes" ? "none" : "flex";
+  // (Context 안에서 이전/다음 질문) 계속 보여준다. Bridge 탭도 44행 카드 목록
+  // 모델이라 Pager가 필요 없다.
+  document.getElementById("pager-bar").style.display = tab === "shared_probes" || tab === "bridge" ? "none" : "flex";
 }
 
 async function loadOrRenderTab(tab) {
@@ -2131,6 +2290,16 @@ async function loadOrRenderTab(tab) {
     } else {
       renderContextPackAll();
     }
+  } else if (tab === "bridge") {
+    if (state.bridgeRows.length === 0) {
+      try {
+        await loadBridgeAll();
+      } catch (err) {
+        setSaveIndicator(`Canonical Major Group Bridge 불러오기 실패: ${err.message}`, "error");
+      }
+    } else {
+      renderBridgeAll();
+    }
   } else {
     if (state.questions.length === 0) {
       try {
@@ -2184,9 +2353,10 @@ function setupControls() {
   document.getElementById("tab-anchor-backup-btn").addEventListener("click", () => setTab("anchor_backup"));
   document.getElementById("tab-shared-probes-btn").addEventListener("click", () => setTab("shared_probes"));
   document.getElementById("tab-context-packs-btn").addEventListener("click", () => setTab("context_packs"));
+  document.getElementById("tab-bridge-btn").addEventListener("click", () => setTab("bridge"));
 
   document.getElementById("prev-btn").addEventListener("click", () => {
-    if (state.tab === "shared_probes") return; // 이 탭은 사이드바 클릭으로만 이동한다.
+    if (state.tab === "shared_probes" || state.tab === "bridge") return; // 이 탭들은 Pager를 쓰지 않는다.
     if (state.tab === "routing") stepRoutingQuestion(-1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(-1);
@@ -2195,7 +2365,7 @@ function setupControls() {
     else stepQuestion(-1);
   });
   document.getElementById("next-btn").addEventListener("click", () => {
-    if (state.tab === "shared_probes") return;
+    if (state.tab === "shared_probes" || state.tab === "bridge") return;
     if (state.tab === "routing") stepRoutingQuestion(1);
     else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(1);
     else if (state.tab === "anchor_backup") stepAnchorBackupQuestion(1);
@@ -2261,10 +2431,33 @@ function setupControls() {
     renderCurrentQuestion();
   });
 
+  document.querySelectorAll('input[name="bridge-mapping-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.bridgeFilters.mapping = input.value;
+      renderBridgeContainer();
+    });
+  });
+  document.querySelectorAll('input[name="bridge-review-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.bridgeFilters.reviewStatus = input.value;
+      renderBridgeContainer();
+    });
+  });
+  document.getElementById("bridge-filter-boundary").addEventListener("change", (e) => {
+    state.bridgeFilters.boundary = e.target.checked;
+    renderBridgeContainer();
+  });
+  document.querySelectorAll('input[name="bridge-major-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.bridgeFilters.major = input.value;
+      renderBridgeContainer();
+    });
+  });
+
   document.addEventListener("keydown", (e) => {
     const tag = (e.target && e.target.tagName) || "";
     if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-    if (state.tab === "shared_probes") return; // 이 탭은 화살표 키 이동을 쓰지 않는다.
+    if (state.tab === "shared_probes" || state.tab === "bridge") return; // 이 탭들은 화살표 키 이동을 쓰지 않는다.
     if (e.key === "ArrowLeft") {
       if (state.tab === "routing") stepRoutingQuestion(-1);
       else if (state.tab === "seed_anchor") stepSeedAnchorQuestion(-1);
