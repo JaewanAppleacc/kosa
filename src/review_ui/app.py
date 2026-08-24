@@ -33,6 +33,7 @@ from src.review_ui.schemas import (
     SharedProbeListResponse,
     SummaryResponse,
     UpdateBridgeReviewRequest,
+    UpdateBridgeScopeReviewRequest,
     UpdateContextPackReviewRequest,
     UpdateOptionReviewRequest,
     UpdateQuestionReviewRequest,
@@ -407,7 +408,10 @@ def patch_context_pack_review(
 
 @app.get("/internal/review/v2/canonical-major-group-bridge", response_model=BridgeReviewListResponse)
 def get_canonical_major_group_bridge() -> BridgeReviewListResponse:
-    return cmgbrs.build_bridge_review_list(review_status_path=cmgbrs.BRIDGE_REVIEW_STATUS_PATH)
+    return cmgbrs.build_bridge_review_list(
+        review_status_path=cmgbrs.BRIDGE_REVIEW_STATUS_PATH,
+        scope_review_status_path=cmgbrs.BRIDGE_SCOPE_REVIEW_STATUS_PATH,
+    )
 
 
 @app.patch(
@@ -420,6 +424,28 @@ def patch_canonical_major_group_bridge_review(
         return cmgbrs.update_bridge_review(
             review_key, status=payload.status, comment=payload.comment, resolution_note=payload.resolution_note,
             review_status_path=cmgbrs.BRIDGE_REVIEW_STATUS_PATH,
+        )
+    except cmgbrs.UnknownBridgeReviewKeyError as exc:
+        raise _http_error(422, str(exc)) from exc
+
+
+# 2026-08-24 지시서(a/bridge-scope-final-review-ui) — Scope 검수는 위 Mapping 검수와
+# 별도 Endpoint·별도 파일(BRIDGE_SCOPE_REVIEW_STATUS_PATH)에만 쓴다. 위
+# patch_canonical_major_group_bridge_review와 이름이 비슷해도 서로 다른 함수
+# (update_bridge_review vs update_bridge_scope_review)를 호출해서, 실수로 같은
+# 파일에 합쳐 쓰는 경로 자체가 없다.
+
+
+@app.patch(
+    "/internal/review/v2/canonical-major-group-bridge/{review_key}/scope", response_model=UpdateReviewResponse,
+)
+def patch_canonical_major_group_bridge_scope_review(
+    review_key: str, payload: UpdateBridgeScopeReviewRequest,
+) -> UpdateReviewResponse:
+    try:
+        return cmgbrs.update_bridge_scope_review(
+            review_key, status=payload.status, comment=payload.comment, resolution_note=payload.resolution_note,
+            scope_review_status_path=cmgbrs.BRIDGE_SCOPE_REVIEW_STATUS_PATH,
         )
     except cmgbrs.UnknownBridgeReviewKeyError as exc:
         raise _http_error(422, str(exc)) from exc

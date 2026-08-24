@@ -70,7 +70,15 @@ const state = {
   // 요청을 절대 보내지 않는다(§5 "필터 변경만으로 저장 요청을 보내지 않음").
   bridgeRows: [],
   bridgeSummary: null,
-  bridgeFilters: { mapping: "all", reviewStatus: "all", boundary: false, major: "all" },
+  // 2026-08-24 지시서(a/bridge-scope-final-review-ui) — scopeType/scopeReviewStatus/
+  // departmentReviewOnly도 mapping/reviewStatus/boundary/major와 마찬가지로 전부
+  // 순수 클라이언트 필터다. Scope PATCH는 각 카드의 "Scope 저장" 버튼 클릭
+  // 핸들러에서만 나간다(아래 renderBridgeRowCard) — 이 필터들이 바뀌어도 절대
+  // 저장 요청을 보내지 않는다.
+  bridgeFilters: {
+    mapping: "all", reviewStatus: "all", boundary: false, major: "all",
+    scopeType: "all", scopeReviewStatus: "all", departmentReviewOnly: false,
+  },
 };
 
 // 2.5단계 §10 — Routing 질문은 Trait Mapping이 없으므로 체크리스트도 다르다: "정답처럼
@@ -186,6 +194,13 @@ function el(tag, props, children) {
 
 function statusPill(status) {
   return el("span", { class: `status-pill ${status}`, text: status });
+}
+
+// 2026-08-24 지시서(a/bridge-scope-final-review-ui) — scope_type 전용 배지. CSS
+// 클래스 이름을 status-pill과 구분해서(scope-type-pill) mapping_status Pill과
+// 시각적으로도 섞이지 않게 한다.
+function scopeTypePill(scopeType) {
+  return el("span", { class: `scope-type-pill ${scopeType}`, text: scopeType });
 }
 
 async function apiGet(path) {
@@ -2030,6 +2045,14 @@ function renderBridgeSummary() {
     el("hr"),
     el("div", { class: "row" }, [el("span", {}, "검수 완료"), el("span", { class: "n" }, String(s.reviewed_count))]),
     el("div", { class: "row" }, [el("span", {}, "미검수"), el("span", { class: "n" }, String(s.unreviewed_count))]),
+    el("hr"),
+    el("div", { class: "row" }, [el("span", {}, "우선 검토 카드"), el("span", { class: "n" }, String(s.priority_scope_review_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Scope 검수 TBD"), el("span", { class: "n" }, String(s.scope_reviewer_tbd_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Scope 검수 APPROVE"), el("span", { class: "n" }, String(s.scope_reviewer_approve_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Scope 검수 REVISE"), el("span", { class: "n" }, String(s.scope_reviewer_revise_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Scope 검수 HOLD"), el("span", { class: "n" }, String(s.scope_reviewer_hold_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Scope 검수 완료"), el("span", { class: "n" }, String(s.scope_reviewed_count))]),
+    el("div", { class: "row" }, [el("span", {}, "Scope 미검수"), el("span", { class: "n" }, String(s.scope_unreviewed_count))]),
   );
 }
 
@@ -2046,6 +2069,19 @@ function bridgeRowMatchesFilters(row) {
       return false;
     }
   }
+  // 2026-08-24 지시서(a/bridge-scope-final-review-ui) §7 — Scope 유형/Scope 검수
+  // 상태/DEPARTMENT_REVIEW_REQUIRED만 필터. row.scope_type이 null인 행(UNMAPPED)은
+  // "none" 필터 값으로만 잡힌다.
+  if (f.scopeType !== "all") {
+    if (f.scopeType === "none") {
+      if (row.scope_type !== null) return false;
+    } else if (row.scope_type !== f.scopeType) {
+      return false;
+    }
+  }
+  if (f.scopeReviewStatus === "unreviewed" && row.scope_review.reviewer_1_status !== "TBD") return false;
+  if (f.scopeReviewStatus === "reviewed" && row.scope_review.reviewer_1_status === "TBD") return false;
+  if (f.departmentReviewOnly && row.scope_type !== "DEPARTMENT_REVIEW_REQUIRED") return false;
   return true;
 }
 
@@ -2054,8 +2090,17 @@ function filteredBridgeRows() {
 }
 
 function renderBridgeRowCard(row) {
-  const card = el("div", { class: `bridge-row-card${row.is_boundary_case ? " is-boundary" : ""}` });
-  card.appendChild(el("h3", {}, `${row.canonical_major_group_label} (${row.canonical_major_group_id})`));
+  const cardClass = `bridge-row-card${row.is_boundary_case ? " is-boundary" : ""}${row.is_priority_scope_review ? " is-priority-scope" : ""}`;
+  const card = el("div", { class: cardClass });
+  const titleRow = el("h3", {}, `${row.canonical_major_group_label} (${row.canonical_major_group_id})`);
+  if (row.is_priority_scope_review) {
+    // 2026-08-24 지시서(a/bridge-scope-final-review-ui) §3 "우선 검토 카드" —
+    // Group 전체가 아니라 소계열 일부/개별 학과 검토로 좁혀진 6행에 눈에 띄는
+    // 배지를 붙인다. 하드코딩된 목록이 아니라 서버가 계산한
+    // is_priority_scope_review를 그대로 따른다(review_service.py 참고).
+    titleRow.appendChild(el("span", { class: "priority-badge" }, "우선 검토"));
+  }
+  card.appendChild(titleRow);
   card.appendChild(
     el(
       "div", { class: "meta-row" },
@@ -2078,6 +2123,8 @@ function renderBridgeRowCard(row) {
   if (row.boundary_notes) {
     card.appendChild(el("div", { class: "boundary-notes" }, `경계 사례 메모: ${row.boundary_notes}`));
   }
+
+  card.appendChild(el("h4", { class: "review-section-label" }, "Mapping 검수 — 이 연결에 근거가 있는가"));
 
   const statusSelect = el("select", {});
   for (const value of ["TBD", "APPROVE", "REVISE", "HOLD"]) {
@@ -2113,6 +2160,73 @@ function renderBridgeRowCard(row) {
   const controls = el("div", { class: "review-controls" }, [statusPill(row.review.final_status), statusSelect, saveBtn, msg]);
   card.appendChild(controls);
   card.appendChild(commentBox);
+
+  // 2026-08-24 지시서(a/bridge-scope-final-review-ui) §1/§2 — Scope 정보 표시 +
+  // 완전히 독립된 Scope 검수 컨트롤. 위 Mapping 저장 버튼과 아래 Scope 저장 버튼은
+  // 서로 다른 Endpoint(.../{review_key} vs .../{review_key}/scope)를 부르므로,
+  // 하나를 눌러도 다른 쪽 상태에는 절대 영향이 없다.
+  card.appendChild(el("hr", { class: "scope-divider" }));
+  card.appendChild(el("h4", { class: "review-section-label" }, "Scope — 이 연결의 실제 범위"));
+
+  if (row.scope_type === null) {
+    card.appendChild(el("div", { class: "meta-row" }, "UNMAPPED — Scope 판단 대상이 아님(연결 자체가 없음)"));
+  } else {
+    card.appendChild(el("div", { class: "meta-row" }, [scopeTypePill(row.scope_type)]));
+    if (row.included_small_series_codes.length > 0) {
+      const list = el("ul", { class: "evidence-list scope-code-list" });
+      row.included_small_series_codes.forEach((code, i) => {
+        list.appendChild(el("li", {}, `포함: ${code} — ${row.included_small_series_names[i] || code}`));
+      });
+      card.appendChild(list);
+    }
+    if (row.excluded_small_series_codes.length > 0) {
+      const list = el("ul", { class: "evidence-list scope-code-list" });
+      row.excluded_small_series_codes.forEach((code, i) => {
+        list.appendChild(el("li", {}, `제외: ${code} — ${row.excluded_small_series_names[i] || code}`));
+      });
+      card.appendChild(list);
+    }
+    card.appendChild(
+      el("div", { class: "decision-reason" }, `Scope 판단 근거: ${row.scope_decision_reason || "(없음)"}`),
+    );
+  }
+
+  const scopeStatusSelect = el("select", {});
+  for (const value of ["TBD", "APPROVE", "REVISE", "HOLD"]) {
+    const opt = el("option", { value }, value);
+    if (value === row.scope_review.reviewer_1_status) opt.selected = true;
+    scopeStatusSelect.appendChild(opt);
+  }
+
+  const scopeCommentBox = el("textarea", { class: "bridge-comment-box", placeholder: "Scope 검토자 코멘트" });
+  scopeCommentBox.value = row.scope_review.reviewer_1_comment;
+
+  const scopeMsg = el("span", { class: "inline-msg" });
+  const scopeSaveBtn = el("button", { class: "save-btn", type: "button", text: "Scope 저장" });
+  scopeSaveBtn.addEventListener("click", async () => {
+    scopeSaveBtn.disabled = true;
+    scopeMsg.textContent = "";
+    scopeMsg.className = "inline-msg";
+    try {
+      await apiPatch(`${API_BASE}/canonical-major-group-bridge/${encodeURIComponent(row.review_key)}/scope`, {
+        status: scopeStatusSelect.value, comment: scopeCommentBox.value, resolution_note: null,
+      });
+      await loadBridgeAll();
+    } catch (err) {
+      scopeMsg.textContent = `저장 실패: ${err.message}`;
+      scopeMsg.className = "inline-msg err";
+    } finally {
+      scopeSaveBtn.disabled = false;
+    }
+  });
+
+  const scopeControls = el(
+    "div", { class: "review-controls" },
+    [statusPill(row.scope_review.final_status), scopeStatusSelect, scopeSaveBtn, scopeMsg],
+  );
+  card.appendChild(scopeControls);
+  card.appendChild(scopeCommentBox);
+
   return card;
 }
 
@@ -2452,6 +2566,25 @@ function setupControls() {
       state.bridgeFilters.major = input.value;
       renderBridgeContainer();
     });
+  });
+  // 2026-08-24 지시서(a/bridge-scope-final-review-ui) §7 — 나머지 필터와 동일하게
+  // renderBridgeContainer()만 호출한다(apiPatch 호출 없음 — 필터 변경은 절대 저장을
+  // 유발하지 않는다).
+  document.querySelectorAll('input[name="bridge-scope-type-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.bridgeFilters.scopeType = input.value;
+      renderBridgeContainer();
+    });
+  });
+  document.querySelectorAll('input[name="bridge-scope-review-filter"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      state.bridgeFilters.scopeReviewStatus = input.value;
+      renderBridgeContainer();
+    });
+  });
+  document.getElementById("bridge-filter-department-review").addEventListener("change", (e) => {
+    state.bridgeFilters.departmentReviewOnly = e.target.checked;
+    renderBridgeContainer();
   });
 
   document.addEventListener("keydown", (e) => {

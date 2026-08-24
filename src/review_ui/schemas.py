@@ -430,10 +430,17 @@ class UpdateSharedProbeReviewRequest(BaseModel):
 
 
 class BridgeReviewRowView(BaseModel):
-    """2026-08-24 지시서(a/canonical-major-bridge-review-ui) §2 — 44개 Bridge Draft
-    행 하나 + 그 행에 대한 사람 검수 상태. `canonical_major_group_bridge.draft.jsonl`
-    (Master Draft, Read-Only)과 별도 검수 상태 파일을 조인한 View일 뿐, 이 응답 자체가
-    Master Draft를 바꾸지 않는다."""
+    """2026-08-24 지시서(a/canonical-major-bridge-review-ui, 이후
+    a/bridge-scope-final-review-ui로 Scope 필드 추가) — 44개 Bridge Draft 행 하나 +
+    그 행에 대한 Mapping 검수 상태 + Scope 정보 + 그 Scope에 대한 **독립적인** 검수
+    상태. `canonical_major_group_bridge.draft.jsonl`(Master Draft, Read-Only)과
+    두 종류의 별도 검수 상태 파일을 조인한 View일 뿐, 이 응답 자체가 Master Draft나
+    두 검수 파일 중 어느 것도 바꾸지 않는다(GET은 항상 읽기 전용).
+
+    `review`(Mapping 검수)와 `scope_review`(Scope 검수)는 서로 다른 파일에서 온
+    완전히 독립된 상태다 — 한쪽이 APPROVE라고 다른 쪽이 자동으로 APPROVE되지
+    않는다(둘 다 이 View 안에서 나란히 보일 뿐, 서버가 서로 영향을 주도록 계산한
+    적이 없다)."""
 
     review_key: str
     canonical_major_group_id: str
@@ -447,6 +454,27 @@ class BridgeReviewRowView(BaseModel):
     is_boundary_case: bool  # boundary_notes가 비어있지 않은 행("경계 사례만" 필터 기준).
     national_department_candidate_count: int | None  # 조인 실패 시(있을 수 없지만) None.
     review: QuestionReviewView
+
+    # ── Scope(2026-08-24 a/canonical-major-bridge-scope 지시서가 만든 시스템 초안 +
+    # a/bridge-scope-final-review-ui가 추가한 사람 검수 상태) ──
+    # None은 UNMAPPED 전용(연결 대상이 없어 범위 판단 자체가 성립하지 않는다).
+    scope_type: Literal[
+        "FULL_GROUP", "INCLUDED_SMALL_SERIES_ONLY", "DEPARTMENT_REVIEW_REQUIRED", "EXCLUDED_RECOMMENDATION",
+    ] | None
+    included_small_series_codes: list[str]
+    # 코드와 같은 순서로 병렬 대응하는 대학알리미 공식 소계열 명칭
+    # (`getCodeBySmallSeries` 158개 코드표에서 조인). 코드표에 없는 코드는 이미
+    # Loader가 Fail-Fast로 걸렀으므로 여기서는 항상 채워진다.
+    included_small_series_names: list[str]
+    excluded_small_series_codes: list[str]
+    excluded_small_series_names: list[str]
+    scope_decision_reason: str
+    # scope_type이 Group 전체를 그대로 쓰지 않고 좁힌 행("사람이 REVISE로 요구한
+    # 범위 제한 결과") — 우선 검토 카드 판정 기준. 하드코딩한 6개 목록이 아니라
+    # scope_type 값에서 구조적으로 계산한다(같은 이유로 좁혀진 행이 나중에 더
+    # 늘어나도 이 판정이 자동으로 따라간다).
+    is_priority_scope_review: bool
+    scope_review: QuestionReviewView
 
 
 class BridgeReviewSummary(BaseModel):
@@ -466,6 +494,16 @@ class BridgeReviewSummary(BaseModel):
     reviewed_count: int  # reviewer_1_status != "TBD"
     unreviewed_count: int  # reviewer_1_status == "TBD"
 
+    # ── Scope 검수 요약(2026-08-24 a/bridge-scope-final-review-ui, 위 Mapping
+    # 검토자 상태 집계와 완전히 별개 축 — 다른 파일에서 센 값이다) ──
+    priority_scope_review_count: int  # is_priority_scope_review == True인 행 수.
+    scope_reviewer_tbd_count: int
+    scope_reviewer_approve_count: int
+    scope_reviewer_revise_count: int
+    scope_reviewer_hold_count: int
+    scope_reviewed_count: int
+    scope_unreviewed_count: int
+
 
 class BridgeReviewListResponse(BaseModel):
     rows: list[BridgeReviewRowView]
@@ -480,4 +518,14 @@ class UpdateBridgeReviewRequest(BaseModel):
     status: ReviewerStatus | None = None
     comment: str | None = None
     resolution_note: str | None = None
+
+
+class UpdateBridgeScopeReviewRequest(BaseModel):
+    """2026-08-24 지시서(a/bridge-scope-final-review-ui) — Mapping 검수
+    (`UpdateBridgeReviewRequest`)와 완전히 별도의 요청 Schema다. 이 요청을 처리하는
+    Endpoint는 Mapping 검수 파일을 절대 열지 않는다 — 이름이 비슷해도 물리적으로
+    다른 파일에 쓰인다."""
+
+    status: ReviewerStatus | None = None
+    comment: str | None = None
     resolution_note: str | None = None

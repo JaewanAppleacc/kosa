@@ -598,4 +598,43 @@ body.tab-bridge .tab-only-bridge { display: block; }
   border: 1px solid var(--border);
   border-radius: 6px;
 }
+
+/* 2026-08-24 지시서(a/bridge-scope-final-review-ui) — Scope 정보·독립 Scope 검수
+ * 컨트롤·"우선 검토 카드" 배지. */
+.bridge-row-card.is-priority-scope { border-left: 3px solid var(--accent); }
+.bridge-row-card h3 .priority-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  vertical-align: middle;
+}
+.bridge-row-card .review-section-label {
+  margin: 10px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.bridge-row-card hr.scope-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0 0;
+}
+.scope-type-pill {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.scope-type-pill.FULL_GROUP { background: var(--status-approve-bg); color: var(--status-approve); }
+.scope-type-pill.INCLUDED_SMALL_SERIES_ONLY { background: var(--status-revise-bg); color: var(--status-revise); }
+.scope-type-pill.DEPARTMENT_REVIEW_REQUIRED { background: var(--status-hold-bg); color: var(--status-hold); }
+.scope-type-pill.EXCLUDED_RECOMMENDATION { background: var(--status-tbd-bg); color: var(--status-tbd); }
 .bridge-empty-msg { color: var(--muted); padding: 12px; }

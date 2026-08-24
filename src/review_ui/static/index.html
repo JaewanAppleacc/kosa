@@ -186,6 +186,28 @@
       <label><input type="radio" name="bridge-major-filter" value="hci_ux"> hci_ux</label>
       <label><input type="radio" name="bridge-major-filter" value="other"> 기타</label>
     </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>Scope 유형 필터</h3>
+      <label><input type="radio" name="bridge-scope-type-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="bridge-scope-type-filter" value="FULL_GROUP"> FULL_GROUP</label>
+      <label><input type="radio" name="bridge-scope-type-filter" value="INCLUDED_SMALL_SERIES_ONLY"> INCLUDED_SMALL_SERIES_ONLY</label>
+      <label><input type="radio" name="bridge-scope-type-filter" value="DEPARTMENT_REVIEW_REQUIRED"> DEPARTMENT_REVIEW_REQUIRED</label>
+      <label><input type="radio" name="bridge-scope-type-filter" value="EXCLUDED_RECOMMENDATION"> EXCLUDED_RECOMMENDATION</label>
+      <label><input type="radio" name="bridge-scope-type-filter" value="none"> 없음(UNMAPPED)</label>
+    </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>Scope 검수 상태 필터</h3>
+      <label><input type="radio" name="bridge-scope-review-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="bridge-scope-review-filter" value="unreviewed"> 미검수</label>
+      <label><input type="radio" name="bridge-scope-review-filter" value="reviewed"> 검수 완료</label>
+    </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>DEPARTMENT_REVIEW_REQUIRED</h3>
+      <label><input type="checkbox" id="bridge-filter-department-review"> DEPARTMENT_REVIEW_REQUIRED만</label>
+    </div>
   </aside>
 
   <section class="content">
