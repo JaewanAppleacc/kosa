@@ -82,7 +82,7 @@ def recommendation_scope(row: dict[str, Any]) -> tuple[str, str | None]:
     이름이나 재학생 수로 추정하지 않는다. 명시적인 계약학과만 제외하고, 그 밖의 값은
     자동 제외하지 않는다. 현재 검수 6그룹은 모두 일반과정/계약학과로 명확히 갈린다.
     """
-    if (row.get("major_character_name") or "").strip() == CONTRACT_COURSE:
+    if row.get("recommendation_scope") == OUT_OF_RECOMMENDATION_SCOPE:
         return OUT_OF_RECOMMENDATION_SCOPE, CONTRACT_DEPARTMENT
     return IN_RECOMMENDATION_SCOPE, None
 

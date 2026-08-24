@@ -86,15 +86,26 @@ Audit이다. 따라서 추천 후보 중복은 0건이지만 관계 권고와 �
 전국 정규화·분류 입력은 `.gitignore` 대상이다. 입력이 있는 환경에서는 다음 순서로
 재생성한다. 입력이 없는 clean clone에서는 기존 커밋 산출물을 부분 덮어쓰지 않고 명시적으로
 중단하거나 전국 재생성 테스트를 skip하며, 작은 fixture로 같은 정책과 byte 결정성을 검증한다.
-현재 작업 환경에도 두 전국 입력이 없어 변경 후 입력 SHA-256을 계산할 수 없었다. Manifest에서
-변경 전 SHA를 재사용하지 않고 `unavailable_input_hashes`로 명시했으며, 입력 보유 환경에서
-패킷 생성기를 실행하면 실제 변경 후 Hash가 자동 기록된다.
+이 통합에서는 전국 입력을 실제로 사용해 처음부터 재생성했다. Raw 입력 SHA-256은
+`e1d3d884731b4f086a55d29c67cfeb12600d7b5bab8693c21ec314e9de8e981e`, 2024 lineage 입력은
+`b4b4800c15ea8b220b4c12464135a01181ad028d0c313245b1ac83acd0456fff`이다. 재생성된
+`departments.normalized.jsonl`은
+`97406dbd52be597ee566e53c72a5dbb37159f2d67158ed352c57bea5428759ca`,
+`classification_results.jsonl`은
+`90f186c94ef4c6b4a7b402a851b98fc2ac2e2a1f587be00b27dcce22f61a0652`이다. Manifest의
+`unavailable_input_hashes`는 제거되었고 실제 입력 7개의 Hash가 기록되었다.
+
+생성기 4개를 독립적으로 연속 2회 실행한 뒤 2025 work 추적 산출물 21개의
+SHA-256 목록을 비교했다. 두 목록은 byte-identical이었고 목록 자체의 SHA-256은
+`52b78e32578d420daa508fdcc56ebe20df4b4588eb9dd7cd5d6b58a0377fbe6b`이다.
 
 ```bash
-python scripts/career_build_academyinfo_review_queues.py --survey-year 2025
-python scripts/career_build_academyinfo_review_packets.py --survey-year 2025
-python -m unittest discover -s tests
-python -m pip check
-python -m compileall src tests scripts
+python3 scripts/career_normalize_academyinfo.py --survey-year 2025
+python3 scripts/career_classify_academyinfo.py --survey-year 2025
+python3 scripts/career_build_academyinfo_review_queues.py --survey-year 2025
+python3 scripts/career_build_academyinfo_review_packets.py --survey-year 2025
+python3 -m unittest discover -s tests
+python3 -m pip check
+python3 -m compileall src tests scripts eval
 git diff --check
 ```

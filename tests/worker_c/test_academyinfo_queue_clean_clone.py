@@ -123,7 +123,9 @@ class FixtureDeterminismTest(unittest.TestCase):
         normalized = [
             dept("r1", "d1", "컴퓨터공학과", schl_id="s1"),
             dept("r2", "d1", "컴퓨터공학과", schl_id="s1",
-                 major_character_name="계약학과"),  # 중복
+                 major_character_name="계약학과",
+                 recommendation_scope="OUT_OF_RECOMMENDATION_SCOPE",
+                 exclusion_reason="CONTRACT_DEPARTMENT"),  # 중복
             dept("r3", "d2", "융합콘텐츠학과"),
             dept("r4", "d3", "폐지학과", status="ABOLISHED"),  # 승격 후보 아님
         ]

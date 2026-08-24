@@ -2,18 +2,20 @@
   "survey_year": 2025,
   "input_hashes": {
     "canonical_major_groups.draft.jsonl": "fdb94f0b763ce3bb9212d41ba2679eba699472fa1f6c823dd57787cf78bcce20",
+    "classification_results.jsonl": "90f186c94ef4c6b4a7b402a851b98fc2ac2e2a1f587be00b27dcce22f61a0652",
     "classification_review_queue.jsonl": "ae61f98c193f2be18b03bb9dadf5f531c82e032dc2058d4c615816f337d14929",
+    "departments.normalized.jsonl": "97406dbd52be597ee566e53c72a5dbb37159f2d67158ed352c57bea5428759ca",
     "duplicate_department_review_queue.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "unmapped_nce_queue.jsonl": "97d42064679d7360b16164e524455cb9869fa14c3eb978b7b3a8a9226f18cee2",
-    "out_of_recommendation_scope.jsonl": "ecc90fd506d4734fc381879e8af1d4579ec995e490e6f05af1f6a1a048fefb6a"
+    "out_of_recommendation_scope.jsonl": "3f00bcb3e5e766032ee21f51f5a93b7556728edac8058fb8d3168076c3e265d7",
+    "unmapped_nce_queue.jsonl": "97d42064679d7360b16164e524455cb9869fa14c3eb978b7b3a8a9226f18cee2"
   },
   "output_hashes": {
     "classification_cluster_summary.json": "8e6fcbb7a7c0d034fd6e71af68e510c5be9a03e1259f7f0bbcfb52f234726c9d",
     "classification_cluster_summary.md": "d901a1f98f3ce6131d5999c809e6166f59f05c5f997cc9d2c46da0a9db75548c",
-    "duplicate_decision_draft.jsonl": "fdcc1b4b947b4bfc6219f49e35c43ab79f13950fadfbaaca1ec32520ea29b98a",
+    "duplicate_decision_draft.jsonl": "054bc98022810d576bf9129fca0716b8a66a15c4dc6e52fcd6b89e201cf9cfa1",
     "duplicate_review_packet.html": "1975a908ffc5e956a24d4578b5995dbe449a0ebc1c3bc28e31f7ed7cde7c4e06",
     "nce_review_packet.html": "aba934285a175e5e8d7f6a96808feedd93aae035ec23505aac78e9235fdc75ac",
-    "nce_triage_queue.jsonl": "4f080ba2906999695075015c333a2dda3706b2ca9157e332b48ed2226348d94c"
+    "nce_triage_queue.jsonl": "81ee44418cdc4e9b913fded457ae4812b7b61235e0c61a514a12a5a782e5628a"
   },
   "counts": {
     "duplicate_decision_draft": 6,
@@ -31,10 +33,5 @@
   },
   "human_review_rows_total": 3843,
   "auto_approved_rows": 0,
-  "note": "auto_approved_rows가 0이라는 것이 자동 승인하지 않았다는 증명이다. 모든 검수 행은 reviewer_1_status=TBD · resolution_status=PENDING이다.",
-  "unavailable_input_hashes": [
-    "classification_results.jsonl",
-    "departments.normalized.jsonl"
-  ],
-  "unavailable_input_note": "두 전국 생성 입력은 .gitignore 대상이고 현재 작업 환경에 없어, 변경 전 SHA를 변경 후 SHA처럼 기록하지 않았다. 입력 보유 환경에서 패킷 생성기를 실행하면 input_hashes에 실제 SHA-256이 기록된다."
+  "note": "auto_approved_rows가 0이라는 것이 자동 승인하지 않았다는 증명이다. 모든 검수 행은 reviewer_1_status=TBD · resolution_status=PENDING이다."
 }
