@@ -51,3 +51,9 @@ data/academyinfo_work/*/*
 # 사람이 실제로 열어볼 검수 패킷. 생성 입력이 .gitignore 대상이라 클론한 사람은
 # 재생성할 수 없다 — 커밋하지 않으면 검수 자체가 불가능하다. 최대 2.2MB로 5MB 미만.
 !data/academyinfo_work/*/packets/
+# 승격 Dry Run(c/national-master-promotion-dry-run) — 요약·Manifest는 커밋하지만
+# 전체 후보/차단 JSONL(최대 24,422건 규모)은 5MB를 넘을 수 있어 커밋하지 않는다.
+# 재생성 명령은 promotion_summary.md에 있다.
+!data/academyinfo_work/*/promotion_dry_run/
+data/academyinfo_work/*/promotion_dry_run/promotion_candidates.jsonl
+data/academyinfo_work/*/promotion_dry_run/promotion_blocked.jsonl
