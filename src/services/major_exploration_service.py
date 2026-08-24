@@ -21,6 +21,7 @@ Matching Engine(§16)이 계산한 전공 관련도나 Assessment 질문에 다�
 
 from __future__ import annotations
 
+from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
 from src.repositories.protocols import DepartmentRepository
 from src.schemas.major import Department
 from src.schemas.mcp_contracts import DepartmentSearchCriteria
@@ -42,6 +43,21 @@ DEFAULT_DEPARTMENT_LIMIT = 30
 # 문자열로 개별 학과를 자동 분류하는 방식은 쓰지 않는다 — major_id 단위의 명시적
 # 제외 집합만 쓴다(Canonical Mapping·Repository 데이터는 그대로 두고 노출만 막는다).
 EXCLUDED_RECOMMENDATION_MAJOR_IDS = frozenset({"design"})
+
+# 2026-08-24 national-department-readiness Harness §6-2: EXCLUDED_RECOMMENDATION_MAJOR_IDS
+# 하나만으로는 "새로 생긴 major_id"를 못 막는다 — A-1 Canonical Major Group Bridge가
+# 42개 초안 중 예체능 4개(fine_arts_design/music/performing_media_arts/sports_dance)를
+# 나중에 실제 canonical_major_id로 승격해도, 그 4개는 이 제외 집합에 없으므로 그대로
+# 노출됐다(예체능 제외가 "집합 안"에는 Fail-Closed, "집합 밖의 새 항목"에는 Fail-Open).
+# 그래서 방향을 뒤집는다 — "알려진 나쁜 것만 막기"가 아니라 "허용된 것만 통과"다.
+# 허용 집합의 정본은 `data/master/canonical_majors.jsonl`(10개 서비스 추천 전공)
+# 하나뿐이다 — `CANONICAL_MAJOR_DESCRIPTIONS_BY_ID`가 모듈 import 시점에 그 파일을
+# 이미 한 번만 읽어 뒀으므로(A3 지시서 §1) 여기서 파일을 다시 읽지 않고 그 key
+# 집합을 그대로 재사용한다. `data/canonical_major_groups.draft.jsonl`(42개 Group)과
+# `canonical_major_group_bridge.draft.jsonl`은 둘 다 review_status="draft"라 이
+# 허용 집합에 전혀 들어오지 않는다 — Bridge가 실제로 승인되기 전까지 Group ID는
+# 이 Service를 통해 학과를 조회할 수 없다.
+DEFAULT_SERVICE_MAJOR_IDS: frozenset[str] = frozenset(CANONICAL_MAJOR_DESCRIPTIONS_BY_ID)
 
 # Repository.search()가 상태 필터를 모르므로, 먼저 이 major_id에 걸리는 후보를 넉넉히
 # 받아온 뒤(현재 시연 데이터는 학과 30개뿐이라 사실상 "전부") 여기서 상태로 거르고 다시
@@ -65,17 +81,29 @@ class MajorExplorationService:
     Department.canonical_major_id == ScopeRecord.canonical_major_id 세 값이 전부
     같아야 통과한다). `fail_closed_major_ids` 밖의 major_id(예: computer_science)는
     이번 MVP 범위 밖이라 기존 동작(상태·출처 필터만) 그대로 유지한다 — 전국 학과 전체
-    예체능 분류는 후속 확장이다."""
+    예체능 분류는 후속 확장이다.
+
+    2026-08-24 national-department-readiness Harness §6-2 수정: 위 두 방어선보다도
+    먼저, `major_id`가 `allowed_major_ids`(기본값 DEFAULT_SERVICE_MAJOR_IDS =
+    canonical_majors.jsonl의 10개 major_id)에 없으면 무조건 빈 목록이다. 42개
+    Canonical Major Group ID(`data/canonical_major_groups.draft.jsonl`)와 Bridge
+    draft(`canonical_major_group_bridge.draft.jsonl`)는 review_status="draft"인
+    동안 이 허용 집합에 들어오지 않는다 — 사람이 실제로 승인하기 전까지 42개 Group
+    이름으로는 이 Service를 통해 학과를 조회할 수 없다."""
 
     def __init__(
         self,
         department_repository: DepartmentRepository,
         recommendation_scope_policy: DepartmentRecommendationScopePolicy | None = None,
         fail_closed_major_ids: frozenset[str] = frozenset(),
+        allowed_major_ids: frozenset[str] | None = None,
     ) -> None:
         self._department_repository = department_repository
         self._recommendation_scope_policy = recommendation_scope_policy
         self._fail_closed_major_ids = fail_closed_major_ids
+        # None이면 DEFAULT_SERVICE_MAJOR_IDS(canonical_majors.jsonl 10개)를 쓴다 — 이
+        # 매개변수를 생략해도 42개 Group ID 직접 조회가 자동으로 막힌다(안전한 기본값).
+        self._allowed_major_ids = allowed_major_ids if allowed_major_ids is not None else DEFAULT_SERVICE_MAJOR_IDS
 
     def list_departments_for_major(
         self, major_id: str, limit: int = DEFAULT_DEPARTMENT_LIMIT
@@ -96,7 +124,16 @@ class MajorExplorationService:
         오류나 API 계약 변경 없이, 이미 있는 "미등록 major_id" 응답 형태를 그대로
         재사용한다. Repository의 실제 데이터는 그대로 두고 노출만 막는다."""
 
-        if not major_id or limit <= 0 or major_id in EXCLUDED_RECOMMENDATION_MAJOR_IDS:
+        # 2026-08-24 Harness §6-2 수정: EXCLUDED_RECOMMENDATION_MAJOR_IDS(알려진 나쁜
+        # 것만 막기)만으로는 42개 Canonical Major Group ID(예: fine_arts_design) 같은
+        # "허용 목록에 없는 새 ID"를 못 막는다 — `major_id not in self._allowed_major_ids`
+        # 를 함께 확인해 허용된 서비스 Major ID만 통과시킨다(Fail-Closed).
+        if (
+            not major_id
+            or limit <= 0
+            or major_id in EXCLUDED_RECOMMENDATION_MAJOR_IDS
+            or major_id not in self._allowed_major_ids
+        ):
             return []
 
         criteria = DepartmentSearchCriteria(canonical_major_id=major_id)
@@ -112,6 +149,11 @@ class MajorExplorationService:
             d
             for d in candidates
             if d.canonical_major_id == major_id
+            # Repository가 criteria.canonical_major_id 필터를 무시하는 오작동을 해도
+            # (교체·버그 가능성) 여기서 다시 허용 집합을 확인한다 — major_id 자체는
+            # 위에서 이미 걸렀지만, 이 줄은 그 가정이 깨져도 마지막 노출 시점에 한 번
+            # 더 막는 방어선이다.
+            and d.canonical_major_id in self._allowed_major_ids
             and d.department_status in VISIBLE_DEPARTMENT_STATUSES
             and d.source_url.strip()
         ]

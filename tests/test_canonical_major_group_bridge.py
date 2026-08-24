@@ -266,12 +266,21 @@ class RuntimeNotWiredTest(unittest.TestCase):
     )
 
     def test_no_runtime_or_public_api_module_imports_the_bridge(self) -> None:
+        # 실제 import 문(모듈 경로로서의 canonical_major_group_bridge[_loader])만
+        # 금지한다 — "왜 42개 Group ID를 막는지" 설명하는 주석·docstring이 이 파일
+        # 이름을 문서화 목적으로 언급하는 것까지는 막지 않는다(예:
+        # major_exploration_service.py의 DEFAULT_SERVICE_MAJOR_IDS 설명 주석).
+        forbidden_import_patterns = (
+            "import canonical_major_group_bridge", "from src.schemas.canonical_major_group_bridge",
+            "from src.services.canonical_major_group_bridge_loader",
+        )
         for rel_path in self._RUNTIME_MODULES:
             path = _REPO_ROOT / rel_path
             if not path.exists():
                 continue
             text = path.read_text(encoding="utf-8")
-            self.assertNotIn("canonical_major_group_bridge", text, rel_path)
+            for pattern in forbidden_import_patterns:
+                self.assertNotIn(pattern, text, f"{rel_path}: {pattern!r}")
 
     def test_public_schemas_do_not_reference_bridge(self) -> None:
         # major.py는 이미 자기 것과 무관한 mapping_status 필드를 갖고 있다

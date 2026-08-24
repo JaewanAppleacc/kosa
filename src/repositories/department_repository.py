@@ -34,6 +34,14 @@ def load_departments(path: Path | None = None) -> list[Department]:
     ]
 
 
+class DuplicateDepartmentIdError(ValueError):
+    """같은 department_id를 가진 행이 두 번 이상 등장할 때 — 어느 원본 행이 맞는지
+    알 수 없으므로 조용히 뒤 항목으로 덮어쓰지 않고 즉시 실패시킨다
+    (`department_recommendation_scope.py::DuplicateDepartmentScopeRecordError`와
+    같은 원칙). 메시지에는 department_id만 담는다 — 학과명·대학명·URL·원본 JSON은
+    절대 담지 않는다(2026-08-24 national-department-readiness Harness §6-1)."""
+
+
 def _contains(haystack: str, needle: str) -> bool:
     """공백·괄호 표기 차이를 무시한 부분 문자열 비교.
 
@@ -50,8 +58,20 @@ class JsonlDepartmentRepository:
     """`data/master/departments.jsonl`을 읽는 DepartmentRepository."""
 
     def __init__(self, departments: list[Department] | None = None, path: Path | None = None):
-        self._departments = departments if departments is not None else load_departments(path)
-        self._by_id = {d.department_id: d for d in self._departments}
+        loaded = departments if departments is not None else load_departments(path)
+        # dict comprehension(예전 `{d.department_id: d for d in ...}`)은 중복
+        # department_id를 검증 없이 마지막 값으로 조용히 덮어쓴다 — .get()과
+        # .all()/.search()가 서로 다른 개수를 보게 되는 정합성 결함이었다(Harness
+        # §6-1). 여기서는 첫 중복을 발견하는 즉시 던진다 — self._departments/
+        # self._by_id에 아무것도 대입하기 전이라, 실패한 인스턴스가 부분 초기화된
+        # 채로 호출자에게 넘어가지 않는다.
+        by_id: dict[str, Department] = {}
+        for department in loaded:
+            if department.department_id in by_id:
+                raise DuplicateDepartmentIdError(department.department_id)
+            by_id[department.department_id] = department
+        self._departments = loaded
+        self._by_id = by_id
 
     def __len__(self) -> int:
         return len(self._departments)

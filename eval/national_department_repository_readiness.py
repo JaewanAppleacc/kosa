@@ -1,10 +1,15 @@
 """National-scale readiness Harness for JsonlDepartmentRepository / MajorExplorationService
 — A(national-department-readiness, 2026-08-24) 지시서.
 
-**읽기 전용.** `src/repositories/department_repository.py`·
-`src/services/major_exploration_service.py`를 단 한 줄도 고치지 않는다 — 이 파일은 그
-코드를 있는 그대로 호출해 관찰만 한다. 발견된 결함은 여기서 바로 고치지 않고
-`outputs/evaluation/national_department_repository_readiness.md`에만 기록한다.
+**이 Harness 파일 자체는 여전히 읽기 전용이다.** `src/repositories/
+department_repository.py`·`src/services/major_exploration_service.py`를 이 파일이
+직접 고치는 일은 없다 — 있는 그대로 호출해 관찰만 한다. (2026-08-24 후속 라운드
+갱신: 최초 실측에서 발견한 두 결함 — 중복 department_id 조용한 덮어쓰기, 42개
+Canonical Major Group ID 직접 조회 허용 — 은 그 두 파일에서 직접 수정됐다. 이
+Harness는 그 수정을 별도 코드 변경 없이 재검증하도록 이번 라운드에서 갱신됐다:
+메인 25,389건 Fixture에는 더 이상 중복을 섞지 않고(섞으면 Repository 생성이 그
+자리에서 Fail-Fast로 죽는다), 대신 별도의 작은 Fixture로 Fail-Fast 자체를
+확인한다.)
 
 병렬 작업(A-1 Canonical Major Group Bridge)과의 경계: `data/canonical_major_groups.
 draft.jsonl`·Bridge Schema·Bridge Review 파일은 이 Harness가 참조하지 않는다 — 42개
@@ -34,11 +39,16 @@ from unittest.mock import patch
 
 from pydantic import BaseModel, Field
 
-from src.repositories.department_repository import JsonlDepartmentRepository, load_departments
+from src.repositories.department_repository import (
+    DuplicateDepartmentIdError,
+    JsonlDepartmentRepository,
+    load_departments,
+)
 from src.schemas.major import Department
 from src.schemas.mcp_contracts import DepartmentSearchCriteria
 from src.services.major_exploration_service import (
     DEFAULT_DEPARTMENT_LIMIT,
+    DEFAULT_SERVICE_MAJOR_IDS,
     EXCLUDED_RECOMMENDATION_MAJOR_IDS,
     VISIBLE_DEPARTMENT_STATUSES,
     MajorExplorationService,
@@ -325,37 +335,27 @@ def run_scenarios(
         ordered, f"반환 순서: {[d.department_id for d in tie_result]}",
     )
 
-    # --- 중복 department_id 588개 상당 ---
+    # --- 중복 department_id ---
+    # 2026-08-24 수정 후: Repository 생성 자체가 중복을 Fail-Fast로 거부하므로, 이
+    # 메인 25,389건 Fixture(`fixture_rows`)에는 더 이상 중복을 섞지 않는다(섞으면
+    # `repo`를 만드는 시점에 이미 예외가 났을 것이다 — 이 함수까지 오지도 못한다).
+    # 실제 Fail-Fast 확인은 별도의 소규모 Fixture로 `run_duplicate_id_scenario()`가
+    # 전담한다(§4). 여기서는 "메인 Fixture에 정말 중복이 없는가"만 재확인해 둔다 —
+    # 있다면 그건 이 함수가 호출됐다는 사실 자체가 모순이므로 즉시 결함으로 남긴다.
     dup_id_counts: dict[str, int] = {}
     for row in fixture_rows:
         dup_id_counts[row["department_id"]] = dup_id_counts.get(row["department_id"], 0) + 1
     duplicated_ids = [k for k, v in dup_id_counts.items() if v > 1]
-    injected_dup_count = len(duplicated_ids)
+    record(
+        "메인 Fixture에 중복 department_id 없음(중복 Fail-Fast 시나리오는 별도)",
+        len(duplicated_ids) == 0,
+        f"메인 Fixture {len(fixture_rows)}건 중 중복 department_id {len(duplicated_ids)}건",
+    )
     if duplicated_ids:
-        sample_dup_id = duplicated_ids[0]
-        via_get = repo.get(sample_dup_id)
-        via_all = [d for d in repo.all() if d.department_id == sample_dup_id]
-        overwritten_silently = via_get is not None and len(via_all) > 1
-        record(
-            "중복 department_id — get()은 마지막 값으로 조용히 덮어씀",
-            True,  # 이 자체가 "정상"이라는 뜻이 아니라 "실측한 그대로"라는 뜻 — 판정은 결함 목록에 별도 기록.
-            f".get()은 {len(via_all)}건 중 1건만 반환, .all()/.search()에는 {len(via_all)}건 전부 남음"
-            f"(department_id={sample_dup_id})",
+        defects.append(
+            f"메인 Fixture에 중복 department_id가 {len(duplicated_ids)}건 섞여 있는데도 "
+            "Repository 생성이 여기까지 성공했다 — Fail-Fast가 깨졌다는 뜻이다."
         )
-        if overwritten_silently:
-            defects.append(
-                f"JsonlDepartmentRepository.__init__의 `self._by_id = {{d.department_id: d for d in "
-                f"self._departments}}`가 중복 department_id를 검증·경고 없이 마지막 값으로 조용히 "
-                f"덮어쓴다(Python dict comprehension 특성). `.get(department_id)`는 그 학과의 여러 "
-                f"원본 행 중 무작위 순서(파일 내 등장 순서)로 정해지는 '마지막' 값만 반환하고, 같은 "
-                f".search()/.all() 호출에는 중복 행이 전부 그대로 남아 있어 두 API가 서로 다른 개수를 "
-                f"보여준다. 대조: `src/services/department_recommendation_scope.py::"
-                f"load_department_recommendation_scope()`는 같은 상황에서 "
-                f"`DuplicateDepartmentScopeRecordError`를 즉시 던진다 — 저장소 계층 안에서도 "
-                f"중복 처리 정책이 서로 다르다."
-            )
-    else:
-        record("중복 department_id 시나리오", False, "Fixture에 중복이 주입되지 않음(생성 로직 확인 필요)")
 
     # --- REVIEW_REQUIRED·UNMAPPED 혼입 (canonical_major_id=None) ---
     unmapped_count = sum(1 for row in fixture_rows if row["canonical_major_id"] is None)
@@ -376,31 +376,29 @@ def run_scenarios(
         f"canonical_major_id 일치를 재확인해 이중 방어선을 이룬다.",
     )
 
-    # --- 예체능 Group 혼입 — Service 레벨 EXCLUDED_RECOMMENDATION_MAJOR_IDS 실측 ---
+    # --- 예체능 Group(42개 Canonical Major Group ID) 직접 조회 — Service 레벨 실측 ---
+    # 2026-08-24 수정 후: EXCLUDED_RECOMMENDATION_MAJOR_IDS(알려진 나쁜 것만 막기)가
+    # 아니라 DEFAULT_SERVICE_MAJOR_IDS(canonical_majors.jsonl 10개, 허용된 것만
+    # 통과)가 이 4개를 막는다 — 4개 전부 실제로 0건이어야 통과다(더는 "하드코딩
+    # 집합에 있으면 봐주는" 논리가 없다).
     service = MajorExplorationService(repo)
     leaked_arts_exposure: dict[str, int] = {}
     for arts_major_id in _SYNTHETIC_ARTS_SPORTS_MAJOR_IDS:
         exposed = service.list_departments_for_major(arts_major_id)
-        is_hardcoded_excluded = arts_major_id in EXCLUDED_RECOMMENDATION_MAJOR_IDS
         record(
             f"예체능 Group 혼입 — {arts_major_id}",
-            is_hardcoded_excluded and len(exposed) == 0 or (not is_hardcoded_excluded and True),
-            f"EXCLUDED_RECOMMENDATION_MAJOR_IDS={sorted(EXCLUDED_RECOMMENDATION_MAJOR_IDS)}에 "
-            f"{'포함' if is_hardcoded_excluded else '미포함'} — 실제 노출 {len(exposed)}건",
+            len(exposed) == 0,
+            f"허용 Major ID 집합(canonical_majors.jsonl 기반 DEFAULT_SERVICE_MAJOR_IDS)에 "
+            f"{'포함' if arts_major_id in DEFAULT_SERVICE_MAJOR_IDS else '미포함'} — "
+            f"실제 노출 {len(exposed)}건(0건 기대)",
         )
-        if not is_hardcoded_excluded and len(exposed) > 0:
+        if len(exposed) > 0:
             leaked_arts_exposure[arts_major_id] = len(exposed)
     if leaked_arts_exposure:
         exposure_text = ", ".join(f"{k}({v}건)" for k, v in leaked_arts_exposure.items())
         defects.append(
-            f"EXCLUDED_RECOMMENDATION_MAJOR_IDS = {sorted(EXCLUDED_RECOMMENDATION_MAJOR_IDS)}는 "
-            f"'design' 하나만 하드코딩돼 있다 — A-1 Canonical Major Group Bridge가 42개 초안 중 "
-            f"예체능 4개({', '.join(_SYNTHETIC_ARTS_SPORTS_MAJOR_IDS)})를 새 canonical_major_id로 "
-            f"승격하면, 그 4개는 이 하드코딩 집합에 없으므로 MajorExplorationService가 그대로 "
-            f"노출한다(이번 합성 Fixture로 실측: {exposure_text} 노출됨). "
-            f"예체능 제외가 '집합 안의 항목'에는 Fail-Closed이지만 '집합 밖의 새 항목'에는 "
-            f"Fail-Open이다 — 전국 승격 전에 이 하드코딩을 새 예체능 canonical_major_id까지 "
-            f"덮도록 바꾸거나, 별도의 Fail-Closed 화이트리스트 정책으로 교체해야 한다."
+            f"42개 Canonical Major Group ID 중 일부가 여전히 학과 조회에 노출된다: {exposure_text} — "
+            "DEFAULT_SERVICE_MAJOR_IDS Allowlist가 깨졌다는 뜻이다."
         )
 
     # --- 빈 URL·공백 URL ---
@@ -411,7 +409,13 @@ def run_scenarios(
     blank_repo = JsonlDepartmentRepository(
         departments=[Department.model_validate(r) for r in (blank_row, ws_row, ok_row)]
     )
-    blank_service = MajorExplorationService(blank_repo)
+    # 2026-08-24 수정 후: 이 확인은 URL 필터 자체를 격리해서 보려는 것이지 major_id
+    # Allowlist를 다시 시험하려는 게 아니다 — allowed_major_ids로 이 합성 probe id를
+    # 명시적으로 허용해야 Allowlist 게이트에 막혀 항상 0건(거짓 통과/실패)이 되는
+    # 일이 없다(`fail_closed_major_ids`를 이미 같은 이유로 인자로 주입하는 것과 같은
+    # 원칙 — Repository는 실제로 신뢰하지 않지만, 이 시나리오가 보려는 대상은
+    # major_id 허용 여부가 아니라 URL 필터라서 그 부분만 격리한다).
+    blank_service = MajorExplorationService(blank_repo, allowed_major_ids=frozenset({blank_url_major_id}))
     exposed = blank_service.list_departments_for_major(blank_url_major_id)
     record(
         "빈 URL·공백 URL 방어 필터",
@@ -427,12 +431,17 @@ def run_scenarios(
         for i, status in enumerate(("EXISTING", "NEW", "MERGED", "SPLIT", "ABOLISHED"))
     ]
     status_repo = JsonlDepartmentRepository(departments=[Department.model_validate(r) for r in status_rows])
-    status_service = MajorExplorationService(status_repo)
+    # 위 blank_service와 같은 이유로 이 합성 probe id를 명시적으로 허용한다 — 이
+    # 시나리오는 상태 필터를 격리해서 보려는 것이다.
+    status_service = MajorExplorationService(status_repo, allowed_major_ids=frozenset({status_major_id}))
     exposed = status_service.list_departments_for_major(status_major_id)
     exposed_statuses = {d.department_status for d in exposed}
     record(
         "MERGED/SPLIT/ABOLISHED 상태 방어 필터",
-        exposed_statuses.issubset(VISIBLE_DEPARTMENT_STATUSES) and not (exposed_statuses & hidden_statuses),
+        # 부분집합 검사만으로는 빈 집합도 항상 통과해 버려(Allowlist에 막혀 0건이
+        # 나와도 "통과"로 보이는 거짓 양성) 필터가 실제로 동작했는지 증명하지
+        # 못한다 — VISIBLE_DEPARTMENT_STATUSES와 정확히 같아야 진짜 통과다.
+        exposed_statuses == VISIBLE_DEPARTMENT_STATUSES,
         f"입력 5개 상태 중 노출된 상태: {sorted(exposed_statuses)} (VISIBLE={sorted(VISIBLE_DEPARTMENT_STATUSES)})",
     )
 
@@ -460,6 +469,51 @@ def run_scenarios(
         )
 
     return scenarios, defects
+
+
+def run_duplicate_id_scenario(tmp_dir: Path) -> tuple[ScenarioResult, list[str]]:
+    """2026-08-24 수정 후 전용 시나리오 — 중복 department_id가 있으면 Repository
+    생성 자체가 `DuplicateDepartmentIdError`로 즉시 실패해야 한다(조용한 마지막-값
+    덮어쓰기 금지). 메인 25,389건 Fixture에는 더 이상 중복을 섞지 않는다 — 섞으면
+    `measure_initial_load()`가 그 즉시 실패해 시간·메모리 실측 자체가 불가능해지기
+    때문이다. 이 함수는 그와 별개인 2행짜리 최소 Fixture로 Fail-Fast 자체와 예외
+    메시지에 민감정보가 없는지만 확인한다."""
+
+    dup_path = tmp_dir / "duplicate_id_probe.jsonl"
+    base_row = _synthetic_department_row(
+        index=1, department_status="EXISTING", canonical_major_id="business_administration",
+    )
+    dup_row = dict(base_row)
+    dup_row["department_name"] = base_row["department_name"] + "_dup"
+    dup_row["university_name"] = base_row["university_name"] + "_dup"
+    dup_row["source_svy_year"] = 2024
+    write_fixture_jsonl([base_row, dup_row], dup_path)
+
+    try:
+        JsonlDepartmentRepository(path=dup_path)
+    except DuplicateDepartmentIdError as exc:
+        message = str(exc)
+        message_is_id_only = message == base_row["department_id"]
+        no_sensitive_leak = (
+            base_row["department_name"] not in message
+            and dup_row["department_name"] not in message
+            and base_row["university_name"] not in message
+            and dup_row["university_name"] not in message
+            and base_row["source_url"] not in message
+        )
+        passed = message_is_id_only and no_sensitive_leak
+        detail = (
+            f"DuplicateDepartmentIdError 발생, 메시지={message!r} "
+            f"(department_id만 포함={message_is_id_only}, 학과명·대학명·URL 미포함={no_sensitive_leak})"
+        )
+        return ScenarioResult(
+            name="중복 department_id 2건 — Repository 생성 즉시 Fail-Fast", passed=passed, detail=detail,
+        ), ([] if passed else [f"DuplicateDepartmentIdError 메시지에 민감정보가 섞여 있다: {message!r}"])
+    else:
+        return ScenarioResult(
+            name="중복 department_id 2건 — Repository 생성 즉시 Fail-Fast",
+            passed=False, detail="예외가 발생하지 않았다 — 여전히 조용히 마지막 값으로 덮어쓰고 있다",
+        ), ["중복 department_id가 있어도 JsonlDepartmentRepository 생성이 예외 없이 성공한다(Fail-Fast 깨짐)."]
 
 
 # --------------------------------------------------------------------------- #
@@ -494,8 +548,13 @@ def _render_markdown(report: ReadinessReport) -> str:
     lines.append(f"- 상태 분포(합성, 실제 보고서 비율 그대로): {report.fixture_status_distribution}")
     lines.append(f"- canonical_major_id 분포(상위 10개): "
                   f"{dict(sorted(report.fixture_canonical_major_id_distribution.items(), key=lambda kv: -kv[1])[:10])}")
-    lines.append(f"- 주입한 중복 department_id 건수: **{report.fixture_injected_duplicate_department_id_count}건**"
-                  "(지시서 §3 \"588개 중복 상당\")")
+    lines.append(
+        f"- 메인 25,389건 Fixture에 주입한 중복 department_id 건수: "
+        f"**{report.fixture_injected_duplicate_department_id_count}건** — 2026-08-24 수정 후 "
+        "Repository가 중복을 Fail-Fast로 즉시 거부하므로, 시간·메모리를 실측하는 이 메인 Fixture에는 "
+        "더 이상 중복을 섞지 않는다(0건이 정상). 중복 Fail-Fast 자체는 §5 표의 별도 2행짜리 시나리오로 "
+        "확인한다."
+    )
     lines.append("")
 
     lines.append("## 2. 초기 로드 시간·메모리")
@@ -552,16 +611,27 @@ def _render_markdown(report: ReadinessReport) -> str:
 
     lines.append("## 7. 현재 구조 그대로 전국 승격 가능한지 여부")
     lines.append("")
-    lines.append(
-        "**조건부로 가능하지만, 6번 목록을 먼저 고치지 않으면 위험하다.** 성능 자체는 "
-        f"25,389건 규모에서 초기 로드 {lt.wall_seconds:.3f}초·메모리 {lt.peak_traced_memory_mb:.1f}MB 수준으로 "
-        "이 서비스의 트래픽 규모(요청마다 새 Repository를 만들지 않고 앱 시작 시 1회 로드)에서는 "
-        "문제로 보이지 않는다(선형 탐색 O(n) 방식이라 전공 수·요청 빈도가 지금보다 훨씬 커지면 "
-        "다시 측정해야 한다). 하지만 **정합성 결함(중복 ID 조용한 덮어쓰기, 예체능 하드코딩 "
-        "Allowlist가 새 canonical_major_id를 못 막음)은 성능과 무관하게 승격 전에 반드시 고쳐야 "
-        "한다** — 특히 예체능 하드코딩 문제는 A-1 Bridge가 42개 초안 중 예체능 4개를 승격시키는 "
-        "순간 바로 실제 사용자에게 노출될 수 있는 회귀다."
+    performance_note = (
+        f"성능 자체는 25,389건 규모에서 초기 로드 {lt.wall_seconds:.3f}초·메모리 "
+        f"{lt.peak_traced_memory_mb:.1f}MB 수준으로 이 서비스의 트래픽 규모(요청마다 새 Repository를 "
+        "만들지 않고 앱 시작 시 1회 로드)에서는 문제로 보이지 않는다(선형 탐색 O(n) 방식이라 전공 수·"
+        "요청 빈도가 지금보다 훨씬 커지면 다시 측정해야 한다)."
     )
+    if report.defects_found:
+        lines.append(
+            "**조건부로 가능하지만, 6번 목록을 먼저 고치지 않으면 위험하다.** "
+            f"{performance_note} 하지만 **위 정합성 결함은 성능과 무관하게 승격 전에 반드시 고쳐야 "
+            "한다**."
+        )
+    else:
+        lines.append(
+            f"**이번 실측 범위(중복 department_id Fail-Fast, 42개 Canonical Major Group ID 직접 조회 "
+            f"차단)에서는 정합성 결함이 관찰되지 않았다.** {performance_note} 다만 이 결론은 이번 "
+            "Harness가 실측한 시나리오 범위 안에서만 유효하다 — 588개 실제 중복 department_id 검토·"
+            "확정, 4,454건 REVIEW_REQUIRED 분류 검토, Bridge draft의 사람 승인 등 "
+            "`outputs/handoff/academyinfo_a_decisions.md` §7이 정한 나머지 승격 전 필수 항목은 이 "
+            "Harness 범위 밖이다."
+        )
     lines.append("")
 
     return "\n".join(lines) + "\n"
@@ -596,7 +666,12 @@ def main() -> ReadinessReport:
 
     with tempfile.TemporaryDirectory(prefix="national_department_readiness_") as tmp:
         fixture_path = Path(tmp) / "synthetic_departments_national.jsonl"
-        rows = build_national_scale_fixture()
+        # 2026-08-24 수정 후: Repository 생성이 중복 department_id를 Fail-Fast로
+        # 거부하므로, 초기 로드·반복 조회 시간을 실측할 메인 Fixture에는 더 이상
+        # 중복을 섞지 않는다(섞으면 measure_initial_load()가 그 자리에서 실패해
+        # 시간·메모리 실측 자체를 할 수 없다). 중복 Fail-Fast 자체는
+        # run_duplicate_id_scenario()가 별도의 2행짜리 Fixture로 확인한다.
+        rows = build_national_scale_fixture(inject_duplicate_count=0)
         write_fixture_jsonl(rows, fixture_path)
 
         status_dist: dict[str, int] = {}
@@ -618,6 +693,9 @@ def main() -> ReadinessReport:
         rotating_result = measure_repeated_search(repo, list(_SYNTHETIC_MAJOR_ID_POOL), calls=100)
 
         scenarios, defects = run_scenarios(repo, rows)
+        dup_scenario, dup_defects = run_duplicate_id_scenario(Path(tmp))
+        scenarios.append(dup_scenario)
+        defects.extend(dup_defects)
 
         report = ReadinessReport(
             fixture_row_count=len(rows), fixture_status_distribution=status_dist,

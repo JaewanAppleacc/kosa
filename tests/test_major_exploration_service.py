@@ -276,5 +276,75 @@ class MajorExplorationServiceDefendsAgainstMisbehavingRepositoryTest(unittest.Te
             self.assertIn(d.department_status, VISIBLE_DEPARTMENT_STATUSES)
 
 
+class AllowedServiceMajorIdFailClosedTest(unittest.TestCase):
+    """2026-08-24 national-department-readiness 정합성 수정 §6 — "서비스 Major ID
+    허용"·"Group ID 차단"·"design 차단"·"미등록 ID 차단"·"Repository 오작동 시
+    Service 방어(Allowlist 방향)". `EXCLUDED_RECOMMENDATION_MAJOR_IDS`(알려진
+    나쁜 것만 막기) 하나만으로는 42개 Canonical Major Group ID 같은 "허용 목록에
+    없는 새 ID"를 못 막았다 — `allowed_major_ids` Allowlist가 이를 막는지 확인한다."""
+
+    def test_default_service_major_ids_matches_canonical_majors_jsonl(self) -> None:
+        from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+        from src.services.major_exploration_service import DEFAULT_SERVICE_MAJOR_IDS
+
+        self.assertEqual(DEFAULT_SERVICE_MAJOR_IDS, frozenset(CANONICAL_MAJOR_DESCRIPTIONS_BY_ID))
+        self.assertEqual(len(DEFAULT_SERVICE_MAJOR_IDS), 10)
+
+    def test_real_service_major_id_allowed(self) -> None:
+        repo = _FakeDepartmentRepository([_dept("d1", canonical_major_id="business_administration")])
+        service = MajorExplorationService(repo)
+        result = service.list_departments_for_major("business_administration")
+        self.assertEqual([d.department_id for d in result], ["d1"])
+
+    def test_42_group_id_blocked_even_with_matching_department_data(self) -> None:
+        # 실제로 이 Group ID로 Mapping된 학과가 있어도(Repository 데이터 자체는
+        # 그대로 두고) 42개 Canonical Major Group ID로는 조회할 수 없다.
+        for group_id in ("fine_arts_design", "music", "performing_media_arts", "sports_dance", "korean_literature"):
+            repo = _FakeDepartmentRepository([_dept("d1", canonical_major_id=group_id)])
+            service = MajorExplorationService(repo)
+            self.assertEqual(service.list_departments_for_major(group_id), [], group_id)
+
+    def test_design_still_blocked_even_though_it_is_a_real_service_major_id(self) -> None:
+        # design은 DEFAULT_SERVICE_MAJOR_IDS에는 있지만(canonical_majors.jsonl의
+        # 실제 10개 중 하나) EXCLUDED_RECOMMENDATION_MAJOR_IDS가 그보다 먼저 막는다.
+        from src.services.major_exploration_service import DEFAULT_SERVICE_MAJOR_IDS
+
+        self.assertIn("design", DEFAULT_SERVICE_MAJOR_IDS)
+        repo = _FakeDepartmentRepository([_dept("d1", canonical_major_id="design")])
+        service = MajorExplorationService(repo)
+        self.assertEqual(service.list_departments_for_major("design"), [])
+
+    def test_unregistered_arbitrary_id_blocked(self) -> None:
+        repo = _FakeDepartmentRepository([_dept("d1", canonical_major_id="totally_made_up_major_id")])
+        service = MajorExplorationService(repo)
+        self.assertEqual(service.list_departments_for_major("totally_made_up_major_id"), [])
+
+    def test_misbehaving_repository_cannot_leak_group_id_departments(self) -> None:
+        # Repository가 criteria를 완전히 무시해도(_MisbehavingDepartmentRepository),
+        # Service의 마지막 노출 필터가 여전히 허용 집합 밖 major_id를 막는다.
+        repo = _MisbehavingDepartmentRepository([_dept("d1", canonical_major_id="fine_arts_design")])
+        service = MajorExplorationService(repo)
+        self.assertEqual(service.list_departments_for_major("fine_arts_design"), [])
+
+    def test_custom_allowed_major_ids_overrides_default(self) -> None:
+        repo = _FakeDepartmentRepository([_dept("d1", canonical_major_id="fine_arts_design")])
+        service = MajorExplorationService(repo, allowed_major_ids=frozenset({"fine_arts_design"}))
+        result = service.list_departments_for_major("fine_arts_design")
+        self.assertEqual([d.department_id for d in result], ["d1"])
+
+    def test_existing_4_3_1_0_results_unchanged_with_real_data(self) -> None:
+        """실제 Repository·실제 canonical_majors.jsonl 기반 기본 Allowlist로,
+        기존 4/3/1/0 결과가 그대로인지 End-to-End로 확인한다."""
+
+        from src.repositories.department_repository import JsonlDepartmentRepository
+
+        repo = JsonlDepartmentRepository()
+        service = MajorExplorationService(repo)
+        self.assertEqual(len(service.list_departments_for_major("media_communication")), 4)
+        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 3)
+        self.assertEqual(len(service.list_departments_for_major("hci_ux")), 1)
+        self.assertEqual(len(service.list_departments_for_major("design")), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

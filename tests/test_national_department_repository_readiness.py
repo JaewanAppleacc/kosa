@@ -180,14 +180,25 @@ class ScenarioSanityTest(unittest.TestCase):
         for substr in required_substrings:
             self.assertTrue(any(substr in n for n in names), f"'{substr}' 관련 시나리오가 없음: {names}")
 
-    def test_report_explicitly_flags_the_duplicate_id_and_arts_exclusion_defects(self) -> None:
-        """§4 "현재 Repository가 중복을 차단하지 않는다면 코드를 바로 수정하지 말고
-        보고서에 결함으로 기록" — 실제로 기록됐는지 확인한다(코드가 고쳐지지
-        않았다는 것도 아래 OperationalMasterUnchangedTest 등에서 이미 확인함)."""
+    def test_report_confirms_the_two_known_defects_are_now_fixed(self) -> None:
+        """2026-08-24 후속 라운드(national-department-readiness 정합성 수정): 최초
+        실측에서 발견했던 두 결함(중복 department_id 조용한 덮어쓰기,
+        EXCLUDED_RECOMMENDATION_MAJOR_IDS 하드코딩이 새 42개 Group ID를 못 막음)이
+        `src/repositories/department_repository.py`·`src/services/
+        major_exploration_service.py`에서 실제로 고쳐졌다 — 이 Harness를 다시
+        실행하면 그 두 시나리오가 더 이상 결함으로 잡히지 않아야 한다."""
 
         joined = " ".join(self.report.defects_found)
-        self.assertIn("_by_id", joined)
-        self.assertIn("EXCLUDED_RECOMMENDATION_MAJOR_IDS", joined)
+        self.assertNotIn("_by_id", joined)
+        self.assertNotIn("EXCLUDED_RECOMMENDATION_MAJOR_IDS", joined)
+        self.assertEqual(self.report.defects_found, [])
+
+        by_name = {s.name: s for s in self.report.scenarios}
+        fail_fast_scenario = next(s for s in self.report.scenarios if "Fail-Fast" in s.name)
+        self.assertTrue(fail_fast_scenario.passed, fail_fast_scenario.detail)
+        for arts_major_id in ("fine_arts_design", "music", "performing_media_arts", "sports_dance"):
+            scenario = by_name[f"예체능 Group 혼입 — {arts_major_id}"]
+            self.assertTrue(scenario.passed, scenario.detail)
 
     def test_report_does_not_claim_synthetic_data_is_verified_operational_master(self) -> None:
         self.assertIn("합성", self.report.generated_note)
