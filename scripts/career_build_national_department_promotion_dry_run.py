@@ -21,12 +21,21 @@
 - `data/reviews/canonical_major_group_bridge_review_status.json` (Bridge Mapping 사람 검수)
 - `data/reviews/canonical_major_group_bridge_scope_review_status.jsonl` (Bridge Scope 사람
   검수 — 2026-08-24 시점 아직 존재하지 않는다. 없으면 전부 BLOCKED_BRIDGE_SCOPE_REVIEW)
-- `data/reviews/academyinfo_p1_classification_review_status.json` (P1 예체능 애매 판정 검수
-  — 이 커밋에서 Schema를 새로 만들었다. 없으면 전부 BLOCKED_P1_REVIEW_UNRESOLVED)
-- `data/reviews/academyinfo_nce_middle_series_review_status.json` (N.C.E 중계열 검수 — 이
-  커밋에서 Schema를 새로 만들었다. 없으면 전부 BLOCKED_NCE_UNRESOLVED)
-- `data/academyinfo_work/<year>/packets/nce_reexaminable_middle_series_clusters.jsonl` (N.C.E
-  클러스터 소속 — 선택. 없으면 어떤 학과도 클러스터에 속하지 않은 것으로 본다)
+- `data/academyinfo_work/<year>/packets/p1_classification_review.jsonl` (P1 분류 REVIEW
+  Draft 패킷, 374행, `academyinfo_p1_classification_loader.py`가 Fail-Fast로 읽는다 —
+  검수 UI GET Endpoint와 같은 정본. 필수 — 없으면 종료 코드 2)
+- `data/reviews/academyinfo_p1_classification_review_status.jsonl` (P1 사람 검수 — 검수 UI
+  (a/academyinfo-review-ui-p1-nce)의 PATCH가 저장하는 바로 그 파일, candidate_id 키.
+  없으면 전부 BLOCKED_P1_REVIEW_UNRESOLVED. APPROVE_PROPOSED_CANDIDATE로 저장돼 있어도
+  이 Dry Run은 그 값을 그대로 믿지 않고 Draft 패킷과 대조해
+  `p1_approve_eligible()`을 다시 실행한다)
+- `data/academyinfo_work/<year>/packets/nce_reexaminable_middle_series_clusters.jsonl`
+  (N.C.E 중계열 클러스터 Draft, 24개, `academyinfo_nce_middle_series_cluster_loader.py`가
+  읽는다 — 검수 UI GET Endpoint와 같은 정본. 필수 — 없으면 종료 코드 2)
+- `data/reviews/academyinfo_nce_middle_series_review_status.jsonl` (N.C.E 사람 검수 — 검수
+  UI의 PATCH가 저장하는 바로 그 파일, official_middle_series_code 키. 이 파일에 무엇이
+  적혀 있든(ACCEPT_GROUP_AS_REVIEW_CANDIDATE 포함) N.C.E로 분류된 학과는 절대
+  READY_FOR_PROMOTION으로 풀리지 않는다 — §Gate 참고)
 - `data/academyinfo_work/<year>/department_url_scope_audit.jsonl` (선택 — Department URL
   감사. `department_id`가 없는 원본이라 (university_name, department_name, college_name)
   3-tuple로 정규화 결과와 조인한다)
@@ -61,20 +70,46 @@ Gate다(지시서 §3 "예:"가 예시일 뿐이라고 명시했으므로, 실�
   EXCLUDED_RECOMMENDATION인데 예체능 4개 Group이 아닌 경우(방어적 Fallback).
 - `BLOCKED_URL_POLICY`: URL 감사에서 API Key 포함이 확인됐거나 `Department.department_url`
   자체 검증(§18)을 통과하지 못하는 URL.
+- `BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR`: 2026-08-24 지시서(a/academyinfo-review-ui-
+  p1-nce 정본 채택) §8 — "Bridge 후보 없음"과 "복수 후보"를 구분한다. 아래 "설계상 명시적
+  한계" 참고.
+
+## Bridge 후보 없음 vs 복수 후보(지시서 §8, 2026-08-24)
+
+같은 Group에 서비스 Major로 이어지는 EVIDENCED Bridge 행이 몇 개인지에 따라 사유가
+갈린다 — 둘 다 자동으로 후보를 고르지 않고 막지만, 사람이 봐야 할 일이 다르다.
+
+- **0개** → `BLOCKED_NO_SERVICE_CANONICAL_MAJOR`: 이 Group을 어떤 서비스 Major에도
+  연결한 EVIDENCED 행이 아직 없다(UNMAPPED 전용이거나 Bridge가 이 Group을 다루지
+  않았다) — Bridge 자체를 새로 만들어야 한다.
+- **2개 이상** → `BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR`(예: 실제 데이터의
+  `computer_science` Group이 `computer_science`/`hci_ux` 두 Major 후보를 가짐 — 다만
+  실제로는 `hci_ux`가 REVIEW_REQUIRED라 지금 데이터에서는 해당 없음) — Bridge는 이미
+  있지만 이 Dry Run이 어느 쪽이 맞는지 자동으로 고르지 않는다. 개별 학과 교육과정
+  검토(`department_recommendation_scope.jsonl`류)로 넘긴다 — 이 Dry Run은 그 정본을
+  입력으로 쓰지 않는다(지시서가 나열한 입력 목록에 없다).
+
+`classification_results.jsonl`의 `mapping_status == "AUTO_CANDIDATE"`가 애초에 후보
+0개/2개 이상을 반환하는 경우도 같은 두 사유로 나눈다(분류 단계 자체의 모호함).
 
 ## 설계상 명시적 한계(감사 필요 항목)
 
-- Bridge가 한 Group에 EVIDENCED 후보를 **2개 이상** 갖는 경우(예: 실제 데이터의
-  `computer_science` Group이 `computer_science`/`hci_ux` 두 Major 후보를 가짐 —
-  다만 실제로는 `hci_ux`가 REVIEW_REQUIRED라 이 사례엔 해당 없음) 이 Dry Run은 어느
-  Major가 맞는지 자동으로 고르지 않는다 — `BLOCKED_NO_SERVICE_CANONICAL_MAJOR`로 막고
-  개별 학과 교육과정 검토(`department_recommendation_scope.jsonl`류)로 넘긴다. 이
-  Dry Run은 그 정본을 입력으로 쓰지 않는다(지시서가 나열한 입력 목록에 없다).
 - `BLOCKED_MISSING_LINEAGE`는 연도 간 비교 파일(`department_lineage.jsonl`, 직전 연도
   정규화 결과가 있어야만 생성된다 — 조건부)이 아니라, 각 행 자체가 대학알리미 원본
   식별자(`source_record_id`·`schl_id`·`source_schl_mjr_id`/`source_mjr_id`)를 갖고
   있는지로 판정한다. 연도 간 lineage는 선택 입력이 아니고 첫 수집 연도에는 아예 생성되지
-  않아, 이를 필수로 삼으면 첫 수집 연도 전체가 영구히 막혀 "필수" 의미가 왜곡된다.
+  않아, 이를 필수로 삼으면 첫 수집 연도 전체가 영구히 막혀 "필수" 의미가 왜곡된다. 그래서
+  각 출력 행의 `lineage_level`은 항상 `"ROW_IDENTITY_ONLY"`다 — 실제 여러 조사연도를
+  비교해 같은 학과인지 확인하는 코드(`"CROSS_YEAR_LINEAGE_VERIFIED"`)는 이 저장소에
+  아직 없고, 이 파일도 그 값을 만들지 않는다(2026-08-24 지시서 §9).
+- N.C.E(공식 소계열 미분류)로 걸린 학과는 N.C.E 검수 상태가 무엇이든(TBD든
+  `ACCEPT_GROUP_AS_REVIEW_CANDIDATE`든) 이 Dry Run 혼자서는 절대 READY_FOR_PROMOTION에
+  도달할 수 없다(2026-08-24 지시서 §7). `ACCEPT_GROUP_AS_REVIEW_CANDIDATE`는 "이
+  중계열에서 이 전공군을 검토 후보로 쓸 수 있다"는 1차 판단일 뿐, 그 중계열에 속한
+  학과들의 승격 승인이 아니다 — 학과 단위로 실제 교육과정을 확인하는 별도 Gate가
+  이 저장소에 생기기 전까지는 `BLOCKED_NCE_UNRESOLVED`가 항상 남는다(출력 행의
+  `nce_middle_series_code`/`nce_review_decision`은 감사·추적용 참고 필드일 뿐, 이
+  Gate 결과에 영향을 주지 않는다).
 """
 
 from __future__ import annotations
@@ -91,8 +126,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.career_console import use_utf8_stdout  # noqa: E402
-from src.schemas.academyinfo_nce_middle_series_review import NceMiddleSeriesReviewDecision  # noqa: E402
-from src.schemas.academyinfo_p1_classification_review import P1ClassificationReviewDecision  # noqa: E402
+from src.review_ui.academyinfo_p1_classification_review_service import p1_approve_eligible  # noqa: E402
+from src.schemas.academyinfo_nce_middle_series_cluster import AcademyInfoNceMiddleSeriesClusterEntry  # noqa: E402
+from src.schemas.academyinfo_nce_middle_series_cluster_review import AcademyInfoNceMiddleSeriesReview  # noqa: E402
+from src.schemas.academyinfo_p1_classification import AcademyInfoP1ClassificationEntry  # noqa: E402
+from src.schemas.academyinfo_p1_classification_candidate_review import AcademyInfoP1ClassificationReview  # noqa: E402
 from src.schemas.canonical_major_group import CanonicalMajorGroupDraft  # noqa: E402
 from src.schemas.canonical_major_group_bridge_review import (  # noqa: E402
     CanonicalMajorGroupBridgeReview,
@@ -100,6 +138,22 @@ from src.schemas.canonical_major_group_bridge_review import (  # noqa: E402
 )
 from src.schemas.canonical_major_group_bridge_scope_review import CanonicalMajorGroupBridgeScopeReview  # noqa: E402
 from src.schemas.major import Department  # noqa: E402
+from src.services.academyinfo_nce_middle_series_cluster_loader import (  # noqa: E402
+    DEFAULT_NCE_CLUSTER_PATH,
+    load_nce_middle_series_clusters,
+)
+from src.services.academyinfo_nce_middle_series_review_store import (  # noqa: E402
+    load_nce_review_entries_by_key,
+    nce_review_path as default_nce_review_path,
+)
+from src.services.academyinfo_p1_classification_loader import (  # noqa: E402
+    DEFAULT_P1_PACKET_PATH,
+    load_p1_classification_packet,
+)
+from src.services.academyinfo_p1_classification_review_store import (  # noqa: E402
+    load_p1_review_entries_by_key,
+    p1_review_path as default_p1_review_path,
+)
 from src.services.canonical_major_group_bridge_loader import (  # noqa: E402
     ARTS_EXCLUDED_GROUP_IDS,
     BridgeValidationError,
@@ -110,6 +164,14 @@ from src.services.department_url_promotion import resolve_department_url_for_pro
 from src.services.major_exploration_service import EXCLUDED_RECOMMENDATION_MAJOR_IDS  # noqa: E402
 from src.engines.canonical_mapper import load_canonical_majors  # noqa: E402
 
+# 지시서(a/academyinfo-review-ui-p1-nce, 이후 이 Dry Run이 그 정본을 채택하기로 한
+# 지시서) §9 — 연도 간 실제 대조 없이 이 값을 절대 쓰지 않는다. 지금 계산하는 것은
+# "이 행 자체가 안정적인 원본 식별자를 갖고 있는가"(ROW_IDENTITY_ONLY)뿐이다 —
+# 여러 조사연도의 정규화 결과를 실제로 비교하는 코드가 이 저장소에 생기기 전까지
+# CROSS_YEAR_LINEAGE_VERIFIED를 만드는 코드는 이 파일 어디에도 없어야 한다.
+LINEAGE_LEVEL_ROW_IDENTITY_ONLY = "ROW_IDENTITY_ONLY"
+LINEAGE_LEVEL_CROSS_YEAR_VERIFIED = "CROSS_YEAR_LINEAGE_VERIFIED"
+
 _NCE_UNMAPPED_REASON_PREFIX = "공식 소계열이 미분류"
 
 _NIGHT_REMOTE_EXCLUSION_REASONS = frozenset(
@@ -118,6 +180,7 @@ _NIGHT_REMOTE_EXCLUSION_REASONS = frozenset(
 
 # 결정론적 산출물이라 값을 셋으로 모았다가 정렬해서 쓴다(같은 입력이면 항상 같은 순서).
 ALL_BLOCKED_REASONS = (
+    "BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR",
     "BLOCKED_ARTS_RECOMMENDATION",
     "BLOCKED_BRIDGE_EXCLUDED_RECOMMENDATION",
     "BLOCKED_BRIDGE_MAPPING_REVIEW",
@@ -201,9 +264,16 @@ class DryRunInputs:
     bridge_entries_by_group: dict[str, list[Any]]
     bridge_mapping_reviews: dict[str, CanonicalMajorGroupBridgeReview]
     bridge_scope_reviews: dict[str, CanonicalMajorGroupBridgeScopeReview]
-    p1_reviews: dict[str, P1ClassificationReviewDecision]
-    nce_reviews: dict[str, NceMiddleSeriesReviewDecision]
-    nce_cluster_by_department: dict[str, str]
+    # 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce 정본 채택) — Key를
+    # candidate_id(P1)/official_middle_series_code(N.C.E)로 통일했다. 검수 UI의
+    # PATCH Endpoint가 저장하는 파일과 정확히 같은 Key 규칙이라, 사람이 UI에서
+    # 저장한 결과를 이 Dry Run이 그대로 소비할 수 있다.
+    p1_draft_by_candidate_id: dict[str, AcademyInfoP1ClassificationEntry]
+    p1_draft_by_department_id: dict[str, AcademyInfoP1ClassificationEntry]
+    p1_reviews: dict[str, AcademyInfoP1ClassificationReview]
+    nce_clusters_by_code: dict[str, AcademyInfoNceMiddleSeriesClusterEntry]
+    nce_middle_series_code_by_department: dict[str, str]
+    nce_reviews: dict[str, AcademyInfoNceMiddleSeriesReview]
     url_audit_by_department: dict[str, dict[str, Any]]
     service_major_ids: frozenset[str]
     input_hashes: dict[str, str] = field(default_factory=dict)
@@ -230,9 +300,10 @@ def load_inputs(
     canonical_majors_path: Path | None = None,
     bridge_mapping_review_path: Path | None = None,
     bridge_scope_review_path: Path | None = None,
+    p1_packet_path: Path | None = None,
     p1_review_path: Path | None = None,
-    nce_review_path: Path | None = None,
     nce_clusters_path: Path | None = None,
+    nce_review_path: Path | None = None,
     url_audit_path: Path | None = None,
     normalized_path: Path | None = None,
     classification_path: Path | None = None,
@@ -306,38 +377,46 @@ def load_inputs(
     }
     input_hashes["bridge_scope_review"] = hash_or_missing(bridge_scope_review_path)
 
-    p1_review_path = p1_review_path or (reviews / "academyinfo_p1_classification_review_status.json")
-    p1_reviews = {
-        row["department_id"]: P1ClassificationReviewDecision.model_validate(row)
-        for row in read_json_list(p1_review_path)
-    }
+    # 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce 정본 채택) — P1은 검수 UI가
+    # 쓰는 바로 그 Loader/Store를 그대로 재사용한다(candidate_id 키, .jsonl 파일,
+    # Fail-Fast 중복 Key 검증까지 전부 그 Store가 이미 한다 — 이 Dry Run이 따로
+    # 다시 구현하지 않는다). Draft 패킷(374행)도 함께 읽어야 한다 — 검수 파일
+    # 자체에는 candidate_canonical_major_ids/judgment_evidence_sufficient가 없어서
+    # (그 값은 원본 패킷에만 있다) APPROVE_PROPOSED_CANDIDATE 조건을 재검증하려면
+    # 원본 행이 필요하다.
+    p1_packet_path = p1_packet_path or DEFAULT_P1_PACKET_PATH
+    if not p1_packet_path.exists():
+        raise MissingRequiredInputError(f"P1 분류 REVIEW Draft 패킷이 없다: {p1_packet_path}")
+    p1_draft_entries = load_p1_classification_packet(p1_packet_path)
+    p1_draft_by_candidate_id = {e.candidate_id: e for e in p1_draft_entries}
+    p1_draft_by_department_id = {e.department_id: e for e in p1_draft_entries}
+    input_hashes["p1_classification_packet"] = hash_or_missing(p1_packet_path)
+
+    p1_review_path = p1_review_path or default_p1_review_path()
+    p1_reviews = load_p1_review_entries_by_key(p1_review_path)
     input_hashes["p1_review"] = hash_or_missing(p1_review_path)
 
-    nce_review_path = nce_review_path or (reviews / "academyinfo_nce_middle_series_review_status.json")
-    nce_reviews = {
-        row["cluster_id"]: NceMiddleSeriesReviewDecision.model_validate(row)
-        for row in read_json_list(nce_review_path)
-    }
-    input_hashes["nce_review"] = hash_or_missing(nce_review_path)
-
-    # Fail-Fast — 승인된 클러스터가 존재하지 않는 Group을 가리키면 안 된다(지시서 §9
-    # "42개 Group 임의 추가 금지"의 방어선. 새 Group을 만들지는 않지만, 오타로 없는
-    # Group ID를 승인 파일에 적어도 조용히 무시하지 않는다).
-    for decision in nce_reviews.values():
-        if decision.resolved_canonical_major_group_id is not None and (
-            decision.resolved_canonical_major_group_id not in groups_by_id
-        ):
-            raise MissingRequiredInputError(
-                f"N.C.E 검수 {decision.cluster_id!r}가 존재하지 않는 Group을 가리킨다: "
-                f"{decision.resolved_canonical_major_group_id!r}"
-            )
-
-    nce_clusters_path = nce_clusters_path or (work_dir / "packets" / "nce_reexaminable_middle_series_clusters.jsonl")
-    nce_cluster_by_department: dict[str, str] = {}
-    for cluster in read_jsonl(nce_clusters_path):
-        for member in cluster.get("members", []):
-            nce_cluster_by_department[member["department_id"]] = cluster["cluster_id"]
+    # N.C.E도 마찬가지로 검수 UI의 정본 Loader/Store를 그대로 쓴다
+    # (official_middle_series_code 키). `AcademyInfoNceMiddleSeriesReview`에는
+    # "이 전공군을 확정 승인한다"는 필드 자체가 없다 — ACCEPT_GROUP_AS_REVIEW_
+    # CANDIDATE는 구조적으로 어떤 department_id도 resolved_canonical_major_group_id
+    # 로 이어줄 수 없다(지시서 §7 "모든 N.C.E 행은 별도 학과 단위 승인 전까지
+    # 차단" — evaluate_department()가 이 Gate를 무조건 막는 근거이자, "42개 Group
+    # 임의 추가" 위험 자체가 이 Schema에서 원천적으로 사라졌다는 뜻이기도 하다).
+    nce_clusters_path = nce_clusters_path or DEFAULT_NCE_CLUSTER_PATH
+    if not nce_clusters_path.exists():
+        raise MissingRequiredInputError(f"N.C.E 중계열 클러스터 Draft가 없다: {nce_clusters_path}")
+    nce_cluster_entries = load_nce_middle_series_clusters(nce_clusters_path)
+    nce_clusters_by_code = {c.official_middle_series_code: c for c in nce_cluster_entries}
+    nce_middle_series_code_by_department: dict[str, str] = {}
+    for cluster in nce_cluster_entries:
+        for member in cluster.members:
+            nce_middle_series_code_by_department[member.department_id] = cluster.official_middle_series_code
     input_hashes["nce_clusters"] = hash_or_missing(nce_clusters_path)
+
+    nce_review_path = nce_review_path or default_nce_review_path()
+    nce_reviews = load_nce_review_entries_by_key(nce_review_path)
+    input_hashes["nce_review"] = hash_or_missing(nce_review_path)
 
     url_audit_path = url_audit_path or (work_dir / "department_url_scope_audit.jsonl")
     url_audit_by_key = {_department_url_key(row): row for row in read_jsonl(url_audit_path)}
@@ -359,9 +438,12 @@ def load_inputs(
         bridge_entries_by_group=bridge_entries_by_group,
         bridge_mapping_reviews=bridge_mapping_reviews,
         bridge_scope_reviews=bridge_scope_reviews,
+        p1_draft_by_candidate_id=p1_draft_by_candidate_id,
+        p1_draft_by_department_id=p1_draft_by_department_id,
         p1_reviews=p1_reviews,
+        nce_clusters_by_code=nce_clusters_by_code,
+        nce_middle_series_code_by_department=nce_middle_series_code_by_department,
         nce_reviews=nce_reviews,
-        nce_cluster_by_department=nce_cluster_by_department,
         url_audit_by_department=url_audit_by_department,
         service_major_ids=service_major_ids,
         input_hashes=input_hashes,
@@ -421,6 +503,11 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
     if not has_basic_lineage or not has_official_major_id:
         reasons.add("BLOCKED_MISSING_LINEAGE")
 
+    nce_middle_series_code: str | None = None
+    nce_review_decision: str | None = None
+    p1_candidate_id: str | None = None
+    p1_review_decision: str | None = None
+
     classification_row = inputs.classification_by_department.get(department_id) if in_scope else None
     if in_scope:
         if classification_row is None:
@@ -430,35 +517,53 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
             if eligibility_status == "EXCLUDED_ARTS_SPORTS":
                 reasons.add("BLOCKED_ARTS_RECOMMENDATION")
             elif eligibility_status == "REVIEW_REQUIRED":
-                p1 = inputs.p1_reviews.get(department_id)
-                if p1 is not None and p1.reviewer_1_status == "APPROVE":
-                    if p1.resolved_eligibility_status == "EXCLUDED_ARTS_SPORTS":
-                        reasons.add("BLOCKED_ARTS_RECOMMENDATION")
-                else:
+                # 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) §6 — "APPROVE_
+                # PROPOSED_CANDIDATE만 조건부 통과, 나머지 Decision은 모두 차단".
+                # 검수 UI의 PATCH가 이미 저장 시점에 p1_approve_eligible()로
+                # 막았어도(§1), 이 파일이 그 파일을 그대로 신뢰하지 않고
+                # p1_approve_eligible()을 원본 Draft 행에 다시 적용해 재확인한다
+                # (Bridge Scope의 "Schema 우회 대비 Service 방어 검증"과 같은 원칙 —
+                # 검수 파일이 외부에서 수동으로 손상됐어도 이 Gate가 막는다).
+                p1_draft = inputs.p1_draft_by_department_id.get(department_id)
+                if p1_draft is None:
                     reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
+                else:
+                    p1_candidate_id = p1_draft.candidate_id
+                    p1_review = inputs.p1_reviews.get(p1_candidate_id)
+                    p1_review_decision = p1_review.decision if p1_review is not None else "TBD"
+                    approve_and_eligible = (
+                        p1_review_decision == "APPROVE_PROPOSED_CANDIDATE"
+                        and p1_approve_eligible(p1_draft, inputs.service_major_ids)
+                    )
+                    if not approve_and_eligible:
+                        reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
 
             mapping_status = classification_row.get("mapping_status")
             if mapping_status == "AUTO_CANDIDATE":
                 candidates = classification_row.get("candidate_canonical_major_ids") or []
                 if len(candidates) == 1:
                     resolved_group_id = candidates[0]
-                else:
+                elif len(candidates) == 0:
                     reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
+                else:
+                    reasons.add("BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR")
             elif mapping_status == "REVIEW_REQUIRED":
                 reasons.add("BLOCKED_CLASSIFICATION_REVIEW")
             elif mapping_status == "UNMAPPED":
                 decision_reason = classification_row.get("decision_reason") or ""
                 if decision_reason.startswith(_NCE_UNMAPPED_REASON_PREFIX):
-                    cluster_id = inputs.nce_cluster_by_department.get(department_id)
-                    nce_decision = inputs.nce_reviews.get(cluster_id) if cluster_id else None
-                    if (
-                        nce_decision is not None
-                        and nce_decision.reviewer_1_status == "APPROVE"
-                        and nce_decision.resolved_canonical_major_group_id is not None
-                    ):
-                        resolved_group_id = nce_decision.resolved_canonical_major_group_id
-                    else:
-                        reasons.add("BLOCKED_NCE_UNRESOLVED")
+                    # 2026-08-24 지시서 §7 — "ACCEPT_GROUP_AS_REVIEW_CANDIDATE도
+                    # 학과 승격 승인이 아니다. 모든 N.C.E 행은 별도 학과 단위 승인
+                    # 전까지 차단한다." N.C.E 검수 상태가 무엇이든(TBD든
+                    # ACCEPT_GROUP_AS_REVIEW_CANDIDATE든) resolved_group_id를 절대
+                    # 채우지 않는다 — 무조건 BLOCKED_NCE_UNRESOLVED다. 클러스터 코드·
+                    # 검수 판단은 감사용으로만 출력 행에 남긴다(왜 막혔는지 추적
+                    # 가능하도록. §7이 요구한 학과 단위 Gate는 아직 이 저장소에
+                    # 없다 — 이 Dry Run이 대신 만들지 않는다).
+                    nce_middle_series_code = inputs.nce_middle_series_code_by_department.get(department_id)
+                    nce_review = inputs.nce_reviews.get(nce_middle_series_code) if nce_middle_series_code else None
+                    nce_review_decision = nce_review.decision if nce_review is not None else "TBD"
+                    reasons.add("BLOCKED_NCE_UNRESOLVED")
                 else:
                     reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
             else:
@@ -504,9 +609,16 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
                 reasons.add("BLOCKED_ARTS_RECOMMENDATION")
             elif resolved_major_id not in inputs.service_major_ids:
                 reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
-        else:
-            # 0개(UNMAPPED 전용 행만 있음) 또는 2개 이상(어느 Major인지 자동 확정 불가).
+        elif len(evidenced) == 0:
+            # 2026-08-24 지시서 §8 — "Bridge 후보 없음"과 "복수 후보"를 구분한다.
+            # 0개: 이 Group을 어떤 서비스 Major에도 연결한 EVIDENCED 행이 없다
+            # (UNMAPPED 전용 행만 있거나 아직 Bridge가 이 Group을 다루지 않았다).
             reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
+        else:
+            # 2개 이상: 이 Dry Run은 어느 Major가 맞는지 자동으로 고르지 않는다
+            # (모듈 docstring "설계상 명시적 한계" 참고) — "후보가 없다"와는 다른
+            # 사유라 따로 구분해 사람이 무엇을 검토해야 하는지 명확히 남긴다.
+            reasons.add("BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR")
 
     resolved_department_url: str | None = None
     audit_row = inputs.url_audit_by_department.get(department_id)
@@ -535,6 +647,19 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
         "resolved_canonical_major_id": resolved_major_id,
         "resolved_department_url": resolved_department_url,
         "official_small_series_code": (classification_row or {}).get("official_small_series_code"),
+        # 2026-08-24 지시서 §9 — 지금 계산 가능한 것은 "이 행 자체가 안정적인
+        # 원본 식별자를 갖고 있는가"뿐이다. 실제 연도 간 대조 코드가 생기기 전까지
+        # 이 값은 항상 ROW_IDENTITY_ONLY다 — CROSS_YEAR_LINEAGE_VERIFIED를 여기서
+        # 만드는 분기 자체가 없다(테스트가 이 사실을 직접 확인한다).
+        "lineage_level": LINEAGE_LEVEL_ROW_IDENTITY_ONLY,
+        # 감사용 참고 필드 — §7 "N.C.E는 절대 승격 승인이 아님"의 증거를 출력에도
+        # 남긴다. None이 아니어도(예: nce_review_decision="ACCEPT_GROUP_AS_REVIEW_
+        # CANDIDATE") blocked_reasons에는 항상 BLOCKED_NCE_UNRESOLVED가 있다 —
+        # 이 두 필드가 승격 여부에 영향을 준 적이 없다.
+        "p1_candidate_id": p1_candidate_id,
+        "p1_review_decision": p1_review_decision,
+        "nce_middle_series_code": nce_middle_series_code,
+        "nce_review_decision": nce_review_decision,
         "survey_year": inputs.survey_year,
     }
 
