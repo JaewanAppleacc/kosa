@@ -18,6 +18,8 @@ from fastapi.staticfiles import StaticFiles
 
 from src.data.contexts.context_definitions import CONTEXT_IDS
 from src.data.questions.context_pack_shared_probe_blueprints import CONTEXT_PACK_SHARED_PROBE_BLUEPRINTS
+from src.review_ui import academyinfo_nce_middle_series_review_service as nces
+from src.review_ui import academyinfo_p1_classification_review_service as p1s
 from src.review_ui import canonical_major_group_bridge_review_service as cmgbrs
 from src.review_ui import context_pack_review_service as cprs
 from src.review_ui import review_service as rs
@@ -27,6 +29,8 @@ from src.review_ui.schemas import (
     BackupQuestionListResponse,
     BridgeReviewListResponse,
     ContextPackListResponse,
+    NceMiddleSeriesListResponse,
+    P1ClassificationListResponse,
     QuestionListResponse,
     RoutingQuestionListResponse,
     SeedAnchorQuestionListResponse,
@@ -35,7 +39,11 @@ from src.review_ui.schemas import (
     UpdateBridgeReviewRequest,
     UpdateBridgeScopeReviewRequest,
     UpdateContextPackReviewRequest,
+    UpdateNceMiddleSeriesReviewRequest,
+    UpdateNceMiddleSeriesReviewResponse,
     UpdateOptionReviewRequest,
+    UpdateP1ClassificationReviewRequest,
+    UpdateP1ClassificationReviewResponse,
     UpdateQuestionReviewRequest,
     UpdateReviewResponse,
     UpdateSharedProbeReviewRequest,
@@ -449,6 +457,72 @@ def patch_canonical_major_group_bridge_scope_review(
         )
     except cmgbrs.UnknownBridgeReviewKeyError as exc:
         raise _http_error(422, str(exc)) from exc
+
+
+# 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) — 대학알리미 P1 분류 REVIEW
+# (374건) 검수 Endpoint. Draft 패킷(data/academyinfo_work/2025/packets/
+# p1_classification_review.jsonl)은 읽기만 하고 절대 쓰지 않는다 — PATCH는 별도
+# 파일(data/reviews/academyinfo_p1_classification_review_status.jsonl)에만
+# 반영된다. APPROVE_PROPOSED_CANDIDATE는 근거 조건을 만족하지 못하면 422로
+# 거부된다(p1s.P1ApproveNotEligibleError). revision이 어긋나면 409로 거부된다
+# (낙관적 잠금).
+
+
+@app.get("/internal/review/v2/academyinfo/p1-classification", response_model=P1ClassificationListResponse)
+def get_academyinfo_p1_classification() -> P1ClassificationListResponse:
+    return p1s.build_p1_classification_list(review_status_path=p1s.P1_REVIEW_STATUS_PATH)
+
+
+@app.patch(
+    "/internal/review/v2/academyinfo/p1-classification/{candidate_id}",
+    response_model=UpdateP1ClassificationReviewResponse,
+)
+def patch_academyinfo_p1_classification(
+    candidate_id: str, payload: UpdateP1ClassificationReviewRequest,
+) -> UpdateP1ClassificationReviewResponse:
+    try:
+        return p1s.update_p1_classification_review(
+            candidate_id, decision=payload.decision, comment=payload.comment,
+            resolution_note=payload.resolution_note, expected_revision=payload.expected_revision,
+            review_status_path=p1s.P1_REVIEW_STATUS_PATH,
+        )
+    except p1s.UnknownP1CandidateError as exc:
+        raise _http_error(422, str(exc)) from exc
+    except p1s.P1ApproveNotEligibleError as exc:
+        raise _http_error(422, str(exc)) from exc
+    except p1s.P1StaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
+
+
+# 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) — 대학알리미 N.C.E 재검토
+# 가능 중계열(24개 클러스터·584건) 검수 Endpoint. Draft 패킷은 읽기만 한다.
+# ACCEPT_GROUP_AS_REVIEW_CANDIDATE를 저장해도 이 Endpoint는 어떤 Department
+# Repository·승격 로직도 호출하지 않는다 — 학과 584건이 자동 승인되지 않는다는
+# 사실은 이 파일에 그런 호출이 전혀 없다는 사실 자체로 보장된다.
+
+
+@app.get("/internal/review/v2/academyinfo/nce-reexaminable", response_model=NceMiddleSeriesListResponse)
+def get_academyinfo_nce_reexaminable() -> NceMiddleSeriesListResponse:
+    return nces.build_nce_middle_series_list(review_status_path=nces.NCE_REVIEW_STATUS_PATH)
+
+
+@app.patch(
+    "/internal/review/v2/academyinfo/nce-reexaminable/{middle_series_code}",
+    response_model=UpdateNceMiddleSeriesReviewResponse,
+)
+def patch_academyinfo_nce_reexaminable(
+    middle_series_code: str, payload: UpdateNceMiddleSeriesReviewRequest,
+) -> UpdateNceMiddleSeriesReviewResponse:
+    try:
+        return nces.update_nce_middle_series_review(
+            middle_series_code, decision=payload.decision, comment=payload.comment,
+            resolution_note=payload.resolution_note, expected_revision=payload.expected_revision,
+            review_status_path=nces.NCE_REVIEW_STATUS_PATH,
+        )
+    except nces.UnknownNceMiddleSeriesCodeError as exc:
+        raise _http_error(422, str(exc)) from exc
+    except nces.NceStaleRevisionError as exc:
+        raise _http_error(409, str(exc)) from exc
 
 
 @app.get("/")
