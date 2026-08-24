@@ -417,17 +417,28 @@ class ApiLayerTest(_BridgeScopeTestBase):
 
 
 class ExistingMappingReviewPreservedTest(unittest.TestCase):
-    """§9 "기존 44행 Mapping 상태 38/6 보존" — 이번 Scope 검수 탭 작업이 실제
-    Mapping 검수 파일(사용자가 이미 완료한 검수 결과)의 값을 조금도 바꾸지
-    않았는지, 진짜 파일을 읽어 직접 확인한다."""
+    """§9 "기존 44행 Mapping 상태 38/6 보존" — 이 Scope 검수 탭 작업 *자체*가 실제
+    Mapping 검수 파일 값을 조금도 바꾸지 않았는지 확인하는 게 원래 목적이었다.
 
-    def test_real_mapping_review_file_still_38_approve_6_revise(self) -> None:
+    2026-08(a/final-mapping-review-closeout) 정정: 38 APPROVE/6 REVISE는 그 REVISE
+    6건이 아직 사람 결정을 기다리던 *과거* 상태였다. 이후 사용자가 REVISE 6건의
+    최종 Scope(§ canonical_major_group_bridge.draft.jsonl의 scope_type)를 실제로
+    확정하고 "Mapping 검수 완료 처리"를 지시했으며,
+    `scripts/career_finalize_mapping_review_closeout.py`가 그 6건만 정확히 건드려
+    APPROVE로 승격했다(38개 기존 APPROVE는 이번에도 재저장조차 되지 않았다 —
+    `test_career_finalize_mapping_review_closeout.py`가 이를 별도로 검증한다).
+    "38/6 그대로"를 계속 요구하면 정당한 최종 결정을 회귀로 오탐하므로, 이제는
+    "44 전부 APPROVE·TBD/REVISE 0"을 확인한다 — 이 Scope 검수 탭 작업 자체가 Mapping
+    파일을 손상시키지 않았다는 원래 취지는 그대로 유지된다(개수 불변식만 갱신)."""
+
+    def test_real_mapping_review_file_is_fully_finalized_44_approve(self) -> None:
         from src.services.canonical_major_group_bridge_review_store import load_bridge_review_entries_by_key
 
         entries = load_bridge_review_entries_by_key()
         statuses = [e.reviewer_1_status for e in entries.values()]
-        self.assertEqual(statuses.count("APPROVE"), 38)
-        self.assertEqual(statuses.count("REVISE"), 6)
+        self.assertEqual(statuses.count("APPROVE"), 44)
+        self.assertEqual(statuses.count("REVISE"), 0)
+        self.assertEqual(statuses.count("TBD"), 0)
         self.assertEqual(len(entries), 44)
 
 

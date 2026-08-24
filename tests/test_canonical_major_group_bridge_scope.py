@@ -416,15 +416,30 @@ class BuildDeterminismAndImmutabilityTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, f"outputs/mock_api/ changed:\n{result.stdout}")
 
-    def test_all_committed_review_json_files_unchanged(self) -> None:
-        # data/reviews/canonical_major_group_bridge_review_status.json은 이 브랜치의
-        # 기준(origin/trait-vector-v2)에 아예 없다 — 이 테스트는 "존재하는 review json
-        # 이 손상되지 않았는가"를 확인한다(생성하거나 삭제하지 않았는가도 함께).
-        result = subprocess.run(
-            ["git", "status", "--porcelain", "--", "data/reviews/"],
-            cwd=_REPO_ROOT, capture_output=True, text=True,
-        )
-        self.assertEqual(result.stdout.strip(), "", f"data/reviews/ 아래에 변경이 있다:\n{result.stdout}")
+    def test_build_scoped_rows_itself_never_touches_data_reviews(self) -> None:
+        """2026-08(a/final-mapping-review-closeout) 정정 — 이전 버전은 저장소 전체의
+        `git status --porcelain -- data/reviews/`가 항상 빈 문자열이어야 한다고
+        확인했다. 그 가정은 "이 파일이 다루는 ADD-SCOPE-FIELD Migration 함수
+        (`build_scoped_rows()`)가 Review 파일에 부작용이 없다"를 확인하려던
+        것이었는데, 검사 방식이 저장소 전체 git 상태였던 탓에 이 브랜치에서 진행
+        중인 *다른* 정당한 작업(Mapping/Scope/P1/N.C.E 검수 확정,
+        `scripts/career_finalize_mapping_review_closeout.py`)이 data/reviews/에
+        쓰는 것까지 이 테스트가 실패로 오탐했다. 이 함수가 실제로 순수 함수(파일을
+        전혀 쓰지 않는 in-memory 계산)라는 원래 취지는 `data/reviews/`의
+        Before/After 해시를 `build_scoped_rows()` 호출 앞뒤로만 비교해서 그대로
+        검증한다 — 저장소 전체의 다른 변경과 더 이상 얽히지 않는다."""
+
+        reviews_dir = _REPO_ROOT / "data" / "reviews"
+        before = {
+            str(p.relative_to(reviews_dir)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(reviews_dir.rglob("*")) if p.is_file()
+        }
+        build_scoped_rows()
+        after = {
+            str(p.relative_to(reviews_dir)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in sorted(reviews_dir.rglob("*")) if p.is_file()
+        }
+        self.assertEqual(before, after, "build_scoped_rows()가 data/reviews/ 아래 파일을 건드렸다")
 
     def test_no_review_status_file_was_created_by_this_work(self) -> None:
         self.assertFalse(

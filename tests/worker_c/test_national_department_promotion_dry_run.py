@@ -400,6 +400,18 @@ class NoReviewBaselineTest(unittest.TestCase):
             group_draft_path=self.universe.group_draft_path, bridge_draft_path=self.universe.bridge_draft_path,
             canonical_majors_path=self.universe.majors_path, small_series_code_table_path=self.universe.code_table_path,
             p1_packet_path=self.universe.p1_packet_path, nce_clusters_path=self.universe.nce_clusters_path,
+            # 2026-08(a/final-mapping-review-closeout) 정정 — load_inputs()의
+            # p1_review_path/nce_review_path 기본값은 (bridge_mapping_review_path/
+            # bridge_scope_review_path와 달리) reviews_dir이 아니라 항상 실제
+            # default_p1_review_path()/default_nce_review_path()로 떨어진다(그
+            # 두 함수가 reviews_dir 인자를 받지 않는 전역 기본 경로 Store 함수이기
+            # 때문 — career_build_national_department_promotion_dry_run.py 자체의
+            # 기존 동작이며 이 테스트 파일이 바꾸지 않는다). 이 테스트가 "검수 정본
+            # 없음"을 실제로 재현하려면 실제 data/reviews/의 그 두 파일이 무엇이든
+            # 상관없이 존재하지 않는 tmp 경로를 명시적으로 줘야 한다 — 다른
+            # 클래스(IndependentGateBlockingTest)가 이미 쓰는 것과 같은 패턴이다.
+            p1_review_path=root / "reviews" / "academyinfo_p1_classification_review_status.jsonl",
+            nce_review_path=root / "reviews" / "academyinfo_nce_middle_series_review_status.jsonl",
         )
 
     def test_no_review_files_means_no_approval_ever_reached(self) -> None:
@@ -763,12 +775,28 @@ class RealMasterAndReviewFilesUntouchedTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    # 2026-08(a/final-mapping-review-closeout)가 사용자 최종 결정에 따라 이 5개
+    # 파일에 실제 검수 결과를 기록했다 — 이 테스트가 실제로 지키려는 것은 "이 Dry
+    # Run 모듈 자체가 data/reviews/에 쓰지 않는다"이지 "data/reviews/ 전체가
+    # 영원히 git-clean이어야 한다"가 아니다(Dry Run은 §8 "Master·API는 이 실행으로
+    # 바뀌지 않는다"만 보장하면 된다 — Review 파일도 읽기만 한다). 그 5개만 제외
+    # 하고 나머지는 여전히 무변경이어야 한다.
+    _INTENTIONALLY_FINALIZED_REVIEW_FILES = (
+        "data/reviews/canonical_major_group_review_status.jsonl",
+        "data/reviews/canonical_major_group_bridge_review_status.json",
+        "data/reviews/canonical_major_group_bridge_scope_review_status.jsonl",
+        "data/reviews/academyinfo_p1_classification_review_status.jsonl",
+        "data/reviews/academyinfo_nce_middle_series_review_status.jsonl",
+    )
+
     def test_real_review_files_unchanged(self) -> None:
         result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "data/reviews/"],
+            ["git", "status", "--porcelain", "--", "data/reviews/"],
             cwd=ROOT, capture_output=True, text=True,
         )
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        changed = [line[3:] for line in result.stdout.splitlines() if line.strip()]
+        unexpected = [p for p in changed if p not in self._INTENTIONALLY_FINALIZED_REVIEW_FILES]
+        self.assertEqual(unexpected, [], f"data/reviews/ 아래 의도하지 않은 변경: {unexpected}")
 
 
 class DuplicateSchemaRemovedTest(unittest.TestCase):
@@ -919,18 +947,29 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
 
 
 class CleanCloneMissingInputTest(unittest.TestCase):
-    """실제 저장소 상태로 CLI를 그대로 실행하면 종료 코드 2로 실패하고 아무 파일도
-    쓰지 않아야 한다(`test_academyinfo_queue_clean_clone.py::MissingInputSafetyTest`
-    와 같은 패턴). 실제 저장소에는 정규화·분류 결과(대용량, gitignore 대상)가 없어서
-    이 테스트는 "Fixture 검증"이 아니라 실제 Clean Clone 상태를 그대로 실행한다."""
+    """CLI를 정규화·분류 결과가 없는 data-dir로 실행하면 종료 코드 2로 실패하고
+    아무 파일도 쓰지 않아야 한다(`test_academyinfo_queue_clean_clone.py::
+    MissingInputSafetyTest`와 같은 패턴).
+
+    2026-08(a/final-mapping-review-closeout) 정정 — 이전 버전은 실제 저장소의
+    `data/`를 그대로 `--data-dir`로 썼다("실제 저장소에는 정규화·분류 결과가 없다"는
+    당시의 참인 사실에 의존). 그 작업이 §8 "최종 Review 정본으로 전국 Dry Run을
+    실행"을 위해 이 Worktree 로컬에 실제로 그 두 파일(Git 제외 입력)을 생성한
+    이후로는 이 가정이 더 이상 참이 아니다 — "정규화·분류 결과가 없으면 exit 2"라는
+    이 테스트의 실제 취지는 그대로 두고, 그 상태를 완전히 빈 tmp data-dir로
+    직접 만들어 검증한다(`load_inputs()`가 이 두 파일의 존재 여부를 다른 어떤
+    입력보다 먼저 확인하므로, Group/Bridge/P1/N.C.E Fixture 없이도 exit 2가
+    재현된다)."""
 
     def test_missing_generation_inputs_exits_2_and_writes_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp) / "data"
+            data_dir.mkdir()
             output_dir = Path(tmp) / "out"
             result = subprocess.run(
                 [
                     sys.executable, str(_SCRIPT), "--survey-year", "2025",
-                    "--data-dir", str(ROOT / "data"), "--output-dir", str(output_dir),
+                    "--data-dir", str(data_dir), "--output-dir", str(output_dir),
                 ],
                 cwd=ROOT, capture_output=True, text=True, timeout=120,
             )
@@ -989,7 +1028,15 @@ class RealVsFixtureRunDistinctionTest(unittest.TestCase):
     """§10 "Fixture 검증과 실제 전국 실행을 완료 보고에서 구분" — 실제 저장소에
     전국 규모 생성 입력이 없다는 사실 자체를 테스트로 남긴다. 이 사실이 참인 동안,
     이 테스트 파일의 모든 READY_FOR_PROMOTION류 통과 테스트는 전부 합성
-    Fixture로만 검증된 것이지 실제 전국 데이터로 검증된 게 아니라는 뜻이다."""
+    Fixture로만 검증된 것이지 실제 전국 데이터로 검증된 게 아니라는 뜻이다.
+
+    2026-08(a/final-mapping-review-closeout) 참고 — §8 "최종 Review 정본으로 전국
+    Dry Run을 실행"을 위해 실제로 대학알리미 API에서 377개 대학·36,866개 학과를
+    재수집하고 정규화·분류·전국 Dry Run까지 실행했다(완료 보고에 그 실측 결과를
+    남겼다). 그 두 생성 입력은 원래도 Git 제외 로컬 전용 산출물이라, 그 실행이 끝난
+    뒤 저장소를 이 테스트가 원래 전제하는 상태(생성 입력 없음)로 되돌렸다 — Dry
+    Run 자체의 증거(promotion_manifest.json/promotion_summary.json/.md, 입력
+    해시까지 포함된 커밋 대상 파일)는 그대로 남는다."""
 
     def test_real_national_generation_inputs_are_absent_in_this_checkout(self) -> None:
         normalized = ROOT / "data" / "academyinfo_work" / "2025" / "departments.normalized.jsonl"
