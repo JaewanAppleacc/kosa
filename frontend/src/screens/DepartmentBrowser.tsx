@@ -164,22 +164,19 @@ function DepartmentList({ departments }: { departments: Department[] }) {
                   {department.campus ? ` (${department.campus})` : ""}
                 </p>
                 <p className="mut mt-1.5 text-[12px]">
-                  {/* source_url은 출처 표시 전용이다(대학알리미 공식 URL) — 학과 홈페이지
-                      버튼으로 쓰지 않는다(README_B §2, 2026-08-24 21차). 권장 문구
-                      "대학알리미 {source_svy_year}년 공시 기준"을 그대로 쓴다. */}
-                  <a
-                    href={department.source_url}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="underline underline-offset-2"
-                    style={{ color: "var(--accent)" }}
-                  >
-                    대학알리미 {department.source_svy_year}년 공시 기준
-                  </a>
+                  {/* source_url은 "출처 문구"를 만드는 데이터일 뿐이다 — 대학알리미
+                      루트 URL이 클릭 가능한 "공식 출처" 링크로 보이면 학생이 그걸 그
+                      학과의 공식 홈페이지로 오해할 수 있다(모든 학과가 같은 루트 URL을
+                      가리키므로). 그래서 일반 텍스트로만 표시하고 href·onClick·
+                      window.open 등 어디에도 쓰지 않는다(README_B §2, 2026-08-24
+                      22차). */}
+                  대학알리미 {department.source_svy_year}년 공시 기준
                 </p>
 
-                {/* department_url이 있을 때만 "학과 홈페이지" 버튼을 보여준다 — null이면
-                    버튼을 완전히 숨긴다(빈 상태가 정상, 지금 시연 데이터는 전부 null). */}
+                {/* department_url이 있을 때만 "학과 홈페이지" 링크를 보여준다 — null이면
+                    링크를 완전히 숨긴다(빈 상태가 정상, 지금 시연 데이터는 전부 null).
+                    href는 department_url과 정확히 같아야 하고, source_url을 대신
+                    쓰지 않는다. */}
                 {department.department_url !== null ? (
                   <p className="mt-1 text-[12px]">
                     <a
@@ -189,7 +186,7 @@ function DepartmentList({ departments }: { departments: Department[] }) {
                       className="underline underline-offset-2"
                       style={{ color: "var(--accent)" }}
                     >
-                      학과 홈페이지
+                      학과 홈페이지 →
                     </a>
                   </p>
                 ) : null}
