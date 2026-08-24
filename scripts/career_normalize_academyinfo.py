@@ -33,6 +33,7 @@ from scripts.career_console import use_utf8_stdout  # noqa: E402
 from src.data_sources.academyinfo_client import ACADEMYINFO_DATASET_URL  # noqa: E402
 from src.data_sources.academyinfo_codes import (  # noqa: E402
     is_series_unclassified,
+    recommendation_scope_exclusion,
     undergraduate_scope_reason,
 )
 from src.data_sources.academyinfo_identity import (  # noqa: E402
@@ -155,15 +156,40 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def normalize(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """(포함, 제외) 두 목록으로 가른다. 제외 행도 버리지 않는다 (§7)."""
+def normalize(
+    rows: list[dict[str, Any]]
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """(승격 후보, 학사범위 제외, 추천범위 제외) 셋으로 가른다.
+
+    두 단계다.
+
+        1. 4~7년제 학사과정인가        undergraduate_scope_reason()
+        2. 서비스가 추천할 범위인가    recommendation_scope_exclusion()
+
+    2단계에서 빠지는 것(야간·원격·사이버대)은 **학사과정이 아닌 게 아니다.**
+    그래서 학사범위 제외와 섞지 않고 별도 목록으로 남긴다 — 정책이 바뀌면
+    이 파일만 다시 읽어 되돌릴 수 있어야 한다 (A 결정 §8: 야간 원본을 삭제하거나
+    존재하지 않았던 것처럼 처리하지 않는다).
+    """
     included: list[dict[str, Any]] = []
     excluded: list[dict[str, Any]] = []
+    out_of_scope: list[dict[str, Any]] = []
 
     for raw in rows:
         reason = undergraduate_scope_reason(raw)
         if reason is None:
-            included.append(normalize_department(raw))
+            scope_reason = recommendation_scope_exclusion(raw)
+            if scope_reason is None:
+                included.append(normalize_department(raw))
+            else:
+                row = normalize_department(raw)
+                row["recommendation_scope_status"] = scope_reason
+                row["recommendation_scope_note"] = {
+                    "EXCLUDED_NIGHT_COURSE": "야간 과정 — 원본·Lineage·Audit에는 보존하되 추천 Master에 승격하지 않는다",
+                    "EXCLUDED_DISTANCE_UNIVERSITY": "사이버·원격·방송통신대학 — 공식 학교종류 코드로 판정했다",
+                    "EXCLUDED_UNKNOWN_DAY_NIGHT": "주야간이 '주간'이 아니거나 값이 없다 — 주간으로 추정하지 않는다",
+                }[scope_reason]
+                out_of_scope.append(row)
             continue
         # 제외 근거와 함께 판정에 쓴 공식 필드를 그대로 남긴다 — 나중에 기준이 바뀌면
         # 재수집이 아니라 이 파일만 다시 읽어 재판정할 수 있어야 한다.
@@ -185,7 +211,7 @@ def normalize(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[di
             }
         )
 
-    return included, excluded
+    return included, excluded, out_of_scope
 
 
 def annotate_duplicate_groups(included: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -257,11 +283,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     rows = read_jsonl_gz(raw_path)
-    included, excluded = normalize(rows)
+    included, excluded, out_of_scope = normalize(rows)
     included = annotate_duplicate_groups(included)
 
     write_jsonl(work_dir / "departments.normalized.jsonl", included)
     write_jsonl(work_dir / "excluded_records.jsonl", excluded)
+    # 추천 범위 밖(야간·원격·사이버대). 삭제하지 않고 사유와 함께 보존한다 (A 결정 §8).
+    write_jsonl(work_dir / "out_of_recommendation_scope.jsonl", out_of_scope)
 
     # A 지시 §5: 중복은 자동으로 한 행을 고르지 않고 검토 대기열로 넘긴다.
     review_queue = build_resolution_review_queue(included)
@@ -282,6 +310,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(f"  Lineage: 직전연도({prev_year}) 정규화 결과가 없어 비교를 건너뜁니다.")
     report = build_report(included, excluded, args.survey_year)
+    report["out_of_recommendation_scope_count"] = len(out_of_scope)
+    report["out_of_scope_breakdown"] = dict(
+        Counter(r["recommendation_scope_status"] for r in out_of_scope)
+    )
     report["review_queue_count"] = len(review_queue)
     report["lineage"] = retention or None
     (work_dir / "normalization_report.json").write_text(
@@ -289,6 +321,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     print(f"정규화 완료 — 조사연도 {args.survey_year}")
+    for status, count in report["out_of_scope_breakdown"].items():
+        print(f"  추천범위 제외: {status} — {count}건")
     print(f"  포함 {report['included_count']}건 · 제외 {report['excluded_count']}건 "
           f"· 대학 {report['university_count']}개")
     if report["duplicate_department_ids"]:

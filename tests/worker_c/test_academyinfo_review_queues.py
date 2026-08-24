@@ -41,20 +41,25 @@ class QueueCountsMatchReportsTest(unittest.TestCase):
     """§6: Queue 행 수가 기존 보고 수와 일치한다."""
 
     def test_duplicate_group_count_matches_normalization_report(self) -> None:
+        # 보고서와의 **일치**만 검사한다. 고정 숫자를 박으면 정책이 바뀔 때마다
+        # 테스트를 고쳐야 하고, 그러면 "보고와 산출물이 어긋났는지"를 못 잡는다.
         self.assertEqual(len(DUPLICATE), NORMALIZATION["duplicate_department_id_count"])
-        self.assertEqual(len(DUPLICATE), 588)
 
     def test_duplicate_record_count_matches(self) -> None:
         total = sum(q["record_count"] for q in DUPLICATE)
         self.assertEqual(total, NORMALIZATION["review_required_count"])
 
+    def test_queues_are_not_empty(self) -> None:
+        """숫자 고정을 뺀 대신, Queue가 통째로 비어버린 사고는 잡는다."""
+        self.assertGreater(len(CLASSIFICATION), 0)
+        self.assertGreater(len(NCE), 0)
+        self.assertEqual(len(URL_AUDIT), 37)
+
     def test_classification_queue_matches_dry_run(self) -> None:
         self.assertEqual(len(CLASSIFICATION), DRY_RUN["eligibility_breakdown"]["REVIEW_REQUIRED"])
-        self.assertEqual(len(CLASSIFICATION), 4454)
 
     def test_nce_queue_matches_dry_run(self) -> None:
         self.assertEqual(len(NCE), DRY_RUN["unclassified_nce_count"])
-        self.assertEqual(len(NCE), 3657)
 
     def test_url_audit_preserves_all_37(self) -> None:
         self.assertEqual(len(URL_AUDIT), 37)
@@ -117,6 +122,8 @@ class ReviewBatchTest(unittest.TestCase):
             self.assertIsNone(q["selected_source_record_id"])
 
     def test_day_night_only_batch_really_differs_only_in_day_night(self) -> None:
+        """야간 제외 정책 적용 후에는 이 묶음이 0건이어야 정상이다 —
+        주야간만 다른 중복은 야간 쪽이 빠지면서 사라진다."""
         for q in DUPLICATE:
             if q["review_batch"] == "BATCH_DAY_NIGHT_ONLY":
                 self.assertEqual(q["differing_fields"], ["day_night_name"])

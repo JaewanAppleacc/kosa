@@ -91,3 +91,58 @@ def undergraduate_scope_reason(row: Mapping[str, str]) -> str | None:
         code = (row.get("lsnTrmCd") or "").strip().zfill(2)
         return f"수업연한이 4년 미만: {lesson_term_label(code) or code}"
     return None
+
+
+# ── 서비스 추천 범위 (A 결정 2026-08-24) ────────────────────────────────
+# "4~7년제 학사과정의 **주간 과정**"만 Master 승격 후보다. 야간은 원본·Lineage·Audit에
+# 보존하되 승격·분류·추천에서 제외한다. 삭제하지 않는다.
+DAY_NIGHT_DAY = "주간"
+DAY_NIGHT_NIGHT = "야간"
+
+EXCLUDED_NIGHT_COURSE = "EXCLUDED_NIGHT_COURSE"
+EXCLUDED_DISTANCE_UNIVERSITY = "EXCLUDED_DISTANCE_UNIVERSITY"
+EXCLUDED_UNKNOWN_DAY_NIGHT = "EXCLUDED_UNKNOWN_DAY_NIGHT"
+
+# 원격·사이버·방송통신 대학의 **공식 학교종류 코드**.
+# 교명 문자열로 판정하지 않는다 — 일반 대학의 "디지털·온라인" 학과가 걸리면 안 된다
+# (A 결정: "일반 대학의 온라인 강의·디지털 관련 학과는 제외하지 않음").
+# 04·05는 대학알리미 getCodeByKind/getCodeByType의 원격대학 계열 코드다.
+DISTANCE_SCHOOL_KIND_CODES: frozenset[str] = frozenset({"04", "05"})
+DISTANCE_SCHOOL_KIND_NAME_HINTS: frozenset[str] = frozenset(
+    {"사이버대학(대학)", "사이버대학", "원격대학", "방송통신대학"}
+)
+
+
+def is_distance_university(row: Mapping[str, str]) -> bool:
+    """사이버·원격·방송통신대학인가. **공식 코드/유형명으로만 판정한다.**
+
+    교명에 '사이버'가 들어가는지 보지 않는다. 학교 유형은 대학알리미가 코드로 관리하고,
+    교명 문자열로 거르면 일반 대학의 '디지털·온라인' 학과가 잘못 걸린다.
+    """
+    code = (row.get("schlKndCd") or "").strip().zfill(2)
+    if code in DISTANCE_SCHOOL_KIND_CODES:
+        return True
+    # 코드 체계가 바뀌어도 유형명 쪽에서 걸리게 이중으로 본다. 여기서도 교명이 아니라
+    # **학교종류 필드**만 본다.
+    return (row.get("schlKndNm") or "").strip() in DISTANCE_SCHOOL_KIND_NAME_HINTS
+
+
+def recommendation_scope_exclusion(row: Mapping[str, str]) -> str | None:
+    """추천 Master 승격 후보에서 빠지는 사유. 포함 대상이면 None.
+
+    4~7년제 학사 판정(`undergraduate_scope_reason`)을 통과한 뒤에 적용한다 —
+    이건 "학사과정인가"가 아니라 "서비스가 추천할 범위인가"를 묻는다.
+    """
+    if is_distance_university(row):
+        return EXCLUDED_DISTANCE_UNIVERSITY
+
+    day_night = (row.get("dghtDivNm") or "").strip()
+    if not day_night:
+        # 값이 없다고 주간으로 추정하지 않는다 (A 결정 §3).
+        return EXCLUDED_UNKNOWN_DAY_NIGHT
+    if day_night == DAY_NIGHT_DAY:
+        return None
+    if day_night == DAY_NIGHT_NIGHT:
+        return EXCLUDED_NIGHT_COURSE
+    # '원격' 같은 제3의 값. 주간이 아니므로 제외하되 야간과 구분해 기록한다.
+    return EXCLUDED_UNKNOWN_DAY_NIGHT
