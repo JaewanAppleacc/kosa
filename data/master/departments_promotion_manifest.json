@@ -1,0 +1,27 @@
+{
+  "archived_legacy_master": {
+    "archive_path": "data/archive/departments_legacy_demo_35.jsonl",
+    "archived_at": "2026-08-24T16:59:43.412190+00:00",
+    "note": "2026-08-25 전국 학과 1,072건 Production Master 전환 — 기존 데모 35건을 삭제하지 않고 읽기 전용으로 보존한다. 새 Production Master(1,072건)와 절대 병합되지 않는다.",
+    "row_count": 35,
+    "sha256": "2d862b84b74946bbc598c0d829907d415e6dbadf0439df8c1386e936caeeef65",
+    "source_path": "data/master/departments.jsonl"
+  },
+  "major_breakdown": {
+    "business_administration": 271,
+    "computer_science": 209,
+    "education": 78,
+    "industrial_engineering": 53,
+    "life_science": 134,
+    "mechanical_engineering": 114,
+    "media_communication": 133,
+    "psychology": 80
+  },
+  "master_path": "data/master/departments.jsonl",
+  "master_row_count": 1072,
+  "master_sha256": "4ffa17effb2e0a8e605d463b4c660fb95e014722978413861b27e8e1f74d5fc2",
+  "note": "기존 데모 35건은 data/archive/departments_legacy_demo_35.jsonl로 보존되고, data/master/departments.jsonl은 이 1,072건으로 완전히 교체됐다(병합 아님).",
+  "promoted_at": "2026-08-24T16:59:43.416446+00:00",
+  "source_candidates_path": "data/academyinfo_work/2025/promotion_dry_run/national_master_promotion_candidates.jsonl",
+  "source_snapshot_path": "data/academyinfo_work/2025/departments.normalized.jsonl"
+}

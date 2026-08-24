@@ -1,0 +1,8 @@
+{
+  "archive_path": "data/archive/departments_legacy_demo_35.jsonl",
+  "archived_at": "2026-08-24T16:59:43.412190+00:00",
+  "note": "2026-08-25 전국 학과 1,072건 Production Master 전환 — 기존 데모 35건을 삭제하지 않고 읽기 전용으로 보존한다. 새 Production Master(1,072건)와 절대 병합되지 않는다.",
+  "row_count": 35,
+  "sha256": "2d862b84b74946bbc598c0d829907d415e6dbadf0439df8c1386e936caeeef65",
+  "source_path": "data/master/departments.jsonl"
+}
