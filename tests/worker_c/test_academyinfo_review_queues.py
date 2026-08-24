@@ -103,6 +103,30 @@ class DuplicateQueueTest(unittest.TestCase):
                 self.assertFalse(heavy & set(c), "무거운 원본 필드가 Queue에 복제됐다")
 
 
+class ReviewBatchTest(unittest.TestCase):
+    """검토 묶음은 작업 정리지 판정이 아니다."""
+
+    def test_every_group_has_a_batch(self) -> None:
+        allowed = {"BATCH_DAY_NIGHT_ONLY", "BATCH_DAY_NIGHT_PLUS", "INDIVIDUAL"}
+        self.assertTrue(all(q["review_batch"] in allowed for q in DUPLICATE))
+
+    def test_batching_does_not_decide_anything(self) -> None:
+        """묶었다고 대표가 정해지면 안 된다 — A 지시 §1 자동 선정 금지."""
+        for q in DUPLICATE:
+            self.assertEqual(q["decision_status"], "REVIEW_REQUIRED")
+            self.assertIsNone(q["selected_source_record_id"])
+
+    def test_day_night_only_batch_really_differs_only_in_day_night(self) -> None:
+        for q in DUPLICATE:
+            if q["review_batch"] == "BATCH_DAY_NIGHT_ONLY":
+                self.assertEqual(q["differing_fields"], ["day_night_name"])
+
+    def test_individual_batch_has_no_day_night_difference(self) -> None:
+        for q in DUPLICATE:
+            if q["review_batch"] == "INDIVIDUAL":
+                self.assertNotIn("day_night_name", q["differing_fields"])
+
+
 class ClassificationQueueTest(unittest.TestCase):
     def test_every_row_is_review_required(self) -> None:
         self.assertTrue(all(q["review_status"] == "REVIEW_REQUIRED" for q in CLASSIFICATION))

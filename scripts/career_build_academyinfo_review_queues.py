@@ -162,6 +162,35 @@ def build_duplicate_queue(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return queue
 
 
+def assign_review_batches(queue: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """검토를 묶음 단위로 만든다. **판정하는 것이 아니라 작업을 정리하는 것이다.**
+
+    588건을 한 건씩 보면 판단이 반복된다. 실측상 449건은 주야간을 빼면 모든 필드가
+    같아서, "같은 학과의 주간/야간 과정을 어떻게 다룰 것인가"라는 **한 번의 정책 판단**으로
+    끝난다. 나머지는 성격이 달라 개별로 봐야 한다.
+
+    `decision_status`는 그대로 REVIEW_REQUIRED다 — 자동 확정이 아니다(A 지시 §1).
+    묶음은 검토자가 한 번에 처리할 수 있는 단위를 알려줄 뿐이다.
+    """
+    for g in queue:
+        fields = g["differing_fields"]
+        if fields == ["day_night_name"]:
+            g["review_batch"] = "BATCH_DAY_NIGHT_ONLY"
+            g["batch_note"] = (
+                "주야간을 빼면 모든 필드가 같다. 같은 학과의 주간/야간 과정으로 보이며, "
+                "'주야간을 별도 학과로 볼 것인가'라는 정책 하나로 일괄 판단할 수 있다."
+            )
+        elif "day_night_name" in fields:
+            g["review_batch"] = "BATCH_DAY_NIGHT_PLUS"
+            g["batch_note"] = (
+                "주야간 외에 다른 필드도 갈린다. 주야간 정책만으로는 못 정하므로 개별 확인이 필요하다."
+            )
+        else:
+            g["review_batch"] = "INDIVIDUAL"
+            g["batch_note"] = "주야간과 무관한 중복이다. 원본을 직접 확인해야 한다."
+    return queue
+
+
 # ── §2 분류 REVIEW_REQUIRED Queue ────────────────────────────────────────
 
 def classify_review_cause(row: dict[str, Any]) -> tuple[str, str]:
@@ -346,6 +375,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     dup = build_duplicate_queue(normalized)
+    dup = assign_review_batches(dup)
     cls = build_classification_queue(results)
     nce = build_nce_queue(results)
 
@@ -371,6 +401,7 @@ def main(argv: list[str] | None = None) -> int:
         "survey_year": args.survey_year,
         "duplicate_group_count": len(dup),
         "duplicate_record_count": sum(q["record_count"] for q in dup),
+        "duplicate_review_batch_breakdown": dict(Counter(q["review_batch"] for q in dup)),
         "duplicate_cause_breakdown": dict(
             Counter(c["cause"] for q in dup for c in q["duplicate_cause_candidates"])
         ),
@@ -395,6 +426,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"검토 Queue 생성 — 조사연도 {args.survey_year}")
     print(f"  중복 그룹        {len(dup):>6}  (원본 행 {report['duplicate_record_count']})")
+    for k, v in report["duplicate_review_batch_breakdown"].items():
+        print(f"      {k:<24} {v}")
     print(f"  분류 REVIEW      {len(cls):>6}")
     for k, v in report["classification_cause_breakdown"].items():
         print(f"      {k:<20} {v}")

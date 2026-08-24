@@ -2,6 +2,11 @@
   "survey_year": 2025,
   "duplicate_group_count": 588,
   "duplicate_record_count": 1183,
+  "duplicate_review_batch_breakdown": {
+    "BATCH_DAY_NIGHT_ONLY": 449,
+    "BATCH_DAY_NIGHT_PLUS": 124,
+    "INDIVIDUAL": 15
+  },
   "duplicate_cause_breakdown": {
     "DAY_NIGHT_SPLIT": 573,
     "STATUS_HISTORY": 112,
