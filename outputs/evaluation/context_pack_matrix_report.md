@@ -9,20 +9,20 @@
 - discovery_errors: (없음)
 - ontology_errors: (없음)
 - Flag OFF 지원 Context: ['game', 'media', 'school_life'] (기존 3개와 일치: True)
-- Flag ON이지만 실제 검수 파일이 전부 TBD일 때 지원 Context: ['game', 'media', 'school_life'] (기존 3개와 일치: True)
+- Flag ON이지만 실제 검수 파일이 전부 TBD일 때 지원 Context: ['game', 'media', 'school_life', 'science', 'sports'] (기존 3개와 일치: False)
 - Shared Probe Blueprint 개수: 14
 
 | context_id | 발견 | Routing | Anchor | Seed | Backup | 검수 Key | 실제 검수 전부 TBD |
 |---|---|---|---|---|---|---|---|
 | art_design | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
-| business | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
+| business | 예 | 1 | 5 | 5 | 5 | 11 | **아니오(검토 진행됨)** |
 | cooking | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
 | fashion_beauty | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
 | history_humanities | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
 | law_politics | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
 | making | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
-| science | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
-| sports | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
+| science | 예 | 1 | 5 | 5 | 5 | 11 | **아니오(검토 진행됨)** |
+| sports | 예 | 1 | 5 | 5 | 5 | 11 | **아니오(검토 진행됨)** |
 | travel | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
 | volunteer | 예 | 1 | 5 | 5 | 5 | 11 | 예 |
 | writing | 예 | 1 | 5 | 5 | 5 | 11 | 예 |

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from src.data.context_packs.science import CONTEXT_PACK
 from src.data.contexts.context_definitions import CONTEXT_IDS
@@ -107,11 +109,13 @@ class RegistryOntologyValidationTest(unittest.TestCase):
         self.assertEqual(registry.ontology_errors(), {})
 
     def test_not_approved_without_review_status(self) -> None:
-        registry = ContextPackRegistry(
-            known_context_ids=frozenset(CONTEXT_IDS),
-            _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
-        )
-        self.assertFalse(registry.is_pack_review_approved("science"))
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = ContextPackRegistry(
+                known_context_ids=frozenset(CONTEXT_IDS),
+                review_status_dir=Path(tmp),
+                _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
+            )
+            self.assertFalse(registry.is_pack_review_approved("science"))
 
 
 if __name__ == "__main__":

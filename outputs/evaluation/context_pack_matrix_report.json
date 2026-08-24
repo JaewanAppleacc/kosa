@@ -136,14 +136,14 @@
     },
     "real_review_all_tbd": {
       "art_design": true,
-      "business": true,
+      "business": false,
       "cooking": true,
       "fashion_beauty": true,
       "history_humanities": true,
       "law_politics": true,
       "making": true,
-      "science": true,
-      "sports": true,
+      "science": false,
+      "sports": false,
       "travel": true,
       "volunteer": true,
       "writing": true
@@ -356,9 +356,11 @@
     "flag_on_but_unapproved_supported_context_ids": [
       "game",
       "media",
-      "school_life"
+      "school_life",
+      "science",
+      "sports"
     ],
-    "flag_on_unapproved_still_matches_vertical_slice_only": true
+    "flag_on_unapproved_still_matches_vertical_slice_only": false
   },
   "fail_closed_checks": {
     "target_context_id": "business",

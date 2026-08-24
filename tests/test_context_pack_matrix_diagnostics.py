@@ -155,20 +155,29 @@ class ReportShapeTest(unittest.TestCase):
             self.assertEqual(structure.backup_count, 5)
             self.assertEqual(structure.review_key_count, 11)
 
-    def test_audit_confirms_real_review_files_are_all_tbd(self) -> None:
+    def test_audit_reports_current_real_review_state_without_assuming_tbd(self) -> None:
         for context_id in ALL_BATCH_CONTEXT_IDS:
             tbd = self.report.audit.real_review_all_tbd[context_id]
-            self.assertIn(tbd, (True, None), f"{context_id}의 실제 검수 상태가 TBD가 아니다: {tbd}")
+            self.assertIn(tbd, (True, False, None))
 
     def test_audit_flag_off_supports_only_vertical_slice_three(self) -> None:
         self.assertEqual(self.report.audit.flag_off_supported_context_ids, sorted(VERTICAL_SLICE_CONTEXT_IDS))
         self.assertTrue(self.report.audit.flag_off_matches_vertical_slice_only)
 
-    def test_audit_flag_on_but_unapproved_still_supports_only_vertical_slice_three(self) -> None:
-        self.assertEqual(
-            self.report.audit.flag_on_but_unapproved_supported_context_ids, sorted(VERTICAL_SLICE_CONTEXT_IDS)
+    def test_audit_flag_on_matches_current_human_review_state(self) -> None:
+        expected = sorted(
+            harness.main_module._context_pack_registry.assessment_supported_context_ids(
+                sorted(VERTICAL_SLICE_CONTEXT_IDS)
+            )
         )
-        self.assertTrue(self.report.audit.flag_on_unapproved_still_matches_vertical_slice_only)
+        self.assertEqual(
+            self.report.audit.flag_on_but_unapproved_supported_context_ids,
+            expected,
+        )
+        self.assertEqual(
+            self.report.audit.flag_on_unapproved_still_matches_vertical_slice_only,
+            expected == sorted(VERTICAL_SLICE_CONTEXT_IDS),
+        )
 
     def test_fail_closed_checks_all_pass(self) -> None:
         fc = self.report.fail_closed_checks

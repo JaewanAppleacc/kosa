@@ -36,8 +36,13 @@ class EmptyRegistryBaselineTest(unittest.TestCase):
             self.assertEqual(pack.context_id, context_id)
 
     def test_assessment_supported_context_ids_unchanged_with_no_packs(self) -> None:
-        registry = ContextPackRegistry(known_context_ids=frozenset(CONTEXT_IDS))
-        result = registry.assessment_supported_context_ids(["game", "media", "school_life"])
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = ContextPackRegistry(
+                known_context_ids=frozenset(CONTEXT_IDS),
+                review_status_dir=Path(tmp),
+                _discovered=({}, {}),
+            )
+            result = registry.assessment_supported_context_ids(["game", "media", "school_life"])
         self.assertEqual(result, ["game", "media", "school_life"])
 
     def test_example_builder_is_not_auto_discovered(self) -> None:

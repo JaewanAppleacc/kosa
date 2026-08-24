@@ -7,7 +7,9 @@
 
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 from src.data.context_packs.sports import CONTEXT_PACK
 from src.data.contexts.context_definitions import CONTEXT_IDS
@@ -143,15 +145,15 @@ class RegistryOntologyValidationTest(unittest.TestCase):
         self.assertEqual(registry.ontology_errors(), {})
 
     def test_not_approved_without_review_status(self) -> None:
-        """검수 상태 JSON이 전부 TBD인 동안은 활성화되지 않아야 한다(Fail-Closed).
-        실제 저장소의 `data/reviews/context_packs/sports_review_status.json`을
-        그대로 읽는다."""
+        """검수 파일이 없는 독립 Fixture에서는 항상 Fail-Closed여야 한다."""
 
-        registry = ContextPackRegistry(
-            known_context_ids=frozenset(CONTEXT_IDS),
-            _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
-        )
-        self.assertFalse(registry.is_pack_review_approved("sports"))
+        with tempfile.TemporaryDirectory() as tmp:
+            registry = ContextPackRegistry(
+                known_context_ids=frozenset(CONTEXT_IDS),
+                review_status_dir=Path(tmp),
+                _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
+            )
+            self.assertFalse(registry.is_pack_review_approved("sports"))
 
 
 if __name__ == "__main__":
