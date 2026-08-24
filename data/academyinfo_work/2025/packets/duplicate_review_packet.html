@@ -1,0 +1,85 @@
+<meta charset="utf-8"><title>중복 학과 검수 패킷 2025</title><style>body{font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;margin:0;padding:24px;
+background:#f7f7f8;color:#1a1a1a;line-height:1.6}h1{font-size:20px;margin:0 0 4px}
+.sub{color:#666;font-size:13px;margin-bottom:20px}
+.card{background:#fff;border-radius:10px;padding:16px 18px;margin-bottom:14px;
+box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.hd{font-weight:600;font-size:15px;margin-bottom:2px}
+.meta{color:#666;font-size:12.5px;margin-bottom:10px}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin:8px 0}
+th,td{border:1px solid #e3e3e6;padding:5px 8px;text-align:left;vertical-align:top}
+th{background:#fafafa;font-weight:600;white-space:nowrap}
+.rec{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600}
+.distinct{background:#e7f2ff;color:#0b4a8f}.same{background:#fff0e6;color:#8f3d0b}
+.more{background:#f3f3f3;color:#555}
+.reason{background:#fafafa;border-left:3px solid #d0d0d4;padding:8px 12px;font-size:13px;margin:8px 0}
+ul{margin:6px 0;padding-left:20px;font-size:12.5px}
+.pending{color:#8a6d00;font-weight:600;font-size:12.5px}
+.warn{background:#fff8e6;border-left:3px solid #e0b000;padding:10px 14px;font-size:13px;
+border-radius:4px;margin-bottom:18px}</style>
+<h1>중복 department_id 검수 패킷</h1>
+<div class="sub">조사연도 2025 · 6건 · worker-c</div>
+<div class="warn"><b>권고는 확정이 아닙니다.</b> 모든 행이 <code>reviewer_1_status: TBD</code>,
+<code>resolution_status: PENDING</code> 상태입니다. 사람이 승인하기 전까지 어떤 코드도 이 값을
+사용하지 않습니다. 이름이 같다는 이유로 합치거나, source_record_id가 다르다는 이유만으로
+별도 학과라고 단정하지 마세요.</div>
+<div class="card">
+<div class="hd">서경대학교 · 코스메틱뷰티매니지먼트학과</div>
+<div class="meta">미용예술대학 · department_id <code>dept_14ad9d052ef2f77d303f6eb3</code>
+ · schl_id 0000121 · 갈리는 필드 major_character_name</div>
+<table><tr><th>source_record_id</th><th>schl_mjr_id</th><th>학과명</th><th>주야간</th><th>수업연한</th><th>학과특성</th><th>학위과정</th><th>상태</th><th>소계열</th><th>재학</th><th>졸업</th><th>조사연도</th></tr><tr><td>src_e0d97a4caccb8b0612fd3a68</td><td>0246788</td><td>코스메틱뷰티매니지먼트학과</td><td>주간</td><td>4년</td><td>일반과정</td><td>학사</td><td>EXISTING</td><td>142:뷰티아트</td><td>30</td><td>0</td><td>2025</td></tr><tr><td>src_9d87dbc9dbfafb35d8605c3e</td><td>0246874</td><td>코스메틱뷰티매니지먼트학과</td><td>주간</td><td>4년</td><td>계약학과</td><td>학사</td><td>EXISTING</td><td>142:뷰티아트</td><td>0</td><td>0</td><td>2025</td></tr></table>
+<div><span class="rec distinct">권고: DISTINCT_DEPARTMENTS_KEEP_SEPARATE</span></div>
+<div class="reason">계약학과는 대학알리미가 별도 편제단위로 관리하는 다른 과정이고, 학생 지원 경로도 다르다(산업체 재직자 대상). 학과명이 같다는 이유로 합치면 서로 다른 모집 단위가 하나로 보인다.</div>
+<div>공식 근거<ul><li>공식 학과코드(schlMjrId)가 서로 다르다: [&#x27;0246788&#x27;, &#x27;0246874&#x27;]</li><li>공식 학과특성이 &#x27;일반과정&#x27;과 &#x27;계약학과&#x27;로 갈린다</li></ul></div>
+<div class="pending">reviewer_1_status: TBD ·
+ resolution_status: PENDING</div>
+</div><div class="card">
+<div class="hd">서경대학교 · 헤어디자인학과</div>
+<div class="meta">미용예술대학 · department_id <code>dept_4dec239f5d58c90b51c3e8ff</code>
+ · schl_id 0000121 · 갈리는 필드 major_character_name</div>
+<table><tr><th>source_record_id</th><th>schl_mjr_id</th><th>학과명</th><th>주야간</th><th>수업연한</th><th>학과특성</th><th>학위과정</th><th>상태</th><th>소계열</th><th>재학</th><th>졸업</th><th>조사연도</th></tr><tr><td>src_e153ffe8c60d5c9220dbdd22</td><td>0232745</td><td>헤어디자인학과</td><td>주간</td><td>4년</td><td>계약학과</td><td>학사</td><td>EXISTING</td><td>142:뷰티아트</td><td>0</td><td>57</td><td>2025</td></tr><tr><td>src_6c9b529114533ba484d19e61</td><td>0232771</td><td>헤어디자인학과</td><td>주간</td><td>4년</td><td>일반과정</td><td>학사</td><td>EXISTING</td><td>142:뷰티아트</td><td>40</td><td>41</td><td>2025</td></tr></table>
+<div><span class="rec distinct">권고: DISTINCT_DEPARTMENTS_KEEP_SEPARATE</span></div>
+<div class="reason">계약학과는 대학알리미가 별도 편제단위로 관리하는 다른 과정이고, 학생 지원 경로도 다르다(산업체 재직자 대상). 학과명이 같다는 이유로 합치면 서로 다른 모집 단위가 하나로 보인다.</div>
+<div>공식 근거<ul><li>공식 학과코드(schlMjrId)가 서로 다르다: [&#x27;0232745&#x27;, &#x27;0232771&#x27;]</li><li>공식 학과특성이 &#x27;일반과정&#x27;과 &#x27;계약학과&#x27;로 갈린다</li></ul></div>
+<div class="pending">reviewer_1_status: TBD ·
+ resolution_status: PENDING</div>
+</div><div class="card">
+<div class="hd">충남대학교 · 약학과</div>
+<div class="meta">약학대학 · department_id <code>dept_6ea537f2938a79ba48bef719</code>
+ · schl_id 0000029 · 갈리는 필드 lesson_term_name, major_character_name</div>
+<table><tr><th>source_record_id</th><th>schl_mjr_id</th><th>학과명</th><th>주야간</th><th>수업연한</th><th>학과특성</th><th>학위과정</th><th>상태</th><th>소계열</th><th>재학</th><th>졸업</th><th>조사연도</th></tr><tr><td>src_8741cd6307fc8b4182a4dbdc</td><td>0010025</td><td>약학과</td><td>주간</td><td>6년</td><td>일반과정</td><td>학사</td><td>EXISTING</td><td>110:약학</td><td>50</td><td>52</td><td>2025</td></tr><tr><td>src_1c796c51cd964c139da0462e</td><td>0220559</td><td>약학과</td><td>주간</td><td>4년</td><td>계약학과</td><td>학사</td><td>EXISTING</td><td>110:약학</td><td>0</td><td>0</td><td>2025</td></tr></table>
+<div><span class="rec distinct">권고: DISTINCT_DEPARTMENTS_KEEP_SEPARATE</span></div>
+<div class="reason">계약학과는 대학알리미가 별도 편제단위로 관리하는 다른 과정이고, 학생 지원 경로도 다르다(산업체 재직자 대상). 학과명이 같다는 이유로 합치면 서로 다른 모집 단위가 하나로 보인다. 수업연한까지 달라 교육과정 자체가 다르다.</div>
+<div>공식 근거<ul><li>공식 학과코드(schlMjrId)가 서로 다르다: [&#x27;0010025&#x27;, &#x27;0220559&#x27;]</li><li>공식 수업연한이 다르다: [&#x27;4년&#x27;, &#x27;6년&#x27;]</li><li>공식 학과특성이 &#x27;일반과정&#x27;과 &#x27;계약학과&#x27;로 갈린다</li></ul></div>
+<div class="pending">reviewer_1_status: TBD ·
+ resolution_status: PENDING</div>
+</div><div class="card">
+<div class="hd">한일장신대학교 · 사회복지학과</div>
+<div class="meta">단과대구분없음 · department_id <code>dept_9d718e06d0d0d7e95945c732</code>
+ · schl_id 0000206 · 갈리는 필드 major_character_name</div>
+<table><tr><th>source_record_id</th><th>schl_mjr_id</th><th>학과명</th><th>주야간</th><th>수업연한</th><th>학과특성</th><th>학위과정</th><th>상태</th><th>소계열</th><th>재학</th><th>졸업</th><th>조사연도</th></tr><tr><td>src_4fcef86155dfa2d623d0a57c</td><td>0019547</td><td>사회복지학과</td><td>주간</td><td>4년</td><td>계약학과</td><td>학사</td><td>EXISTING</td><td>025:사회복지학</td><td>0</td><td>0</td><td>2025</td></tr><tr><td>src_3078c8a4887dde2d328affbe</td><td>0224303</td><td>사회복지학과</td><td>주간</td><td>4년</td><td>일반과정</td><td>학사</td><td>EXISTING</td><td>025:사회복지학</td><td>25</td><td>27</td><td>2025</td></tr></table>
+<div><span class="rec distinct">권고: DISTINCT_DEPARTMENTS_KEEP_SEPARATE</span></div>
+<div class="reason">계약학과는 대학알리미가 별도 편제단위로 관리하는 다른 과정이고, 학생 지원 경로도 다르다(산업체 재직자 대상). 학과명이 같다는 이유로 합치면 서로 다른 모집 단위가 하나로 보인다.</div>
+<div>공식 근거<ul><li>공식 학과코드(schlMjrId)가 서로 다르다: [&#x27;0019547&#x27;, &#x27;0224303&#x27;]</li><li>공식 학과특성이 &#x27;일반과정&#x27;과 &#x27;계약학과&#x27;로 갈린다</li></ul></div>
+<div class="pending">reviewer_1_status: TBD ·
+ resolution_status: PENDING</div>
+</div><div class="card">
+<div class="hd">원광대학교 · 약학과(2+4학제)</div>
+<div class="meta">약학대학 · department_id <code>dept_d4d6a4d5c2c3deffd36ac54c</code>
+ · schl_id 0000159 · 갈리는 필드 major_character_name</div>
+<table><tr><th>source_record_id</th><th>schl_mjr_id</th><th>학과명</th><th>주야간</th><th>수업연한</th><th>학과특성</th><th>학위과정</th><th>상태</th><th>소계열</th><th>재학</th><th>졸업</th><th>조사연도</th></tr><tr><td>src_fdc6fcc2d14ab14feefe1a52</td><td>0009123</td><td>약학과(2+4학제)</td><td>주간</td><td>4년</td><td>일반과정</td><td>학사</td><td>EXISTING</td><td>110:약학</td><td>0</td><td>49</td><td>2025</td></tr><tr><td>src_8609307f9560d236343eae79</td><td>0009574</td><td>약학과(2+4학제)</td><td>주간</td><td>4년</td><td>계약학과</td><td>학사</td><td>EXISTING</td><td>110:약학</td><td>0</td><td>0</td><td>2025</td></tr></table>
+<div><span class="rec distinct">권고: DISTINCT_DEPARTMENTS_KEEP_SEPARATE</span></div>
+<div class="reason">계약학과는 대학알리미가 별도 편제단위로 관리하는 다른 과정이고, 학생 지원 경로도 다르다(산업체 재직자 대상). 학과명이 같다는 이유로 합치면 서로 다른 모집 단위가 하나로 보인다.</div>
+<div>공식 근거<ul><li>공식 학과코드(schlMjrId)가 서로 다르다: [&#x27;0009123&#x27;, &#x27;0009574&#x27;]</li><li>공식 학과특성이 &#x27;일반과정&#x27;과 &#x27;계약학과&#x27;로 갈린다</li></ul></div>
+<div class="pending">reviewer_1_status: TBD ·
+ resolution_status: PENDING</div>
+</div><div class="card">
+<div class="hd">동신대학교 · 사회복지학과</div>
+<div class="meta">보건복지대학 · department_id <code>dept_e0cfd8e2595fa2ebf044a988</code>
+ · schl_id 0000104 · 갈리는 필드 major_character_name</div>
+<table><tr><th>source_record_id</th><th>schl_mjr_id</th><th>학과명</th><th>주야간</th><th>수업연한</th><th>학과특성</th><th>학위과정</th><th>상태</th><th>소계열</th><th>재학</th><th>졸업</th><th>조사연도</th></tr><tr><td>src_3ff8c9612cb1b70aee35f965</td><td>0011969</td><td>사회복지학과</td><td>주간</td><td>4년</td><td>계약학과</td><td>학사</td><td>EXISTING</td><td>025:사회복지학</td><td>0</td><td>0</td><td>2025</td></tr><tr><td>src_e2c9b39d883e4e8a4911de8b</td><td>0016970</td><td>사회복지학과</td><td>주간</td><td>4년</td><td>일반과정</td><td>학사</td><td>EXISTING</td><td>025:사회복지학</td><td>40</td><td>67</td><td>2025</td></tr></table>
+<div><span class="rec distinct">권고: DISTINCT_DEPARTMENTS_KEEP_SEPARATE</span></div>
+<div class="reason">계약학과는 대학알리미가 별도 편제단위로 관리하는 다른 과정이고, 학생 지원 경로도 다르다(산업체 재직자 대상). 학과명이 같다는 이유로 합치면 서로 다른 모집 단위가 하나로 보인다.</div>
+<div>공식 근거<ul><li>공식 학과코드(schlMjrId)가 서로 다르다: [&#x27;0011969&#x27;, &#x27;0016970&#x27;]</li><li>공식 학과특성이 &#x27;일반과정&#x27;과 &#x27;계약학과&#x27;로 갈린다</li></ul></div>
+<div class="pending">reviewer_1_status: TBD ·
+ resolution_status: PENDING</div>
+</div>
