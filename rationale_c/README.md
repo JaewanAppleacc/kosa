@@ -36,6 +36,7 @@ python -m unittest discover -s tests            # 근거가 깨지면 테스트�
 | [§6 재검토 트리거](06-review-triggers.md) | 조건이 바뀌면 무효가 되는 근거 목록 |
 | [§7 전국 대학알리미 수집](07-academyinfo-collection.md) | 공식 코드, 연도, ID, 제외·Lineage를 전국 규모에서 판단한 과정 |
 | [§8 실무 검토 질문](08-practical-review-questions.md) | 무엇을 증명했고 무엇은 아직 못 말하는지, 소수 Persona·성능·운영 한계 |
+| [§9 개선방안·기대효과](09-improvement-plan-and-expected-effects.md) | 시행착오로 좋아진 점과 소수학과 확장 방법·규모·비용·선택안 |
 
 ## 발표에서 이 문서를 쓰는 법
 
