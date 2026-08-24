@@ -9,6 +9,9 @@
     "SPLIT": 34
   },
   "current_status_candidate_count": 10063,
+  "recommendation_candidate_count": 10057,
+  "out_of_recommendation_scope_count": 973,
+  "contract_department_exclusion_count": 6,
   "approvable_candidate_count": 5449,
   "approvable_note": "EXISTING/NEW 중 예체능 제외·분류 REVIEW·N.C.E를 모두 통과한 수. 사람 검토 전이므로 '승인된 수'가 아니라 '승인 가능 후보 수'다.",
   "duplicate_group_count": 0,
@@ -41,9 +44,6 @@
     "college": 3
   },
   "public_department_url_candidates": 34,
-  "note": "전부 검토 대기다. 자동 승인·자동 대표 선정·강제 매핑을 하지 않았다.",
-  "recommendation_candidate_count": 10057,
-  "out_of_recommendation_scope_count": 973,
-  "contract_department_exclusion_count": 6,
-  "review_queue_total_count": 3837
+  "review_queue_total_count": 3837,
+  "note": "전부 검토 대기다. 자동 승인·자동 대표 선정·강제 매핑을 하지 않았다."
 }

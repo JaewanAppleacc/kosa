@@ -110,19 +110,32 @@ class DistanceUniversityTest(unittest.TestCase):
 
 class ContractDepartmentScopeTest(unittest.TestCase):
     def test_contract_department_stays_normalized_and_is_also_preserved_out_of_scope(self) -> None:
-        raw = row(
+        contract = row(
             schlId="0000029", schlMjrId="0220559", svyYr=2025,
             korSchlNm="충남대학교", korMjrNm="약학과", clgNm="약학대학",
             schlMjrCharNm="계약학과", schlMjrStatNm="기존", lsnTrmNm="4년",
         )
-        included, excluded, out_of_scope = normalize([raw])
+        general = row(
+            schlId="0000029", schlMjrId="0010025", svyYr=2025,
+            korSchlNm="충남대학교", korMjrNm="약학과", clgNm="약학대학",
+            schlMjrCharNm="일반과정", schlMjrStatNm="기존", lsnTrmNm="6년",
+        )
+        included, excluded, out_of_scope = normalize([general, contract])
 
         self.assertEqual(excluded, [])
-        self.assertEqual(len(included), 1, "전국 정규화 데이터에서 삭제하면 안 된다")
-        self.assertEqual(included[0]["recommendation_scope"], "OUT_OF_RECOMMENDATION_SCOPE")
-        self.assertEqual(included[0]["exclusion_reason"], "CONTRACT_DEPARTMENT")
+        self.assertEqual(len(included), 2, "전국 정규화 데이터에서 삭제하면 안 된다")
+        contract_row = next(r for r in included if r["major_character_name"] == "계약학과")
+        self.assertEqual(contract_row["recommendation_scope"], "OUT_OF_RECOMMENDATION_SCOPE")
+        self.assertEqual(contract_row["exclusion_reason"], "CONTRACT_DEPARTMENT")
         self.assertEqual(len(out_of_scope), 1)
         self.assertEqual(out_of_scope[0]["department_status"], "EXISTING")
+
+    def test_unpaired_contract_department_is_not_changed_by_duplicate_pair_policy(self) -> None:
+        included, _, out_of_scope = normalize([row(
+            schlMjrCharNm="계약학과", schlMjrStatNm="기존",
+        )])
+        self.assertEqual(included[0]["recommendation_scope"], "IN_RECOMMENDATION_SCOPE")
+        self.assertEqual(out_of_scope, [])
 
     def test_general_department_remains_in_scope(self) -> None:
         included, _, out_of_scope = normalize([row(

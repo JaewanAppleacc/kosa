@@ -58,10 +58,11 @@
     "수업연한이 4년 미만: 1.5년": 1,
     "수업연한이 4년 미만: 3.5년": 13
   },
-  "out_of_recommendation_scope_count": 967,
+  "out_of_recommendation_scope_count": 973,
   "out_of_scope_breakdown": {
     "EXCLUDED_NIGHT_COURSE": 950,
-    "EXCLUDED_UNKNOWN_DAY_NIGHT": 17
+    "EXCLUDED_UNKNOWN_DAY_NIGHT": 17,
+    "CONTRACT_DEPARTMENT": 6
   },
   "review_queue_count": 16,
   "lineage": {

@@ -99,7 +99,6 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
     department_name = (raw.get("korMjrNm") or "").strip()
     college_name = (raw.get("clgNm") or "").strip()
 
-    is_contract = (raw.get("schlMjrCharNm") or "").strip() == CONTRACT_COURSE
     return {
         # A 지시 §5: 원본 행 식별자와 학과 실체 식별자를 분리한다.
         # source_record_id는 연도를 포함하고, department_id는 포함하지 않는다.
@@ -145,10 +144,8 @@ def normalize_department(raw: dict[str, Any]) -> dict[str, Any]:
         "lesson_term_name": (raw.get("lsnTrmNm") or "").strip() or None,
         "degree_course_name": (raw.get("pbnfDgriCrseDivNm") or "").strip() or None,
         "major_character_name": (raw.get("schlMjrCharNm") or "").strip() or None,
-        "recommendation_scope": (
-            OUT_OF_RECOMMENDATION_SCOPE if is_contract else IN_RECOMMENDATION_SCOPE
-        ),
-        "exclusion_reason": CONTRACT_DEPARTMENT if is_contract else None,
+        "recommendation_scope": IN_RECOMMENDATION_SCOPE,
+        "exclusion_reason": None,
         # A 지시(중복 Queue): 주야간은 같은 학과가 여러 행으로 오는 흔한 사유라
         # 검토자가 바로 볼 수 있어야 한다.
         "day_night_name": (raw.get("dghtDivNm") or "").strip() or None,
@@ -191,17 +188,7 @@ def normalize(
             scope_reason = recommendation_scope_exclusion(raw)
             if scope_reason is None:
                 row = normalize_department(raw)
-                # 계약학과도 전국 정규화 데이터에는 남긴다. 추천/Master 후보에서만
-                # 제외하며, 되돌릴 수 있도록 같은 정규화 행을 범위 밖 출력에도 보존한다.
                 included.append(row)
-                if row["recommendation_scope"] == OUT_OF_RECOMMENDATION_SCOPE:
-                    row = dict(row)
-                    row["recommendation_scope_status"] = CONTRACT_DEPARTMENT
-                    row["recommendation_scope_note"] = (
-                        "산업체 재직자 대상 계약학과 — 원본·Lineage·Audit에는 보존하되 "
-                        "추천 및 Master 승격 후보에서 제외한다"
-                    )
-                    out_of_scope.append(row)
             else:
                 row = normalize_department(raw)
                 row["recommendation_scope"] = OUT_OF_RECOMMENDATION_SCOPE
@@ -233,6 +220,32 @@ def normalize(
                 },
             }
         )
+
+    # 이번 정책 변경의 대상은 같은 department_id로 들어온 일반과정/계약학과 6쌍이다.
+    # 전국의 모든 계약학과를 일괄 제외하면 기존의 독립 계약학과까지 범위를 바꾸므로,
+    # 공식 필드가 정확히 두 과정으로 갈리는 관계 검수 그룹에만 적용한다.
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in included:
+        grouped.setdefault(row["department_id"], []).append(row)
+    contract_pair_ids = {
+        department_id
+        for department_id, group in grouped.items()
+        if len(group) == 2
+        and all(r.get("department_status") in {"EXISTING", "NEW"} for r in group)
+        and {r.get("major_character_name") for r in group} == {"일반과정", CONTRACT_COURSE}
+    }
+    for row in included:
+        if row["department_id"] not in contract_pair_ids or row.get("major_character_name") != CONTRACT_COURSE:
+            continue
+        row["recommendation_scope"] = OUT_OF_RECOMMENDATION_SCOPE
+        row["exclusion_reason"] = CONTRACT_DEPARTMENT
+        preserved = dict(row)
+        preserved["recommendation_scope_status"] = CONTRACT_DEPARTMENT
+        preserved["recommendation_scope_note"] = (
+            "동일 department_id의 일반과정과 구분되는 계약학과 — 원본·Lineage·Audit에는 "
+            "보존하되 추천 및 Master 승격 후보에서 제외한다"
+        )
+        out_of_scope.append(preserved)
 
     return included, excluded, out_of_scope
 

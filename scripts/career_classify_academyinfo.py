@@ -45,7 +45,6 @@ ELIGIBILITY_REVIEW = "REVIEW_REQUIRED"
 # 공식 단과대학·교육과정 근거가 불충분하면 REVIEW_REQUIRED로 둔다 — Fail-Closed.
 CONVERGENCE_KEYWORDS = ("디자인", "콘텐츠", "미디어", "HCI", "UX", "융합", "자유전공", "인터랙션")
 OUT_OF_RECOMMENDATION_SCOPE = "OUT_OF_RECOMMENDATION_SCOPE"
-CONTRACT_COURSE = "계약학과"
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -79,12 +78,11 @@ def is_convergence(row: dict[str, Any]) -> bool:
 def is_in_recommendation_scope(row: dict[str, Any]) -> bool:
     """계약학과를 분류 후보로 만들기 전에 공식 필드로 제외한다.
 
-    새 정규화 출력은 recommendation_scope를 갖는다. 이전 fixture/중간 산출물도 안전하게
-    처리하도록 공식 major_character_name을 호환 경로로 함께 확인한다.
+    새 정규화 출력의 명시적 범위 판정만 사용한다. 계약학과라는 값만으로 전국의 독립
+    계약학과까지 일괄 제외하지 않는다.
     """
     return (
         row.get("recommendation_scope") != OUT_OF_RECOMMENDATION_SCOPE
-        and (row.get("major_character_name") or "").strip() != CONTRACT_COURSE
     )
 
 
