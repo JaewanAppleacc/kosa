@@ -1,0 +1,172 @@
+<meta charset="utf-8"><title>department_id identity-key 충돌 검수 패킷 2025</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:24px;
+background:#0b0f14;color:#dbe4ee;line-height:1.5}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:#8ea0b3;font-size:13px;margin-bottom:16px}
+.warn{background:#3a2a12;border:1px solid #8a5a1e;padding:10px 14px;border-radius:6px;
+font-size:13px;margin-bottom:20px}
+.group{background:#131a22;border:1px solid #263140;border-radius:8px;padding:16px;margin-bottom:16px}
+.gid{font-family:ui-monospace,monospace;color:#7fb8e6;font-size:13px}
+table{border-collapse:collapse;width:100%;margin-top:8px;font-size:12.5px}
+th,td{border:1px solid #263140;padding:4px 8px;text-align:left;vertical-align:top}
+th{background:#1a2430;color:#9fb3c8}
+.diff{background:#3a1414;color:#ffb3b3}
+.same{color:#8ea0b3}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;margin-right:4px}
+.b-tbd{background:#3a2a12;color:#e0b060}
+.audit{font-size:12px;color:#8ea0b3;margin-top:8px}
+code{font-family:ui-monospace,monospace}
+</style>
+<h1>department_id identity-key 충돌 검수 패킷</h1>
+<div class="sub">조사연도 2025 · 16개 Group · 32행</div>
+<div class="warn"><b>이것은 SHA-256 Hash Collision이 아닙니다.</b> department_id는
+(schl_id, department_name, college_name) identity-key입니다 — 서로 다른
+source_record_id가 이 3-tuple을 공유하면 구조적으로 같은 department_id를
+받습니다. 모든 Group이 <code>reviewer_1_status: TBD</code>, <code>decision: TBD</code>
+상태입니다. 이 패킷은 어떤 자동 판정도 내리지 않았습니다.</div>
+<div class="group">
+<div class="gid">dept_10800aff0e089ba439b3ecc1 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_9f231a2783e44a045f23a36a</td><td class='diff'>src_dbec10f16d8b430380d72985</td></tr><tr><th>schl_id</th><td class='same'>0000151</td><td class='same'>0000151</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0213508</td><td class='diff'>0211680</td></tr><tr><th>university_name</th><td class='same'>영남대학교</td><td class='same'>영남대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>경영대학</td><td class='same'>경영대학</td></tr><tr><th>department_name</th><td class='same'>경영학과</td><td class='same'>경영학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='diff'>ABOLISHED</td><td class='diff'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_9f231a2783e44a045f23a36a</code>
+· 평가 제외(dropped): <code>src_dbec10f16d8b430380d72985</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_14ad9d052ef2f77d303f6eb3 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_9d87dbc9dbfafb35d8605c3e</td><td class='diff'>src_e0d97a4caccb8b0612fd3a68</td></tr><tr><th>schl_id</th><td class='same'>0000121</td><td class='same'>0000121</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0246874</td><td class='diff'>0246788</td></tr><tr><th>university_name</th><td class='same'>서경대학교</td><td class='same'>서경대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>미용예술대학</td><td class='same'>미용예술대학</td></tr><tr><th>department_name</th><td class='same'>코스메틱뷰티매니지먼트학과</td><td class='same'>코스메틱뷰티매니지먼트학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>EXISTING</td><td class='same'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='diff'>OUT_OF_RECOMMENDATION_SCOPE</td><td class='diff'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='diff'>CONTRACT_DEPARTMENT</td><td class='diff'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_e0d97a4caccb8b0612fd3a68</code>
+· 평가 제외(dropped): <code>src_9d87dbc9dbfafb35d8605c3e</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_1fb390a6b08e933947ce546f · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_17755f9f717df10c34e9757c</td><td class='diff'>src_526f1adf4feb8a7b813ca97e</td></tr><tr><th>schl_id</th><td class='same'>0002574</td><td class='same'>0002574</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0209259</td><td class='diff'>0114278</td></tr><tr><th>university_name</th><td class='same'>경동대학교</td><td class='same'>경동대학교</td></tr><tr><th>campus_name</th><td class='same'>제3캠퍼스(강원)</td><td class='same'>제3캠퍼스(강원)</td></tr><tr><th>college_name</th><td class='same'>단과대구분없음</td><td class='same'>단과대구분없음</td></tr><tr><th>department_name</th><td class='same'>간호학과</td><td class='same'>간호학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_17755f9f717df10c34e9757c</code>
+· 평가 제외(dropped): <code>src_526f1adf4feb8a7b813ca97e</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_282fbbc113924e6b219824ec · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_07213e474f85500d7929fb6f</td><td class='diff'>src_5f1857f7728624ca764e0488</td></tr><tr><th>schl_id</th><td class='same'>0000175</td><td class='same'>0000175</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0009724</td><td class='diff'>0009361</td></tr><tr><th>university_name</th><td class='same'>중앙대학교</td><td class='same'>중앙대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>약학대학</td><td class='same'>약학대학</td></tr><tr><th>department_name</th><td class='same'>약학부</td><td class='same'>약학부</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='diff'>4년</td><td class='diff'>6년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='diff'>ABOLISHED</td><td class='diff'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_07213e474f85500d7929fb6f</code>
+· 평가 제외(dropped): <code>src_5f1857f7728624ca764e0488</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name, course_term</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_4b358345687aed927da6a9fa · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_4f4827d9551700893de144de</td><td class='diff'>src_79c532acdbba10f174193c46</td></tr><tr><th>schl_id</th><td class='same'>0000133</td><td class='same'>0000133</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0005020</td><td class='diff'>0001405</td></tr><tr><th>university_name</th><td class='same'>성균관대학교</td><td class='same'>성균관대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>정보통신대학</td><td class='same'>정보통신대학</td></tr><tr><th>department_name</th><td class='same'>반도체시스템공학과</td><td class='same'>반도체시스템공학과</td></tr><tr><th>major_character_name</th><td class='diff'>일반과정</td><td class='diff'>계약학과</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='diff'>ABOLISHED</td><td class='diff'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_4f4827d9551700893de144de</code>
+· 평가 제외(dropped): <code>src_79c532acdbba10f174193c46</code></div>
+<div class="audit">Raw 대조 — A: found=True (일반과정)
+· B: found=True (계약학과)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_4dec239f5d58c90b51c3e8ff · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_6c9b529114533ba484d19e61</td><td class='diff'>src_e153ffe8c60d5c9220dbdd22</td></tr><tr><th>schl_id</th><td class='same'>0000121</td><td class='same'>0000121</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0232771</td><td class='diff'>0232745</td></tr><tr><th>university_name</th><td class='same'>서경대학교</td><td class='same'>서경대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>미용예술대학</td><td class='same'>미용예술대학</td></tr><tr><th>department_name</th><td class='same'>헤어디자인학과</td><td class='same'>헤어디자인학과</td></tr><tr><th>major_character_name</th><td class='diff'>일반과정</td><td class='diff'>계약학과</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>EXISTING</td><td class='same'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='diff'>IN_RECOMMENDATION_SCOPE</td><td class='diff'>OUT_OF_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='diff'></td><td class='diff'>CONTRACT_DEPARTMENT</td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_6c9b529114533ba484d19e61</code>
+· 평가 제외(dropped): <code>src_e153ffe8c60d5c9220dbdd22</code></div>
+<div class="audit">Raw 대조 — A: found=True (일반과정)
+· B: found=True (계약학과)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_68619097f1dbc3aaec18de8f · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_4a9e0852ee52b3d2061c782c</td><td class='diff'>src_845eff4406e44cb3fe6cbf04</td></tr><tr><th>schl_id</th><td class='same'>0000121</td><td class='same'>0000121</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0235010</td><td class='diff'>0220959</td></tr><tr><th>university_name</th><td class='same'>서경대학교</td><td class='same'>서경대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>미용예술대학</td><td class='same'>미용예술대학</td></tr><tr><th>department_name</th><td class='same'>뷰티테라피 &amp; 메이크업학과</td><td class='same'>뷰티테라피 &amp; 메이크업학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_4a9e0852ee52b3d2061c782c</code>
+· 평가 제외(dropped): <code>src_845eff4406e44cb3fe6cbf04</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_6ea537f2938a79ba48bef719 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_1c796c51cd964c139da0462e</td><td class='diff'>src_8741cd6307fc8b4182a4dbdc</td></tr><tr><th>schl_id</th><td class='same'>0000029</td><td class='same'>0000029</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0220559</td><td class='diff'>0010025</td></tr><tr><th>university_name</th><td class='same'>충남대학교</td><td class='same'>충남대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>약학대학</td><td class='same'>약학대학</td></tr><tr><th>department_name</th><td class='same'>약학과</td><td class='same'>약학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='diff'>4년</td><td class='diff'>6년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>EXISTING</td><td class='same'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='diff'>OUT_OF_RECOMMENDATION_SCOPE</td><td class='diff'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='diff'>CONTRACT_DEPARTMENT</td><td class='diff'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_1c796c51cd964c139da0462e</code>
+· 평가 제외(dropped): <code>src_8741cd6307fc8b4182a4dbdc</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name, course_term</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_7df04a9c12d5f3a7b1940934 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_36af948172e0c03187cf2784</td><td class='diff'>src_660449368660eb3ca02359c4</td></tr><tr><th>schl_id</th><td class='same'>0000121</td><td class='same'>0000121</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0220960</td><td class='diff'>0227226</td></tr><tr><th>university_name</th><td class='same'>서경대학교</td><td class='same'>서경대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>미용예술대학</td><td class='same'>미용예술대학</td></tr><tr><th>department_name</th><td class='same'>헤어？메이크업 디자인학과</td><td class='same'>헤어？메이크업 디자인학과</td></tr><tr><th>major_character_name</th><td class='diff'>일반과정</td><td class='diff'>계약학과</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_660449368660eb3ca02359c4</code>
+· 평가 제외(dropped): <code>src_36af948172e0c03187cf2784</code></div>
+<div class="audit">Raw 대조 — A: found=True (일반과정)
+· B: found=True (계약학과)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_95498184076d8554d6c4d732 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_0ec3fdd48267ca11c90846ee</td><td class='diff'>src_604b6aab41cc621ee4cea442</td></tr><tr><th>schl_id</th><td class='same'>0000100</td><td class='same'>0000100</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0016706</td><td class='diff'>0012421</td></tr><tr><th>university_name</th><td class='same'>동국대학교</td><td class='same'>동국대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>사회과학대학</td><td class='same'>사회과학대학</td></tr><tr><th>department_name</th><td class='same'>행정학전공</td><td class='same'>행정학전공</td></tr><tr><th>major_character_name</th><td class='diff'>일반과정</td><td class='diff'>산업체위탁</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_0ec3fdd48267ca11c90846ee</code>
+· 평가 제외(dropped): <code>src_604b6aab41cc621ee4cea442</code></div>
+<div class="audit">Raw 대조 — A: found=True (일반과정)
+· B: found=True (산업체위탁)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_9a08f666b438da9bcb0b6967 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_4f7a6cd9a31fa8a334117f1f</td><td class='diff'>src_977ea81c679da9842e9449bb</td></tr><tr><th>schl_id</th><td class='same'>0000063</td><td class='same'>0000063</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0016381</td><td class='diff'>0011376</td></tr><tr><th>university_name</th><td class='same'>가천대학교</td><td class='same'>가천대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>IT대학</td><td class='same'>IT대학</td></tr><tr><th>department_name</th><td class='same'>인터랙티브미디어학과</td><td class='same'>인터랙티브미디어학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_977ea81c679da9842e9449bb</code>
+· 평가 제외(dropped): <code>src_4f7a6cd9a31fa8a334117f1f</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_9d718e06d0d0d7e95945c732 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_3078c8a4887dde2d328affbe</td><td class='diff'>src_4fcef86155dfa2d623d0a57c</td></tr><tr><th>schl_id</th><td class='same'>0000206</td><td class='same'>0000206</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0224303</td><td class='diff'>0019547</td></tr><tr><th>university_name</th><td class='same'>한일장신대학교</td><td class='same'>한일장신대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>단과대구분없음</td><td class='same'>단과대구분없음</td></tr><tr><th>department_name</th><td class='same'>사회복지학과</td><td class='same'>사회복지학과</td></tr><tr><th>major_character_name</th><td class='diff'>일반과정</td><td class='diff'>계약학과</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>EXISTING</td><td class='same'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='diff'>IN_RECOMMENDATION_SCOPE</td><td class='diff'>OUT_OF_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='diff'></td><td class='diff'>CONTRACT_DEPARTMENT</td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_4fcef86155dfa2d623d0a57c</code>
+· 평가 제외(dropped): <code>src_3078c8a4887dde2d328affbe</code></div>
+<div class="audit">Raw 대조 — A: found=True (일반과정)
+· B: found=True (계약학과)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_b9470f162837a7b20cb243ba · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_0a84c17cba99ee86f196d0de</td><td class='diff'>src_c26c3fd5b658ffe89368a57e</td></tr><tr><th>schl_id</th><td class='same'>0000133</td><td class='same'>0000133</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0000203</td><td class='diff'>0000905</td></tr><tr><th>university_name</th><td class='same'>성균관대학교</td><td class='same'>성균관대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>단과대구분없음</td><td class='same'>단과대구분없음</td></tr><tr><th>department_name</th><td class='same'>반도체시스템공학전공</td><td class='same'>반도체시스템공학전공</td></tr><tr><th>major_character_name</th><td class='diff'>일반과정</td><td class='diff'>계약학과</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_c26c3fd5b658ffe89368a57e</code>
+· 평가 제외(dropped): <code>src_0a84c17cba99ee86f196d0de</code></div>
+<div class="audit">Raw 대조 — A: found=True (일반과정)
+· B: found=True (계약학과)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_d4d6a4d5c2c3deffd36ac54c · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_8609307f9560d236343eae79</td><td class='diff'>src_fdc6fcc2d14ab14feefe1a52</td></tr><tr><th>schl_id</th><td class='same'>0000159</td><td class='same'>0000159</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0009574</td><td class='diff'>0009123</td></tr><tr><th>university_name</th><td class='same'>원광대학교</td><td class='same'>원광대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>약학대학</td><td class='same'>약학대학</td></tr><tr><th>department_name</th><td class='same'>약학과(2+4학제)</td><td class='same'>약학과(2+4학제)</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>EXISTING</td><td class='same'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='diff'>OUT_OF_RECOMMENDATION_SCOPE</td><td class='diff'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='diff'>CONTRACT_DEPARTMENT</td><td class='diff'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_8609307f9560d236343eae79</code>
+· 평가 제외(dropped): <code>src_fdc6fcc2d14ab14feefe1a52</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_d88abaf818af2ba09ef78db9 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_3724ec9904f5b267fa57bd5f</td><td class='diff'>src_60f5c076bf5b54d1272570b2</td></tr><tr><th>schl_id</th><td class='same'>0000121</td><td class='same'>0000121</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0244097</td><td class='diff'>0243444</td></tr><tr><th>university_name</th><td class='same'>서경대학교</td><td class='same'>서경대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>미용예술대학</td><td class='same'>미용예술대학</td></tr><tr><th>department_name</th><td class='same'>코스메틱&amp;뷰티테라피학과</td><td class='same'>코스메틱&amp;뷰티테라피학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>ABOLISHED</td><td class='same'>ABOLISHED</td></tr><tr><th>recommendation_scope</th><td class='same'>IN_RECOMMENDATION_SCOPE</td><td class='same'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='same'></td><td class='same'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_3724ec9904f5b267fa57bd5f</code>
+· 평가 제외(dropped): <code>src_60f5c076bf5b54d1272570b2</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div><div class="group">
+<div class="gid">dept_e0cfd8e2595fa2ebf044a988 · candidate_count 2</div>
+<table><tr><th>필드</th><th>후보 A</th><th>후보 B</th></tr><tr><th>source_record_id</th><td class='diff'>src_3ff8c9612cb1b70aee35f965</td><td class='diff'>src_e2c9b39d883e4e8a4911de8b</td></tr><tr><th>schl_id</th><td class='same'>0000104</td><td class='same'>0000104</td></tr><tr><th>source_schl_mjr_id</th><td class='diff'>0011969</td><td class='diff'>0016970</td></tr><tr><th>university_name</th><td class='same'>동신대학교</td><td class='same'>동신대학교</td></tr><tr><th>campus_name</th><td class='same'></td><td class='same'></td></tr><tr><th>college_name</th><td class='same'>보건복지대학</td><td class='same'>보건복지대학</td></tr><tr><th>department_name</th><td class='same'>사회복지학과</td><td class='same'>사회복지학과</td></tr><tr><th>major_character_name</th><td class='diff'>계약학과</td><td class='diff'>일반과정</td></tr><tr><th>course_term</th><td class='same'>4년</td><td class='same'>4년</td></tr><tr><th>degree_course_name</th><td class='same'>학사</td><td class='same'>학사</td></tr><tr><th>day_night</th><td class='same'>주간</td><td class='same'>주간</td></tr><tr><th>department_status</th><td class='same'>EXISTING</td><td class='same'>EXISTING</td></tr><tr><th>recommendation_scope</th><td class='diff'>OUT_OF_RECOMMENDATION_SCOPE</td><td class='diff'>IN_RECOMMENDATION_SCOPE</td></tr><tr><th>exclusion_reason</th><td class='diff'>CONTRACT_DEPARTMENT</td><td class='diff'></td></tr></table>
+<div class="audit">평가 대표(evaluated): <code>src_3ff8c9612cb1b70aee35f965</code>
+· 평가 제외(dropped): <code>src_e2c9b39d883e4e8a4911de8b</code></div>
+<div class="audit">Raw 대조 — A: found=True (계약학과)
+· B: found=True (일반과정)</div>
+<div class="audit">별도 편제단위 신호 필드: major_character_name</div>
+<div><span class="badge b-tbd">reviewer_1_status: TBD</span><span class="badge b-tbd">decision: TBD</span></div>
+</div>

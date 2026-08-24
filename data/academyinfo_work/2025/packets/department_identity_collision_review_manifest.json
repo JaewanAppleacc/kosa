@@ -1,0 +1,42 @@
+{
+  "auto_approved_rows": 0,
+  "contract_department_accounting": {
+    "contract_department_dropped_from_dry_run_evaluation": 2,
+    "contract_department_evaluated_by_dry_run": 4,
+    "contract_department_final_recommendation_exposure": 0,
+    "contract_department_preserved_in_normalized_and_audit_packet": 6,
+    "contract_department_total": 6,
+    "note": "6건 전부 duplicate_group_size>1(department_id identity-key 충돌 대상)이다. 그중 4건은 evaluate_department()가 실제로 평가해 BLOCKED_CONTRACT_DEPARTMENT로 나타난다(동시에 BLOCKED_DUPLICATE_ID도 갖는다 — 완전히 겹친다, 부분 겹침이 아니다). 나머지 2건(서경대 헤어디자인학과·코스메틱뷰티매니지먼트학과)은 load_inputs()의 by_department_id 충돌 처리로 애초에 평가 대상에서 빠져 BLOCKED_CONTRACT_DEPARTMENT 사유 자체가 계산되지 않는다 — 6건 전부 departments.normalized.jsonl 원본과 이 감사 패킷에는 그대로 남아 있다."
+  },
+  "decision_options": [
+    "TBD",
+    "EXACT_DUPLICATE_SOURCE_RECORD",
+    "DISTINCT_OFFICIAL_DEPARTMENTS",
+    "IDENTITY_KEY_INSUFFICIENT",
+    "NEEDS_MORE_OFFICIAL_EVIDENCE",
+    "HOLD"
+  ],
+  "input_hashes": {
+    "classification_results.jsonl": "7a4fb73743bbee5af360619ed6b6f01e130d2e954244e26217d6b6aacb924fd1",
+    "departments.normalized.jsonl": "eb51a8fbfa063916d135fdead4e179d436f424e4abc2d6502e11128198931ca7",
+    "departments.raw.jsonl.gz": "3b93a14c254d58c5b0dad50d0aad8cbc3082962c0452f30e82171cc23005290b"
+  },
+  "note": "auto_approved_rows가 0이라는 것이 이 스크립트가 어떤 Group도 자동으로 판정· 병합하지 않았다는 증명이다. 모든 Group이 review.reviewer_1_status=TBD, review.decision=TBD다. department_id 생성 규칙(src/ids.py::generate_department_id)은 이 스크립트로 바뀌지 않았다.",
+  "output_hashes": {
+    "department_identity_collision_review.html": "9c5b8f7297a1d17422ff94c1a79641d0de21c107e9314eddb80a3027f58453d8",
+    "department_identity_collision_review.jsonl": "a658dc4e619ae42e91538465f279ecdd40346556d3bcc9e035a4bbb09c47ed10"
+  },
+  "row_accounting": {
+    "classification_only_id_count": 0,
+    "classification_rows": 24416,
+    "collision_group_count": 16,
+    "collision_row_count": 32,
+    "dropped_from_evaluation_row_count": 16,
+    "missing_from_classification_all_contract_department": true,
+    "missing_from_classification_by_department_id_count_note": "department_id 기준으로 계산하면 0건으로 나온다 — identity-key 충돌로 왜곡된 값이므로 위 missing_from_classification_count(source_record_id 기준)가 정본이다.",
+    "missing_from_classification_count": 6,
+    "normalized_input_rows": 24422,
+    "unique_department_id_count": 24406
+  },
+  "survey_year": 2025
+}
