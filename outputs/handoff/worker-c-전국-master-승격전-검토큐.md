@@ -377,5 +377,10 @@ Builder 배선은 trait-vector-v2 기반 통합 브랜치에서 진행한다.
 ## 6. Commit/Push 해시
 
 ```
-(이번 커밋 해시는 push 후 아래에 기록)
+96979bb  worker-c: limit promotion queues to current-status departments and add clean-clone tests
+d26213a  worker-c: restrict recommendation scope to daytime bachelor courses
+33d8616  worker-c: batch the duplicate review queue and prepare A-approval change proposals
+cf5bfee  worker-c: build pre-promotion review queues for nationwide master
 ```
+
+`origin/worker-c` 동기화 완료. `main`·`worker-b`·`trait-vector-v2` 무변경.
