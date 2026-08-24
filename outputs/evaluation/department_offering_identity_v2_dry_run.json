@@ -1,0 +1,218 @@
+{
+  "abolished_excluded_count": 17,
+  "chungnam_pharmacy_representative_is_six_year_general_track": true,
+  "contract_department_tag_consistent_with_original": true,
+  "contract_or_industry_excluded_count": 7,
+  "corrected_group_ids": [
+    "dept_10800aff0e089ba439b3ecc1",
+    "dept_282fbbc113924e6b219824ec",
+    "dept_6ea537f2938a79ba48bef719",
+    "dept_9d718e06d0d0d7e95945c732",
+    "dept_d4d6a4d5c2c3deffd36ac54c",
+    "dept_e0cfd8e2595fa2ebf044a988"
+  ],
+  "exposed_general_track_count": 6,
+  "groups": [
+    {
+      "automated_representative_source_record_id": "src_9f231a2783e44a045f23a36a",
+      "department_id": "dept_10800aff0e089ba439b3ecc1",
+      "department_name": "경영학과",
+      "human_representative_source_record_id": "src_dbec10f16d8b430380d72985",
+      "meaningfully_corrected": true,
+      "offering_ids": [
+        "off_14c073d308931b4e475c4923",
+        "off_6c859a411bc97d87f97714eb"
+      ],
+      "university_name": "영남대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_e0d97a4caccb8b0612fd3a68",
+      "department_id": "dept_14ad9d052ef2f77d303f6eb3",
+      "department_name": "코스메틱뷰티매니지먼트학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_39f12c4a8822f4db03ebeabe",
+        "off_bc5512850cfa033ef432a62e"
+      ],
+      "university_name": "서경대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_17755f9f717df10c34e9757c",
+      "department_id": "dept_1fb390a6b08e933947ce546f",
+      "department_name": "간호학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_840e06f28619bea548841722",
+        "off_bc328ef98001aa1f669e36b1"
+      ],
+      "university_name": "경동대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_07213e474f85500d7929fb6f",
+      "department_id": "dept_282fbbc113924e6b219824ec",
+      "department_name": "약학부",
+      "human_representative_source_record_id": "src_5f1857f7728624ca764e0488",
+      "meaningfully_corrected": true,
+      "offering_ids": [
+        "off_31facaf7526b7a55a343b09c",
+        "off_42abf04ca96c262ddacb8039"
+      ],
+      "university_name": "중앙대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_4f4827d9551700893de144de",
+      "department_id": "dept_4b358345687aed927da6a9fa",
+      "department_name": "반도체시스템공학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_2ac577cdfbfcb7d21d51233f",
+        "off_69f657a7d113ed1aa0fef03f"
+      ],
+      "university_name": "성균관대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_6c9b529114533ba484d19e61",
+      "department_id": "dept_4dec239f5d58c90b51c3e8ff",
+      "department_name": "헤어디자인학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_84d4576f505795e079516ddd",
+        "off_cde243ad91cf4cdda1990da0"
+      ],
+      "university_name": "서경대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_4a9e0852ee52b3d2061c782c",
+      "department_id": "dept_68619097f1dbc3aaec18de8f",
+      "department_name": "뷰티테라피 & 메이크업학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_bc0f51e348d42a014364f971",
+        "off_d8acefe446e715419a87e761"
+      ],
+      "university_name": "서경대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_1c796c51cd964c139da0462e",
+      "department_id": "dept_6ea537f2938a79ba48bef719",
+      "department_name": "약학과",
+      "human_representative_source_record_id": "src_8741cd6307fc8b4182a4dbdc",
+      "meaningfully_corrected": true,
+      "offering_ids": [
+        "off_0004a4bec4927fe34568380e",
+        "off_b437d43468822b0614834d9d"
+      ],
+      "university_name": "충남대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_660449368660eb3ca02359c4",
+      "department_id": "dept_7df04a9c12d5f3a7b1940934",
+      "department_name": "헤어？메이크업 디자인학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_522032e7c84fe2e48c22c71d",
+        "off_b8bfccdb3310d9073b2d5a8e"
+      ],
+      "university_name": "서경대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_0ec3fdd48267ca11c90846ee",
+      "department_id": "dept_95498184076d8554d6c4d732",
+      "department_name": "행정학전공",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_3f437583f336c66db2fb71f3",
+        "off_d1ef4fb18ebf27695ec00195"
+      ],
+      "university_name": "동국대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_977ea81c679da9842e9449bb",
+      "department_id": "dept_9a08f666b438da9bcb0b6967",
+      "department_name": "인터랙티브미디어학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_647fe69c12ce7a417844e706",
+        "off_c683bfe2c30168073dbdcae8"
+      ],
+      "university_name": "가천대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_4fcef86155dfa2d623d0a57c",
+      "department_id": "dept_9d718e06d0d0d7e95945c732",
+      "department_name": "사회복지학과",
+      "human_representative_source_record_id": "src_3078c8a4887dde2d328affbe",
+      "meaningfully_corrected": true,
+      "offering_ids": [
+        "off_3f95538581c1c8d04e23ef6b",
+        "off_c6420dc30dd3b469684ab410"
+      ],
+      "university_name": "한일장신대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_c26c3fd5b658ffe89368a57e",
+      "department_id": "dept_b9470f162837a7b20cb243ba",
+      "department_name": "반도체시스템공학전공",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_8e39bb32e1393b267372c9a7",
+        "off_a917233af774b53c7d48977a"
+      ],
+      "university_name": "성균관대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_8609307f9560d236343eae79",
+      "department_id": "dept_d4d6a4d5c2c3deffd36ac54c",
+      "department_name": "약학과(2+4학제)",
+      "human_representative_source_record_id": "src_fdc6fcc2d14ab14feefe1a52",
+      "meaningfully_corrected": true,
+      "offering_ids": [
+        "off_11bcae79fbd9cd4892192024",
+        "off_83446198e9a91c2fdde496b9"
+      ],
+      "university_name": "원광대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_3724ec9904f5b267fa57bd5f",
+      "department_id": "dept_d88abaf818af2ba09ef78db9",
+      "department_name": "코스메틱&뷰티테라피학과",
+      "human_representative_source_record_id": null,
+      "meaningfully_corrected": false,
+      "offering_ids": [
+        "off_c79023f4e334a29061f29b9c",
+        "off_cc5dd7309ebc554a4d2a220b"
+      ],
+      "university_name": "서경대학교"
+    },
+    {
+      "automated_representative_source_record_id": "src_3ff8c9612cb1b70aee35f965",
+      "department_id": "dept_e0cfd8e2595fa2ebf044a988",
+      "department_name": "사회복지학과",
+      "human_representative_source_record_id": "src_e2c9b39d883e4e8a4911de8b",
+      "meaningfully_corrected": true,
+      "offering_ids": [
+        "off_6cc043cff6e5e646fc88879c",
+        "off_ddde03043a6cd04de15c44b9"
+      ],
+      "university_name": "동신대학교"
+    }
+  ],
+  "meaningful_representative_correction_count": 6,
+  "offering_id_duplicate_count": 0,
+  "scope_note": "이 검증은 16 Group·32행(이번 라운드가 실제로 건드린 범위)에만 한정한다 — career_build_national_department_promotion_dry_run.py의 24,422행 전체 재실행은 이번 라운드 범위 밖이다(그 산출물은 Git에 올리지 않는 기존 관례를 따른다).",
+  "sungkyunkwan_semiconductor_systems_eng_has_no_representative": true,
+  "total_groups": 16,
+  "total_rows": 32,
+  "unclassified_excluded_count": 2,
+  "undecided_group_count": 0,
+  "undecided_group_ids": []
+}
