@@ -122,10 +122,27 @@ export function MiniScale({ score, max = 5 }: { score: number | undefined; max?:
   );
 }
 
-/** 검사 단계 화면의 공통 폭. */
-export function ScreenShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
+/**
+ * 검사 단계 화면의 공통 폭.
+ *
+ * `title`은 화면에 보이지 않는 h1이다. 각 단계 화면은 눈으로는 카드 제목(h2)부터
+ * 시작하는데, 그러면 스크린리더에서 "이 페이지가 무엇인지"를 알려주는 단계가 통째로
+ * 빠진다. 보이는 디자인을 바꾸지 않으면서 제목 단계를 채우려고 sr-only h1을 둔다.
+ */
+export function ScreenShell({
+  children,
+  wide = false,
+  title,
+}: {
+  children: ReactNode;
+  wide?: boolean;
+  title?: string;
+}) {
   return (
-    <div className={`mx-auto w-full ${wide ? "max-w-5xl" : "max-w-3xl"} px-5 py-8 sm:px-8`}>{children}</div>
+    <div className={`mx-auto w-full ${wide ? "max-w-5xl" : "max-w-3xl"} px-5 py-8 sm:px-8`}>
+      {title ? <h1 className="sr-only">{title}</h1> : null}
+      {children}
+    </div>
   );
 }
 

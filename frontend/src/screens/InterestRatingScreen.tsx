@@ -163,7 +163,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <TopBar right={<span className="mut text-[12.5px]">자동 저장됨</span>} />
-      <ScreenShell wide>{children}</ScreenShell>
+      <ScreenShell wide title="관심 있는 이야기 표시하기">{children}</ScreenShell>
     </>
   );
 }

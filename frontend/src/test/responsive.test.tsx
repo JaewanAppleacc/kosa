@@ -31,6 +31,19 @@ describe("좁은 화면 레이아웃", () => {
     expect(scroller).not.toBeNull();
   });
 
+  it("각 단계 화면에 페이지 제목(h1)이 정확히 하나 있다", () => {
+    render(
+      <AppStateProvider initial={{ sessionId: "sess_1", step: "result" }}>
+        <ResultScreen />
+      </AppStateProvider>,
+    );
+
+    // 눈에 보이는 제목은 카드의 h2부터 시작하지만, 스크린리더에는 단계 이름이 h1으로 있어야 한다.
+    const headings = screen.getAllByRole("heading", { level: 1 });
+    expect(headings).toHaveLength(1);
+    expect(headings[0]).toHaveTextContent("검사 결과");
+  });
+
   it("결과 탭은 개수가 늘어도 줄바꿈 대신 가로 스크롤한다", () => {
     render(
       <AppStateProvider initial={{ sessionId: "sess_1", step: "result" }}>

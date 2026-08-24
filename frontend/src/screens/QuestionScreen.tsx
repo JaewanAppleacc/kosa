@@ -370,7 +370,7 @@ function Shell({ children, rail }: { children: React.ReactNode; rail?: React.Rea
   return (
     <>
       <TopBar right={<span className="mut text-[12.5px]">자동 저장됨</span>} />
-      <ScreenShell wide>
+      <ScreenShell wide title="질문에 답하기">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
           <div className="min-w-0 flex-1">{children}</div>
           {rail ? <div className="w-full lg:w-[280px] lg:flex-none">{rail}</div> : null}

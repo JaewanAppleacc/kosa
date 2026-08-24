@@ -12,7 +12,8 @@
       DepartmentBrowser, CourseUploadPanel, ContrastProposalScreen, RestoreScreen
 - [x] 2. 15 Context / 4+1 정책 대응 (화면 문구는 이미 policy 값 사용, 낡은 주석만 정정) — 커밋됨 — 화면에 박힌 "2개/3개" 문구 제거,
       selection_policy 값으로만 말하게 한다
-- [ ] 3. 테스트 추가 + 전체 통과 + build
+- [x] 3. 접근성: 각 단계 화면에 sr-only h1 추가 (스크린리더 제목 단계 복구) — 커밋됨
+- [ ] 4. 남은 것: 15 Context 활성화 서버(trait-vector-v2)에 붙여 선택 흐름 확인
 - [ ] 4. commit & push (worker-b만)
 
 ## 백엔드가 막고 있어 못 하는 것 (A에게 요청 필요)
