@@ -12,7 +12,8 @@
       "department_status": "NEW",
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
-      "canonical_major_id": "media_communication"
+      "canonical_major_id": "media_communication",
+      "department_url": null
     },
     {
       "department_id": "dept_595124d3fa674d6a4acf5da6",
@@ -25,7 +26,8 @@
       "department_status": "EXISTING",
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
-      "canonical_major_id": "media_communication"
+      "canonical_major_id": "media_communication",
+      "department_url": null
     },
     {
       "department_id": "dept_94f12354268af9359e245775",
@@ -38,7 +40,8 @@
       "department_status": "EXISTING",
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
-      "canonical_major_id": "media_communication"
+      "canonical_major_id": "media_communication",
+      "department_url": null
     },
     {
       "department_id": "dept_17bb4a41dc9efcc0d144e96e",
@@ -51,7 +54,8 @@
       "department_status": "EXISTING",
       "source_svy_year": 2025,
       "source_url": "https://www.academyinfo.go.kr/",
-      "canonical_major_id": "media_communication"
+      "canonical_major_id": "media_communication",
+      "department_url": null
     }
   ]
 }

@@ -1,9 +1,31 @@
-# B 작업자 핸드오프 — 2026-08-30 (갱신)
+# B 작업자 핸드오프 — 2026-08-31 (갱신)
 
-이 저장소의 `worker-b` 브랜치를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. 루트의
-`CLAUDE.md`는 B 브랜치 전용 작업 규칙이며 Claude Code가 자동으로 읽으므로 별도로 전달받을
-필요가 없습니다. 이 README와 `outputs/work_assignments/작업자_B_개발_지시서.md`를 시작점으로
-사용하고, 필요한 API 계약과 Mock 예시는 아래 경로에서 확인하세요.
+이 저장소(`kosa`)를 clone하면 바로 프론트엔드 개발을 시작할 수 있습니다. B 작업자는 별도 ZIP이나 `CLAUDE.md` 없이 이 문서를 시작점으로 사용합니다. 필요한 API 계약과 Mock 예시는 아래 경로에서 확인할 수 있습니다.
+
+> **2026-08-31 갱신 내용 — `Department.department_url` 필드 추가 (21차, 하위 호환 — 기존 필드 삭제·변경 없음)**:
+> 1. **`GET /departments/{major_id}`가 반환하는 각 학과 객체에 `department_url:
+>    string | null`이 새로 추가됐습니다.** 학과 **공식 홈페이지** URL입니다.
+>    - `string`이면 "학과 홈페이지" 버튼을 표시하세요(새 탭으로 열어도 되는 값입니다).
+>    - `null`이면 그 버튼을 숨기세요. **지금 저장소의 시연 데이터 35개는 전부
+>      `null`입니다** — 검증된 홈페이지 URL 데이터가 아직 통합되지 않았습니다(다음
+>      라운드에 채워질 예정). 화면에서 "URL이 없을 수 있다"를 기본 전제로 만들어
+>      두세요.
+> 2. **기존 `source_url` 필드는 역할이 다릅니다 — 학과 홈페이지 버튼으로 쓰지
+>    마세요.** `source_url`은 대학알리미(academyinfo.go.kr) 공식 URL이고 **데이터
+>    출처 표시 전용**입니다. 화면에 출처를 표기할 때는 `source_url`을 링크로 걸고
+>    문구는 아래 형태를 그대로 쓰세요(`source_svy_year`와 조합):
+>    ```text
+>    대학알리미 {source_svy_year}년 공시 기준
+>    ```
+>    예: `source_svy_year: 2025` → "대학알리미 2025년 공시 기준". `source_dataset`
+>    같은 별도 필드는 추가하지 않았습니다 — 이 문구는 `source_svy_year` 하나로
+>    충분히 만들 수 있습니다.
+> 3. **정리하면 학과 객체 하나에 URL이 두 개 있습니다** — `department_url`(있으면
+>    "학과 홈페이지 보기" 버튼), `source_url`(항상 있음, "대학알리미 {연도}년 공시
+>    기준" 출처 문구의 링크). 서로 바꿔 쓰지 마세요.
+> 4. **API Request/Response Schema는 이 필드 하나만 추가됐습니다** — 기존 필드는
+>    이름·타입 전부 그대로입니다. `outputs/mock_api/departments_normal.json`·
+>    `openapi.json`을 재생성해 반영했습니다.
 
 > **2026-08-30 갱신 내용 — Context 화면 API 정합성 (20차)**:
 > 1. **`GET /contexts`가 새로 추가됐습니다(세션 불필요).** Context 15개 목록과 선택
@@ -214,8 +236,8 @@
 ## 1. 빠른 시작
 
 ```bash
-git clone --branch worker-b https://github.com/JaewanAppleacc/kosa.git kosa-b
-cd kosa-b
+git clone https://github.com/JaewanAppleacc/kosa.git
+cd kosa
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements-lock.txt
 ./.venv/bin/uvicorn src.api.main:app --reload
@@ -223,18 +245,6 @@ python3 -m venv .venv
 
 - `http://127.0.0.1:8000/docs` — 실제 동작하는 API 문서(Swagger UI). 여기서 바로 요청 날려볼 수 있습니다.
 - 서버 안 띄우고 정적 파일만 보고 싶으면 `outputs/mock_api/`를 참고하세요.
-
-### 프론트엔드 개발 서버 연결
-
-현재 FastAPI에는 개발용 CORS 허용 설정이 없습니다. Vite 등 별도 포트의 브라우저 앱에서
-`http://127.0.0.1:8000`을 직접 호출하지 말고, 프론트엔드 개발 서버의 Proxy를 사용하세요.
-
-```text
-프론트엔드의 /api/*
-→ 앞의 /api를 제거하고 http://127.0.0.1:8000/*
-```
-
-API Base URL은 환경설정 한 곳에서만 관리하고, Component마다 주소를 하드코딩하지 마세요.
 
 ## 2. 지금 뭐가 진짜로 되고, 뭐가 Mock인지
 
@@ -246,7 +256,7 @@ API Base URL은 환경설정 한 곳에서만 관리하고, Component마다 주�
 | 답변 제출 → Evidence·Trait 판정 | ✅ 실제 계산(§12/§13). LLM 연동 여부와 무관하게 항상 실제로 동작합니다. |
 | Profile 조회 (`/profile/{session_id}`) | ✅ 실제 계산(§14) — LLM을 쓸 수 있으면 실제 Evidence를 바탕으로 LLM이 문장을 생성하고, LLM이 꺼져 있거나 호출에 실패하면 **같은 학생의 같은 실제 Evidence**를 바탕으로 결정론적 Fallback 문장을 생성합니다(다른 학생의 Mock Profile을 대신 보여주지 않습니다). 어느 경로든 Trait·근거 구조는 항상 이 세션의 실제 답변에서 나옵니다. 답변이 아예 없으면 200이 아니라 `EVIDENCE_NOT_READY`입니다(아래 참고). `highlights` 5~8개·`detailed_evidence_by_dimension`은 항상 실제 Evidence 구조입니다. |
 | Majors 조회 (`/majors/{session_id}`) | ✅ 실제 계산(§16) — **LLM 연동 여부와 무관하게 항상 실제 값입니다.** 답변이 아직 부족하면 목록이 비고 `insufficient_evidence_message`가 채워집니다(아래 4번 참고). |
-| Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). |
+| Departments 조회 (`/departments/{major_id}`) | ✅ 실제 Repository 조회(§18) — **단, 대학 13개·학과 35개 시연 데이터 기준입니다. 전국 학과 DB가 아닙니다.** `/majors/{session_id}`가 실제로 추천할 수 있는 대표 전공 3개 중 `media_communication`(학과 4개)·`industrial_engineering`(학과 3개)은 실제 학과가 연결돼 있습니다. `hci_ux`는 **비예체능 공학·정보·융합 학과만** 연결하는 원칙으로 재검토해 지금은 학과 1개(이화여자대학교 융합콘텐츠학과)뿐입니다 — 예체능 계열 학과(음악·미술·회화·조소, 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열 및 예술대학·미술대학·디자인대학·체육대학 소속 학과)는 교육과정에 UX 등 관련 근거가 있어도 추천 대상에서 제외한다는 정책이 확정됐기 때문입니다. `design` Canonical Major는 통째로 추천에서 제외돼 `/departments/design`은 200 + 빈 목록을 반환합니다(학과 데이터 자체는 남아 있지만 노출하지 않음). **관심 Context(미술·디자인/스포츠/미디어/패션·뷰티 등)는 이 정책과 무관하게 그대로 유지되고 Trait 탐색에 계속 쓰입니다** — 관심 Context와 추천 학과 범위는 별개입니다. 그 외 `major_id`(예: `computer_science`)도 데이터상 매핑돼 있어 조회는 되지만 실제 매칭 엔진이 추천하지는 않습니다. 매핑 안 된(또는 제외된) `major_id`는 200 + 빈 목록입니다. 입결·안정/적정/상향 추천은 아직 연결 안 됨(아래 참고). **`department_url`(2026-08-31, 21차)은 지금 전부 `null`입니다** — 위 21차 갱신 내용을 확인하세요. |
 | Subjects 조회 (`/subjects/{session_id}`) | ✅ 실제 PRE_SURVEY + POST_OFFERING 추천(§20) — `selected_major_id` Query Parameter 필수. `/course/confirm`을 마쳤으면 자동으로 POST_OFFERING 결과가 나옵니다(응답의 `source` 필드로 구분). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
 | 과목 업로드·확정 (`/course/upload`, `/course/confirm`) | ✅ 실제 Parser 연결 + 실제 확정 검증(§20). PDF/XLSX만 지원(XLS 제외). 위 2026-08-26 갱신 내용을 꼭 읽어주세요. |
 | Subgraph 조회 (`/subgraph/{session_id}`) | ✅ 실제 계산(§23) — 답변이 하나도 없으면 `EVIDENCE_NOT_READY`, 과목 미확정이면 Trait·전공·학과까지만(부분 그래프), `/course/confirm` 완료 후에는 과목 Node까지 포함한 전체 그래프. 위 2026-08-29 갱신 내용을 꼭 읽어주세요. |
@@ -265,7 +275,7 @@ API Base URL은 환경설정 한 곳에서만 관리하고, Component마다 주�
 | POST | `/assessment/interest-rating` | 15개 Context 관심도(1~5) 제출 |
 | POST | `/assessment/context-select` | 선호 Context **정확히 2개**(`game`/`media`/`school_life` 중, 관심도 평가를 마친 것만) 제출 → Contrast Context 1개 제안받음 |
 | POST | `/assessment/context-confirm` | 최종 Context 확정 (**2개 이상 3개 이하**, `game`/`media`/`school_life` 중 — 정확히 3개를 강제하지 않음) |
-| POST | `/assessment/next-question?session_id={session_id}` | 다음 질문 받기. JSON Body가 아니라 Query Parameter 사용 |
+| POST | `/assessment/next-question` | 다음 질문 받기 |
 | POST | `/assessment/answer` | 답변 제출 |
 | GET | `/profile/{session_id}` | Career Profile 결과 카드 |
 | GET | `/majors/{session_id}` | 전공 관련도 목록 |
@@ -275,30 +285,6 @@ API Base URL은 환경설정 한 곳에서만 관리하고, Component마다 주�
 | POST | `/course/confirm` | 파싱된 과목 후보 확인·확정 — 성공하면 POST_OFFERING `course_profile`을 함께 반환 |
 | GET | `/subgraph/{session_id}` | 실제 근거 그래프 (학생–Trait–전공–학과·대학–과목). 답변 없으면 422 `EVIDENCE_NOT_READY`, 과목 미확정이면 부분 그래프(아래 4-2 참고) |
 | GET | `/session/{session_id}` | Session 복원 |
-
-### 실제 검사 호출 순서
-
-```text
-POST /assessment/session
-→ POST /assessment/interest-rating
-→ POST /assessment/context-select
-→ POST /assessment/context-confirm
-→ POST /assessment/next-question?session_id=...
-→ POST /assessment/answer
-→ AnswerResponse.next_action에 따라 반복 또는 결과 조회
-```
-
-`/assessment/answer` 이후에는 다음처럼 분기하세요.
-
-```text
-NEXT_QUESTION       → /assessment/next-question 다시 호출
-CONTEXT_COMPLETE    → 다음 Context가 준비된 상태이므로 /assessment/next-question 호출
-ASSESSMENT_COMPLETE → /profile/{session_id}, /majors/{session_id} 조회
-```
-
-`NextQuestionResponse.status == CONTEXT_EARLY_TERMINATED`이면 `question`이 `null`일 수 있습니다.
-이때 질문 Component를 렌더링하지 말고 `assessment_complete`를 확인하여 다음 Context 또는 결과
-화면으로 이동하세요.
 
 ## 4. 화면에서 써야 하는 상태값 (하드코딩하지 말고 이 목록을 그대로 쓰세요)
 
@@ -333,37 +319,25 @@ ASSESSMENT_COMPLETE → /profile/{session_id}, /majors/{session_id} 조회
 > - 개수 제한·지원 Context 목록을 화면에 하드코딩하지 말고 `GET /contexts`의
 >   `selection_policy`/`assessment_supported`를 그대로 쓰세요(아래 "4-3" 절 참고).
 
-> ⚠️ **`/assessment/interest-rating` 엄격한 입력 검증**: 점수는 JSON 정수 `1`~`5`만
-> 허용합니다. 문자열 `"4"`, 실수 `4.0`, 불리언 `true`/`false`, 범위 밖 점수, 빈 `ratings`,
-> 미등록 Context id는 모두 422 `VALIDATION_ERROR`입니다. HTML 입력값은 흔히 문자열이므로
-> API 호출 전에 정수로 변환하고 범위를 확인하세요.
-
-정상 예시:
-
-```json
-{
-  "session_id": "ses_example",
-  "ratings": {
-    "game": 4,
-    "media": 5,
-    "school_life": 3
-  }
-}
-```
-
-> ℹ️ **`FinalizedQuestion.contrast_id`**: 일반 Seed·꼬리질문에서는 `null`이고 Explicit Conflict
-> 확인 질문에서만 값이 들어옵니다. 현재 질문 Component는 별도 디자인 없이 동일하게 표시해도
-> 정상 동작합니다. 내부 Trait 보정값을 화면에 노출하지 마세요.
-
-> ⚠️ **추천 전공과 실제 학과 데이터의 현재 연결 범위(2026-08-30 정정)**: 이 박스는 예전에
-> "`media_communication` 하나만 실제 학과와 연결돼 있다"고 적혀 있었는데, 그건 더는
-> 사실이 아닙니다 — 실제로는 대표 전공 3개 전부에 학과가 연결돼 있습니다
-> (`media_communication` 4개·`industrial_engineering` 3개·`hci_ux` 1개, 위 2번 표 참고).
-> `design`만 정책상 통째로 제외돼 `/departments/design`이 200 + 빈 배열을 반환합니다 —
-> 이건 데이터 불일치가 아니라 의도된 정책입니다. 그래도 학과가 0개로 오는 경우 자체는
-> 여전히 정상 상황일 수 있으니(예: `computer_science`처럼 추천 대상이 아닌 `major_id`를
-> 조회한 경우), 빈 배열을 네트워크 오류로 처리하지 말고 "현재 시연 데이터에 연결된 학과가
-> 없습니다" Empty State로 표시하는 원칙 자체는 그대로 유지하세요.
+> ⚠️ **`MajorRelevance.description` 신규 필수 필드(2026-08-24, Additive 변경)**:
+> 전공 카드마다 그 전공이 무엇을 배우는 분야인지 설명하는 1~2문장이 추가됐습니다.
+> ```text
+> MajorRelevance.description:
+> - 전공이 무엇을 배우는 분야인지 설명하는 1~2문장
+> - 관련도 근거 문장이 아님
+> - 학생 Trait 분석 문장이 아님
+> - 전공 카드의 전공명 아래에 표시
+> - 프론트에서 keywords를 조합해 설명을 만들지 않음
+> ```
+> 권장 표시:
+> ```text
+> 미디어·커뮤니케이션
+> 미디어 콘텐츠가 만들어지고 전달되는 과정과 사람·사회에 미치는 영향을 탐구하는 전공 분야입니다.
+> 관련성 높음
+> ```
+> `relevant_majors`·`explore_together_majors` 양쪽 모두 이 필드가 채워집니다(Optional
+> 아님). 서버 정본(`data/master/canonical_majors.jsonl`)에서 결정론적으로 가져온
+> 값이라 LLM이 매번 다른 문구를 만들지 않습니다 — 같은 major_id는 항상 같은 문구입니다.
 
 **전공 관련도 정성 Label** (`MajorRelevance.relevance_label` — 절대 숫자 아님, 숫자 필드 자체가 없음):
 `"관련성 높음"` / `"함께 탐색해볼 분야"` / `"비교해볼 만한 분야"`
