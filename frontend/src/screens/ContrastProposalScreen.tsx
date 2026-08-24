@@ -105,6 +105,14 @@ export function ContrastProposalScreen() {
           </div>
         ) : null}
 
+        {/* 개수는 항상 선택한 선호 Context 수(state.preferredContextIds.length)에서 그대로
+            계산한다 — 4/5를 상수로 박지 않는다. Flag OFF(2+1)에서는 "총 3개/2개"로,
+            Flag ON(4+1)에서는 "총 5개/4개"로 자동으로 달라진다. */}
+        <p className="mut mb-3 text-[12.5px]">
+          이 제안은 꼭 받아들이지 않아도 괜찮아요 — 수락하면 총 {state.preferredContextIds.length + 1}개,
+          거절하면 {state.preferredContextIds.length}개로 시작해요.
+        </p>
+
         <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => void confirm.run(true)} disabled={confirm.pending}>
             {confirm.pending ? <Spinner label="준비하는 중" /> : "좋아요, 시작할게요 →"}

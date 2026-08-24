@@ -70,13 +70,8 @@ from src.data.trait_ontology.trait_probe_capabilities_v2 import (
 )
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS, VERTICAL_SLICE_TRAITS
 from src.engines.contrast_context_selector import (
-    CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE,
-    COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE,
-    MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
-    MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
-    MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
-    MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
     ContextSelectionError,
+    compute_context_selection_policy,
     select_contrast_context,
     validate_context_id_list,
     validate_interest_ratings,
@@ -136,6 +131,7 @@ from src.services.major_exploration_service import MajorExplorationService
 from src.services.feature_flags import (
     MAX_V2_DIRECT_PROBE_QUESTIONS,
     context_pack_runtime_enabled,
+    context_selection_4_plus_1_enabled,
     trait_vector_v2_direct_probes_enabled,
     trait_vector_v2_primary_enabled,
 )
@@ -383,6 +379,27 @@ def _effective_supported_context_ids() -> list[str]:
     if not context_pack_runtime_enabled():
         return list(VERTICAL_SLICE_CONTEXT_IDS)
     return _context_pack_registry.assessment_supported_context_ids(list(VERTICAL_SLICE_CONTEXT_IDS))
+
+
+def _current_context_selection_policy():
+    """`compute_context_selection_policy()`를 현재 Flag·활성 Context 수로 호출하는
+    유일한 지점 — `GET /contexts`·`/assessment/context-select`·`/assessment/
+    context-confirm`·앱 시작 검사가 전부 이 함수만 부른다. Flag ON인데 활성 Context가
+    5개 미만이면 `ContextSelectionConfigError`가 그대로 올라간다(여기서 잡아 2+1로
+    조용히 축소하지 않는다, 지시서 §2)."""
+
+    return compute_context_selection_policy(
+        flag_enabled=context_selection_4_plus_1_enabled(),
+        effective_supported_context_count=len(_effective_supported_context_ids()),
+    )
+
+
+# 2026-08-24 지시서(a/context-selection-4-plus-1) §2 — 앱이 뜨는 순간 4+1 정책 전제조건을
+# 확인한다. Flag가 꺼져 있으면(기본값) 이 호출은 즉시 Vertical Slice 정책을 반환하고
+# 끝난다(부작용 없음, 기존 앱 시작 동작과 완전히 동일). Flag가 켜져 있는데 활성 Context가
+# 5개 미만이면 여기서 예외가 그대로 올라가 앱 자체가 뜨지 않는다 — "학생 요청 중간에
+# 뒤늦게 실패하지 않도록" 하는 지점이 바로 여기다.
+_current_context_selection_policy()
 
 
 def _clear_current_question(state: AssessmentState) -> None:
@@ -1134,15 +1151,18 @@ def get_context_catalog() -> ContextCatalogResponse:
         )
         for c in CONTEXT_DEFINITIONS
     ]
+    # 2026-08-24 지시서(a/context-selection-4-plus-1) §3: Flag OFF면 이 호출은 앱 시작
+    # 검사와 완전히 같은 값(Vertical Slice 상수)을 반환한다 — 새 필드는 추가하지 않는다.
+    policy = _current_context_selection_policy()
     return ContextCatalogResponse(
         contexts=contexts,
         selection_policy=ContextSelectionPolicyResponse(
-            preferred_context_min_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
-            preferred_context_max_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
-            contrast_context_count=CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE,
-            final_context_min_count=MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
-            final_context_max_count=MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
-            coverage_replacement_enabled=COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE,
+            preferred_context_min_count=policy.preferred_context_min_count,
+            preferred_context_max_count=policy.preferred_context_max_count,
+            contrast_context_count=policy.contrast_context_count,
+            final_context_min_count=policy.final_context_min_count,
+            final_context_max_count=policy.final_context_max_count,
+            coverage_replacement_enabled=policy.coverage_replacement_enabled,
         ),
     )
 
@@ -1157,13 +1177,14 @@ def create_session() -> CreateSessionResponse:
 @app.post("/assessment/interest-rating", response_model=InterestRatingResponse)
 def submit_interest_rating(payload: InterestRatingRequest) -> InterestRatingResponse:
     state = _get_state_or_404(payload.session_id)
+    policy = _current_context_selection_policy()
     try:
         # 2026-08-22 3차 리뷰: 이 값이 그대로 Context Selector(§5-1/§6-5) 입력으로 쓰이므로
         # 범위 밖 점수·미등록 Context id·빈 입력을 여기서 구조적으로 막는다. 최소 개수는
-        # 지금 유일하게 지원하는 Vertical Slice 모드 기준(§5-1 선호 Context 최소 개수와
-        # 동일한 상수를 재사용 — Full Mode 전환 시 이 값만 바꾸면 된다).
+        # 선호 Context 최소 개수와 같다(Flag OFF 2개, ON 4개) — 선호를 그만큼 고르려면
+        # 최소 그만큼은 미리 관심도를 매겨야 한다.
         validate_interest_ratings(
-            payload.ratings, CONTEXT_IDS, minimum_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE
+            payload.ratings, CONTEXT_IDS, minimum_count=policy.preferred_context_min_count
         )
     except ContextSelectionError as exc:
         raise HTTPException(
@@ -1188,12 +1209,13 @@ def select_contexts(payload: ContextSelectRequest) -> ContextSelectResponse:
 
     state = _get_state_or_404(payload.session_id)
     effective_supported = _effective_supported_context_ids()
+    policy = _current_context_selection_policy()
     try:
         validate_context_id_list(
             payload.selected_preferred_context_ids,
             CONTEXT_IDS,
-            minimum_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
-            maximum_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            minimum_count=policy.preferred_context_min_count,
+            maximum_count=policy.preferred_context_max_count,
             label="선호 Context",
         )
         unsupported = sorted(set(payload.selected_preferred_context_ids) - set(effective_supported))
@@ -1258,14 +1280,16 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
     개수나 통과했다)."""
 
     state = _get_state_or_404(payload.session_id)
+    policy = _current_context_selection_policy()
+    flag_on = context_selection_4_plus_1_enabled()
     try:
         # 구조적 검증(빈 목록·중복·미지의 Context id·개수) — "제안한 후보만 허용"으로
-        # 강제하지 않는다. 학생이 다른 Context로 교체할 수 있어야 한다(§5-1).
+        # 강제하지 않는다. 학생이 다른 Context로 교체할 수 있어야 한다(§5-1, Flag OFF).
         validate_context_id_list(
             payload.final_context_ids,
             CONTEXT_IDS,
-            minimum_count=MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
-            maximum_count=MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            minimum_count=policy.final_context_min_count,
+            maximum_count=policy.final_context_max_count,
             label="최종 Context",
         )
         # 운영 제약: 실제 질문 흐름(Seed·Backup·Routing)을 지원하는 Context만 확정할 수
@@ -1280,6 +1304,29 @@ def confirm_contexts(payload: ContextConfirmRequest) -> ContextConfirmResponse:
                 f"다음 Context의 실제 질문 흐름을 아직 지원하지 않습니다: "
                 f"{unsupported} (지원: {effective_supported})"
             )
+        # 2026-08-24 지시서(a/context-selection-4-plus-1) §6: Flag ON에서는 "선호 4개
+        # (그대로)" 또는 "선호 4개 + 제안된 Contrast 1개(수용)" 두 조합만 허용한다 —
+        # 선호하지 않은 임의의 Context를 다섯 번째로 끼워 넣을 수 없다. Flag OFF는 기존
+        # §5-1 방식(학생이 다른 Context로 교체 가능)을 그대로 유지한다 — 이 검증은 Flag
+        # ON에서만 추가된다.
+        if flag_on:
+            preferred_set = set(state.selected_preferred_contexts)
+            submitted_set = set(payload.final_context_ids)
+            allowed_fifth = {state.contrast_context_id} if state.contrast_context_id else set()
+            is_preferred_only = submitted_set == preferred_set
+            is_preferred_plus_contrast = (
+                bool(allowed_fifth)
+                and submitted_set == preferred_set | allowed_fifth
+                and len(payload.final_context_ids) == len(preferred_set) + 1
+            )
+            if not (is_preferred_only or is_preferred_plus_contrast):
+                raise ContextSelectionError(
+                    "4+1 정책에서는 선호 Context 4개를 그대로 확정하거나, 그 4개에 제안된 "
+                    "Contrast Context 1개를 더한 5개만 확정할 수 있습니다 — 선호하지 않은 "
+                    "임의의 Context를 다섯 번째로 추가할 수 없습니다. "
+                    f"(선호: {sorted(preferred_set)}, 제안된 Contrast: {state.contrast_context_id}, "
+                    f"제출: {sorted(submitted_set)})"
+                )
     except ContextSelectionError as exc:
         raise HTTPException(
             status_code=422,

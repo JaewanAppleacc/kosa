@@ -38,6 +38,84 @@ CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE = 1
 # 이유와 같은 사실을 `GET /contexts`의 selection_policy로도 명시적으로 알려준다.
 COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE = False
 
+# 2026-08-24 지시서(a/context-selection-4-plus-1) §1 — 최종 15개 Context 모델의
+# "선호 4개 + Contrast 1개" 정책(ENABLE_CONTEXT_SELECTION_4_PLUS_1=true일 때만 쓴다).
+# MINIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE(=4)는 이미 위에 있었다 — §5-1 FROZEN 설계가
+# 원래 요구한 값이고, 이 지시서에서 처음 실제로 쓰기 시작할 뿐이다.
+MAXIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE = MINIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE
+CONTRAST_CONTEXT_COUNT_FULL_MODE = 1
+MINIMUM_FINAL_CONTEXT_COUNT_FULL_MODE = 4
+MAXIMUM_FINAL_CONTEXT_COUNT_FULL_MODE = 5
+# Coverage Replacement는 4+1 정책에서도 아직 실제 계산이 없다 — Vertical Slice와 같은
+# 이유로 항상 False다(이 지시서 범위 밖).
+COVERAGE_REPLACEMENT_ENABLED_FULL_MODE = False
+
+# 4+1 정책은 "선호 4 + Contrast 1"이 성립하려면 활성 Context가 최소 5개여야 한다 — 미만
+# 이면 Contrast 후보 자체가 없거나(선호 4개가 전체를 다 써버림) 선호 4개조차 채울 수
+# 없다. §2 "조용히 2+1로 축소하지 말 것".
+MINIMUM_ACTIVE_CONTEXTS_FOR_4_PLUS_1 = 5
+
+
+class ContextSelectionConfigError(RuntimeError):
+    """§2 — `ENABLE_CONTEXT_SELECTION_4_PLUS_1=true`인데 활성 Context
+    (`effective_supported_context_ids`)가 `MINIMUM_ACTIVE_CONTEXTS_FOR_4_PLUS_1`
+    미만일 때. `ContextSelectionError`(학생 입력 문제, 422)와 다르다 — 이건 서버
+    설정 문제이므로 학생 요청에서 뒤늦게 걸리면 안 된다. 앱 시작 시점에 이미 한 번
+    검사하고(그때 이 예외가 나면 앱이 아예 뜨지 않는다), 매 정책 계산 시에도 같은
+    함수(`compute_context_selection_policy`)로 다시 확인한다 — 두 지점이 항상 같은
+    규칙을 쓰도록 로직을 하나로 유지한다."""
+
+
+class ContextSelectionPolicy(BaseModel):
+    """`GET /contexts`의 `ContextSelectionPolicyResponse`(API Schema, `src/schemas/
+    api.py`)와 필드가 1:1이다 — 이 Engine 계층은 API Schema를 직접 참조하지 않고
+    (계층 분리), `src/api/main.py`가 이 값을 그대로 옮겨 담는다."""
+
+    preferred_context_min_count: int
+    preferred_context_max_count: int
+    contrast_context_count: int
+    final_context_min_count: int
+    final_context_max_count: int
+    coverage_replacement_enabled: bool
+
+
+def compute_context_selection_policy(
+    *, flag_enabled: bool, effective_supported_context_count: int,
+) -> ContextSelectionPolicy:
+    """Feature Flag와 활성 Context 수만으로 선택 정책을 결정론적으로 계산한다 —
+    Context 이름을 조건문으로 하드코딩하지 않는다(개수만 본다). `GET /contexts`·
+    `/assessment/context-select`·`/assessment/context-confirm`·앱 시작 시 검사가
+    전부 이 함수 하나만 호출한다(같은 정책을 여러 곳에서 각자 계산하면 어긋난다,
+    `_effective_supported_context_ids()`와 같은 원칙)."""
+
+    if not flag_enabled:
+        return ContextSelectionPolicy(
+            preferred_context_min_count=MINIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            preferred_context_max_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_VERTICAL_SLICE,
+            contrast_context_count=CONTRAST_CONTEXT_COUNT_VERTICAL_SLICE,
+            final_context_min_count=MINIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            final_context_max_count=MAXIMUM_FINAL_CONTEXT_COUNT_VERTICAL_SLICE,
+            coverage_replacement_enabled=COVERAGE_REPLACEMENT_ENABLED_VERTICAL_SLICE,
+        )
+
+    if effective_supported_context_count < MINIMUM_ACTIVE_CONTEXTS_FOR_4_PLUS_1:
+        raise ContextSelectionConfigError(
+            "ENABLE_CONTEXT_SELECTION_4_PLUS_1=true이지만 활성 Context가 "
+            f"{effective_supported_context_count}개뿐입니다(4+1 정책은 최소 "
+            f"{MINIMUM_ACTIVE_CONTEXTS_FOR_4_PLUS_1}개가 필요합니다). 조용히 2+1로 "
+            "축소하지 않습니다 — ContextPack 검수를 더 진행해 활성 Context를 늘리거나, "
+            "이 Flag를 끄세요."
+        )
+
+    return ContextSelectionPolicy(
+        preferred_context_min_count=MINIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE,
+        preferred_context_max_count=MAXIMUM_PREFERRED_CONTEXT_COUNT_FULL_MODE,
+        contrast_context_count=CONTRAST_CONTEXT_COUNT_FULL_MODE,
+        final_context_min_count=MINIMUM_FINAL_CONTEXT_COUNT_FULL_MODE,
+        final_context_max_count=MAXIMUM_FINAL_CONTEXT_COUNT_FULL_MODE,
+        coverage_replacement_enabled=COVERAGE_REPLACEMENT_ENABLED_FULL_MODE,
+    )
+
 
 class ContextSelectionError(ValueError):
     """Context 선택·확정 입력이 유효하지 않을 때(중복, 미지의 ID, 빈 목록, 개수 미달·초과)."""

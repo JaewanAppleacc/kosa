@@ -52,3 +52,16 @@ def context_pack_runtime_enabled(env: dict[str, str] | None = None) -> bool:
     값이 완전히 동일해야 한다"). 기본값 OFF."""
 
     return _flag_on("ENABLE_CONTEXT_PACK_RUNTIME", env)
+
+
+def context_selection_4_plus_1_enabled(env: dict[str, str] | None = None) -> bool:
+    """2026-08-24 지시서(a/context-selection-4-plus-1) §1 — 최종 15개 Context 모델의
+    "선호 Context 4개 + Contrast Context 1개" 정책을 쓸지 여부. `context_pack_runtime_
+    enabled()`와 독립이다 — 이 Flag만 켠다고 12개 신규 ContextPack이 자동으로 활성화
+    되지는 않는다(그건 여전히 `ENABLE_CONTEXT_PACK_RUNTIME` 몫이다). 이 Flag가 켜져
+    있는데 실제 활성 Context가 5개 미만이면(4+1 정책이 성립할 수 없음) 조용히 2+1로
+    축소하지 않고 Fail-Fast한다(`src/engines/contrast_context_selector.py::
+    compute_context_selection_policy` 참고). 기본값 OFF — OFF에서는 기존 2+1 흐름이
+    완전히 그대로 유지된다."""
+
+    return _flag_on("ENABLE_CONTEXT_SELECTION_4_PLUS_1", env)
