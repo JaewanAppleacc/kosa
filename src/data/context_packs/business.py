@@ -113,8 +113,8 @@ _ROUTING_QUESTION_ID = "business_routing_question"
 _ROUTING_ROWS: list[tuple[str, str, str, str]] = [  # role_id, 문구, anchor_id, anchor_label
     ("br_idea", "새로운 아이디어를 떠올리고 다듬는 순간", "idea_shaping", "아이디어 구상"),
     ("br_feedback", "사람들의 반응이나 피드백을 확인하는 순간", "feedback_reading", "반응·피드백 확인"),
-    ("br_resource", "제한된 시간이나 예산을 어떻게 쓸지 정하는 순간", "resource_budgeting", "자원·예산 배분"),
-    ("br_decision", "여러 방향 중 하나를 결정하는 순간", "plan_decision", "방향 결정"),
+    ("br_resource", "정해진 시간이나 예산 안에서 무엇을 우선할지 정하는 순간", "resource_budgeting", "자원·예산 배분"),
+    ("br_decision", "아이디어를 어떤 방식으로 실제 진행할지 결정하는 순간", "plan_decision", "방향 결정"),
     ("br_team", "팀에서 역할을 나누는 순간", "team_role_share", "팀 역할 나누기"),
 ]
 ROUTING_BLUEPRINT = ContextRoutingBlueprint(

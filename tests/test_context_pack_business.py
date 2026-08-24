@@ -6,7 +6,9 @@ Trait Ontology 준수, 금지 전제 문구 미포함)만 다시 확인한다.""
 
 from __future__ import annotations
 
+import json
 import unittest
+from pathlib import Path
 
 from src.data.context_packs.business import CONTEXT_PACK
 from src.data.contexts.context_definitions import CONTEXT_IDS
@@ -100,6 +102,77 @@ class ForbiddenAssumptionTextTest(unittest.TestCase):
         for text in self._all_texts():
             for phrase in forbidden:
                 self.assertNotIn(phrase, text, f"{phrase!r}가 {text!r}에 포함됨")
+
+
+class RoutingReviewFixTest(unittest.TestCase):
+    """2026-08-24 사람 검수(reviewer_1) REVISE 반영 — resource_budgeting/plan_decision
+    Routing 선택지 문구만 바꾸고 나머지(Anchor 집합·role_id·검수 Key·Mapping)는 전혀
+    건드리지 않았는지 확인한다. 실제 검수 JSON(business_review_status.json)은
+    읽기만 한다 — 이 테스트가 그 파일을 쓰거나 상태를 바꾸지 않는다."""
+
+    _EXPECTED_ANCHOR_IDS = {"idea_shaping", "feedback_reading", "resource_budgeting", "plan_decision", "team_role_share"}
+    _EXPECTED_ROLE_IDS = {"br_idea", "br_feedback", "br_resource", "br_decision", "br_team"}
+    _OLD_AMBIGUOUS_TEXTS = ("제한된 시간이나 예산을 어떻게 쓸지 정하는 순간", "여러 방향 중 하나를 결정하는 순간")
+
+    def test_routing_has_exactly_5_options(self) -> None:
+        self.assertEqual(len(CONTEXT_PACK.routing_blueprint.base_question.options), 5)
+
+    def test_anchor_id_set_unchanged(self) -> None:
+        anchor_ids = {a.anchor_id for a in CONTEXT_PACK.anchor_presentations}
+        self.assertEqual(anchor_ids, self._EXPECTED_ANCHOR_IDS)
+        routing_anchor_ids = {m.context_anchor for m in CONTEXT_PACK.routing_blueprint.option_mappings}
+        self.assertEqual(routing_anchor_ids, self._EXPECTED_ANCHOR_IDS)
+
+    def test_routing_role_ids_unchanged(self) -> None:
+        role_ids = {o.role_id for o in CONTEXT_PACK.routing_blueprint.base_question.options}
+        self.assertEqual(role_ids, self._EXPECTED_ROLE_IDS)
+        mapping_role_ids = {m.role_id for m in CONTEXT_PACK.routing_blueprint.option_mappings}
+        self.assertEqual(mapping_role_ids, self._EXPECTED_ROLE_IDS)
+
+    def test_routing_blueprint_and_question_id_unchanged(self) -> None:
+        self.assertEqual(CONTEXT_PACK.routing_blueprint.blueprint_id, "business_context_router_v1")
+        self.assertEqual(CONTEXT_PACK.routing_blueprint.base_question.question_id, "business_routing_question")
+
+    def test_required_review_key_unchanged(self) -> None:
+        registry = ContextPackRegistry(
+            known_context_ids=frozenset(CONTEXT_IDS), _discovered=({CONTEXT_PACK.context_id: CONTEXT_PACK}, {}),
+        )
+        keys = registry.required_review_keys(CONTEXT_PACK)
+        self.assertIn("business::routing::business_context_router_v1", keys)
+
+    def test_old_ambiguous_phrasing_no_longer_present(self) -> None:
+        option_texts = [o.text for o in CONTEXT_PACK.routing_blueprint.base_question.options]
+        for old_text in self._OLD_AMBIGUOUS_TEXTS:
+            self.assertNotIn(old_text, option_texts)
+
+    def test_new_phrasing_distinguishes_resource_budgeting_from_plan_decision(self) -> None:
+        by_role = {o.role_id: o.text for o in CONTEXT_PACK.routing_blueprint.base_question.options}
+        resource_text = by_role["br_resource"]
+        decision_text = by_role["br_decision"]
+        self.assertIn("시간", resource_text)
+        self.assertIn("예산", resource_text)
+        self.assertIn("우선", resource_text, "resource_budgeting 문구에 '무엇을 우선할지' 의미가 없다")
+        self.assertNotEqual(decision_text.strip(), "여러 방향 중 하나를 결정하는 순간")
+        self.assertIn("진행", decision_text, "plan_decision 문구에 '실제로 진행' 의미가 없다")
+        self.assertNotEqual(resource_text, decision_text)
+
+    def test_routing_options_still_carry_no_trait_signal_after_fix(self) -> None:
+        for option in CONTEXT_PACK.routing_blueprint.base_question.options:
+            self.assertEqual(option.primary_trait_delta, {})
+
+    def test_real_review_json_comment_and_revise_status_preserved(self) -> None:
+        """실제 검수 파일을 읽기만 한다 — 여기서 쓰지 않는다. 사람이 남긴 REVISE
+        코멘트가 그대로 있고, 이 Pack 코드 수정이 검수 상태를 임의로 바꾸지
+        않았는지(여전히 REVISE인지) 확인한다."""
+
+        review_path = (
+            Path(__file__).resolve().parents[1] / "data" / "reviews" / "context_packs" / "business_review_status.json"
+        )
+        entries = json.loads(review_path.read_text(encoding="utf-8"))
+        routing_entry = next(e for e in entries if e["blueprint_id"] == "business::routing::business_context_router_v1")
+        self.assertEqual(routing_entry["reviewer_1_status"], "REVISE")
+        self.assertIn("제한된 시간안에", routing_entry["reviewer_1_comment"])
+        self.assertIn("너무 모호", routing_entry["reviewer_1_comment"])
 
 
 class RegistryOntologyValidationTest(unittest.TestCase):
