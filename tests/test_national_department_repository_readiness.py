@@ -116,12 +116,27 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout)
 
+    # 2026-08(a/final-mapping-review-closeout)가 사용자 최종 결정에 따라 이 5개
+    # 파일에 실제 검수 결과를 기록했다 — 이 테스트가 실제로 지키려는 것은 "이 클래스
+    # 위의 harness.main() 실행이 data/reviews/를 건드리지 않는다"이지 "브랜치의
+    # data/reviews/ 전체가 영원히 git-clean이어야 한다"가 아니다. 그 5개만 제외하고
+    # 나머지는 여전히 무변경이어야 한다.
+    _INTENTIONALLY_FINALIZED_REVIEW_FILES = (
+        "data/reviews/canonical_major_group_review_status.jsonl",
+        "data/reviews/canonical_major_group_bridge_review_status.json",
+        "data/reviews/canonical_major_group_bridge_scope_review_status.jsonl",
+        "data/reviews/academyinfo_p1_classification_review_status.jsonl",
+        "data/reviews/academyinfo_nce_middle_series_review_status.jsonl",
+    )
+
     def test_data_reviews_directory_git_clean(self) -> None:
         result = subprocess.run(
-            ["git", "diff", "--exit-code", "HEAD", "--", "data/reviews/"],
+            ["git", "status", "--porcelain", "--", "data/reviews/"],
             cwd=_REPO_ROOT, capture_output=True, text=True,
         )
-        self.assertEqual(result.returncode, 0, result.stdout)
+        changed = [line[3:] for line in result.stdout.splitlines() if line.strip()]
+        unexpected = [p for p in changed if p not in self._INTENTIONALLY_FINALIZED_REVIEW_FILES]
+        self.assertEqual(unexpected, [], f"data/reviews/ 아래 의도하지 않은 변경: {unexpected}")
 
     def test_current_35_department_api_counts_unchanged(self) -> None:
         """이 Harness가 실제 운영 데이터를 건드리지 않으므로, 실제 35건 기준

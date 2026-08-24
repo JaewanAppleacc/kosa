@@ -1,0 +1,28 @@
+{
+  "auto_approved_rows": 0,
+  "counts": {
+    "blocked": 24794,
+    "evaluated": 24794,
+    "ready_for_promotion": 0
+  },
+  "input_hashes": {
+    "bridge_mapping_review": "500e65d9e8f1515b858e62b070e7aeb9155f12f94983cc75759cfd6c6ed55adc",
+    "bridge_scope_review": "da26b452f16ffc1a579430a7cd3e947efec15286e86d6103da71fb7099f017a4",
+    "classification_results.jsonl": "7a4fb73743bbee5af360619ed6b6f01e130d2e954244e26217d6b6aacb924fd1",
+    "department_url_scope_audit": "87bdb85d41b25fc625d6502f145f4d1fd45f3ab2c176c7b7e83021f7d5ede59d",
+    "departments.normalized.jsonl": "eb51a8fbfa063916d135fdead4e179d436f424e4abc2d6502e11128198931ca7",
+    "nce_clusters": "2f1fb9a355b397b5cfacdac82d395ed1c02b5036a13cfb4f8f32b61ef2e9f969",
+    "nce_review": "76b0f90be4408fbe7e7e7c50118721bda28c0cdf5e429077045543b19afa250b",
+    "out_of_recommendation_scope.jsonl": "3a37fe6a8f23967fcdd1731376fe247a7e93c0af722d1e1766acf72e5df8d91f",
+    "p1_classification_packet": "da95552714666e54d774128117acb9c24b3733fd6dc54fb2e3727fa72f435fc3",
+    "p1_review": "38534c9ee39385e9bae7e3fa0ba97ec439ec6874d2a96eba811655f07fc5040f"
+  },
+  "note": "auto_approved_rows가 0이라는 것이 이 Dry Run이 어떤 검수도 자동으로 채우거나 승인하지 않았다는 증명이다. data/master/departments.jsonl과 공개 API는 이 실행으로 전혀 바뀌지 않았다.",
+  "output_hashes": {
+    "promotion_blocked.jsonl": "eaf9416384821f4c0d3895050d6bf4a59f9959490cd247c57a36834fce4ee0e9",
+    "promotion_candidates.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "promotion_summary.json": "be930891242f210915529b67970dd1e81f78639ccf3263b3bb534458bc248595",
+    "promotion_summary.md": "a484090b615076921cb246f56d93590ea07b9a2de657426bf6ba47e80d6fc590"
+  },
+  "survey_year": 2025
+}
