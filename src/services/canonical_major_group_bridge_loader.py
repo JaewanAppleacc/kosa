@@ -1,12 +1,13 @@
 """Canonical Major Group ↔ Canonical Major Bridge Loader — 2026-08-24 지시서
-(Bridge 계약) §4.
+(Bridge 계약) §4, a/canonical-major-bridge-scope 지시서 §2(Scope 교차 검증).
 
 이 모듈은 `data/master/canonical_major_group_bridge.draft.jsonl`을 읽고,
 `data/canonical_major_groups.draft.jsonl`(42개 Group 정본)과
 `data/master/canonical_majors.jsonl`(10개 Major 정본) 두 쪽 모두와 대조해
 Fail-Fast로 검증한다. Pydantic 모델(`CanonicalMajorGroupBridgeEntry`)은 한 행
 안에서만 판단 가능한 규칙을 강제하고, 이 모듈은 파일 전체·다른 정본과 대조해야
-하는 규칙(중복 Key, 존재하지 않는 Group/Major, 완결성)을 강제한다 —
+하는 규칙(중복 Key, 존재하지 않는 Group/Major, 완결성, Scope 소계열 코드가 실제
+대학알리미 코드표·그 Group의 코드 목록에 속하는지)을 강제한다 —
 `canonical_major_group_draft_loader.py`/`context_pack_registry.py`와 같은 계층
 분리 원칙이다.
 
@@ -16,6 +17,7 @@ Fail-Fast로 검증한다. Pydantic 모델(`CanonicalMajorGroupBridgeEntry`)은 
 
 from __future__ import annotations
 
+import gzip
 import json
 from pathlib import Path
 
@@ -28,6 +30,12 @@ from src.services.canonical_major_group_draft_loader import load_canonical_major
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_BRIDGE_DRAFT_PATH = _REPO_ROOT / "data" / "master" / "canonical_major_group_bridge.draft.jsonl"
 DEFAULT_CANONICAL_MAJORS_PATH = _REPO_ROOT / "data" / "master" / "canonical_majors.jsonl"
+# A 결정사항(outputs/handoff/academyinfo_a_decisions.md §1) — 전국 학과 후보의 정본
+# 조사연도는 2025다. Scope 소계열 코드도 같은 연도 코드표로 검증해야 Group 쪽
+# (`canonical_major_group_draft_loader.py`가 읽는 2025 소계열 코드)과 기준이 어긋나지 않는다.
+DEFAULT_SMALL_SERIES_CODE_TABLE_PATH = (
+    _REPO_ROOT / "data" / "academyinfo_raw" / "2025" / "codes" / "getCodeBySmallSeries.jsonl.gz"
+)
 
 # 예체능 4개 Group — A 결정사항(outputs/handoff/academyinfo_a_decisions.md §3)과
 # 정확히 같은 4개다. 이 목록을 이 모듈이 직접 들고 있는 이유: Bridge 검증은
@@ -40,6 +48,91 @@ ARTS_EXCLUDED_GROUP_IDS = frozenset({"fine_arts_design", "music", "performing_me
 class BridgeValidationError(ValueError):
     """개별 행이 아니라 Bridge 파일 전체 수준의 구조 오류(중복 Key, 존재하지 않는
     Group/Major 참조, 완결성 위반)."""
+
+
+class BridgeScopeValidationError(BridgeValidationError):
+    """2026-08-24 a/canonical-major-bridge-scope 지시서 §2 — Scope 필드가 다른
+    정본(대학알리미 158개 소계열 코드표, 그 Group 자신의 소계열 목록)과 맞지 않을 때.
+    `BridgeValidationError`의 하위 타입이라 기존에 `BridgeValidationError`만 잡던
+    호출부도 그대로 잡는다. 오류 메시지에는 group_id·major_id·코드값만 담고, 질문
+    원문·사용자 데이터·API Key는 절대 포함하지 않는다(이 Loader가 다루는 데이터
+    자체에 애초에 그런 값이 없다 — Bridge는 순수 분류 메타데이터다)."""
+
+
+def load_official_small_series_codes(path: Path | None = None) -> dict[str, str]:
+    """대학알리미 표준분류 소계열 158개 공식 코드표(`getCodeBySmallSeries`)를
+    `{cdid(코드): cdnm(명칭)}`으로 돌려준다. 이 코드표 자체가 정본이다 — Bridge나
+    Group Draft가 아니라 원본 수집 데이터(`data/academyinfo_raw/`)에서 직접 읽는다."""
+
+    resolved = path or DEFAULT_SMALL_SERIES_CODE_TABLE_PATH
+    codes: dict[str, str] = {}
+    with gzip.open(resolved, "rt", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            codes[row["cdid"]] = row["cdnm"]
+    return codes
+
+
+def validate_bridge_scope_row(
+    entry: CanonicalMajorGroupBridgeEntry, *, official_codes: dict[str, str], group_small_series_codes: frozenset[str],
+) -> None:
+    """2026-08-24 a/canonical-major-bridge-scope 지시서 §2 "Schema 우회(model_construct
+    등)에 대비한 Service 방어 검증" — `CanonicalMajorGroupBridgeEntry`의
+    `_scope_field_consistency` model_validator와 같은 행 단위 규칙을 Pydantic
+    검증에 의존하지 않고 순수 함수로 다시 확인한 뒤, 이 함수만 할 수 있는 교차 검증
+    (코드가 실제 158개 공식 코드표에 있는가, 그 Group 자신의 소계열 목록에 속하는가)
+    까지 더한다. `model_construct()`로 Pydantic 검증을 건너뛴 값이 들어와도 이 함수는
+    여전히 막는다 — `entry`의 필드값만 읽지, Pydantic이 검증을 실제로 실행했다고
+    가정하지 않는다."""
+
+    group_id, major_id = entry.canonical_major_group_id, entry.canonical_major_id
+    scope_type = entry.scope_type
+    included = entry.included_small_series_codes
+    excluded = entry.excluded_small_series_codes
+
+    def fail(message: str) -> None:
+        raise BridgeScopeValidationError(f"{group_id} -> {major_id}: {message}")
+
+    # ── 행 단위 규칙 재확인(Schema 우회 대비) ──
+    for label, codes in (("included_small_series_codes", included), ("excluded_small_series_codes", excluded)):
+        if any(not c.strip() for c in codes):
+            fail(f"{label}에 공백/빈 문자열 코드가 있다")
+        if len(codes) != len(set(codes)):
+            fail(f"{label}에 중복 코드가 있다: {codes}")
+
+    if entry.mapping_status == "UNMAPPED" and scope_type is not None:
+        fail(f"UNMAPPED는 scope_type을 가질 수 없다(현재 {scope_type!r})")
+
+    if entry.mapping_status == "EXCLUDED_RECOMMENDATION" and scope_type != "EXCLUDED_RECOMMENDATION":
+        fail(f"EXCLUDED_RECOMMENDATION 행의 scope_type은 항상 EXCLUDED_RECOMMENDATION이어야 한다(현재 {scope_type!r})")
+    if scope_type == "EXCLUDED_RECOMMENDATION" and entry.mapping_status != "EXCLUDED_RECOMMENDATION":
+        fail(f"scope_type=EXCLUDED_RECOMMENDATION은 mapping_status도 그래야 한다(현재 {entry.mapping_status!r})")
+
+    if entry.mapping_status in ("EVIDENCED", "REVIEW_REQUIRED") and scope_type is None:
+        fail(f"{entry.mapping_status}는 scope_type이 있어야 한다")
+
+    overlap = set(included) & set(excluded)
+    if overlap:
+        fail(f"included_small_series_codes와 excluded_small_series_codes가 겹친다: {sorted(overlap)}")
+
+    if scope_type == "FULL_GROUP" and (included or excluded):
+        fail("FULL_GROUP은 included/excluded_small_series_codes를 동시에 사용하지 않는다")
+
+    if scope_type == "INCLUDED_SMALL_SERIES_ONLY" and not included:
+        fail("INCLUDED_SMALL_SERIES_ONLY는 included_small_series_codes가 최소 1개 있어야 한다")
+
+    # ── 교차 검증(이 함수만 할 수 있다 — 다른 정본이 필요하다) ──
+    all_codes = set(included) | set(excluded)
+    unknown_official = all_codes - official_codes.keys()
+    if unknown_official:
+        fail(f"대학알리미 공식 소계열 158개 코드표에 없는 코드: {sorted(unknown_official)}")
+
+    not_in_group = all_codes - group_small_series_codes
+    if not_in_group:
+        fail(f"이 Group({group_id})의 공식 소계열 목록에 속하지 않는 코드: {sorted(not_in_group)}")
 
 
 class BridgeLoadReport:
@@ -74,6 +167,7 @@ def _raw_rows(path: Path) -> list[dict]:
 
 def load_canonical_major_group_bridge(
     bridge_path: Path | None = None, *, group_draft_path: Path | None = None, majors_path: Path | None = None,
+    small_series_code_table_path: Path | None = None,
 ) -> BridgeLoadReport:
     """지시서 §4의 Fail-Fast 규칙을 전부 강제한 뒤 `BridgeLoadReport`를 돌려준다.
     하나라도 위반하면 `BridgeValidationError`(또는 Pydantic의 `ValidationError`를
@@ -89,7 +183,9 @@ def load_canonical_major_group_bridge(
         except PydanticValidationError as exc:
             raise BridgeValidationError(f"{resolved_bridge_path}:{i + 1}번째 행 검증 실패 — {exc}") from exc
 
-    known_group_ids = {g.canonical_major_id for g in load_canonical_major_groups_draft(group_draft_path)}
+    groups = load_canonical_major_groups_draft(group_draft_path)
+    known_group_ids = {g.canonical_major_id for g in groups}
+    group_codes_by_id = {g.canonical_major_id: frozenset(g.included_official_small_series_codes) for g in groups}
     known_major_ids = {m.major_id for m in load_canonical_majors(majors_path or DEFAULT_CANONICAL_MAJORS_PATH)}
 
     # Group ID가 42개 초안에 실제로 존재하는지.
@@ -147,6 +243,19 @@ def load_canonical_major_group_bridge(
     if majors_without_any_bridge:
         raise BridgeValidationError(
             f"Bridge 후보가 하나도 없는 기존 Major(명시적 UNMAPPED 필요): {sorted(majors_without_any_bridge)}"
+        )
+
+    # 2026-08-24 a/canonical-major-bridge-scope 지시서 §2 — Scope 필드 교차 검증.
+    # `CanonicalMajorGroupBridgeEntry`의 model_validator가 이미 행 단위 규칙을
+    # 강제했지만, "Schema 우회(model_construct 등)에 대비한 Service 방어 검증"
+    # 요구사항에 따라 여기서 순수 함수로 다시 한 번 확인하고, 이 함수만 할 수 있는
+    # 교차 검증(공식 코드표 존재 여부, 그 Group 자신의 소계열 목록 부분집합 여부)을
+    # 더한다. Group ID가 42개 초안에 없는 행은 위에서 이미 걸러졌으므로
+    # `group_codes_by_id[e.canonical_major_group_id]`는 항상 안전하게 조회된다.
+    official_codes = load_official_small_series_codes(small_series_code_table_path)
+    for e in entries:
+        validate_bridge_scope_row(
+            e, official_codes=official_codes, group_small_series_codes=group_codes_by_id[e.canonical_major_group_id],
         )
 
     return BridgeLoadReport(entries)

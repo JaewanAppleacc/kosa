@@ -51,52 +51,52 @@
 
 ## 2. 42개 Group 전체 — 연결 후보·근거·경계 사례
 
-| Group ID | Group 라벨 | 공식 소계열 코드·명칭 | 연결 후보 Major | 근거 | 경계 사례 | 현재 상태 | 사용자 검토 결과 |
-|---|---|---|---|---|---|---|---|
-| agriculture_fisheries | 농림·수산 | 058, 059, 060, 061, 063 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| bio_medical_engineering | 생명공학·의공학 | 088, 100 | life_science | 소계열 '생명공학'(Group에 포함); Major 별칭: 생명공학 | 생명과학(기초과학) vs 생명공학·의공학(응용 공학) 성격 차이 — 자동 확정하지 않고 사람 검토로 남긴다. | REVIEW_REQUIRED | |
-| business | 경영학 | 033, 035, 041, 151, 152 | business_administration | 소계열 '경영학'; Major 라벨: 경영학 | Group에는 경영정보학·비서·금융보험학·회계세무학도 포함돼 Major 별칭보다 범위가 다소 넓다. | EVIDENCED | |
-| chemical_energy | 화학공학·에너지 | 097, 098, 099 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| chemistry | 화학 | 055 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| civil_architecture | 건축·토목·환경 | 072, 073, 074, 075, 076, 077 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| clothing_housing | 의류·주거·소비자 | 026, 068, 069 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| computer_science | 컴퓨터·소프트웨어·AI | 089, 090, 157 | computer_science | 소계열 '전산학·컴퓨터공학'; 소계열 '응용소프트웨어공학'; 소계열 '인공지능공학'; Major 별칭: 컴퓨터공학, 컴퓨터과학, 전산학, 소프트웨어, 인공지능 | (없음) | EVIDENCED | |
-| computer_science | 컴퓨터·소프트웨어·AI | 089, 090, 157 | hci_ux | Major 별칭: 인간컴퓨터상호작용, 융합콘텐츠, UX디자인; Group 소계열: 응용소프트웨어공학, 인공지능공학(개념적 연관, 공식 코드명 직접 일치 아님) | 이 Group은 computer_science Major에는 이미 EVIDENCED로 연결돼 있다 — 같은 Group이 두 Major 후보(computer_science, hci_ux)에 걸리는 경우지만, computer_science는 공식 코드 직접 일치, hci_ux는 별칭 수준 연관이라 서로 다른 근거 강도이므로 각각 다른 상태로 둔다(하나를 자동으로 확정하지 않는다). | REVIEW_REQUIRED | |
-| dentistry | 치의학 | 108, 145 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| earth_environment | 지구·지리·환경 | 052, 053, 057, 062, 028 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| economics | 경제학 | 034 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| education | 교육학 | 042, 043, 046, 070, 105, 117, 141, 153, 154, 155 | education | 소계열 '교육학'; Major 라벨: 교육학 | Group에는 언어교육·초등교육·유아교육·특수교육 등 세부 교육 분야도 포함된다. | EVIDENCED | |
-| electrical_electronic | 전기·전자·정보통신 | 084, 085, 086, 087, 091 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| fine_arts_design | 미술·디자인 | 118, 124, 125, 126, 127, 128, 135, 142 | design | 소계열 '디자인'; Major 라벨: 디자인 | (없음) | EXCLUDED_RECOMMENDATION | |
-| fine_arts_design | 미술·디자인 | 118, 124, 125, 126, 127, 128, 135, 142 | hci_ux | Major 별칭: UX디자인, 서비스디자인, 인터랙션디자인; 소계열 '디자인'(Group에 포함) | hci_ux는 이 Group과 computer_science Group(REVIEW_REQUIRED) 두 곳에 걸쳐 있다 — 하나의 서비스 전공이 여러 Group과 연결되는 것은 지시서 §2에서 허용한다. | EXCLUDED_RECOMMENDATION | |
-| food_nutrition | 식품·영양·조리 | 064, 066, 067 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| foreign_language | 외국어·언어학 | 001, 003, 004, 005, 006, 007, 008, 009, 010, 011 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| health_science | 보건·재활 | 113, 114, 115, 116, 163 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| humanities | 철학·역사·종교 | 013, 014, 015, 016, 030 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| industrial_engineering | 산업공학·안전 | 102, 103, 104 | industrial_engineering | 소계열 '산업공학'; Major 별칭: 산업공학, 산업경영공학, 산업시스템공학; 기존 시연 Department(산업경영공학과/산업경영공학부/산업·정보시스템공학과)가 이미 이 Major로 연결됨 | Group에는 안전공학·방재공학도 포함돼 있어 Major 키워드(최적화/운영관리/생산관리/데이터분석)와 결이 다른 학과가 섞일 수 있다 — 안전공학·방재공학 학과를 후보에서 뺄지는 사람 검토가 필요하다. | EVIDENCED | |
-| korean_literature | 국어국문·문예창작 | 002, 148 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| korean_medicine | 한의학 | 109, 111, 146 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| law | 법학 | 019 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| life_science | 생명과학 | 056, 156 | life_science | 소계열 '생명과학'; Major 라벨: 생명과학 | (없음) | EVIDENCED | |
-| mathematics_statistics | 수학·통계 | 048, 049 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| mechanical_transport | 기계·자동차·항공·조선 | 078, 079, 080, 081, 082, 083, 158, 159, 160, 161, 162 | mechanical_engineering | 소계열 '기계공학'; Major 라벨: 기계공학 | Group에는 자동차공학·항공우주공학·조선해양공학·철도공학 등 응용 분야도 포함돼 있어 실제 학과 후보 범위가 Major 별칭(기계공학/기계시스템/기계설계)보다 넓다 — 자동차/항공/조선 학과까지 '기계공학' 후보로 보여줄지는 사람 검토가 필요하다. | EVIDENCED | |
-| media_communication | 미디어·광고 | 027, 038 | media_communication | 소계열 '언론·방송·매체학'; 소계열 '광고·홍보학'; Major 별칭: 신문방송학, 언론정보학 | (없음) | EVIDENCED | |
-| medicine | 의학 | 107, 144, 150 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| music | 음악 | 129, 130, 131, 132, 133, 134, 140 | (대응 없음) | (없음) | (없음) | EXCLUDED_RECOMMENDATION | |
-| nursing | 간호학 | 112 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| performing_media_arts | 연극·영화·영상콘텐츠 | 121, 122, 123, 136, 137, 138, 139 | (대응 없음) | (없음) | (없음) | EXCLUDED_RECOMMENDATION | |
-| pharmacy | 약학 | 110 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| physics_astronomy | 물리·천문 | 050, 051 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| political_science | 정치외교·국제학 | 022, 149, 017, 023 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| psychology | 심리학 | 020 | psychology | 소계열 '심리학'(Group의 유일한 소계열); Major 라벨: 심리학 | (없음) | EVIDENCED | |
-| public_administration | 행정·정책 | 029 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| semiconductor_materials | 반도체·신소재 | 092, 093, 094, 095, 096, 101 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| social_welfare | 사회복지·아동가족 | 024, 025 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| sociology | 사회학·문헌정보 | 021, 031 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| sports_dance | 체육·무용 | 119, 120 | (대응 없음) | (없음) | (없음) | EXCLUDED_RECOMMENDATION | |
-| tourism | 관광 | 039 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| trade_logistics | 무역·유통·부동산 | 037, 040 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
-| veterinary | 수의학 | 065, 147 | (대응 없음) | (없음) | (없음) | UNMAPPED | |
+| Group ID | Group 라벨 | 공식 소계열 코드·명칭 | 연결 후보 Major | 근거 | 경계 사례 | 현재 상태 | 사용자 검토 결과 | Scope |
+|---|---|---|---|---|---|---|---|---|
+| agriculture_fisheries | 농림·수산 | 058, 059, 060, 061, 063 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| bio_medical_engineering | 생명공학·의공학 | 088, 100 | life_science | 소계열 '생명공학'(Group에 포함); Major 별칭: 생명공학 | 생명과학(기초과학) vs 생명공학·의공학(응용 공학) 성격 차이 — 자동 확정하지 않고 사람 검토로 남긴다. | REVIEW_REQUIRED | | DEPARTMENT_REVIEW_REQUIRED |
+| business | 경영학 | 033, 035, 041, 151, 152 | business_administration | 소계열 '경영학'; Major 라벨: 경영학 | Group에는 경영정보학·비서·금융보험학·회계세무학도 포함돼 Major 별칭보다 범위가 다소 넓다. | EVIDENCED | | INCLUDED_SMALL_SERIES_ONLY(033) |
+| chemical_energy | 화학공학·에너지 | 097, 098, 099 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| chemistry | 화학 | 055 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| civil_architecture | 건축·토목·환경 | 072, 073, 074, 075, 076, 077 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| clothing_housing | 의류·주거·소비자 | 026, 068, 069 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| computer_science | 컴퓨터·소프트웨어·AI | 089, 090, 157 | computer_science | 소계열 '전산학·컴퓨터공학'; 소계열 '응용소프트웨어공학'; 소계열 '인공지능공학'; Major 별칭: 컴퓨터공학, 컴퓨터과학, 전산학, 소프트웨어, 인공지능 | (없음) | EVIDENCED | | FULL_GROUP |
+| computer_science | 컴퓨터·소프트웨어·AI | 089, 090, 157 | hci_ux | Major 별칭: 인간컴퓨터상호작용, 융합콘텐츠, UX디자인; Group 소계열: 응용소프트웨어공학, 인공지능공학(개념적 연관, 공식 코드명 직접 일치 아님) | 이 Group은 computer_science Major에는 이미 EVIDENCED로 연결돼 있다 — 같은 Group이 두 Major 후보(computer_science, hci_ux)에 걸리는 경우지만, computer_science는 공식 코드 직접 일치, hci_ux는 별칭 수준 연관이라 서로 다른 근거 강도이므로 각각 다른 상태로 둔다(하나를 자동으로 확정하지 않는다). | REVIEW_REQUIRED | | DEPARTMENT_REVIEW_REQUIRED |
+| dentistry | 치의학 | 108, 145 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| earth_environment | 지구·지리·환경 | 052, 053, 057, 062, 028 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| economics | 경제학 | 034 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| education | 교육학 | 042, 043, 046, 070, 105, 117, 141, 153, 154, 155 | education | 소계열 '교육학'; Major 라벨: 교육학 | Group에는 언어교육·초등교육·유아교육·특수교육 등 세부 교육 분야도 포함된다. | EVIDENCED | | INCLUDED_SMALL_SERIES_ONLY(042) |
+| electrical_electronic | 전기·전자·정보통신 | 084, 085, 086, 087, 091 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| fine_arts_design | 미술·디자인 | 118, 124, 125, 126, 127, 128, 135, 142 | design | 소계열 '디자인'; Major 라벨: 디자인 | (없음) | EXCLUDED_RECOMMENDATION | | EXCLUDED_RECOMMENDATION |
+| fine_arts_design | 미술·디자인 | 118, 124, 125, 126, 127, 128, 135, 142 | hci_ux | Major 별칭: UX디자인, 서비스디자인, 인터랙션디자인; 소계열 '디자인'(Group에 포함) | hci_ux는 이 Group과 computer_science Group(REVIEW_REQUIRED) 두 곳에 걸쳐 있다 — 하나의 서비스 전공이 여러 Group과 연결되는 것은 지시서 §2에서 허용한다. | EXCLUDED_RECOMMENDATION | | EXCLUDED_RECOMMENDATION |
+| food_nutrition | 식품·영양·조리 | 064, 066, 067 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| foreign_language | 외국어·언어학 | 001, 003, 004, 005, 006, 007, 008, 009, 010, 011 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| health_science | 보건·재활 | 113, 114, 115, 116, 163 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| humanities | 철학·역사·종교 | 013, 014, 015, 016, 030 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| industrial_engineering | 산업공학·안전 | 102, 103, 104 | industrial_engineering | 소계열 '산업공학'; Major 별칭: 산업공학, 산업경영공학, 산업시스템공학; 기존 시연 Department(산업경영공학과/산업경영공학부/산업·정보시스템공학과)가 이미 이 Major로 연결됨 | Group에는 안전공학·방재공학도 포함돼 있어 Major 키워드(최적화/운영관리/생산관리/데이터분석)와 결이 다른 학과가 섞일 수 있다 — 안전공학·방재공학 학과를 후보에서 뺄지는 사람 검토가 필요하다. | EVIDENCED | | INCLUDED_SMALL_SERIES_ONLY(102) |
+| korean_literature | 국어국문·문예창작 | 002, 148 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| korean_medicine | 한의학 | 109, 111, 146 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| law | 법학 | 019 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| life_science | 생명과학 | 056, 156 | life_science | 소계열 '생명과학'; Major 라벨: 생명과학 | (없음) | EVIDENCED | | FULL_GROUP |
+| mathematics_statistics | 수학·통계 | 048, 049 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| mechanical_transport | 기계·자동차·항공·조선 | 078, 079, 080, 081, 082, 083, 158, 159, 160, 161, 162 | mechanical_engineering | 소계열 '기계공학'; Major 라벨: 기계공학 | Group에는 자동차공학·항공우주공학·조선해양공학·철도공학 등 응용 분야도 포함돼 있어 실제 학과 후보 범위가 Major 별칭(기계공학/기계시스템/기계설계)보다 넓다 — 자동차/항공/조선 학과까지 '기계공학' 후보로 보여줄지는 사람 검토가 필요하다. | EVIDENCED | | INCLUDED_SMALL_SERIES_ONLY(078) |
+| media_communication | 미디어·광고 | 027, 038 | media_communication | 소계열 '언론·방송·매체학'; 소계열 '광고·홍보학'; Major 별칭: 신문방송학, 언론정보학 | (없음) | EVIDENCED | | FULL_GROUP |
+| medicine | 의학 | 107, 144, 150 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| music | 음악 | 129, 130, 131, 132, 133, 134, 140 | (대응 없음) | (없음) | (없음) | EXCLUDED_RECOMMENDATION | | EXCLUDED_RECOMMENDATION |
+| nursing | 간호학 | 112 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| performing_media_arts | 연극·영화·영상콘텐츠 | 121, 122, 123, 136, 137, 138, 139 | (대응 없음) | (없음) | (없음) | EXCLUDED_RECOMMENDATION | | EXCLUDED_RECOMMENDATION |
+| pharmacy | 약학 | 110 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| physics_astronomy | 물리·천문 | 050, 051 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| political_science | 정치외교·국제학 | 022, 149, 017, 023 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| psychology | 심리학 | 020 | psychology | 소계열 '심리학'(Group의 유일한 소계열); Major 라벨: 심리학 | (없음) | EVIDENCED | | FULL_GROUP |
+| public_administration | 행정·정책 | 029 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| semiconductor_materials | 반도체·신소재 | 092, 093, 094, 095, 096, 101 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| social_welfare | 사회복지·아동가족 | 024, 025 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| sociology | 사회학·문헌정보 | 021, 031 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| sports_dance | 체육·무용 | 119, 120 | (대응 없음) | (없음) | (없음) | EXCLUDED_RECOMMENDATION | | EXCLUDED_RECOMMENDATION |
+| tourism | 관광 | 039 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| trade_logistics | 무역·유통·부동산 | 037, 040 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
+| veterinary | 수의학 | 065, 147 | (대응 없음) | (없음) | (없음) | UNMAPPED | | (해당 없음) |
 
 ## 3. 근거 문장(decision_reason) 상세
 
@@ -146,3 +146,35 @@
 - **tourism → (대응 없음)** (UNMAPPED): 관광은 현재 10개 서비스 추천 전공(canonical_majors.jsonl) 어디에도 대응하는 항목이 없다 — 근거 없음(UNMAPPED), 향후 서비스 확장 후보로만 남긴다.
 - **trade_logistics → (대응 없음)** (UNMAPPED): 무역·유통·부동산은 현재 10개 서비스 추천 전공(canonical_majors.jsonl) 어디에도 대응하는 항목이 없다 — 근거 없음(UNMAPPED), 향후 서비스 확장 후보로만 남긴다.
 - **veterinary → (대응 없음)** (UNMAPPED): 수의학은 현재 10개 서비스 추천 전공(canonical_majors.jsonl) 어디에도 대응하는 항목이 없다 — 근거 없음(UNMAPPED), 향후 서비스 확장 후보로만 남긴다.
+
+## 4. Scope 상세 — 전공군 전체 대신 좁힌 범위
+
+42개 Group ↔ 10개 Major 연결이 있다고 해서 그 Group의 공식 소계열 전체를 그대로 추천 학과 후보로 써도 되는 것은 아니다. 아래는 각 연결 행의 `scope_type`(FULL_GROUP/INCLUDED_SMALL_SERIES_ONLY/DEPARTMENT_REVIEW_REQUIRED/EXCLUDED_RECOMMENDATION)과, 소계열 단위로 좁힌 경우 실제 포함/제외 코드다. **이 Scope 값도 아직 draft다** — `scope_review_status`가 "approved"인 행은 하나도 없다(사람이 아직 이 Scope 자체를 검토한 적이 없다).
+
+| Group ID | 연결 Major | scope_type | included_small_series_codes | excluded_small_series_codes | scope_review_status |
+|---|---|---|---|---|---|
+| bio_medical_engineering | life_science | DEPARTMENT_REVIEW_REQUIRED | (없음) | (없음) | draft |
+| business | business_administration | INCLUDED_SMALL_SERIES_ONLY | 033 | 035, 041, 151, 152 | draft |
+| computer_science | computer_science | FULL_GROUP | (없음) | (없음) | draft |
+| computer_science | hci_ux | DEPARTMENT_REVIEW_REQUIRED | (없음) | (없음) | draft |
+| education | education | INCLUDED_SMALL_SERIES_ONLY | 042 | 043, 046, 154, 155 | draft |
+| fine_arts_design | design | EXCLUDED_RECOMMENDATION | (없음) | (없음) | draft |
+| fine_arts_design | hci_ux | EXCLUDED_RECOMMENDATION | (없음) | (없음) | draft |
+| industrial_engineering | industrial_engineering | INCLUDED_SMALL_SERIES_ONLY | 102 | 103, 104 | draft |
+| life_science | life_science | FULL_GROUP | (없음) | (없음) | draft |
+| mechanical_transport | mechanical_engineering | INCLUDED_SMALL_SERIES_ONLY | 078 | 080, 081, 082, 083 | draft |
+| media_communication | media_communication | FULL_GROUP | (없음) | (없음) | draft |
+| music | (대응 없음) | EXCLUDED_RECOMMENDATION | (없음) | (없음) | draft |
+| performing_media_arts | (대응 없음) | EXCLUDED_RECOMMENDATION | (없음) | (없음) | draft |
+| psychology | psychology | FULL_GROUP | (없음) | (없음) | draft |
+| sports_dance | (대응 없음) | EXCLUDED_RECOMMENDATION | (없음) | (없음) | draft |
+
+- INCLUDED_SMALL_SERIES_ONLY(소계열 일부만 포함) 행 수: 4(business->business_administration, mechanical_transport->mechanical_engineering, education->education, industrial_engineering->industrial_engineering)
+- DEPARTMENT_REVIEW_REQUIRED(학과 개별 검토 필요) 행 수: 2(bio_medical_engineering->life_science, computer_science->hci_ux)
+
+- **business → business_administration**: 공식 소계열 '경영학'(033)만 business_administration 추천 학과 후보로 포함한다. 이 Group의 나머지 소계열(경영정보학·비서·금융보험학·회계세무학)은 성격이 다른 세부 전공이라 제외한다 — Group 전체 1,424건을 그대로 경영학 추천 학과로 쓰지 않는다.
+- **mechanical_transport → mechanical_engineering**: 공식 소계열 '기계공학'(078)만 mechanical_engineering 추천 학과 후보로 포함한다. 조선·해양공학·항공·우주공학·철도공학·자동차공학은 별도 응용 분야로 제외한다 — Group 전체 1,112건을 자동으로 기계공학 추천 학과에 연결하지 않는다.
+- **education → education**: 공식 소계열 '교육학'(042)만 education 추천 학과 후보로 포함한다. 언어교육·초등교육·유아교육·특수교육은 교원양성 세부 분야로 성격이 달라 제외한다 — Group 전체 821건을 자동으로 education 추천 학과에 연결하지 않는다.
+- **industrial_engineering → industrial_engineering**: 공식 소계열 '산업공학'(102)만 industrial_engineering 추천 학과 후보로 포함한다. 안전공학·방재공학은 제외한다 — Group 전체 343건을 그대로 산업공학 추천 학과로 쓰지 않는다.
+- **bio_medical_engineering → life_science**: 생명과학(life_science, 기초과학)과 생명공학·의공학(이 Group)을 전공군 단위로 동일시하지 않는다. 생명공학은 개별 학과 교육과정을 봐야 life_science 후보로 적절한지 판단할 수 있고, 의공학은 응용 공학 성격이 뚜렷해 별도 전공 분야로 유지한다 — 소계열 코드 단위로도 자동 확정하지 않고 학과 단위 검토가 필요하다.
+- **computer_science → hci_ux**: 컴퓨터과학 Group 전체를 HCI·UX로 연결하지 않는다. 대학알리미 158개 공식 소계열에 'HCI'·'UX'·'인터랙션'에 정확히 대응하는 코드가 없어(REVIEW_REQUIRED 근거 그대로) 소계열 단위로도 범위를 확정할 수 없다 — 학과 공식 교육과정에서 HCI·UX·사용자 연구·인터랙션 설계 근거가 확인되는 개별 학과만 후속 검토한다. computer_science -> computer_science(같은 Group, 다른 Major) 연결에는 영향을 주지 않는다.

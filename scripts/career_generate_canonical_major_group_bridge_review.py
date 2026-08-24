@@ -159,15 +159,15 @@ def _render_markdown() -> str:
     lines.append("## 2. 42개 Group 전체 — 연결 후보·근거·경계 사례")
     lines.append("")
     lines.append(
-        "| Group ID | Group 라벨 | 공식 소계열 코드·명칭 | 연결 후보 Major | 근거 | 경계 사례 | 현재 상태 | 사용자 검토 결과 |"
+        "| Group ID | Group 라벨 | 공식 소계열 코드·명칭 | 연결 후보 Major | 근거 | 경계 사례 | 현재 상태 | 사용자 검토 결과 | Scope |"
     )
-    lines.append("|---|---|---|---|---|---|---|---|")
+    lines.append("|---|---|---|---|---|---|---|---|---|")
     for group_id in sorted(groups_by_id):
         group = groups_by_id[group_id]
         codes_desc = ", ".join(group.included_official_small_series_codes)
         rows = sorted(report.entries_for_group(group_id), key=lambda r: (r.canonical_major_id or "", r.mapping_status))
         if not rows:
-            lines.append(f"| {group_id} | {group.label} | {codes_desc} | (없음) | (없음) | (없음) | (없음) | |")
+            lines.append(f"| {group_id} | {group.label} | {codes_desc} | (없음) | (없음) | (없음) | (없음) | | |")
             continue
         for r in rows:
             major_desc = r.canonical_major_id if r.canonical_major_id else "(대응 없음)"
@@ -175,7 +175,7 @@ def _render_markdown() -> str:
             boundary_desc = r.boundary_notes or "(없음)"
             lines.append(
                 f"| {group_id} | {group.label} | {codes_desc} | {major_desc} | {evidence_desc} | "
-                f"{boundary_desc} | {r.mapping_status} | |"
+                f"{boundary_desc} | {r.mapping_status} | | {_scope_desc(r)} |"
             )
     lines.append("")
 
@@ -190,7 +190,58 @@ def _render_markdown() -> str:
             lines.append(f"- **{group_id} → {major_desc}** ({r.mapping_status}): {r.decision_reason}")
     lines.append("")
 
+    # ---- §2 Scope 상세(2026-08-24 a/canonical-major-bridge-scope 지시서) ----
+    lines.append("## 4. Scope 상세 — 전공군 전체 대신 좁힌 범위")
+    lines.append(
+        "\n42개 Group ↔ 10개 Major 연결이 있다고 해서 그 Group의 공식 소계열 전체를 그대로 "
+        "추천 학과 후보로 써도 되는 것은 아니다. 아래는 각 연결 행의 `scope_type`(FULL_GROUP/"
+        "INCLUDED_SMALL_SERIES_ONLY/DEPARTMENT_REVIEW_REQUIRED/EXCLUDED_RECOMMENDATION)과, "
+        "소계열 단위로 좁힌 경우 실제 포함/제외 코드다. **이 Scope 값도 아직 draft다** — "
+        "`scope_review_status`가 \"approved\"인 행은 하나도 없다(사람이 아직 이 Scope 자체를 "
+        "검토한 적이 없다)."
+    )
+    lines.append("")
+    scoped_rows = [r for r in report.entries if r.scope_type is not None]
+    lines.append("| Group ID | 연결 Major | scope_type | included_small_series_codes | excluded_small_series_codes | scope_review_status |")
+    lines.append("|---|---|---|---|---|---|")
+    for r in sorted(scoped_rows, key=lambda r: (r.canonical_major_group_id, r.canonical_major_id or "")):
+        major_desc = r.canonical_major_id if r.canonical_major_id else "(대응 없음)"
+        lines.append(
+            f"| {r.canonical_major_group_id} | {major_desc} | {r.scope_type} | "
+            f"{', '.join(r.included_small_series_codes) or '(없음)'} | "
+            f"{', '.join(r.excluded_small_series_codes) or '(없음)'} | {r.scope_review_status} |"
+        )
+    lines.append("")
+    narrowed = [r for r in report.entries if r.scope_type == "INCLUDED_SMALL_SERIES_ONLY"]
+    department_review = [r for r in report.entries if r.scope_type == "DEPARTMENT_REVIEW_REQUIRED"]
+    lines.append(
+        f"- INCLUDED_SMALL_SERIES_ONLY(소계열 일부만 포함) 행 수: {len(narrowed)}"
+        f"({', '.join(f'{r.canonical_major_group_id}->{r.canonical_major_id}' for r in narrowed)})"
+    )
+    lines.append(
+        f"- DEPARTMENT_REVIEW_REQUIRED(학과 개별 검토 필요) 행 수: {len(department_review)}"
+        f"({', '.join(f'{r.canonical_major_group_id}->{r.canonical_major_id}' for r in department_review)})"
+    )
+    lines.append("")
+    for r in narrowed:
+        lines.append(
+            f"- **{r.canonical_major_group_id} → {r.canonical_major_id}**: {r.scope_decision_reason}"
+        )
+    for r in department_review:
+        lines.append(
+            f"- **{r.canonical_major_group_id} → {r.canonical_major_id}**: {r.scope_decision_reason}"
+        )
+    lines.append("")
+
     return "\n".join(lines).rstrip("\n") + "\n"
+
+
+def _scope_desc(entry) -> str:
+    if entry.scope_type is None:
+        return "(해당 없음)"
+    if entry.scope_type == "INCLUDED_SMALL_SERIES_ONLY":
+        return f"INCLUDED_SMALL_SERIES_ONLY({', '.join(entry.included_small_series_codes)})"
+    return entry.scope_type
 
 
 def main() -> None:
