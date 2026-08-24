@@ -1,0 +1,115 @@
+{
+  "alias_audit": {
+    "canonical_major_alias_count": 71,
+    "master_changed": false,
+    "normalized_major_alias_collision_count": 0,
+    "normalized_major_alias_collisions": [],
+    "normalized_subject_alias_collision_count": 0,
+    "normalized_subject_alias_collisions": [],
+    "short_major_alias_count": 5,
+    "short_major_aliases": [
+      {
+        "aliases": [
+          "UX"
+        ],
+        "major_ids": [
+          "hci_ux"
+        ],
+        "normalized_alias": "ux"
+      },
+      {
+        "aliases": [
+          "경영"
+        ],
+        "major_ids": [
+          "business_administration"
+        ],
+        "normalized_alias": "경영"
+      },
+      {
+        "aliases": [
+          "교육"
+        ],
+        "major_ids": [
+          "education"
+        ],
+        "normalized_alias": "교육"
+      },
+      {
+        "aliases": [
+          "기계"
+        ],
+        "major_ids": [
+          "mechanical_engineering"
+        ],
+        "normalized_alias": "기계"
+      },
+      {
+        "aliases": [
+          "심리"
+        ],
+        "major_ids": [
+          "psychology"
+        ],
+        "normalized_alias": "심리"
+      }
+    ],
+    "status": "REVIEW_DRAFT_ONLY",
+    "subject_alias_count": 58
+  },
+  "claims": {
+    "llm_question_quality_measured": false,
+    "multiturn_quality_measured": false,
+    "student_recommendation_accuracy_measured": false
+  },
+  "failure_catalog": {
+    "classification_cause_breakdown": {
+      "CONVERGENCE": 1563,
+      "DESIGN": 97,
+      "HCI_UX": 2,
+      "MEDIA_CONTENT": 274
+    },
+    "cross_queue_overlap_count": 499,
+    "nce_small_series_breakdown": {
+      "N.C.E.": 1838,
+      "교양자연과학": 9,
+      "뷰티아트": 51,
+      "의과학": 3
+    }
+  },
+  "format_version": "worker_c_improvement_audit_v1",
+  "minor_field_data_coverage": {
+    "measured": false,
+    "missing_inputs": [
+      "data/academyinfo_work/2025/departments.normalized.jsonl",
+      "data/academyinfo_work/2025/classification_results.jsonl"
+    ],
+    "reason": "전국 정규화·분류 입력은 대용량 비커밋 파일이며 Queue만으로 전체 전공군 분포를 복원할 수 없음",
+    "recommendation_performance_claim_allowed": false,
+    "required_inputs": [
+      "data/academyinfo_work/2025/departments.normalized.jsonl",
+      "data/academyinfo_work/2025/classification_results.jsonl"
+    ],
+    "status": "SOURCE_MISSING"
+  },
+  "rag_audit": {
+    "fixture_role": "PIPELINE_SMOKE_FIXTURE_NOT_SERVICE_PERFORMANCE",
+    "limitation": "샘플 문서 기반 소규모 fixture이므로 전국 검색 성능으로 해석할 수 없음",
+    "negative_query_count": 1,
+    "no_evidence_accuracy": 1.0,
+    "official_source_query_count": 0,
+    "performance_claim_allowed": false,
+    "positive_query_count": 3,
+    "positive_recall_at_5": 1.0,
+    "query_count": 4,
+    "sample_source_query_count": 4
+  },
+  "review_priority": {
+    "auto_approved_rows": 0,
+    "classification_review_count": 1936,
+    "nce_count": 1901,
+    "row_count": 3837,
+    "status_mutated": false
+  },
+  "scope": "C_ONLY_NO_MASTER_API_UI_MUTATION"
+}
