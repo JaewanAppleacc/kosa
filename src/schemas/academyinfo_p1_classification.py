@@ -5,7 +5,7 @@
 Read-Only Draft)을 읽어 검증하는 Schema다 — Bridge Draft와 같은 원칙: 이 파일 자체를
 절대 수정하지 않는다. 사람 검수 결과는 완전히 별도 파일
 (`data/reviews/academyinfo_p1_classification_review_status.jsonl`,
-`academyinfo_p1_classification_review.py` 참고)에만 저장한다.
+`academyinfo_p1_classification_candidate_review.py` 참고)에만 저장한다.
 
 패킷 원본 행에도 `reviewer_1_status`/`reviewer_comment`/`resolution_status` 필드가
 있지만(worker-c가 만든 자리 표시자, 전부 TBD/PENDING 고정값) 이 Schema는 그
@@ -53,7 +53,7 @@ class AcademyInfoP1ClassificationEntry(BaseModel):
     # True여야 "공식 소계열 코드로 실제 분류된 근거"가 있다는 뜻이다 — 학과명·
     # 단과대학명 키워드만으로 후보를 표시한 행(예: HCI_UX_CANDIDATE 상당수)은
     # False다. APPROVE_PROPOSED_CANDIDATE 승인 조건의 핵심 필드
-    # (academyinfo_p1_classification_review.py 참고).
+    # (academyinfo_p1_classification_candidate_review.py 참고).
     judgment_evidence_sufficient: bool
     # 0개(UNMAPPED) 또는 1개(후보 하나 특정)만 실제로 관측된다. 이 필드가 가리키는
     # ID는 항상 "서비스 추천 10개 Major" ID라고 가정하면 안 된다 — DESIGN_ARTS_EXCLUDED

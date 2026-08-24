@@ -60,8 +60,12 @@ class P1ApproveNotEligibleError(ValueError):
     못하게 막는 Fail-Closed 방어선이라 메시지에 candidate_id와 사유만 담는다."""
 
 
-def _approve_eligible(entry) -> bool:
-    """§1 APPROVE_PROPOSED_CANDIDATE 허용 조건 — 셋 다 만족해야 한다.
+def p1_approve_eligible(entry, service_major_ids: frozenset[str] | None = None) -> bool:
+    """§1 APPROVE_PROPOSED_CANDIDATE 허용 조건 — 셋 다 만족해야 한다. 이 함수가
+    유일한 판정 지점이다 — 검수 UI(PATCH 저장 시 Fail-Closed 검증)와 승격 Dry Run
+    (c/national-master-promotion-dry-run, 저장된 decision을 다시 대조 재검증)이
+    똑같이 이 함수를 호출한다. 서로 다른 곳에서 같은 조건을 두 번 구현하면 하나만
+    고치고 다른 쪽을 안 고치는 사고가 난다.
 
     1. candidate_canonical_major_ids가 정확히 1개(0개=UNMAPPED, 2개 이상은 원본
        데이터에 없지만 구조적으로 가능성을 남기지 않는다).
@@ -69,13 +73,16 @@ def _approve_eligible(entry) -> bool:
        근거가 있다 — 학과명·단과대학명 키워드만으로 표시된 후보는 False다).
     3. 그 1개가 실제 10개 서비스 Major ID 중 하나(42개 Group ID인
        "fine_arts_design" 같은 값이 섞여 들어오는 걸 막는다 — DESIGN_ARTS_EXCLUDED
-       판정이 정확히 이 경우다)."""
+       판정이 정확히 이 경우다). `service_major_ids`를 생략하면 이 모듈이 가진
+       기본 10개 집합을 쓴다 — 호출자(Dry Run 등)가 이미 같은 파일을 로드해 뒀으면
+       그 결과를 그대로 넘겨서 같은 파일을 두 번 읽지 않게 할 수 있다."""
 
+    ids = service_major_ids if service_major_ids is not None else _REAL_SERVICE_MAJOR_IDS
     if len(entry.candidate_canonical_major_ids) != 1:
         return False
     if not entry.judgment_evidence_sufficient:
         return False
-    return entry.candidate_canonical_major_ids[0] in _REAL_SERVICE_MAJOR_IDS
+    return entry.candidate_canonical_major_ids[0] in ids
 
 
 def _p1_review_view(entry: AcademyInfoP1ClassificationReview | None) -> P1ReviewView:
@@ -113,7 +120,7 @@ def build_p1_classification_list(
                 official_curriculum_available=e.official_curriculum_available,
                 official_curriculum_summary=e.official_curriculum_summary,
                 official_evidence_needed=e.official_evidence_needed,
-                approve_eligible=_approve_eligible(e),
+                approve_eligible=p1_approve_eligible(e),
                 review=_p1_review_view(review),
             )
         )
@@ -153,7 +160,7 @@ def update_p1_classification_review(
     if draft_entry is None:
         raise UnknownP1CandidateError(f"candidate_id {candidate_id!r}가 현재 P1 패킷 374행 중 어디에도 없다")
 
-    if decision == "APPROVE_PROPOSED_CANDIDATE" and not _approve_eligible(draft_entry):
+    if decision == "APPROVE_PROPOSED_CANDIDATE" and not p1_approve_eligible(draft_entry):
         raise P1ApproveNotEligibleError(
             f"candidate_id {candidate_id!r}는 APPROVE_PROPOSED_CANDIDATE 허용 조건을 만족하지 않는다 "
             f"(candidate_canonical_major_ids={draft_entry.candidate_canonical_major_ids}, "
