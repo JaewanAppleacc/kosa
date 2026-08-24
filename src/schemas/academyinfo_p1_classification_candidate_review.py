@@ -23,7 +23,15 @@ from typing import Literal
 from pydantic import BaseModel
 
 # "TBD"는 사람이 아직 아무 판단도 내리지 않은 초기값이다(자동으로 다른 값을 채우지
-# 않는다). 나머지 6개가 지시서 §1이 명시한 "P1 판단 선택지"다.
+# 않는다). 다음 6개가 지시서 §1이 명시한 "P1 판단 선택지"다.
+# 2026-08-25 후속 지시(a/final-mapping-closure §6, Final Mapping Closure 종결) —
+# "EXCLUDE_FROM_INITIAL_PROMOTION"을 Additive로 추가한다. 근거 불충분(judgment_
+# evidence_sufficient=False)인 행을 특정 Major로 추측 연결하지 않으면서도 검수
+# 자체는 종결하기 위한 값이다 — 승격 승인이 아니라 "1차 전국 Master 승격에서는
+# 제외하되, 원본·감사 데이터는 보존하고 추후 공식 교육과정 근거가 확보되면 재검토
+# 가능하다"는 뜻이다. 이 값이 저장돼도 Dry Run(`career_build_national_department_
+# promotion_dry_run.py`)은 READY_FOR_PROMOTION으로 풀지 않는다 — 별도 사유
+# (BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION)로 명확히 표시할 뿐이다.
 P1ReviewDecision = Literal[
     "TBD",
     "APPROVE_PROPOSED_CANDIDATE",
@@ -32,6 +40,7 @@ P1ReviewDecision = Literal[
     "NEEDS_OFFICIAL_CURRICULUM",
     "REVISE_CANDIDATE",
     "HOLD",
+    "EXCLUDE_FROM_INITIAL_PROMOTION",
 ]
 
 

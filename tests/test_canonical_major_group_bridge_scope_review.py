@@ -421,13 +421,19 @@ class ExistingMappingReviewPreservedTest(unittest.TestCase):
     Mapping 검수 파일(사용자가 이미 완료한 검수 결과)의 값을 조금도 바꾸지
     않았는지, 진짜 파일을 읽어 직접 확인한다."""
 
-    def test_real_mapping_review_file_still_38_approve_6_revise(self) -> None:
+    def test_real_mapping_review_file_reflects_final_mapping_closure(self) -> None:
+        """2026-08-25 후속 지시(a/final-mapping-closure §4, "312건 추가 검수
+        제거") 이후 기대값 — 이 파일이 검증하던 원래 기준값(APPROVE 38/REVISE 6)
+        은 그 지시가 REVISE 6건을 사용자 최종 결정에 따라 실제로 APPROVE로
+        종결하면서 더 이상 유효하지 않다. 44건 전부 APPROVE, REVISE 0건이
+        새 기준이다."""
+
         from src.services.canonical_major_group_bridge_review_store import load_bridge_review_entries_by_key
 
         entries = load_bridge_review_entries_by_key()
         statuses = [e.reviewer_1_status for e in entries.values()]
-        self.assertEqual(statuses.count("APPROVE"), 38)
-        self.assertEqual(statuses.count("REVISE"), 6)
+        self.assertEqual(statuses.count("APPROVE"), 44)
+        self.assertEqual(statuses.count("REVISE"), 0)
         self.assertEqual(len(entries), 44)
 
 

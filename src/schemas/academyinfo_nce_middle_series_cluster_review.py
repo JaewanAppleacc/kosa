@@ -21,12 +21,21 @@ from pydantic import BaseModel
 # 검토 후보로 계속 쓸 수 있다"는 사람의 1차 판단일 뿐이며, 실제 학과 개별 승격은
 # 이 파일과 전혀 무관한 별도 학과 단위 Gate를 통과해야 한다(어떤 코드도 이 값을
 # Department 승격 로직에 연결하지 않는다 — Runtime 미연결 테스트로 확인한다).
+# 2026-08-25 후속 지시(a/final-mapping-closure §7, Final Mapping Closure 종결) —
+# "EXCLUDE_FROM_INITIAL_PROMOTION"을 Additive로 추가한다. 중계열 Hint(candidate_
+# canonical_major_groups)가 있든 없든 이 값은 "특정 전공군으로 확정한다"는 뜻이
+# 아니다 — 학과 단위 공식 근거 확인 전까지 1차 전국 Master 승격에서 제외한다는
+# 뜻일 뿐이다. 이 값이 저장돼도 이 클러스터에 속한 학과는 여전히
+# resolved_canonical_major_group_id를 받지 않는다(Dry Run이 별도 사유
+# BLOCKED_NCE_EXCLUDED_FROM_INITIAL_PROMOTION으로 표시할 뿐, ACCEPT_GROUP_AS_
+# REVIEW_CANDIDATE와 마찬가지로 이 값도 학과 승격 로직에 연결되지 않는다).
 NceMiddleSeriesDecision = Literal[
     "TBD",
     "ACCEPT_GROUP_AS_REVIEW_CANDIDATE",
     "REQUIRE_DEPARTMENT_LEVEL_REVIEW",
     "INSUFFICIENT_OFFICIAL_EVIDENCE",
     "HOLD",
+    "EXCLUDE_FROM_INITIAL_PROMOTION",
 ]
 
 

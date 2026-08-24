@@ -538,9 +538,13 @@ class UpdateBridgeScopeReviewRequest(BaseModel):
 # 그 반대도 절대 import하지 않는다).
 # ══════════════════════════════════════════════════════════════════════════
 
+# 2026-08-25 후속 지시(a/final-mapping-closure §6) — src/schemas/academyinfo_p1_
+# classification_candidate_review.py::P1ReviewDecision에 추가한 값과 반드시
+# 같이 맞춘다(이 파일이 그 모듈을 import하지 않는 기존 계층 규칙 때문에 값 목록을
+# 중복 정의한다 — 정본은 그 스키마 파일이고, 여기는 그 값을 그대로 옮겨 적은 것).
 P1ReviewDecisionLiteral = Literal[
     "TBD", "APPROVE_PROPOSED_CANDIDATE", "EXCLUDE_ARTS_RECOMMENDATION", "KEEP_UNMAPPED",
-    "NEEDS_OFFICIAL_CURRICULUM", "REVISE_CANDIDATE", "HOLD",
+    "NEEDS_OFFICIAL_CURRICULUM", "REVISE_CANDIDATE", "HOLD", "EXCLUDE_FROM_INITIAL_PROMOTION",
 ]
 
 
@@ -612,9 +616,12 @@ class UpdateP1ClassificationReviewResponse(BaseModel):
     new_revision: int
 
 
+# 2026-08-25 후속 지시(a/final-mapping-closure §7) — src/schemas/academyinfo_nce_
+# middle_series_cluster_review.py::NceMiddleSeriesDecision과 반드시 같이 맞춘다
+# (위 P1ReviewDecisionLiteral과 같은 이유로 값 목록을 중복 정의한다).
 NceMiddleSeriesDecisionLiteral = Literal[
     "TBD", "ACCEPT_GROUP_AS_REVIEW_CANDIDATE", "REQUIRE_DEPARTMENT_LEVEL_REVIEW",
-    "INSUFFICIENT_OFFICIAL_EVIDENCE", "HOLD",
+    "INSUFFICIENT_OFFICIAL_EVIDENCE", "HOLD", "EXCLUDE_FROM_INITIAL_PROMOTION",
 ]
 
 

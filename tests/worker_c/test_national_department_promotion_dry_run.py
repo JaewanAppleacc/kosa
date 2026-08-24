@@ -566,6 +566,20 @@ class IndependentGateBlockingTest(unittest.TestCase):
         self.assertEqual(result["blocked_reasons"], ["BLOCKED_P1_REVIEW_UNRESOLVED"])
         self.assertEqual(result["p1_review_decision"], "TBD")
 
+    def test_p1_exclude_from_initial_promotion_blocks_with_distinct_reason(self) -> None:
+        """2026-08-25 후속 지시(a/final-mapping-closure §6) — 사람이 명시적으로
+        EXCLUDE_FROM_INITIAL_PROMOTION을 저장하면 '아직 미검수(TBD)'와 구분되는
+        BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION으로 표시한다 — BLOCKED_P1_
+        REVIEW_UNRESOLVED가 아니다. 두 경우 모두 READY_FOR_PROMOTION에는 도달
+        못 한다는 점은 동일하다(승격 승인이 아니다)."""
+
+        row, inputs = self._p1_review_required_inputs(review_decision="EXCLUDE_FROM_INITIAL_PROMOTION")
+        result = evaluate_department(row, inputs)
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION"])
+        self.assertNotIn("BLOCKED_P1_REVIEW_UNRESOLVED", result["blocked_reasons"])
+        self.assertNotEqual(result["status"], "READY_FOR_PROMOTION")
+        self.assertEqual(result["p1_review_decision"], "EXCLUDE_FROM_INITIAL_PROMOTION")
+
     def test_nce_unresolved_blocks_alone(self) -> None:
         row = _dept_row("dept_cs")
         cls = _cls_row(
@@ -604,6 +618,33 @@ class IndependentGateBlockingTest(unittest.TestCase):
         # 감사용 참고 필드에는 실제 판단이 남아 있다 — "왜 아직 막혔는지" 추적 가능.
         self.assertEqual(result["nce_middle_series_code"], "99")
         self.assertEqual(result["nce_review_decision"], "ACCEPT_GROUP_AS_REVIEW_CANDIDATE")
+
+    def test_nce_exclude_from_initial_promotion_blocks_with_distinct_reason(self) -> None:
+        """2026-08-25 후속 지시(a/final-mapping-closure §7) — N.C.E도 마찬가지다.
+        EXCLUDE_FROM_INITIAL_PROMOTION은 BLOCKED_NCE_EXCLUDED_FROM_INITIAL_
+        PROMOTION으로 구분 표시하고, resolved_canonical_major_group_id는 여전히
+        절대 채우지 않는다(§7 '자동으로 특정 Major에 연결하지 않음' 불변식 유지)."""
+
+        row = _dept_row("dept_cs")
+        cls = _cls_row(
+            "dept_cs", official_small_series_code=None, mapping_status="UNMAPPED",
+            decision_reason="공식 소계열이 미분류(N.C.E)라 근거가 없다",
+        )
+        nce_review = AcademyInfoNceMiddleSeriesReview(
+            official_middle_series_code="99", decision="EXCLUDE_FROM_INITIAL_PROMOTION",
+        )
+        inputs_dict = dict(self.inputs.__dict__)
+        inputs_dict["classification_by_department"] = {"dept_cs": cls}
+        inputs_dict["nce_middle_series_code_by_department"] = {"dept_cs": "99"}
+        inputs_dict["nce_reviews"] = {"99": nce_review}
+        inputs = self.inputs.__class__(**inputs_dict)
+        result = evaluate_department(row, inputs)
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_NCE_EXCLUDED_FROM_INITIAL_PROMOTION"])
+        self.assertNotIn("BLOCKED_NCE_UNRESOLVED", result["blocked_reasons"])
+        self.assertIsNone(result["resolved_canonical_major_group_id"])
+        self.assertIsNone(result["resolved_canonical_major_id"])
+        self.assertEqual(result["nce_review_decision"], "EXCLUDE_FROM_INITIAL_PROMOTION")
 
     def test_duplicate_id_blocks_alone(self) -> None:
         row = _dept_row("dept_cs", duplicate_group_size=2)

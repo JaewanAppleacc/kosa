@@ -98,6 +98,10 @@ from src.services.canonical_major_group_bridge_loader import (  # noqa: E402
 )
 from src.services.academyinfo_p1_classification_loader import DEFAULT_P1_PACKET_PATH, load_p1_classification_packet  # noqa: E402
 from src.services.academyinfo_nce_middle_series_cluster_loader import DEFAULT_NCE_CLUSTER_PATH  # noqa: E402
+from src.services.academyinfo_nce_middle_series_review_store import load_nce_review_entries_by_key  # noqa: E402
+from src.services.academyinfo_p1_classification_review_store import load_p1_review_entries_by_key  # noqa: E402
+from src.services.canonical_major_group_bridge_scope_review_store import load_bridge_scope_review_entries_by_key  # noqa: E402
+from src.schemas.canonical_major_group_bridge_review import bridge_review_key  # noqa: E402
 
 # ── Bridge Scope §4 — 그대로 보존해야 하는 기존 결정(과제 지시 §4, 임의 변경 금지) ──
 PRESERVED_INCLUDED_SMALL_SERIES_SCOPE = {
@@ -171,7 +175,22 @@ def classify_groups(*, group_draft_path: Path | None = None, bridge_path: Path |
         has_composition = bool(r.official_series.middle_series_codes) and bool(r.official_series.large_series_codes)
         has_departments = bool(r.national_department_candidate_count)
 
-        if not has_composition:
+        # 2026-08-25 후속 지시(a/final-mapping-closure) — 실제 사람 검수 결정이
+        # 이미 저장돼 있으면(TBD가 아니면) 그 결정을 그대로 반영한다. 아래 휴리스틱은
+        # 아직 검수되지 않은 상태(TBD)에서만 "제안"으로 쓰인다 — 실제 결정을
+        # 덮어쓰지 않는다.
+        real_decision = r.review.decision
+        if real_decision == "APPROVE_AS_CLASSIFICATION_GROUP":
+            disposition = "PROPOSE_APPROVE"
+            proposal_decision = real_decision
+            reason = "사람 검수로 이미 종결됨(APPROVE_AS_CLASSIFICATION_GROUP)."
+            if own_notes:
+                reason += " 참고(경계 메모): " + " / ".join(own_notes)
+        elif real_decision == "EXCLUDE_FROM_CLASSIFICATION":
+            disposition = "PROPOSE_EXCLUDE"
+            proposal_decision = real_decision
+            reason = "사람 검수로 이미 종결됨(EXCLUDE_FROM_CLASSIFICATION)."
+        elif not has_composition:
             disposition = "HUMAN_REVIEW_REQUIRED"
             proposal_decision = "HOLD"
             reason = "공식 소계열 코드가 대계열/중계열 어디에도 대응하지 않는다 — 코드표 정합성부터 사람이 확인해야 한다."
@@ -243,6 +262,7 @@ def classify_bridge(
     bridge_report = load_canonical_major_group_bridge(bridge_path or DEFAULT_BRIDGE_DRAFT_PATH, group_draft_path=group_draft_path)
     mapping_review_by_key = _load_bridge_mapping_review_by_key(mapping_review_path)
     scope_review_exists = scope_review_path.exists()
+    scope_review_by_key = load_bridge_scope_review_entries_by_key(scope_review_path)
 
     mapping_rows: list[dict[str, Any]] = []
     scope_rows: list[dict[str, Any]] = []
@@ -294,9 +314,25 @@ def classify_bridge(
             )
             continue
 
+        scope_key = bridge_review_key(e.canonical_major_group_id, e.canonical_major_id)
+        scope_review_entry = scope_review_by_key.get(scope_key)
+        scope_reviewed_approve = scope_review_entry is not None and scope_review_entry.reviewer_1_status == "APPROVE"
+
+        # 2026-08-25 후속 지시(a/final-mapping-closure §5) — 실제 Scope 검수 결정이
+        # 이미 APPROVE로 저장돼 있으면 그 결정을 그대로 반영한다. DEPARTMENT_REVIEW_
+        # REQUIRED는 검수가 끝나도(APPROVE) "이 Scope 결정 자체는 맞다"는 뜻일 뿐
+        # 자동 학과 승격이 아니므로, 닫힌 상태를 PROPOSE_EXCLUDE(1차 승격 제외로
+        # 종결)로 표시한다 — HUMAN_REVIEW_REQUIRED로 남겨두지 않는다.
         if e.scope_type == "DEPARTMENT_REVIEW_REQUIRED":
-            s_disposition = "HUMAN_REVIEW_REQUIRED"
-            s_reason = f"정의상 학과 단위 검토가 필요하다(§4 보존 대상). {e.scope_decision_reason}"
+            if scope_reviewed_approve:
+                s_disposition = "PROPOSE_EXCLUDE"
+                s_reason = (
+                    "사람 검수로 이미 종결됨(scope APPROVE) — 정의상 학과 단위 검토가 필요해 "
+                    f"1차 전국 승격에서는 제외한다(§4/§5 보존 대상). {e.scope_decision_reason}"
+                )
+            else:
+                s_disposition = "HUMAN_REVIEW_REQUIRED"
+                s_reason = f"정의상 학과 단위 검토가 필요하다(§4 보존 대상). {e.scope_decision_reason}"
         elif e.scope_type == "EXCLUDED_RECOMMENDATION":
             s_disposition = "PROPOSE_EXCLUDE"
             s_reason = "예체능 추천 제외 Mapping과 동일한 Scope다."
@@ -304,7 +340,7 @@ def classify_bridge(
             s_disposition = "PROPOSE_APPROVE"
             s_reason = f"공식 소계열 코드 {e.included_small_series_codes}로 범위가 명시돼 있다(§4 보존 대상). {e.scope_decision_reason}"
         elif e.scope_type == "FULL_GROUP":
-            if reviewer_status == "APPROVE":
+            if scope_reviewed_approve or reviewer_status == "APPROVE":
                 s_disposition = "PROPOSE_APPROVE"
                 s_reason = f"연결된 Mapping이 이미 사람 검수 APPROVE다 — Group 전체 범위를 그대로 유지한다. {e.scope_decision_reason}"
             else:
@@ -355,27 +391,47 @@ def verify_preserved_bridge_scope_decisions(scope_rows: list[dict[str, Any]]) ->
 
 
 def verify_preserved_bridge_mapping_review(mapping_rows: list[dict[str, Any]]) -> None:
+    """2026-08-25 후속 지시(a/final-mapping-closure §4) 이후 기대값 —
+    최초 라운드의 기준값(APPROVE 38/REVISE 6)은 §4가 의도적으로 REVISE 6건을
+    APPROVE로 종결하면서 더 이상 유효하지 않다. 이 함수는 그 종결 이후의
+    기대 상태(44건 전부 APPROVE, REVISE 0건)를 지킨다 — 예상치 못한 REVISE
+    잔존이나 APPROVE 취소를 조용히 넘어가지 않는다."""
+
     approve = sum(1 for r in mapping_rows if r["existing_reviewer_1_status"] == "APPROVE")
     revise = sum(1 for r in mapping_rows if r["existing_reviewer_1_status"] == "REVISE")
-    if (approve, revise) != (38, 6):
+    if (approve, revise) != (44, 0):
         raise PreservedBridgeScopeMismatchError(
-            f"기존 Bridge Mapping 검수(APPROVE 38/REVISE 6)와 다르다: APPROVE={approve}, REVISE={revise}"
+            f"종결 이후 기대값(APPROVE 44/REVISE 0)과 다르다: APPROVE={approve}, REVISE={revise}"
         )
 
 
 # ============================== 4. P1 분류 후보(374건) ==============================
 
 
-def classify_p1(*, p1_path: Path | None = None) -> list[dict[str, Any]]:
+def classify_p1(*, p1_path: Path | None = None, p1_review_path: Path | None = None) -> list[dict[str, Any]]:
     """§5 — `judgment_evidence_sufficient`/`judgment_candidate`로만 판정한다.
     이름 유사도만으로 승인 제안하지 않는다 — HCI_UX_CANDIDATE는 근거 불충분
     (공식 소계열 대응 코드 자체가 없다, `academyinfo_p1_classification_loader`
-    문서 그대로)이라 이름이 비슷해도 HUMAN_REVIEW_REQUIRED로 남긴다."""
+    문서 그대로)이라 이름이 비슷해도 HUMAN_REVIEW_REQUIRED로 남긴다.
+
+    2026-08-25 후속 지시(a/final-mapping-closure §6) — 실제 검수 결정이 이미
+    저장돼 있으면(TBD가 아니면) 그 결정을 그대로 반영한다. 아래 휴리스틱은
+    아직 검수되지 않은 상태에서만 "제안"으로 쓰인다."""
 
     entries = load_p1_classification_packet(p1_path or DEFAULT_P1_PACKET_PATH)
+    review_by_key = load_p1_review_entries_by_key(p1_review_path)
     rows: list[dict[str, Any]] = []
     for e in entries:
-        if e.judgment_candidate == "DESIGN_ARTS_EXCLUDED" and e.judgment_evidence_sufficient:
+        real_review = review_by_key.get(e.candidate_id)
+        real_decision = real_review.decision if real_review is not None else "TBD"
+
+        if real_decision == "APPROVE_PROPOSED_CANDIDATE":
+            disposition = "PROPOSE_APPROVE"
+            reason = f"사람 검수로 이미 종결됨(APPROVE_PROPOSED_CANDIDATE): {e.judgment_candidate_reason}"
+        elif real_decision in ("EXCLUDE_ARTS_RECOMMENDATION", "EXCLUDE_FROM_INITIAL_PROMOTION"):
+            disposition = "PROPOSE_EXCLUDE"
+            reason = f"사람 검수로 이미 종결됨({real_decision}): {e.judgment_candidate_reason}"
+        elif e.judgment_candidate == "DESIGN_ARTS_EXCLUDED" and e.judgment_evidence_sufficient:
             disposition = "PROPOSE_EXCLUDE"
             reason = f"공식 소계열 기준 예체능 제외 정책 대상으로 확정됨: {e.judgment_candidate_reason}"
         elif e.judgment_evidence_sufficient and p1_approve_eligible(e):
@@ -410,23 +466,44 @@ def classify_p1(*, p1_path: Path | None = None) -> list[dict[str, Any]]:
 # ============================== 5. N.C.E 중계열(24개)·학과(584건) ==============================
 
 
-def classify_nce(*, nce_path: Path | None = None) -> list[dict[str, Any]]:
+def classify_nce(*, nce_path: Path | None = None, nce_review_path: Path | None = None) -> list[dict[str, Any]]:
     """§6 — 중계열 Hint는 후보 근거일 뿐 확정 근거가 아니다. 어떤 클러스터도
-    자동으로 특정 Major에 연결하지 않는다 — 24개 클러스터(584건) 전부
-    HUMAN_REVIEW_REQUIRED다. `group_linkage_status`는 Pydantic Schema에
-    모델링돼 있지 않은 원본 필드라(Draft 저자의 참고용 표시), 원본 JSONL을
-    직접 읽어서 그대로 보여준다 — 이 값으로 승인 여부를 가르지 않는다(정보성
-    표시일 뿐, 이 함수의 disposition은 이 값과 무관하게 전부 HUMAN_REVIEW_
-    REQUIRED로 고정한다)."""
+    자동으로 특정 Major에 연결하지 않는다. `group_linkage_status`는 Pydantic
+    Schema에 모델링돼 있지 않은 원본 필드라(Draft 저자의 참고용 표시), 원본
+    JSONL을 직접 읽어서 그대로 보여준다 — 이 값으로 승인 여부를 가르지 않는다
+    (정보성 표시일 뿐).
+
+    2026-08-25 후속 지시(a/final-mapping-closure §7) — 실제 검수 결정이
+    `EXCLUDE_FROM_INITIAL_PROMOTION`으로 이미 저장돼 있으면 PROPOSE_EXCLUDE로
+    반영한다(1차 승격 제외로 종결됐다는 뜻 — 그 외에는 여전히 어떤 값이든
+    자동으로 특정 Major에 연결하지 않으므로 HUMAN_REVIEW_REQUIRED로 남는다)."""
 
     raw_rows = read_jsonl(nce_path or DEFAULT_NCE_CLUSTER_PATH)
+    review_by_key = load_nce_review_entries_by_key(nce_review_path)
     rows: list[dict[str, Any]] = []
     for row in raw_rows:
         members = row.get("members", [])
+        code = row["official_middle_series_code"]
+        real_review = review_by_key.get(code)
+        real_decision = real_review.decision if real_review is not None else "TBD"
+
+        if real_decision == "EXCLUDE_FROM_INITIAL_PROMOTION":
+            disposition = "PROPOSE_EXCLUDE"
+            reason = (
+                "사람 검수로 이미 종결됨(EXCLUDE_FROM_INITIAL_PROMOTION) — 중계열 Hint는 후보 "
+                "근거일 뿐이라 1차 전국 승격에서는 제외한다. 원본·Lineage는 보존한다(과제 §7)."
+            )
+        else:
+            disposition = "HUMAN_REVIEW_REQUIRED"
+            reason = (
+                "중계열 Hint는 후보 근거일 뿐 확정 근거가 아니다 — N.C.E는 학과 단위 검토 "
+                "전까지 어떤 Major에도 자동 연결하지 않는다(과제 §6)."
+            )
+
         rows.append(
             {
                 "cluster_id": row["cluster_id"],
-                "official_middle_series_code": row["official_middle_series_code"],
+                "official_middle_series_code": code,
                 "official_middle_series_name": row["official_middle_series_name"],
                 "group_linkage_status": row.get("group_linkage_status"),
                 "candidate_canonical_major_groups": row.get("candidate_canonical_major_groups", []),
@@ -440,11 +517,8 @@ def classify_nce(*, nce_path: Path | None = None) -> list[dict[str, Any]]:
                 ],
                 "unlinkable_or_too_broad_reason": row.get("unlinkable_or_too_broad_reason", ""),
                 "additional_official_evidence_needed": row.get("additional_official_evidence_needed", []),
-                "disposition": "HUMAN_REVIEW_REQUIRED",
-                "proposal_reason": (
-                    "중계열 Hint는 후보 근거일 뿐 확정 근거가 아니다 — N.C.E는 학과 단위 검토 "
-                    "전까지 어떤 Major에도 자동 연결하지 않는다(과제 §6)."
-                ),
+                "disposition": disposition,
+                "proposal_reason": reason,
             }
         )
     rows.sort(key=lambda x: x["cluster_id"])
@@ -470,37 +544,15 @@ def _write_hypothetical_group_draft(path: Path, group_rows: list[dict[str, Any]]
     write_jsonl_atomic(path, rows)
 
 
-def _write_hypothetical_bridge_scope_review(path: Path, scope_rows: list[dict[str, Any]]) -> None:
-    rows = [
-        {
-            "canonical_major_group_id": r["canonical_major_group_id"],
-            "canonical_major_id": r["canonical_major_id"],
-            "reviewer_1_status": "APPROVE",
-            "reviewer_1_comment": "final-mapping-closure 가정 계산 — 실제 검수 아님",
-            "reviewer_2_status": "TBD",
-            "reviewer_2_comment": "",
-            "resolution_note": "",
-            "revision": "",
-        }
-        for r in scope_rows
-        if r["disposition"] == "PROPOSE_APPROVE"
-    ]
-    write_jsonl_atomic(path, rows)
-
-
-def _write_hypothetical_p1_review(path: Path, p1_rows: list[dict[str, Any]]) -> None:
-    rows = [
-        {
-            "candidate_id": r["candidate_id"],
-            "decision": "APPROVE_PROPOSED_CANDIDATE",
-            "reviewer_comment": "final-mapping-closure 가정 계산 — 실제 검수 아님",
-            "resolution_note": "",
-            "revision": 0,
-        }
-        for r in p1_rows
-        if r["disposition"] == "PROPOSE_APPROVE"
-    ]
-    write_jsonl_atomic(path, rows)
+# 2026-08-25 후속 지시(a/final-mapping-closure §11) — "실제 Review 정본을 사용해
+# 다시 실행한다." Bridge Scope/P1/N.C.E는 이제 실제 검수 파일이 존재하므로
+# (§4/§5/§6/§7 종결) 더 이상 임시(hypothetical) 승인 파일을 만들지 않고 그
+# 실제 파일을 곧바로 읽는다. `_write_hypothetical_group_draft`(위)만 여전히
+# 필요하다 — Dry Run Gate의 BLOCKED_GROUP_DRAFT 판정은 별도 검수 Store가 아니라
+# Group Draft 파일 자체의 `review_status` 필드를 직접 읽는 기존 설계이고, 이
+# 저장소 전체의 확립된 관례(Draft는 Read-Only, worker-c 산출물)상 실제
+# `data/canonical_major_groups.draft.jsonl`은 이 스크립트가 절대 고치지
+# 않는다 — 그래서 그 필드만 반영한 임시 사본이 계속 필요하다.
 
 
 def compute_hypothetical_ready_for_promotion(
@@ -528,43 +580,37 @@ def compute_hypothetical_ready_for_promotion(
             "reason": f"지정된 경로가 존재하지 않는다: {restore_normalized_path}, {restore_classification_path}",
         }
 
-    with tempfile.TemporaryDirectory(prefix="final_mapping_closure_hypothetical_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="final_mapping_closure_real_review_") as tmp:
         tmp_dir = Path(tmp)
-        work_dir = tmp_dir / "academyinfo_work" / "2025"
-        reviews_dir = tmp_dir / "reviews"
-        work_dir.mkdir(parents=True, exist_ok=True)
-        reviews_dir.mkdir(parents=True, exist_ok=True)
-        packets_dir = work_dir / "packets"
-        packets_dir.mkdir(parents=True, exist_ok=True)
 
-        hypothetical_group_draft_path = tmp_dir / "canonical_major_groups.hypothetical.draft.jsonl"
+        # BLOCKED_GROUP_DRAFT Gate만 Group Draft 파일 자체의 review_status 필드를
+        # 읽는 기존 설계라(별도 검수 Store가 없다), 그 필드에 실제 검수 결정
+        # (data/reviews/canonical_major_group_review_status.jsonl)을 반영한 임시
+        # 사본이 필요하다 — 실제 Draft 원본(Read-Only, worker-c 산출물)은 그대로 둔다.
+        hypothetical_group_draft_path = tmp_dir / "canonical_major_groups.with_real_review.draft.jsonl"
         _write_hypothetical_group_draft(
             hypothetical_group_draft_path, group_rows, real_draft_path=ROOT / "data" / "canonical_major_groups.draft.jsonl"
         )
-        _write_hypothetical_bridge_scope_review(
-            reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", scope_rows
-        )
-        _write_hypothetical_p1_review(reviews_dir / "academyinfo_p1_classification_review_status.jsonl", p1_rows)
-        # Bridge Mapping 검수·N.C.E 검수는 실제 파일을 그대로 쓴다 — Mapping은 이미
-        # 사람이 검수한 38 APPROVE/6 REVISE를 이 계산에서도 바꾸지 않는다(§4 보존).
-        # N.C.E는 이 스크립트가 어떤 것도 PROPOSE_APPROVE로 분류하지 않으므로(§6),
-        # 검수 파일이 없어도(Fail-Closed) 결과가 달라지지 않는다.
 
         try:
             inputs = load_dry_run_inputs(
-                data_dir=tmp_dir,
+                data_dir=ROOT / "data",
                 survey_year=2025,
-                reviews_dir=reviews_dir,
                 group_draft_path=hypothetical_group_draft_path,
                 bridge_draft_path=ROOT / "data" / "master" / "canonical_major_group_bridge.draft.jsonl",
                 small_series_code_table_path=ROOT / "data" / "academyinfo_raw" / "2025" / "codes" / "getCodeBySmallSeries.jsonl.gz",
                 canonical_majors_path=ROOT / "data" / "master" / "canonical_majors.jsonl",
+                # 나머지 전부 실제 정본 — Bridge Mapping·Bridge Scope·P1·N.C.E는 이번
+                # 라운드(§4/§5/§6/§7)로 전부 실제 검수 파일이 존재한다.
                 bridge_mapping_review_path=ROOT / "data" / "reviews" / "canonical_major_group_bridge_review_status.json",
-                bridge_scope_review_path=reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl",
+                bridge_scope_review_path=ROOT / "data" / "reviews" / "canonical_major_group_bridge_scope_review_status.jsonl",
                 p1_packet_path=ROOT / "data" / "academyinfo_work" / "2025" / "packets" / "p1_classification_review.jsonl",
-                p1_review_path=reviews_dir / "academyinfo_p1_classification_review_status.jsonl",
+                p1_review_path=ROOT / "data" / "reviews" / "academyinfo_p1_classification_review_status.jsonl",
                 nce_clusters_path=ROOT / "data" / "academyinfo_work" / "2025" / "packets" / "nce_reexaminable_middle_series_clusters.jsonl",
-                nce_review_path=reviews_dir / "academyinfo_nce_middle_series_review_status.jsonl",
+                nce_review_path=ROOT / "data" / "reviews" / "academyinfo_nce_middle_series_review_status.jsonl",
+                # 야간·원격 제외·URL 정책 감사는 이번 복원 Snapshot과 다른 시점의
+                # 파일이 이 Worktree에 남아 있어(§ 이전 라운드에서 이미 확인) 섞으면
+                # 왜곡된다 — 이번에도 명시적으로 제외한다.
                 url_audit_path=tmp_dir / "__no_url_audit__.jsonl",
                 normalized_path=restore_normalized_path,
                 classification_path=restore_classification_path,
@@ -582,18 +628,62 @@ def compute_hypothetical_ready_for_promotion(
         for reason in r["blocked_reasons"]:
             reason_counts[reason] = reason_counts.get(reason, 0) + 1
 
+    # 과제 §11 "검수 상태로 인한 P1_REVIEW_UNRESOLVED/NCE_UNRESOLVED는 0이어야
+    # 한다"는 요구를, 이번 라운드가 다루는 374건 P1/24개 N.C.E 범위 안에서
+    # 만족하는지 직접 검증한다. 범위 밖(애초에 P1 374건·N.C.E 24개 클러스터에
+    # 없던 행)은 이번 종결 대상이 아니었으므로 여전히 그 사유로 남는 것이
+    # 정상이다 — 둘을 구분해서 남긴다(숨기지 않는다).
+    p1_unresolved_in_packet = sum(
+        1 for r in blocked if "BLOCKED_P1_REVIEW_UNRESOLVED" in r["blocked_reasons"] and r["p1_candidate_id"] is not None
+    )
+    p1_unresolved_out_of_packet = sum(
+        1 for r in blocked if "BLOCKED_P1_REVIEW_UNRESOLVED" in r["blocked_reasons"] and r["p1_candidate_id"] is None
+    )
+    nce_unresolved_in_cluster_set = sum(
+        1 for r in blocked if "BLOCKED_NCE_UNRESOLVED" in r["blocked_reasons"] and r["nce_middle_series_code"] is not None
+    )
+    nce_unresolved_out_of_cluster_set = sum(
+        1 for r in blocked if "BLOCKED_NCE_UNRESOLVED" in r["blocked_reasons"] and r["nce_middle_series_code"] is None
+    )
+
     return {
         "computed": True,
         "evaluated_department_count": len(rows),
         "ready_for_promotion_count": len(ready),
         "blocked_count": len(blocked),
         "blocked_reason_counts": dict(sorted(reason_counts.items())),
+        "review_scope_boundary_check": {
+            "p1_review_unresolved_within_374_packet": p1_unresolved_in_packet,
+            "p1_review_unresolved_outside_374_packet": p1_unresolved_out_of_packet,
+            "nce_unresolved_within_24_cluster_set": nce_unresolved_in_cluster_set,
+            "nce_unresolved_outside_24_cluster_set": nce_unresolved_out_of_cluster_set,
+            "note": (
+                "이번 Final Mapping Closure는 P1 374건·N.C.E 24개 클러스터(584건)만 다뤘다 — "
+                "분류 REVIEW_REQUIRED 전체(약 1,936건)·N.C.E 미분류 전체(약 3,534건) 중 나머지는 "
+                "애초에 이 검수 패킷의 대상이 아니었다. *_within_*이 0이면 이번 라운드가 다룬 "
+                "범위 안에서는 '검수 상태로 인한' 차단이 실제로 전부 해소됐다는 뜻이다. "
+                "p1_review_unresolved_within_374_packet가 1인 이유: 대전대학교 뷰티디자인학과"
+                "(candidate_id=p1cls_77f2cdbc4b2211a30ebc, judgment_candidate=DESIGN_ARTS_"
+                "EXCLUDED)는 이번에 EXCLUDE_ARTS_RECOMMENDATION으로 실제 검수 종결됐지만, "
+                "Dry Run Gate가 그 Decision 값 자체를(EXCLUDE_FROM_INITIAL_PROMOTION이 아닌 "
+                "기존 5개 값 중 하나로) BLOCKED_P1_REVIEW_UNRESOLVED로 라벨링하는 기존 동작을 "
+                "이번 라운드에서 바꾸지 않았다(a/academyinfo-review-ui-p1-nce 지시서 §6 "
+                "'나머지 Decision은 모두 차단'을 그대로 보존 — 기존 테스트가 이 동작을 이미 "
+                "고정하고 있다). 검수 자체는 완료됐고(EXCLUDE_ARTS_RECOMMENDATION), 추천에 "
+                "포함되지도 않는다 — 라벨만 'UNRESOLVED'로 남아 숫자가 1이라는 사실을 그대로 "
+                "밝힌다."
+            ),
+        },
         "note": (
-            "이 스크립트가 PROPOSE_APPROVE로 분류한 Group/Bridge Scope/P1 항목만 승인됐다고 "
-            "가정한 임시(tempfile) Fixture 계산이다 — 실제 data/reviews/·Master·API는 전혀 "
-            "바뀌지 않았다. 야간·원격 제외(out_of_recommendation_scope.jsonl)와 URL 정책 감사는 "
-            "이번 계산 범위에 포함하지 않았다(이 Worktree의 해당 파일이 이번 복원 Snapshot과 "
-            "다른 시점의 것이라 섞으면 왜곡된다)."
+            "실제 Review 정본(Bridge Mapping·Bridge Scope·P1·N.C.E — §4/§5/§6/§7로 이번 "
+            "라운드에 전부 종결)을 그대로 읽어 계산했다. Group만 예외 — BLOCKED_GROUP_DRAFT "
+            "Gate가 별도 검수 Store가 아니라 Group Draft 파일 자체의 review_status 필드를 "
+            "읽는 기존 설계라, 실제 검수 결정(canonical_major_group_review_status.jsonl)을 "
+            "반영한 임시 사본으로 그 필드만 대신한다 — 실제 data/canonical_major_groups."
+            "draft.jsonl(Read-Only 원본)·data/reviews/·Master·API는 전혀 바뀌지 않았다. "
+            "야간·원격 제외(out_of_recommendation_scope.jsonl)와 URL 정책 감사는 이번 계산 "
+            "범위에 포함하지 않았다(이 Worktree의 해당 파일이 이번 복원 Snapshot과 다른 "
+            "시점의 것이라 섞으면 왜곡된다)."
         ),
     }
 
@@ -686,7 +776,10 @@ def build_summary(
             "bridge_scope_review_file_exists": bridge_scope_review_file_exists,
             "p1_review_file_exists": p1_review_file_exists,
             "nce_review_file_exists": nce_review_file_exists,
-            "note": "Bridge Mapping 외 전부 검수 파일 자체가 없다(Fail-Closed) — 42+44(Scope 적용 15)+374+24개 전부 미검수 상태에서 시작.",
+            "note": (
+                "이 블록은 '이번 함수 호출 시점'의 실제 현재 상태다(그때그때 다시 읽는다) — "
+                "이전 라운드가 끝난 시점의 고정 기록은 Markdown 보고서 §0 상단에 별도로 남긴다."
+            ),
         },
         "by_category": {
             "group": {"total": len(group_rows), **group_counts},
@@ -766,6 +859,19 @@ def render_priority_html(*, group_rows, mapping_rows, scope_rows, p1_rows, nce_r
     total = len(group_hr) + len(mapping_hr) + len(scope_hr) + len(p1_hr) + len(nce_hr)
 
     blocks = ['<h1>Final Mapping Closure — Priority Review(사람이 봐야 하는 항목만)</h1>']
+
+    if total == 0:
+        # 과제 §9 — HUMAN_REVIEW_REQUIRED가 0건이면 빈 화면 대신 이 문구만 보여준다.
+        blocks.append(
+            '<div class="sub">HUMAN_REVIEW_REQUIRED 0건</div>'
+            '<div class="warn">추가 사람 검수 항목 없음 — 근거 부족 항목은 1차 전국 승격 '
+            '제외로 종결됨</div>'
+        )
+        return (
+            '<meta charset="utf-8"><title>Final Mapping Closure — Priority Review</title>'
+            f"<style>{_CSS}</style>{''.join(blocks)}"
+        )
+
     blocks.append(
         f'<div class="sub">HUMAN_REVIEW_REQUIRED 총 {total}건 — '
         f'Group {len(group_hr)} · Bridge Mapping {len(mapping_hr)} · Bridge Scope {len(scope_hr)} · '
@@ -857,14 +963,25 @@ def render_markdown_report(summary: dict[str, Any], regenerate_cmd: str) -> str:
         "**이 문서는 계산 결과 보고서다.** `data/reviews/`·`data/master/departments.jsonl`·"
         "공개 API는 이 실행으로 전혀 바뀌지 않았다. `auto_approved_rows`는 항상 0이다.",
         "",
-        "## 0. 시작 시 미검수·차단 상태",
+        "## 0. 검수 상태 — 이전 라운드 시작 시점 대비 이번 실행 시점",
+        "",
+        "이전 라운드(commit `2d6f831`, 브랜치 동일)가 끝난 시점의 기록값(고정, 재계산하지",
+        "않는다 — 그 라운드는 이미 커밋됐고 재실행 대상이 아니다):",
+        "",
+        "- Group 검수 파일 존재: False(42개 전부 미검수) · Bridge Mapping 기존 검수 APPROVE 38"
+        "/REVISE 6 · Bridge Scope/P1/N.C.E 검수 파일 존재: False(전부 미검수)",
+        "- 분류: PROPOSE_APPROVE 176 / PROPOSE_EXCLUDE 11 / HUMAN_REVIEW_REQUIRED 312",
+        "",
+        "**이번 실행 시점(이 문서 생성 직전)의 실제 현재 상태**(이 스크립트가 매번 그때그때",
+        "다시 읽는 값 — 사용자 최종 결정에 따라 §1~§9 종결 스크립트를 먼저 실행한 뒤 이",
+        "보고서를 재생성했다면 아래는 '종결 후' 상태를 보여준다):",
         "",
     ]
     b = summary["baseline_before_this_packet"]
-    lines.append(f"- Group 검수 파일 존재: {b['group_review_file_exists']}(42개 전부 미검수)")
+    lines.append(f"- Group 검수 파일 존재: {b['group_review_file_exists']}")
     lines.append(
         f"- Bridge Mapping 기존 검수: APPROVE {b['bridge_mapping_review']['approve']} / "
-        f"REVISE {b['bridge_mapping_review']['revise']}(§4 보존)"
+        f"REVISE {b['bridge_mapping_review']['revise']}"
     )
     lines.append(f"- Bridge Scope 검수 파일 존재: {b['bridge_scope_review_file_exists']}")
     lines.append(f"- P1 검수 파일 존재: {b['p1_review_file_exists']}")
@@ -914,6 +1031,20 @@ def render_markdown_report(summary: dict[str, Any], regenerate_cmd: str) -> str:
             lines.append(f"| {reason} | {count} |")
         lines.append("")
         lines.append(exp["note"])
+
+        boundary = exp.get("review_scope_boundary_check")
+        if boundary:
+            lines += [
+                "",
+                "### 4-1. 검수 범위 경계 확인(§11 'P1_REVIEW_UNRESOLVED/NCE_UNRESOLVED 0' 검증)",
+                "",
+                f"- P1(374건 범위 안) 미해결 잔존: **{boundary['p1_review_unresolved_within_374_packet']}건**"
+                f" · 범위 밖(원래 대상 아님): {boundary['p1_review_unresolved_outside_374_packet']}건",
+                f"- N.C.E(24개 클러스터 범위 안) 미해결 잔존: **{boundary['nce_unresolved_within_24_cluster_set']}건**"
+                f" · 범위 밖(원래 대상 아님): {boundary['nce_unresolved_outside_24_cluster_set']}건",
+                "",
+                boundary["note"],
+            ]
     else:
         lines.append(f"- 계산 안 함: {exp['reason']}")
 

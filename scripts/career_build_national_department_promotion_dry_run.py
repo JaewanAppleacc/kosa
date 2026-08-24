@@ -179,6 +179,11 @@ _NIGHT_REMOTE_EXCLUSION_REASONS = frozenset(
 )
 
 # 결정론적 산출물이라 값을 셋으로 모았다가 정렬해서 쓴다(같은 입력이면 항상 같은 순서).
+# 2026-08-25 후속 지시(a/final-mapping-closure §6/§7) — P1/N.C.E 검수가 "아직
+# 미해결(TBD)"이 아니라 "사람이 명시적으로 1차 전국 승격 제외를 결정했다"는
+# 사실을 구분해서 보여주는 두 사유를 추가한다. 둘 다 READY_FOR_PROMOTION으로는
+# 절대 이어지지 않는다(§ evaluate_department의 해당 분기 참고) — 차단 "사유"만
+# 더 정확해질 뿐, 승격 가능 여부는 바뀌지 않는다.
 ALL_BLOCKED_REASONS = (
     "BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR",
     "BLOCKED_ARTS_RECOMMENDATION",
@@ -188,10 +193,12 @@ ALL_BLOCKED_REASONS = (
     "BLOCKED_CLASSIFICATION_REVIEW",
     "BLOCKED_CONTRACT_DEPARTMENT",
     "BLOCKED_DUPLICATE_ID",
+    "BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION",
     "BLOCKED_GROUP_DRAFT",
     "BLOCKED_INACTIVE_STATUS",
     "BLOCKED_MISSING_CLASSIFICATION",
     "BLOCKED_MISSING_LINEAGE",
+    "BLOCKED_NCE_EXCLUDED_FROM_INITIAL_PROMOTION",
     "BLOCKED_NCE_UNRESOLVED",
     "BLOCKED_NIGHT_OR_REMOTE",
     "BLOCKED_NO_SERVICE_CANONICAL_MAJOR",
@@ -392,7 +399,14 @@ def load_inputs(
     p1_draft_by_department_id = {e.department_id: e for e in p1_draft_entries}
     input_hashes["p1_classification_packet"] = hash_or_missing(p1_packet_path)
 
-    p1_review_path = p1_review_path or default_p1_review_path()
+    # 2026-08-25 후속 지시(a/final-mapping-closure) — 이전엔 `default_p1_review_
+    # path()`를 인자 없이 불러서 `reviews_dir`를 무시하고 항상 저장소 절대 경로
+    # (data/reviews/...)로 떨어졌다(Bridge Mapping/Scope 검수 경로는 이미
+    # `reviews / "..."`로 `reviews_dir`를 존중하고 있었다 — 이 파일만 예외였다).
+    # 실제 data/reviews/academyinfo_p1_classification_review_status.jsonl이
+    # 이제 존재해서(§6 종결) 이 불일치가 테스트 격리 버그로 드러났다 — Bridge와
+    # 같은 방식으로 고친다.
+    p1_review_path = p1_review_path or default_p1_review_path(reviews / "academyinfo_p1_classification_review_status.jsonl")
     p1_reviews = load_p1_review_entries_by_key(p1_review_path)
     input_hashes["p1_review"] = hash_or_missing(p1_review_path)
 
@@ -414,7 +428,8 @@ def load_inputs(
             nce_middle_series_code_by_department[member.department_id] = cluster.official_middle_series_code
     input_hashes["nce_clusters"] = hash_or_missing(nce_clusters_path)
 
-    nce_review_path = nce_review_path or default_nce_review_path()
+    # 위 P1과 같은 이유로 같이 고친다(§ 위 2026-08-25 주석 참고).
+    nce_review_path = nce_review_path or default_nce_review_path(reviews / "academyinfo_nce_middle_series_review_status.jsonl")
     nce_reviews = load_nce_review_entries_by_key(nce_review_path)
     input_hashes["nce_review"] = hash_or_missing(nce_review_path)
 
@@ -536,7 +551,17 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
                         and p1_approve_eligible(p1_draft, inputs.service_major_ids)
                     )
                     if not approve_and_eligible:
-                        reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
+                        # 2026-08-25 후속 지시(a/final-mapping-closure §6) — 검수가
+                        # "아직 안 됨(TBD)"과 "사람이 명시적으로 1차 승격 제외를
+                        # 결정함(EXCLUDE_FROM_INITIAL_PROMOTION)"을 구분한다. 그
+                        # 외 나머지 기존 5개 값(EXCLUDE_ARTS_RECOMMENDATION·
+                        # KEEP_UNMAPPED·NEEDS_OFFICIAL_CURRICULUM·REVISE_CANDIDATE·
+                        # HOLD)은 기존 그대로 BLOCKED_P1_REVIEW_UNRESOLVED다 —
+                        # 이 값들의 의미를 이번 지시가 바꾸지 않았다.
+                        if p1_review_decision == "EXCLUDE_FROM_INITIAL_PROMOTION":
+                            reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
+                        else:
+                            reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
 
             mapping_status = classification_row.get("mapping_status")
             if mapping_status == "AUTO_CANDIDATE":
@@ -563,7 +588,15 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
                     nce_middle_series_code = inputs.nce_middle_series_code_by_department.get(department_id)
                     nce_review = inputs.nce_reviews.get(nce_middle_series_code) if nce_middle_series_code else None
                     nce_review_decision = nce_review.decision if nce_review is not None else "TBD"
-                    reasons.add("BLOCKED_NCE_UNRESOLVED")
+                    # 2026-08-25 후속 지시(a/final-mapping-closure §7) — "검수가 아직
+                    # 안 됨(TBD/ACCEPT_GROUP_AS_REVIEW_CANDIDATE 등)"과 "사람이
+                    # 명시적으로 1차 승격 제외를 결정함"을 구분한다. 두 경우 모두
+                    # resolved_group_id는 절대 채우지 않는다 — READY_FOR_PROMOTION
+                    # 도달 가능성은 그대로 0이고, 차단 사유 라벨만 더 정확해진다.
+                    if nce_review_decision == "EXCLUDE_FROM_INITIAL_PROMOTION":
+                        reasons.add("BLOCKED_NCE_EXCLUDED_FROM_INITIAL_PROMOTION")
+                    else:
+                        reasons.add("BLOCKED_NCE_UNRESOLVED")
                 else:
                     reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
             else:

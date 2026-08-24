@@ -3,14 +3,18 @@
 핵심 증명 대상(과제 §7/§10):
     1. 어떤 검수 파일도 만들거나 고치지 않는다(`data/reviews/` 무변경, auto_approved_rows=0).
     2. 5개 카테고리 분류 개수가 실제 Draft/Review 데이터와 정확히 일치한다.
-    3. Bridge Scope §4 보존 대상 6개, Bridge Mapping 기존 검수(38 APPROVE/6 REVISE)가
-       그대로 반영됐다.
-    4. Priority HTML에는 HUMAN_REVIEW_REQUIRED만 들어간다.
-    5. 서로 다른 PYTHONHASHSEED로 별도 프로세스에서 두 번 실행해도 산출물이
+    3. Priority HTML에는 HUMAN_REVIEW_REQUIRED만 들어간다.
+    4. 서로 다른 PYTHONHASHSEED로 별도 프로세스에서 두 번 실행해도 산출물이
        byte-identical하다.
-    6. `src/ids.py`·Department Repository/Schema·Runtime Planner·Stop
+    5. `src/ids.py`·Department Repository/Schema·Runtime Planner·Stop
        Condition·ContextPack 질문/Mapping·공개 API·frontend/ 어느 것도 이
-       스크립트가 Import조차 하지 않는다(Department Identity 관련 파일 무변경)."""
+       스크립트가 Import조차 하지 않는다(Department Identity 관련 파일 무변경).
+
+2026-08-25 후속 지시(a/final-mapping-closure — "312건 추가 검수 제거") 이후:
+    6. `data/reviews/`에 실제 검수 결정이 전부 저장돼 있다(Group 42·Bridge
+       Mapping 44 APPROVE·Bridge Scope 15·P1 374·N.C.E 24) — HUMAN_REVIEW_
+       REQUIRED/TBD/HOLD 전부 0이다(`tests.test_final_mapping_review_closure`가
+       이 실제 저장을 직접 검증한다 — 이 파일은 그 결과를 읽는 쪽만 검증)."""
 
 from __future__ import annotations
 
@@ -175,12 +179,77 @@ class ClassificationCountTest(unittest.TestCase):
         for row in self.scope_rows:
             self.assertIn(row["disposition"], valid_scope, row)
 
-    def test_all_24_nce_clusters_are_human_review_required(self) -> None:
-        """§6 'N.C.E를 자동으로 특정 Major에 연결하지 않음' — Hint 후보 유무와
-        무관하게 24개 전부 HUMAN_REVIEW_REQUIRED."""
+    def test_all_24_nce_clusters_closed_as_propose_exclude_not_approve(self) -> None:
+        """§6/§7(2026-08-25 후속 지시) 'N.C.E를 자동으로 특정 Major에 연결하지
+        않음' — Hint 후보 유무와 무관하게 24개 전부 EXCLUDE_FROM_INITIAL_
+        PROMOTION으로 종결됐다(PROPOSE_EXCLUDE) — 단 하나도 PROPOSE_APPROVE가
+        아니다(추측 Mapping 0건)."""
 
         for row in self.nce_rows:
-            self.assertEqual(row["disposition"], "HUMAN_REVIEW_REQUIRED", row["cluster_id"])
+            self.assertEqual(row["disposition"], "PROPOSE_EXCLUDE", row["cluster_id"])
+        self.assertEqual(sum(1 for r in self.nce_rows if r["disposition"] == "PROPOSE_APPROVE"), 0)
+
+
+class ClosureRoundInvariantsTest(unittest.TestCase):
+    """2026-08-25 후속 지시 §10 '최종 불변식' — 이번 라운드 실제 검수 저장 이후,
+    이 Closure 재분류 스크립트가 그 결과를 정확히 반영하는지 확인한다."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from scripts.career_build_final_mapping_closure import classify_bridge, classify_groups, classify_nce, classify_p1
+
+        cls.group_rows = classify_groups()
+        cls.mapping_rows, cls.scope_rows = classify_bridge(
+            mapping_review_path=REVIEWS_DIR / "canonical_major_group_bridge_review_status.json",
+            scope_review_path=REVIEWS_DIR / "canonical_major_group_bridge_scope_review_status.jsonl",
+        )
+        cls.p1_rows = classify_p1()
+        cls.nce_rows = classify_nce()
+
+    def test_zero_human_review_required_across_all_categories(self) -> None:
+        all_rows = self.group_rows + self.mapping_rows + self.p1_rows + self.nce_rows
+        applicable_scope = [r for r in self.scope_rows if r["disposition"] != "NOT_APPLICABLE"]
+        human_review = [r for r in all_rows + applicable_scope if r["disposition"] == "HUMAN_REVIEW_REQUIRED"]
+        self.assertEqual(human_review, [])
+
+    def test_499_natural_units_all_closed(self) -> None:
+        applicable_scope = [r for r in self.scope_rows if r["disposition"] != "NOT_APPLICABLE"]
+        total = len(self.group_rows) + len(self.mapping_rows) + len(applicable_scope) + len(self.p1_rows) + len(self.nce_rows)
+        self.assertEqual(total, 42 + 44 + 15 + 374 + 24)
+        self.assertEqual(total, 499)
+        closed = sum(
+            1 for r in self.group_rows + self.mapping_rows + applicable_scope + self.p1_rows + self.nce_rows
+            if r["disposition"] in ("PROPOSE_APPROVE", "PROPOSE_EXCLUDE")
+        )
+        self.assertEqual(closed, 499)
+
+    def test_p1_277_low_evidence_rows_excluded_from_initial_promotion(self) -> None:
+        """§6 — 근거 불충분 277건(HCI_UX_CANDIDATE 2 + NEEDS_OFFICIAL_CURRICULUM 207
+        + UNMAPPED 68)이 특정 Major로 추측 연결되지 않고 EXCLUDE_FROM_INITIAL_
+        PROMOTION으로 종결됐는지 실제 저장 파일에서 확인한다."""
+
+        from src.services.academyinfo_p1_classification_review_store import load_p1_review_entries_by_key
+
+        review_by_key = load_p1_review_entries_by_key(REVIEWS_DIR / "academyinfo_p1_classification_review_status.jsonl")
+        excluded = [r for r in self.p1_rows if r["judgment_candidate"] in ("HCI_UX_CANDIDATE", "NEEDS_OFFICIAL_CURRICULUM", "UNMAPPED")]
+        self.assertEqual(len(excluded), 277)
+        for row in excluded:
+            entry = review_by_key[row["candidate_id"]]
+            self.assertEqual(entry.decision, "EXCLUDE_FROM_INITIAL_PROMOTION")
+
+    def test_no_guessed_major_connection_for_low_evidence_p1_rows(self) -> None:
+        """근거 불충분 P1 행은 candidate_canonical_major_ids가 있어도(HCI_UX_
+        CANDIDATE 등 후보 표시) 실제 승인(APPROVE_PROPOSED_CANDIDATE)으로
+        저장되지 않았다 — 후보 존재와 승인은 별개다."""
+
+        from src.services.academyinfo_p1_classification_review_store import load_p1_review_entries_by_key
+
+        review_by_key = load_p1_review_entries_by_key(REVIEWS_DIR / "academyinfo_p1_classification_review_status.jsonl")
+        for row in self.p1_rows:
+            if row["disposition"] != "PROPOSE_EXCLUDE" or row["judgment_candidate"] == "DESIGN_ARTS_EXCLUDED":
+                continue
+            entry = review_by_key[row["candidate_id"]]
+            self.assertNotEqual(entry.decision, "APPROVE_PROPOSED_CANDIDATE")
 
 
 class BridgeScopePreservationTest(unittest.TestCase):
@@ -217,20 +286,28 @@ class BridgeScopePreservationTest(unittest.TestCase):
             self.assertEqual(row["included_small_series_codes"], codes)
 
     def test_department_review_required_two_preserved(self) -> None:
+        """2026-08-25 후속 지시(a/final-mapping-closure §5) 이후 — scope_type
+        자체는 여전히 DEPARTMENT_REVIEW_REQUIRED로 보존되지만, 검수 자체는
+        종결됐으므로(scope_review_status=APPROVE) 이 Closure 패킷에서는
+        PROPOSE_EXCLUDE(1차 승격 제외로 종결)로 나타난다 — HUMAN_REVIEW_
+        REQUIRED로 남지 않는다(§10 최종 불변식 'HUMAN_REVIEW_REQUIRED 0')."""
+
         by_key = {(r["canonical_major_group_id"], r["canonical_major_id"]): r for r in self.scope_rows}
         for key in (("bio_medical_engineering", "life_science"), ("computer_science", "hci_ux")):
             row = by_key[key]
             self.assertEqual(row["scope_type"], "DEPARTMENT_REVIEW_REQUIRED")
-            self.assertEqual(row["disposition"], "HUMAN_REVIEW_REQUIRED")
+            self.assertEqual(row["disposition"], "PROPOSE_EXCLUDE")
 
-    def test_bridge_mapping_existing_review_is_38_approve_6_revise(self) -> None:
+    def test_bridge_mapping_review_is_44_approve_0_revise_after_closure(self) -> None:
+        """2026-08-25 후속 지시 §4 — REVISE 6건이 이번 라운드에서 APPROVE로
+        종결됐다(§4 "Mapping 연결의 존재는 승인"). 44건 전부 APPROVE."""
+
         approve = sum(1 for r in self.mapping_rows if r["existing_reviewer_1_status"] == "APPROVE")
         revise = sum(1 for r in self.mapping_rows if r["existing_reviewer_1_status"] == "REVISE")
-        self.assertEqual(approve, 38)
-        self.assertEqual(revise, 6)
-        # REVISE 6건은 전부 HUMAN_REVIEW_REQUIRED로 남아야 한다(과제 §2/§4).
-        revise_dispositions = {r["disposition"] for r in self.mapping_rows if r["existing_reviewer_1_status"] == "REVISE"}
-        self.assertEqual(revise_dispositions, {"HUMAN_REVIEW_REQUIRED"})
+        self.assertEqual(approve, 44)
+        self.assertEqual(revise, 0)
+        dispositions = {r["disposition"] for r in self.mapping_rows}
+        self.assertNotIn("HUMAN_REVIEW_REQUIRED", dispositions)
 
 
 class P1BoundaryHandlingTest(unittest.TestCase):
