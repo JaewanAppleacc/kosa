@@ -109,6 +109,60 @@ class SchemaValidationRejectsBadRowsTest(unittest.TestCase):
     def test_valid_entry_passes(self) -> None:
         ServiceCanonicalMajorV2.model_validate(_base_major_kwargs())
 
+    def test_department_level_only_without_source_group_ids_rejected(self) -> None:
+        with self.assertRaises(Exception):
+            ServiceCanonicalMajorV2.model_validate(
+                _base_major_kwargs(
+                    major_id="hci_ux", canonical_major_group_id=None,
+                    source_group_ids=[], mapping_scope="DEPARTMENT_LEVEL_ONLY",
+                )
+            )
+
+    def test_department_level_only_with_canonical_major_group_id_rejected(self) -> None:
+        """canonical_major_group_id와 mapping_scope=DEPARTMENT_LEVEL_ONLY를 동시에
+        채우면 안 된다 — "이 Major가 정확히 어느 한 Group에 속하는가"와 "여러 Group에
+        걸친 특수 융합인가"는 서로 배타적이어야 한다."""
+        with self.assertRaises(Exception):
+            ServiceCanonicalMajorV2.model_validate(
+                _base_major_kwargs(
+                    major_id="hci_ux", canonical_major_group_id="computer_science",
+                    source_group_ids=["computer_science"], mapping_scope="DEPARTMENT_LEVEL_ONLY",
+                )
+            )
+
+    def test_full_group_without_canonical_major_group_id_rejected(self) -> None:
+        with self.assertRaises(Exception):
+            ServiceCanonicalMajorV2.model_validate(
+                _base_major_kwargs(canonical_major_group_id=None, mapping_scope="FULL_GROUP")
+            )
+
+    def test_full_group_with_source_group_ids_rejected(self) -> None:
+        with self.assertRaises(Exception):
+            ServiceCanonicalMajorV2.model_validate(
+                _base_major_kwargs(source_group_ids=["computer_science"], mapping_scope="FULL_GROUP")
+            )
+
+    def test_valid_department_level_only_entry_passes(self) -> None:
+        ServiceCanonicalMajorV2.model_validate(
+            _base_major_kwargs(
+                major_id="hci_ux", canonical_major_group_id=None,
+                source_group_ids=["computer_science", "fine_arts_design"],
+                mapping_scope="DEPARTMENT_LEVEL_ONLY",
+            )
+        )
+
+    def test_department_level_only_referencing_excluded_group_is_not_rejected_by_the_active_guard(self) -> None:
+        """§2 — source_group_ids에 추천 제외 Group(fine_arts_design)이 있어도 그
+        자체로는 예체능 4개 ACTIVE 금지 규칙 위반이 아니다(canonical_major_group_id
+        가 None이라 그 규칙 대상이 아니다) — hci_ux가 fine_arts_design을 통째로
+        승격시키는 게 아니라는 뜻이다."""
+        ServiceCanonicalMajorV2.model_validate(
+            _base_major_kwargs(
+                major_id="hci_ux", canonical_major_group_id=None,
+                source_group_ids=["fine_arts_design"], mapping_scope="DEPARTMENT_LEVEL_ONLY",
+            )
+        )
+
     def test_bridge_active_without_service_major_id_rejected(self) -> None:
         with self.assertRaises(Exception):
             CanonicalMajorGroupServiceMajorBridgeV2.model_validate(
@@ -171,6 +225,42 @@ class LoaderFailFastTest(unittest.TestCase):
             path = self._write_catalog(Path(tmp), [_base_major_kwargs(canonical_major_group_id="not_a_real_group")])
             with self.assertRaises(UnknownCanonicalMajorGroupError):
                 load_service_canonical_majors_v2(path, valid_group_ids=frozenset({"law"}))
+
+    def test_unknown_source_group_id_fails_fast(self) -> None:
+        """04096a4 후속 §3 — DEPARTMENT_LEVEL_ONLY Major의 source_group_ids도
+        canonical_major_group_id와 똑같이 실제 Group 목록과 대조된다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write_catalog(
+                Path(tmp),
+                [
+                    _base_major_kwargs(
+                        major_id="hci_ux", canonical_major_group_id=None,
+                        source_group_ids=["law", "not_a_real_group"], mapping_scope="DEPARTMENT_LEVEL_ONLY",
+                    )
+                ],
+            )
+            with self.assertRaises(UnknownCanonicalMajorGroupError):
+                load_service_canonical_majors_v2(path, valid_group_ids=frozenset({"law"}))
+
+    def test_department_level_only_major_referencing_excluded_source_group_still_loads(self) -> None:
+        """source_group_ids에 추천 제외 Group이 있어도(예: fine_arts_design) 그
+        자체로는 Fail-Fast 대상이 아니다 — canonical_major_group_id가 None이라
+        "이 Group을 통째로 ACTIVE로 승격했다"는 뜻이 아니기 때문이다."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write_catalog(
+                Path(tmp),
+                [
+                    _base_major_kwargs(
+                        major_id="hci_ux", canonical_major_group_id=None,
+                        source_group_ids=["computer_science", "fine_arts_design"],
+                        mapping_scope="DEPARTMENT_LEVEL_ONLY",
+                    )
+                ],
+            )
+            entries = load_service_canonical_majors_v2(
+                path, valid_group_ids=frozenset({"computer_science", "fine_arts_design"})
+            )
+            self.assertEqual(len(entries), 1)
 
     def test_ambiguous_alias_across_majors_fails_fast(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -260,9 +350,17 @@ class RealCatalogInvariantsTest(unittest.TestCase):
             if line.strip()
         }
 
-    def test_exactly_38_active_service_majors(self) -> None:
-        self.assertEqual(len(self.majors), 38)
+    def test_exactly_39_active_service_majors(self) -> None:
+        """04096a4 후속 보완 — Group 기반 38 + 특수 융합 hci_ux 1 = 39."""
+        self.assertEqual(len(self.majors), 39)
         self.assertTrue(all(m.recommendation_status == "ACTIVE" for m in self.majors))
+
+    def test_exactly_38_full_group_and_1_department_level_only(self) -> None:
+        full_group = [m for m in self.majors if m.mapping_scope == "FULL_GROUP"]
+        department_level = [m for m in self.majors if m.mapping_scope == "DEPARTMENT_LEVEL_ONLY"]
+        self.assertEqual(len(full_group), 38)
+        self.assertEqual(len(department_level), 1)
+        self.assertEqual(department_level[0].major_id, "hci_ux")
 
     def test_bridge_has_exactly_42_rows_covering_every_real_group(self) -> None:
         self.assertEqual(len(self.bridge), 42)
@@ -281,10 +379,20 @@ class RealCatalogInvariantsTest(unittest.TestCase):
         ids = [m.major_id for m in self.majors]
         self.assertEqual(len(ids), len(set(ids)))
 
-    def test_active_bridge_service_major_ids_match_catalog_exactly(self) -> None:
+    def test_active_bridge_service_major_ids_match_full_group_catalog_exactly(self) -> None:
+        """04096a4 후속 §2 — hci_ux는 어느 Group의 "기본 서비스 Major"도 아니므로
+        Bridge에 없다. Bridge의 ACTIVE 집합은 FULL_GROUP Catalog 행(38개)과 정확히
+        같아야 한다 — Catalog 전체(39개)와 같아지면 안 된다."""
         bridge_active_ids = {row.service_major_id for row in self.bridge.values() if row.recommendation_status == "ACTIVE"}
-        catalog_ids = {m.major_id for m in self.majors}
-        self.assertEqual(bridge_active_ids, catalog_ids)
+        full_group_ids = {m.major_id for m in self.majors if m.mapping_scope == "FULL_GROUP"}
+        self.assertEqual(bridge_active_ids, full_group_ids)
+        self.assertEqual(len(bridge_active_ids), 38)
+
+    def test_hci_ux_never_appears_as_a_bridge_service_major_id(self) -> None:
+        """§2 "hci_ux를 computer_science Group 전체에 자동 연결하지 말 것" — 어느
+        Group 행도 hci_ux를 자신의 ACTIVE service_major_id로 가리키면 안 된다."""
+        service_major_ids = {row.service_major_id for row in self.bridge.values()}
+        self.assertNotIn("hci_ux", service_major_ids)
 
     def test_explicit_rename_bridges_from_directive(self) -> None:
         self.assertEqual(self.bridge["business"].service_major_id, "business_administration")
@@ -304,11 +412,12 @@ class RealCatalogInvariantsTest(unittest.TestCase):
 
     def test_existing_ten_major_ids_are_never_renamed(self) -> None:
         """기존 10개 Canonical Major ID 자체는 이 Catalog의 어디에도 새 값으로
-        바뀌어 등장하지 않는다 — 있다면 원래 ID 그대로다(design·hci_ux는 애초에
-        이 Catalog에 없는 것이 정상이라 이 테스트 대상이 아니다)."""
+        바뀌어 등장하지 않는다 — 있다면 원래 ID 그대로다(design만 애초에 이
+        Catalog에 없는 것이 정상이라 이 테스트 대상이 아니다 — hci_ux는 04096a4
+        후속 보완으로 복원됐다)."""
         catalog_ids = {m.major_id for m in self.majors}
         for old_id in self.old_majors:
-            if old_id in {"design", "hci_ux"}:
+            if old_id == "design":
                 continue
             self.assertIn(old_id, catalog_ids, f"{old_id}가 그대로 보존되지 않았다")
 
@@ -320,15 +429,102 @@ class RealCatalogInvariantsTest(unittest.TestCase):
             self.assertEqual(by_id[old_id].label, old_row["label"])
             self.assertEqual(by_id[old_id].description, old_row["description"])
 
-    def test_design_and_hci_ux_are_not_promoted(self) -> None:
+    def test_design_is_not_promoted(self) -> None:
         catalog_ids = {m.major_id for m in self.majors}
         self.assertNotIn("design", catalog_ids)
-        self.assertNotIn("hci_ux", catalog_ids)
 
-    def test_every_major_references_a_real_group_with_matching_status(self) -> None:
+    def test_hci_ux_is_promoted_as_department_level_only_active(self) -> None:
+        """04096a4 후속 §1 — hci_ux는 이제 Catalog에 있다(ACTIVE, DEPARTMENT_
+        LEVEL_ONLY), design은 여전히 없다."""
+        by_id = {m.major_id: m for m in self.majors}
+        self.assertIn("hci_ux", by_id)
+        hci_ux = by_id["hci_ux"]
+        self.assertEqual(hci_ux.recommendation_status, "ACTIVE")
+        self.assertEqual(hci_ux.mapping_scope, "DEPARTMENT_LEVEL_ONLY")
+        self.assertIsNone(hci_ux.canonical_major_group_id)
+
+    def test_hci_ux_original_fields_are_fully_preserved(self) -> None:
+        """§1 "기존 major_id/label/description/aliases/keywords 완전 보존"."""
+        hci_ux = next(m for m in self.majors if m.major_id == "hci_ux")
+        old = self.old_majors["hci_ux"]
+        self.assertEqual(hci_ux.label, old["label"])
+        self.assertEqual(hci_ux.description, old["description"])
+        self.assertEqual(hci_ux.aliases, old["aliases"])
+        self.assertEqual(hci_ux.keywords, old["keywords"])
+
+    def test_hci_ux_source_group_ids_reference_the_two_real_bridge_draft_rows(self) -> None:
+        """§4 "Schema가 canonical_major_group_id 단일 필드를 필수로 요구한다면..."
+        — source_group_ids는 실제 canonical_major_group_bridge.draft.jsonl에 있는
+        computer_science(REVIEW_REQUIRED)·fine_arts_design(EXCLUDED_RECOMMENDATION)
+        두 행을 가리킨다(둘 다 "Group 전체를 hci_ux에 넘긴다"는 뜻이 아니다)."""
+        hci_ux = next(m for m in self.majors if m.major_id == "hci_ux")
+        self.assertEqual(set(hci_ux.source_group_ids), {"computer_science", "fine_arts_design"})
+
+    def test_computer_science_group_own_default_major_is_still_computer_science(self) -> None:
+        """§2 "computer_science Group의 기본 서비스 Major는 computer_science
+        유지" — hci_ux가 source_group_ids에 computer_science를 참고해도 그 Group
+        자신의 FULL_GROUP Catalog 행은 여전히 major_id="computer_science"다."""
+        by_id = {m.major_id: m for m in self.majors}
+        self.assertIn("computer_science", by_id)
+        computer_science = by_id["computer_science"]
+        self.assertEqual(computer_science.mapping_scope, "FULL_GROUP")
+        self.assertEqual(computer_science.canonical_major_group_id, "computer_science")
+        self.assertEqual(self.bridge["computer_science"].service_major_id, "computer_science")
+
+    def test_fine_arts_design_group_stays_excluded_recommendation(self) -> None:
+        """§2 "fine_arts_design Group은 계속 EXCLUDED_RECOMMENDATION" — hci_ux가
+        source_group_ids에 이 Group을 참고해도 Bridge의 fine_arts_design 행 자체는
+        바뀌지 않는다."""
+        row = self.bridge["fine_arts_design"]
+        self.assertEqual(row.recommendation_status, "EXCLUDED_RECOMMENDATION")
+        self.assertIsNone(row.service_major_id)
+
+    def test_computer_science_to_hci_ux_department_review_required_scope_is_preserved_in_source_data(self) -> None:
+        """§2 "기존 computer_science→hci_ux의 DEPARTMENT_REVIEW_REQUIRED Scope
+        결정을 보존" — 이 Catalog가 만들어내는 값이 아니라, 그 결정이 실제로 이미
+        기록된 원본 정본(canonical_major_group_bridge.draft.jsonl)이 이 라운드
+        에서 전혀 바뀌지 않았는지 git diff로 직접 확인한다."""
+        result = subprocess.run(
+            ["git", "diff", "--exit-code", "HEAD", "--", "data/master/canonical_major_group_bridge.draft.jsonl"],
+            cwd=_REPO_ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, f"canonical_major_group_bridge.draft.jsonl이 바뀌었다:\n{result.stdout}")
+
+        rows = json.loads(
+            "[" + ",".join(
+                (_REPO_ROOT / "data" / "master" / "canonical_major_group_bridge.draft.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ) + "]"
+        )
+        row = next(
+            r for r in rows
+            if r["canonical_major_group_id"] == "computer_science" and r["canonical_major_id"] == "hci_ux"
+        )
+        self.assertEqual(row["scope_type"], "DEPARTMENT_REVIEW_REQUIRED")
+        self.assertEqual(row["mapping_status"], "REVIEW_REQUIRED")
+
+    def test_no_department_is_exposed_as_belonging_to_hci_ux_by_this_catalog(self) -> None:
+        """§5 "검토되지 않은 HCI·UX 학과 노출 0" — 이 Catalog·Bridge 산출물 자체는
+        어떤 학과도 나열하지 않는다(Trait Weight·학과 Mapping은 범위 밖, 모듈
+        docstring). 구조적으로 증명 가능한 것은 "hci_ux가 어느 Group으로부터도
+        Full Group 승격을 받지 않았다"는 사실뿐이고, 위
+        test_hci_ux_never_appears_as_a_bridge_service_major_id가 이미 그것을
+        확인한다 — 이 테스트는 그 부재를 Catalog 파일 자체에서 다시 확인한다
+        (department_id류 필드가 전혀 없다)."""
+        raw_text = _CATALOG_PATH.read_text(encoding="utf-8")
+        self.assertNotIn("department_id", raw_text)
+        self.assertNotIn("dept_", raw_text)
+        self.assertNotIn("off_", raw_text)
+
+    def test_every_full_group_major_references_a_real_group_with_matching_status(self) -> None:
         group_ids = {g.canonical_major_id for g in self.groups}
         for m in self.majors:
-            self.assertIn(m.canonical_major_group_id, group_ids)
+            if m.mapping_scope == "FULL_GROUP":
+                self.assertIn(m.canonical_major_group_id, group_ids)
+            else:
+                self.assertIsNone(m.canonical_major_group_id)
+                for source_group_id in m.source_group_ids:
+                    self.assertIn(source_group_id, group_ids)
 
     def test_catalog_version_is_consistent_across_all_rows(self) -> None:
         versions = {m.catalog_version for m in self.majors}
