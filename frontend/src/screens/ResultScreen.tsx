@@ -33,7 +33,7 @@ export function ResultScreen() {
           </Button>
         }
       />
-      <ScreenShell wide>
+      <ScreenShell wide title="검사 결과">
       <nav
         className="mb-6 flex gap-1 overflow-x-auto"
         style={{ boxShadow: "inset 0 -1px 0 var(--color-neutral-200)" }}
