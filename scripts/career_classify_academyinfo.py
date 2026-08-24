@@ -223,6 +223,12 @@ def main(argv: list[str] | None = None) -> int:
 
     recommendation_rows = [r for r in normalized if is_in_recommendation_scope(r)]
     results = [classify(r, index, excluded_codes) for r in recommendation_rows]
+    # 2026-08-25 지시서 §8 — departments.normalized.jsonl의 원본 행 순서에 조용히
+    # 의존하지 않는다(그 파일 자체는 이제 source_record_id로 정렬되지만, 이 스크립트를
+    # 단독으로 다른 입력에 돌려도 항상 같은 결과가 나오도록 여기서도 명시적으로
+    # 고정한다 — "매 JSONL 생성 직전에 정렬"). source_record_id는 결과 행에 이미
+    # 실려 있는 안정적 원본 식별자다.
+    results.sort(key=lambda r: r["source_record_id"] or "")
     write_jsonl(work / "classification_results.jsonl", results)
     write_jsonl(
         work / "classification_review_queue.jsonl",

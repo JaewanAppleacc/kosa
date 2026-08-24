@@ -322,6 +322,15 @@ def main(argv: list[str] | None = None) -> int:
     included, excluded, out_of_scope = normalize(rows)
     included = annotate_duplicate_groups(included)
 
+    # 2026-08-25 지시서 §8 — 행 순서는 원본 수집 순서(재수집마다 바뀔 수 있다)가 아니라
+    # 안정적인 Key로 매 실행 동일해야 한다. source_record_id는 (schl_id, schlMjrId,
+    # svyYr)로 결정되는 순수 해시라 재실행해도 항상 같은 값을 낸다 — 이 값으로 정렬해
+    # JSONL 생성 직전에 순서를 고정한다(다운스트림인 classification_results.jsonl 등이
+    # 이 파일의 원본 행 순서를 그대로 물려받으므로, 여기서 고정하면 전부 함께 고정된다).
+    included.sort(key=lambda r: r["source_record_id"])
+    out_of_scope.sort(key=lambda r: r["source_record_id"])
+    excluded.sort(key=lambda r: (r["schl_id"], r["schl_mjr_id"]))
+
     write_jsonl(work_dir / "departments.normalized.jsonl", included)
     write_jsonl(work_dir / "excluded_records.jsonl", excluded)
     # 추천 범위 밖(야간·원격·사이버대). 삭제하지 않고 사유와 함께 보존한다 (A 결정 §8).
