@@ -141,7 +141,7 @@ class SchemaFieldValidationTest(unittest.TestCase):
         # 없어도 구조적으로는 유효하다(EVIDENCED만 evidence를 강제한다).
         entry = CanonicalMajorGroupBridgeEntry(
             canonical_major_group_id="law", canonical_major_id="business_administration",
-            mapping_status="REVIEW_REQUIRED",
+            mapping_status="REVIEW_REQUIRED", scope_type="DEPARTMENT_REVIEW_REQUIRED",
         )
         self.assertEqual(entry.evidence, [])
 
@@ -149,8 +149,99 @@ class SchemaFieldValidationTest(unittest.TestCase):
         entry = CanonicalMajorGroupBridgeEntry(
             canonical_major_group_id="business", canonical_major_id="business_administration",
             mapping_status="EVIDENCED", evidence=["소계열 경영학"], decision_reason="라벨 직접 일치",
+            scope_type="FULL_GROUP",
         )
         self.assertEqual(entry.review_status, "draft")
+        self.assertEqual(entry.scope_review_status, "draft")
+
+    # 2026-08-24 a/canonical-major-bridge-scope 지시서 §2 — Scope 필드 자체의 행 단위
+    # 검증(신규). 교차 검증(코드가 실제 코드표·그 Group에 속하는가)은 Loader 계층
+    # 몫이므로 아래 CrossFileValidationTest에서 다룬다.
+    def test_evidenced_without_scope_type_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+            )
+
+    def test_unmapped_with_scope_type_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="law", mapping_status="UNMAPPED", scope_type="FULL_GROUP",
+            )
+
+    def test_excluded_recommendation_scope_type_must_match(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="music", mapping_status="EXCLUDED_RECOMMENDATION", scope_type="FULL_GROUP",
+            )
+
+    def test_scope_type_excluded_recommendation_requires_matching_mapping_status(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="EXCLUDED_RECOMMENDATION",
+            )
+
+    def test_full_group_with_included_codes_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="FULL_GROUP", included_small_series_codes=["033"],
+            )
+
+    def test_full_group_with_excluded_codes_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="FULL_GROUP", excluded_small_series_codes=["035"],
+            )
+
+    def test_included_small_series_only_without_included_codes_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="INCLUDED_SMALL_SERIES_ONLY", included_small_series_codes=[],
+            )
+
+    def test_included_excluded_intersection_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="INCLUDED_SMALL_SERIES_ONLY",
+                included_small_series_codes=["033", "035"], excluded_small_series_codes=["035"],
+            )
+
+    def test_duplicate_code_within_included_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="INCLUDED_SMALL_SERIES_ONLY", included_small_series_codes=["033", "033"],
+            )
+
+    def test_blank_code_rejected(self) -> None:
+        with self.assertRaises(PydanticValidationError):
+            CanonicalMajorGroupBridgeEntry(
+                canonical_major_group_id="business", canonical_major_id="business_administration",
+                mapping_status="EVIDENCED", evidence=["x"], decision_reason="y",
+                scope_type="INCLUDED_SMALL_SERIES_ONLY", included_small_series_codes=["033", "   "],
+            )
+
+    def test_department_review_required_does_not_auto_promote_scope_review_status(self) -> None:
+        # DEPARTMENT_REVIEW_REQUIRED는 Group 전체를 자동 승격할 수 없다 — Schema
+        # 기본값 자체가 scope_review_status="draft"이고, 이 scope_type이라고 해서
+        # "approved"로 자동 전환되지 않는다는 사실을 명시적으로 고정한다.
+        entry = CanonicalMajorGroupBridgeEntry(
+            canonical_major_group_id="bio_medical_engineering", canonical_major_id="life_science",
+            mapping_status="REVIEW_REQUIRED", scope_type="DEPARTMENT_REVIEW_REQUIRED",
+        )
+        self.assertEqual(entry.scope_review_status, "draft")
 
 
 class CrossFileValidationTest(unittest.TestCase):
@@ -167,6 +258,12 @@ class CrossFileValidationTest(unittest.TestCase):
             "canonical_major_group_id": "business", "canonical_major_id": "business_administration",
             "mapping_status": "EVIDENCED", "evidence": ["소계열 경영학"], "decision_reason": "직접 일치",
             "boundary_notes": "", "review_status": "draft", "reviewer_id": None, "reviewed_at": None,
+            # 2026-08-24 a/canonical-major-bridge-scope 지시서 — EVIDENCED 기본값은
+            # FULL_GROUP(소계열 코드가 필요 없어 어떤 Group에든 안전하게 쓸 수 있다).
+            # UNMAPPED/EXCLUDED_RECOMMENDATION로 overrides하는 호출부는 scope_type도
+            # 함께 override해야 한다(안 하면 Schema가 그 모순을 바로 거부한다).
+            "scope_type": "FULL_GROUP", "included_small_series_codes": [], "excluded_small_series_codes": [],
+            "scope_decision_reason": "", "scope_review_status": "draft",
         }
         row.update(overrides)
         return row
@@ -193,7 +290,7 @@ class CrossFileValidationTest(unittest.TestCase):
         rows = [
             self._valid_minimal_row(
                 canonical_major_group_id="law", canonical_major_id=None, mapping_status="UNMAPPED",
-                evidence=[], decision_reason="",
+                evidence=[], decision_reason="", scope_type=None,
             ),
             self._valid_minimal_row(canonical_major_group_id="law", canonical_major_id="business_administration"),
         ]
@@ -229,11 +326,12 @@ class CrossFileValidationTest(unittest.TestCase):
                 rows.append(self._valid_minimal_row(
                     canonical_major_group_id=g.canonical_major_id, canonical_major_id=None,
                     mapping_status="EXCLUDED_RECOMMENDATION", evidence=[], decision_reason="예체능 제외",
+                    scope_type="EXCLUDED_RECOMMENDATION",
                 ))
             else:
                 rows.append(self._valid_minimal_row(
                     canonical_major_group_id=g.canonical_major_id, canonical_major_id=None,
-                    mapping_status="UNMAPPED", evidence=[], decision_reason="",
+                    mapping_status="UNMAPPED", evidence=[], decision_reason="", scope_type=None,
                 ))
         # 10개 Major 전부 최소 하나의 후보가 있어야 하는 완결성 규칙도 만족시킨다
         # (business 하나만 연결하면 나머지 9개 Major가 후보 없음으로 거부되므로).
