@@ -1,28 +1,40 @@
 {
   "survey_year": 2025,
-  "duplicate_group_count": 16,
-  "duplicate_record_count": 32,
+  "normalized_daytime_bachelor_total": 24422,
+  "normalized_status_breakdown": {
+    "ABOLISHED": 14268,
+    "EXISTING": 9051,
+    "NEW": 1012,
+    "MERGED": 57,
+    "SPLIT": 34
+  },
+  "current_status_candidate_count": 10063,
+  "approvable_candidate_count": 5453,
+  "approvable_note": "EXISTING/NEW 중 예체능 제외·분류 REVIEW·N.C.E를 모두 통과한 수. 사람 검토 전이므로 '승인된 수'가 아니라 '승인 가능 후보 수'다.",
+  "duplicate_group_count": 6,
+  "duplicate_record_count": 12,
+  "promotion_pool_nce_count": 1903,
+  "promotion_pool_classification_review_count": 1936,
   "duplicate_review_batch_breakdown": {
-    "INDIVIDUAL": 16
+    "INDIVIDUAL": 6
   },
   "duplicate_cause_breakdown": {
-    "STATUS_HISTORY": 3,
-    "UNKNOWN": 12,
-    "TERM_SPLIT": 2
+    "UNKNOWN": 5,
+    "TERM_SPLIT": 1
   },
-  "classification_review_count": 4258,
+  "classification_review_count": 1936,
   "classification_cause_breakdown": {
-    "MEDIA_CONTENT": 691,
-    "CONVERGENCE": 3327,
-    "DESIGN": 236,
-    "HCI_UX": 4
+    "MEDIA_CONTENT": 274,
+    "CONVERGENCE": 1563,
+    "DESIGN": 97,
+    "HCI_UX": 2
   },
   "arts_possibility_breakdown": {
-    "POSSIBLE_NEEDS_CHECK": 931,
-    "UNLIKELY": 3327
+    "POSSIBLE_NEEDS_CHECK": 373,
+    "UNLIKELY": 1563
   },
-  "nce_queue_count": 3539,
-  "nce_and_classification_overlap_count": 947,
+  "nce_queue_count": 1903,
+  "nce_and_classification_overlap_count": 499,
   "overlap_note": "N.C.E(분류 근거 없음)와 분류 REVIEW(추천 적격성 미정)는 서로 다른 축이라 같은 학과가 양쪽에 오를 수 있다. 겹치는 행은 양쪽에 상호 참조 플래그를 붙였다.",
   "url_audit_count": 37,
   "url_audit_breakdown": {

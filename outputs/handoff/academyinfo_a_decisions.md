@@ -202,3 +202,75 @@ C가 반영하고 실측을 기록한다. 정책 문장 자체는 A가 확정한
 `dghtDivNm == "원격"` 17건이 있으나 이들은 **일반 대학(부산대·충북대·영남대 등)의 원격
 과정**이고 학교종류는 `03 대학교`다. A 결정("일반 대학의 온라인 관련 학과는 제외하지
 않음")에 따라 원격대학으로 분류하지 않았고, 대신 §8의 "주간이 아님" 사유로 제외했다.
+
+## 10. 승격 검토 Queue는 현재 상태(EXISTING/NEW)만 다룬다
+
+- `EXISTING`·`NEW`만 **현재 Master 승격 검토 후보**다.
+- `ABOLISHED`·`MERGED`·`SPLIT`는 **Raw·Lineage·Audit에 보존**하되 분류 REVIEW·N.C.E·중복
+  승격 검토 Queue에서 제외한다. 삭제가 아니라 "이번 검토 범위 밖"이다.
+- 24,422건은 **"주간 학사과정 정규화 데이터"**로 부른다. 승격 후보 수가 아니다.
+
+**세 층을 구분해 센다.** 하나로 뭉치면 "몇 건을 추천할 수 있나"에 답할 수 없다.
+
+```
+주간 학사과정 정규화 데이터   24,422
+  ├ ABOLISHED  14,268
+  ├ EXISTING    9,051
+  ├ NEW         1,012
+  ├ MERGED         57
+  └ SPLIT          34
+
+현재 상태 1차 후보 (EXISTING+NEW)        10,063
+실제 승인 가능 후보                        5,453
+  = 10,063 − 예체능 제외 − 분류 REVIEW − N.C.E
+```
+
+`approvable_candidate_count`는 **"승인된 수"가 아니라 "승인 가능 후보 수"**다. 사람 검토
+전이므로 이 5,453건도 아직 확정이 아니다.
+
+**Queue 감소 (상태 필터 적용 전후):**
+
+| Queue | 전 | 후 |
+|---|---|---|
+| 중복 그룹 | 16 | **6** |
+| 분류 REVIEW | 4,258 | **1,936** |
+| N.C.E | 3,539 | **1,903** |
+| URL 감사 | 37 | 37 (상태 무관) |
+
+폐지 학과가 검토 대기의 절반 이상이었다 — 어차피 승격 대상이 아니라 검토자가 고를 이유가
+없는 행들이었다.
+
+## 11. Clean clone 결정론성 — 입력이 없어도 검증한다
+
+생성 입력(`departments.normalized.jsonl`·`classification_results.jsonl`)은 `.gitignore`
+대상이라 **새로 clone한 사람에게는 없다.** 그래도 검증은 돌아야 한다.
+
+```
+항상 수행   커밋된 Queue의 행 수·Hash·상태·Secret 검사      (입력 불필요)
+항상 수행   작은 Fixture로 Queue 생성 결정론성 검증          (API·전국 데이터 불필요)
+Skip       전국 입력으로 재생성해 Byte 비교                  (입력이 있을 때만, 사유 출력)
+```
+
+- **API 재수집을 하는 테스트는 없다.**
+- 생성 입력이 없으면 스크립트가 **0이 아닌 코드로 종료하고 아무 파일도 쓰지 않는다** —
+  기존 Queue를 부분 덮어쓰지 않는다(테스트로 고정).
+- Fixture 실행은 `--data-dir`로 격리되어 저장소의 커밋된 Queue를 건드리지 않는다(테스트로 고정).
+
+구현: `tests/worker_c/test_academyinfo_queue_clean_clone.py` (12 tests).
+
+## 12. `department_url` 정본은 `origin/trait-vector-v2`다
+
+- **worker-c에 `Department.department_url` Schema를 추가하지 않는다.** C가 앞서 요청했던
+  "worker-c의 `src/schemas/major.py`에 필드 추가"는 **철회한다**
+  (`worker-c-A승인대기-변경안.md` §2).
+- **`origin/trait-vector-v2`의 기존 Department Schema가 정본이다.** Builder 배선은 추후
+  trait-vector-v2 기반 통합 브랜치에서 진행한다.
+- worker-c는 **값과 감사 결과만 보존**한다.
+
+```
+data/raw/departments.raw.jsonl                     department_url 37건 + scope + note
+data/academyinfo_work/2025/department_url_scope_audit.jsonl   scope 감사 (34 department / 3 college)
+```
+
+즉 worker-c 쪽 준비는 끝났고, 화면 반영은 통합 브랜치에서 이어진다. **B의 프론트 작업도
+그 통합 이후**에 값을 받는다.

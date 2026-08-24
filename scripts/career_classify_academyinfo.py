@@ -116,6 +116,8 @@ def classify(row: dict[str, Any], index: dict[str, list[str]], excluded_codes: s
         "university_name": row.get("university_name"),
         "department_name": row.get("department_name"),
         "college_name": row.get("college_name"),
+        # 승격 검토 Queue가 상태로 거를 수 있게 실어 보낸다 (A 결정 2026-08-24).
+        "department_status": row.get("department_status"),
         "official_small_series_code": small or None,
         "official_small_series_name": cls.get("small_series_name"),
         "official_large_series_code": large or None,

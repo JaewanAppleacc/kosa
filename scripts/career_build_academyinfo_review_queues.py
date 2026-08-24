@@ -58,6 +58,18 @@ SERIES_KEYWORD_HINTS: dict[str, tuple[str, ...]] = {
 }
 ARTS_LARGE_SERIES_NAME = "예체능계열"
 
+# 승격 검토 후보 상태 (A 결정 2026-08-24 추가).
+# 폐지·통합·분리 학과는 Raw·Lineage·Audit에 보존하되 **승격 검토 Queue에서는 뺀다** —
+# 지금 학생에게 추천할 수 있는 학과가 아니라, 검토자가 볼 이유가 없다.
+# 삭제가 아니라 "이번 검토 범위 밖"이라는 뜻이다.
+PROMOTION_CANDIDATE_STATUSES: frozenset[str] = frozenset({"EXISTING", "NEW"})
+PRESERVED_ONLY_STATUSES: frozenset[str] = frozenset({"ABOLISHED", "MERGED", "SPLIT"})
+
+
+def is_promotion_candidate(row: dict[str, Any]) -> bool:
+    """현재 Master 승격 검토 후보인가. 상태를 모르면 후보가 아니다(보수적)."""
+    return (row.get("department_status") or "") in PROMOTION_CANDIDATE_STATUSES
+
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
@@ -94,8 +106,15 @@ DUPLICATE_CAUSE_HINTS = (
 
 
 def build_duplicate_queue(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """승격 검토 후보(EXISTING/NEW)끼리만 중복을 센다.
+
+    폐지 이력이 함께 온 행과 현행 행이 같은 id를 갖는 경우, 예전에는 그것도 "중복"으로
+    올렸다. 하지만 폐지 학과는 어차피 승격 대상이 아니라 **검토자가 고를 필요가 없다.**
+    """
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
+        if not is_promotion_candidate(r):
+            continue
         grouped[r["department_id"]].append(r)
 
     queue: list[dict[str, Any]] = []
@@ -216,6 +235,8 @@ def build_classification_queue(results: list[dict[str, Any]]) -> list[dict[str, 
     for r in results:
         if r.get("eligibility_status") != "REVIEW_REQUIRED":
             continue
+        if not is_promotion_candidate(r):
+            continue
         cause, reason = classify_review_cause(r)
         large = r.get("official_large_series_code")
         queue.append({
@@ -269,6 +290,8 @@ def build_nce_queue(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for r in results:
         reason = r.get("decision_reason") or ""
         if not reason.startswith("공식 소계열이 미분류"):
+            continue
+        if not is_promotion_candidate(r):
             continue
         queue.append({
             "department_id": r["department_id"],
@@ -397,10 +420,38 @@ def main(argv: list[str] | None = None) -> int:
     write_jsonl(work / "unmapped_nce_queue.jsonl", nce)
     write_jsonl(work / "department_url_scope_audit.jsonl", urls)
 
+    # A 결정: 24,422는 "주간 학사과정 정규화 데이터"이고, 그중 현재 상태 후보와
+    # 실제 승인 가능 후보를 따로 센다. 셋을 한 숫자로 뭉치면 "몇 건을 추천할 수 있나"에
+    # 답할 수 없다.
+    status_counts = Counter(r.get("department_status") for r in normalized)
+    promotion_pool = [r for r in results if is_promotion_candidate(r)]
+    approvable = [
+        r for r in promotion_pool
+        if r.get("eligibility_status") == "APPROVED"
+        and r.get("mapping_status") == "AUTO_CANDIDATE"
+    ]
+
     report = {
         "survey_year": args.survey_year,
+        "normalized_daytime_bachelor_total": len(normalized),
+        "normalized_status_breakdown": dict(status_counts.most_common()),
+        "current_status_candidate_count": len(promotion_pool),
+        "approvable_candidate_count": len(approvable),
+        "approvable_note": (
+            "EXISTING/NEW 중 예체능 제외·분류 REVIEW·N.C.E를 모두 통과한 수. "
+            "사람 검토 전이므로 '승인된 수'가 아니라 '승인 가능 후보 수'다."
+        ),
         "duplicate_group_count": len(dup),
         "duplicate_record_count": sum(q["record_count"] for q in dup),
+        # Queue는 승격 후보(EXISTING/NEW)만 담는다. 정규화·분류 보고서는 전체를 세므로
+        # 두 수치를 그대로 비교하면 어긋난다 — 후보 기준 수치를 함께 기록해 대조 기준을 맞춘다.
+        "promotion_pool_nce_count": sum(
+            1 for r in promotion_pool
+            if (r.get("decision_reason") or "").startswith("공식 소계열이 미분류")
+        ),
+        "promotion_pool_classification_review_count": sum(
+            1 for r in promotion_pool if r.get("eligibility_status") == "REVIEW_REQUIRED"
+        ),
         "duplicate_review_batch_breakdown": dict(Counter(q["review_batch"] for q in dup)),
         "duplicate_cause_breakdown": dict(
             Counter(c["cause"] for q in dup for c in q["duplicate_cause_candidates"])

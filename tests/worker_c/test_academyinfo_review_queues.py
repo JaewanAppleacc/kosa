@@ -29,6 +29,7 @@ NCE = read_jsonl("unmapped_nce_queue.jsonl")
 URL_AUDIT = read_jsonl("department_url_scope_audit.jsonl")
 DRY_RUN = json.loads((WORK / "classification_dry_run.json").read_text(encoding="utf-8"))
 NORMALIZATION = json.loads((WORK / "normalization_report.json").read_text(encoding="utf-8"))
+QUEUE_REPORT = json.loads((WORK / "review_queue_report.json").read_text(encoding="utf-8"))
 
 GROUPS_PATH = ROOT / "data" / "canonical_major_groups.draft.jsonl"
 CANONICAL_GROUP_IDS = {
@@ -40,14 +41,19 @@ CANONICAL_GROUP_IDS = {
 class QueueCountsMatchReportsTest(unittest.TestCase):
     """§6: Queue 행 수가 기존 보고 수와 일치한다."""
 
-    def test_duplicate_group_count_matches_normalization_report(self) -> None:
-        # 보고서와의 **일치**만 검사한다. 고정 숫자를 박으면 정책이 바뀔 때마다
-        # 테스트를 고쳐야 하고, 그러면 "보고와 산출물이 어긋났는지"를 못 잡는다.
-        self.assertEqual(len(DUPLICATE), NORMALIZATION["duplicate_department_id_count"])
+    def test_duplicate_group_count_matches_queue_report(self) -> None:
+        """Queue는 승격 후보(EXISTING/NEW)만 담는다.
+
+        정규화 보고서의 duplicate_department_id_count는 **전체**를 세므로 그것과
+        직접 비교하면 어긋난다 — 대조 대상은 Queue 보고서다.
+        """
+        self.assertEqual(len(DUPLICATE), QUEUE_REPORT["duplicate_group_count"])
+        self.assertLessEqual(len(DUPLICATE), NORMALIZATION["duplicate_department_id_count"],
+                             "후보만 담으므로 전체보다 많을 수 없다")
 
     def test_duplicate_record_count_matches(self) -> None:
         total = sum(q["record_count"] for q in DUPLICATE)
-        self.assertEqual(total, NORMALIZATION["review_required_count"])
+        self.assertEqual(total, QUEUE_REPORT["duplicate_record_count"])
 
     def test_queues_are_not_empty(self) -> None:
         """숫자 고정을 뺀 대신, Queue가 통째로 비어버린 사고는 잡는다."""
@@ -56,10 +62,12 @@ class QueueCountsMatchReportsTest(unittest.TestCase):
         self.assertEqual(len(URL_AUDIT), 37)
 
     def test_classification_queue_matches_dry_run(self) -> None:
-        self.assertEqual(len(CLASSIFICATION), DRY_RUN["eligibility_breakdown"]["REVIEW_REQUIRED"])
+        self.assertEqual(len(CLASSIFICATION), QUEUE_REPORT["promotion_pool_classification_review_count"])
+        self.assertLessEqual(len(CLASSIFICATION), DRY_RUN["eligibility_breakdown"]["REVIEW_REQUIRED"])
 
     def test_nce_queue_matches_dry_run(self) -> None:
-        self.assertEqual(len(NCE), DRY_RUN["unclassified_nce_count"])
+        self.assertEqual(len(NCE), QUEUE_REPORT["promotion_pool_nce_count"])
+        self.assertLessEqual(len(NCE), DRY_RUN["unclassified_nce_count"])
 
     def test_url_audit_preserves_all_37(self) -> None:
         self.assertEqual(len(URL_AUDIT), 37)

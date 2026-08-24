@@ -270,3 +270,112 @@ python scripts/career_collect_academyinfo_departments.py          # 연도 자�
 python scripts/career_normalize_academyinfo.py --survey-year 2025
 python scripts/career_classify_academyinfo.py --survey-year 2025
 ```
+
+---
+
+# 보완 라운드 (2026-08-24, `d26213a` 기준)
+
+A 결정 3건을 반영했다. 정책·근거는 `academyinfo_a_decisions.md` §10~§12.
+
+## 1. 24,422건 상태별 구성
+
+```
+주간 학사과정 정규화 데이터   24,422
+  ABOLISHED  14,268   (58.4%)
+  EXISTING    9,051
+  NEW         1,012
+  MERGED         57
+  SPLIT          34
+```
+
+**24,422는 승격 후보 수가 아니다.** "주간 학사과정 정규화 데이터"다.
+
+## 2. EXISTING+NEW 후보 수
+
+```
+현재 상태 1차 후보    10,063
+실제 승인 가능 후보    5,453
+```
+
+`5,453`은 10,063에서 예체능 제외·분류 REVIEW·N.C.E를 걸러낸 수다. **사람 검토 전이므로
+"승인된 수"가 아니라 "승인 가능 후보 수"**다.
+
+세 층을 따로 세는 이유: 하나로 뭉치면 "몇 건을 학생에게 추천할 수 있나"에 답할 수 없다.
+
+## 3. Queue별 수정 전후
+
+| Queue | 전 | 후 | 감소 |
+|---|---|---|---|
+| 중복 그룹 | 16 | **6** | −10 |
+| 분류 REVIEW | 4,258 | **1,936** | −2,322 |
+| N.C.E | 3,539 | **1,903** | −1,636 |
+| URL 감사 | 37 | 37 | 0 (상태 무관) |
+| **검토 대기 합계** | 7,813 | **3,845** | **−3,968** |
+
+폐지·통합·분리 학과가 검토 대기의 절반이었다. 어차피 승격 대상이 아니라 **검토자가 고를
+이유가 없던 행들**이다. Raw·Lineage·Audit에는 그대로 있다.
+
+### 누적 감소
+
+```
+최초        중복 588 · 분류 4,454 · N.C.E 3,657   합계 8,111 (겹침 984 제외 시 7,127)
+야간 제외   중복  16 · 분류 4,258 · N.C.E 3,539   합계 7,813
+상태 필터   중복   6 · 분류 1,936 · N.C.E 1,903   합계 3,845
+```
+
+## 4. Clean clone 테스트 결과
+
+`tests/worker_c/test_academyinfo_queue_clean_clone.py` — **12 tests, 전부 통과.**
+
+| 구분 | 항목 | 입력 필요 |
+|---|---|---|
+| 항상 수행 | 커밋된 Queue 존재·행 수·JSONL 유효성·Hash 안정성 | ❌ |
+| 항상 수행 | 모든 행이 미결 상태(승인된 행 없음)·reviewer 미기입 | ❌ |
+| 항상 수행 | Secret 문자열 미포함 | ❌ |
+| 항상 수행 | Queue 보고서 수치와 커밋된 파일 일치 | ❌ |
+| 항상 수행 | **Fixture 4행으로 생성 결정론성 검증** | ❌ |
+| 항상 수행 | Fixture에서 ABOLISHED 제외 동작 확인 | ❌ |
+| 항상 수행 | 격리 실행이 저장소 Queue를 안 건드림 | ❌ |
+| 항상 수행 | **입력 누락 시 종료코드≠0, 파일 미생성** (부분 덮어쓰기 방지) | ❌ |
+| Skip 가능 | 전국 입력으로 재생성해 Byte 비교 | ✅ 있을 때만 |
+
+- **API를 재수집하는 테스트는 없다.**
+- 전국 입력이 없으면 사유를 출력하며 명시적으로 Skip한다.
+- Fixture 실행은 `--data-dir`로 격리해 커밋된 Queue의 Hash가 변하지 않음을 검사한다.
+
+### 테스트가 잡아낸 것
+
+상태 필터를 넣자 기존 대조 테스트 4개가 깨졌다. **Queue는 승격 후보만 담는데 정규화·분류
+보고서는 전체를 세기 때문**이었다. 숫자를 맞추는 대신 **대조 기준을 바로잡았다** —
+Queue 보고서에 후보 기준 수치(`promotion_pool_nce_count` 등)를 추가하고 그것과 비교한다.
+전체 수치와는 "후보가 전체보다 많을 수 없다"만 검사한다.
+
+## 5. Master/API/Mock 무변경
+
+```bash
+git diff --exit-code -- data/master/ src/schemas/ outputs/mock_api/
+→ 변경 없음
+```
+
+- `data/master/departments.jsonl` 35행 그대로
+- `src/schemas/major.py` 무변경 — **`department_url`을 추가하지 않았다** (A 결정 §12)
+- `outputs/mock_api/` 무변경
+
+### `department_url` 정본 — worker-c 아님
+
+A 결정 §12에 따라 **`origin/trait-vector-v2`의 Department Schema가 정본**이다.
+worker-c에 Schema를 추가하지 않고 **값과 감사 결과만 보존**한다.
+
+```
+data/raw/departments.raw.jsonl                            37건 + scope + note
+data/academyinfo_work/2025/department_url_scope_audit.jsonl   34 department / 3 college
+```
+
+Builder 배선은 trait-vector-v2 기반 통합 브랜치에서 진행한다.
+**C가 앞서 요청했던 "worker-c에 필드 추가"는 철회한다**(`worker-c-A승인대기-변경안.md` §2).
+
+## 6. Commit/Push 해시
+
+```
+(이번 커밋 해시는 push 후 아래에 기록)
+```
