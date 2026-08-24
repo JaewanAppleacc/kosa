@@ -32,7 +32,10 @@ from src.services.department_recommendation_scope import DepartmentRecommendatio
 # Vertical Slice(학과 탐색 1단계) 범위에서는 제외한다 — 이력 조회는 후속 통합 단계다.
 VISIBLE_DEPARTMENT_STATUSES = frozenset({"EXISTING", "NEW"})
 
-DEFAULT_DEPARTMENT_LIMIT = 30
+# 2026-08-25 지시서 §5: 전국 학과 1,072건 승격 후 Major별 최대 학과 수는
+# business_administration 271건이다 — 기존 30은 결과를 조용히 잘라낸다(공개 API
+# 계약은 그대로 두고 노출 개수 한도만 넉넉하게 올린다).
+DEFAULT_DEPARTMENT_LIMIT = 500
 
 # 2026-08-22 9차: 사용자가 프로젝트 범위를 확정 — 예체능 계열(음악·미술·회화·조소,
 # 시각/산업/커뮤니케이션 디자인, 실기 중심 패션디자인, 연극·영화·무용, 체육 실기 계열,

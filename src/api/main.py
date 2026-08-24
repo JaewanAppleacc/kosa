@@ -127,7 +127,7 @@ from src.services.knowledge_subgraph_service import (
     KnowledgeSubgraphService,
     SubgraphEvidenceNotReadyError,
 )
-from src.services.major_exploration_service import MajorExplorationService
+from src.services.major_exploration_service import DEFAULT_SERVICE_MAJOR_IDS, MajorExplorationService
 from src.services.feature_flags import (
     MAX_V2_DIRECT_PROBE_QUESTIONS,
     context_pack_runtime_enabled,
@@ -283,14 +283,18 @@ if len(_department_repository) == 0:
         "[warn] JsonlDepartmentRepository가 비어 있습니다 — "
         "data/master/departments.jsonl 경로·형식을 확인하세요."
     )
-# 2026-08-22 10차: 실제로 추천 가능한 대표 전공(VERTICAL_SLICE_MAJOR_PROFILES에서 그대로
-# 읽는다 — 별도로 하드코딩하지 않는다)에는 학과 단위 추천 적격성 정책을 Fail-Closed로
-# 적용한다. 정책 데이터도 Repository와 동일하게 앱 시작 시 한 번만 읽는다.
+# 2026-08-25 지시서(a/national-master-promotion-final-wiring) §4: 전국 학과 1,072건
+# 승격으로 fail_closed_major_ids를 VERTICAL_SLICE_MAJOR_PROFILES(3개)로 좁혀 둘 이유가
+# 사라졌다 — 1,072건 전부가 이미 Group/Bridge/P1/N.C.E 검수를 통과했고,
+# department_recommendation_scope.jsonl에 그 승인 근거가 기록돼 있다. 실제 서비스가
+# 추천하는 10개 Canonical Major(DEFAULT_SERVICE_MAJOR_IDS, allowed_major_ids와 같은
+# 정본) 전부를 Fail-Closed로 묶는다 — Scope 기록이 없는 Major(hci_ux·design)는 계속
+# 빈 목록을 반환한다(허위로 만들어내지 않는다, §4 "hci_ux 0건을 임의로 만들지 않음").
 _department_recommendation_scope_policy = JsonlDepartmentRecommendationScopePolicy()
 _major_exploration_service = MajorExplorationService(
     _department_repository,
     recommendation_scope_policy=_department_recommendation_scope_policy,
-    fail_closed_major_ids=frozenset(m.major_id for m in VERTICAL_SLICE_MAJOR_PROFILES),
+    fail_closed_major_ids=DEFAULT_SERVICE_MAJOR_IDS,
 )
 
 # 2026-08-24 14차 리뷰: GET /subjects/{session_id}?selected_major_id=... — 과목 데이터도
