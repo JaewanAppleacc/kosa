@@ -34,6 +34,7 @@
     <button id="tab-anchor-backup-btn" data-tab="anchor_backup" type="button">Anchor Backup (15)</button>
     <button id="tab-shared-probes-btn" data-tab="shared_probes" type="button">공용 Probe · Anchor 적용 검수 (14)</button>
     <button id="tab-context-packs-btn" data-tab="context_packs" type="button">신규 ContextPack (12)</button>
+  <button id="tab-bridge-btn" data-tab="bridge" type="button">Canonical Major Group Bridge (44)</button>
   </div>
 
   <span id="save-indicator" class="save-indicator">불러오는 중…</span>
@@ -150,6 +151,41 @@
       <h3>이 Context의 질문 11개</h3>
       <ul class="question-nav-list" id="context-pack-question-nav-list"></ul>
     </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>요약</h3>
+      <div class="summary-box" id="bridge-summary-box">불러오는 중…</div>
+    </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>mapping_status 필터</h3>
+      <label><input type="radio" name="bridge-mapping-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="bridge-mapping-filter" value="EVIDENCED"> EVIDENCED</label>
+      <label><input type="radio" name="bridge-mapping-filter" value="REVIEW_REQUIRED"> REVIEW_REQUIRED</label>
+      <label><input type="radio" name="bridge-mapping-filter" value="UNMAPPED"> UNMAPPED</label>
+      <label><input type="radio" name="bridge-mapping-filter" value="EXCLUDED_RECOMMENDATION"> EXCLUDED_RECOMMENDATION</label>
+    </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>검수 진행 필터</h3>
+      <label><input type="radio" name="bridge-review-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="bridge-review-filter" value="unreviewed"> 미검수</label>
+      <label><input type="radio" name="bridge-review-filter" value="reviewed"> 검수 완료</label>
+    </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>경계 사례</h3>
+      <label><input type="checkbox" id="bridge-filter-boundary"> 경계 사례만</label>
+    </div>
+
+    <div class="filter-group tab-only-bridge">
+      <h3>대표 전공 필터</h3>
+      <label><input type="radio" name="bridge-major-filter" value="all" checked> 전체</label>
+      <label><input type="radio" name="bridge-major-filter" value="media_communication"> media_communication</label>
+      <label><input type="radio" name="bridge-major-filter" value="industrial_engineering"> industrial_engineering</label>
+      <label><input type="radio" name="bridge-major-filter" value="hci_ux"> hci_ux</label>
+      <label><input type="radio" name="bridge-major-filter" value="other"> 기타</label>
+    </div>
   </aside>
 
   <section class="content">
@@ -168,6 +204,7 @@
     <div id="context-pack-error-banner" class="tab-only-context_packs"></div>
     <div id="context-pack-detail-header" class="tab-only-context_packs"></div>
     <div id="context-pack-question-container" class="tab-only-context_packs"></div>
+    <div id="bridge-container" class="tab-only-bridge"></div>
   </section>
 </main>
 

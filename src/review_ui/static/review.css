@@ -561,3 +561,41 @@ body.tab-context_packs #context-pack-context-pager { display: flex; }
   border: 1px solid var(--border);
   border-radius: 6px;
 }
+
+/* 2026-08-24 지시서(a/canonical-major-bridge-review-ui) — 44개 Canonical Major
+ * Group Bridge 검수 탭. */
+.tab-only-bridge { display: none; }
+body.tab-bridge .tab-only-bridge { display: block; }
+
+.bridge-row-list { display: flex; flex-direction: column; gap: 10px; }
+.bridge-row-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+.bridge-row-card.is-boundary { border-left: 3px solid var(--status-hold); }
+.bridge-row-card h3 { margin: 0 0 6px; font-size: 15px; }
+.bridge-row-card .meta-row { font-size: 12.5px; color: var(--muted); margin: 3px 0; }
+.bridge-row-card .evidence-list { margin: 4px 0; padding-left: 18px; font-size: 12.5px; }
+.bridge-row-card .decision-reason,
+.bridge-row-card .boundary-notes { font-size: 13px; margin: 4px 0; }
+.bridge-row-card .review-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 8px;
+}
+.bridge-row-card .review-controls select { font-size: 13px; padding: 3px 6px; }
+.bridge-row-card textarea.bridge-comment-box {
+  width: 100%;
+  min-height: 36px;
+  margin-top: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.bridge-empty-msg { color: var(--muted); padding: 12px; }
