@@ -117,6 +117,75 @@ class OfferingIdentityV2Test(unittest.TestCase):
         self.assertEqual(a, b)
         self.assertTrue(a.startswith("lin_"))
 
+    # ------------------------------------------------------------------
+    # 2026-08-25 병합 전 감사(9b0a495, "Offering ID 연도 안정성을 확인해
+    # 주세요") — 사용자가 명시한 정책 7개 항목 중 ID 함수 수준에서 검증
+    # 가능한 4개를 별도로 다시 고정한다. 위 test_offering_id_survey_year_*
+    # 는 "survey_year를 명시적으로 넘기면 달라진다"(의도된 예외 탈출구)를
+    # 보였을 뿐이다 — 실제 빌더 호출 관례(survey_year 생략)가 진짜 정책
+    # 준수 여부를 결정하므로, 아래는 그 실제 호출 관례로 만든 값을 검증한다.
+    # ------------------------------------------------------------------
+
+    def test_policy_1_same_identity_different_survey_year_same_offering_id(self) -> None:
+        """정책 1 — 동일 provider/schl_id/source_schl_mjr_id, survey_year
+        2024/2025 → offering_id 동일. 실제 빌더
+        (career_build_department_offering_identity_v2.py)가 쓰는 그대로
+        survey_year 인자를 넘기지 않고 offering_id를 만든 뒤,
+        DepartmentOfferingIdentity 레코드로 조립해 source_svy_year·
+        source_record_id는 연도별로 다르게 보존되면서도 offering_id만
+        같은지 확인한다."""
+
+        from src.schemas.department_offering_identity import DepartmentOfferingIdentity
+
+        def build(year: int, source_record_id: str) -> DepartmentOfferingIdentity:
+            return DepartmentOfferingIdentity(
+                offering_id=generate_offering_id("0000121", "0232771", provider="academyinfo"),
+                display_group_id=generate_display_group_id("0000121", "미용예술대학", "헤어디자인학과"),
+                provider="academyinfo", schl_id="0000121", source_schl_mjr_id="0232771",
+                source_record_id=source_record_id, source_svy_year=year, old_department_id="dept_x",
+                university_name="서경대학교", college_name="미용예술대학", department_name="헤어디자인학과",
+                major_character="일반과정", department_status="EXISTING",
+            )
+
+        row_2024 = build(2024, "src_2024_snapshot")
+        row_2025 = build(2025, "src_2025_snapshot")
+        self.assertEqual(row_2024.offering_id, row_2025.offering_id)
+        # survey_year·source_record_id는 그대로 출처별로 보존된다 — offering_id만 동일할 뿐이다.
+        self.assertNotEqual(row_2024.source_svy_year, row_2025.source_svy_year)
+        self.assertNotEqual(row_2024.source_record_id, row_2025.source_record_id)
+
+    def test_policy_2_different_source_schl_mjr_id_different_offering_id(self) -> None:
+        general = generate_offering_id("0000121", "0232771", provider="academyinfo")
+        contract = generate_offering_id("0000121", "0232745", provider="academyinfo")
+        self.assertNotEqual(general, contract)
+
+    def test_policy_3_different_provider_different_offering_id(self) -> None:
+        a = generate_offering_id("0000121", "0232771", provider="academyinfo")
+        b = generate_offering_id("0000121", "0232771", provider="other_provider")
+        self.assertNotEqual(a, b)
+
+    def test_policy_4_display_group_id_independent_of_offering_id_in_real_data(self) -> None:
+        """정책 4 — display_group_id는 offering_id와 독립이다. 실제 32행
+        Identity v2 산출물에서 같은 display_group_id 아래 서로 다른
+        offering_id가 실제로 여러 개 공존하는 사례가 있는지 직접
+        확인한다(16 Group·32행 전부가 이 사례다)."""
+
+        import json
+        from pathlib import Path
+
+        packet_path = (
+            Path(__file__).resolve().parents[1] / "data" / "academyinfo_work" / "2025" / "packets"
+            / "department_offering_identity_v2.jsonl"
+        )
+        rows = [json.loads(line) for line in packet_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        by_display_group: dict[str, set[str]] = {}
+        for row in rows:
+            by_display_group.setdefault(row["display_group_id"], set()).add(row["offering_id"])
+        multi_offering_groups = [k for k, v in by_display_group.items() if len(v) > 1]
+        self.assertEqual(len(multi_offering_groups), 16, "16 Group 전부가 display_group_id 하나에 offering_id 2개를 가져야 한다")
+        for group_key in multi_offering_groups:
+            self.assertEqual(len(by_display_group[group_key]), 2)
+
     def test_department_id_generator_unchanged(self) -> None:
         """§5 "기존 35건 즉시 교체 금지" — generate_department_id()가 여전히
         "dept_" 접두사에 24자리 SHA-256 prefix를 쓰는 안정적인 값을 내는지

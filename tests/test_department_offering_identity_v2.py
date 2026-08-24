@@ -363,7 +363,7 @@ class DeterminismTest(unittest.TestCase):
     """반드시 별도 프로세스로 실행한다(PYTHONHASHSEED가 프로세스마다 달라야
     set/dict 순회 순서 버그가 드러난다)."""
 
-    def _run_build_and_dry_run(self, hash_seed: str) -> tuple[bytes, bytes, bytes]:
+    def _run_build_and_dry_run(self, hash_seed: str) -> tuple[bytes, bytes, bytes, bytes]:
         env = dict(os.environ)
         env["PYTHONHASHSEED"] = hash_seed
         env["PYTHONPATH"] = str(_REPO_ROOT)
@@ -375,7 +375,12 @@ class DeterminismTest(unittest.TestCase):
             [sys.executable, str(DRY_RUN_SCRIPT)], cwd=_REPO_ROOT, capture_output=True, timeout=60, env=env,
         )
         self.assertEqual(dry_run_proc.returncode, 0, dry_run_proc.stderr.decode("utf-8", "replace")[:4000])
-        return ROW_REVIEW_REAL_PATH.read_bytes(), OFFERING_IDENTITY_REAL_PATH.read_bytes(), JSON_REPORT.read_bytes()
+        # 2026-08-25 병합 전 감사(9b0a495) 정책 6 — Migration Map(51행)도
+        # 결정론 대상에 포함한다(이전 버전은 이 파일을 빠뜨리고 있었다).
+        return (
+            ROW_REVIEW_REAL_PATH.read_bytes(), OFFERING_IDENTITY_REAL_PATH.read_bytes(),
+            MIGRATION_MAP_REAL_PATH.read_bytes(), JSON_REPORT.read_bytes(),
+        )
 
     def test_two_runs_with_different_hash_seeds_are_byte_identical(self) -> None:
         before_master = _sha256(MASTER_PATH)
