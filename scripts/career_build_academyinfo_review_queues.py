@@ -65,10 +65,30 @@ ARTS_LARGE_SERIES_NAME = "예체능계열"
 PROMOTION_CANDIDATE_STATUSES: frozenset[str] = frozenset({"EXISTING", "NEW"})
 PRESERVED_ONLY_STATUSES: frozenset[str] = frozenset({"ABOLISHED", "MERGED", "SPLIT"})
 
+IN_RECOMMENDATION_SCOPE = "IN_RECOMMENDATION_SCOPE"
+OUT_OF_RECOMMENDATION_SCOPE = "OUT_OF_RECOMMENDATION_SCOPE"
+CONTRACT_DEPARTMENT = "CONTRACT_DEPARTMENT"
+CONTRACT_COURSE = "계약학과"
+
 
 def is_promotion_candidate(row: dict[str, Any]) -> bool:
     """현재 Master 승격 검토 후보인가. 상태를 모르면 후보가 아니다(보수적)."""
     return (row.get("department_status") or "") in PROMOTION_CANDIDATE_STATUSES
+
+
+def recommendation_scope(row: dict[str, Any]) -> tuple[str, str | None]:
+    """공식 학과특성으로 추천 범위를 판정한다.
+
+    이름이나 재학생 수로 추정하지 않는다. 명시적인 계약학과만 제외하고, 그 밖의 값은
+    자동 제외하지 않는다. 현재 검수 6그룹은 모두 일반과정/계약학과로 명확히 갈린다.
+    """
+    if (row.get("major_character_name") or "").strip() == CONTRACT_COURSE:
+        return OUT_OF_RECOMMENDATION_SCOPE, CONTRACT_DEPARTMENT
+    return IN_RECOMMENDATION_SCOPE, None
+
+
+def is_recommendation_candidate(row: dict[str, Any]) -> bool:
+    return is_promotion_candidate(row) and recommendation_scope(row)[0] == IN_RECOMMENDATION_SCOPE
 
 
 def read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -113,7 +133,7 @@ def build_duplicate_queue(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for r in rows:
-        if not is_promotion_candidate(r):
+        if not is_recommendation_candidate(r):
             continue
         grouped[r["department_id"]].append(r)
 
@@ -392,15 +412,27 @@ def main(argv: list[str] | None = None) -> int:
     work = args.data_dir / "academyinfo_work" / str(args.survey_year)
     normalized = read_jsonl(work / "departments.normalized.jsonl")
     results = read_jsonl(work / "classification_results.jsonl")
-    raw_demo = read_jsonl(args.data_dir / "raw" / "departments.raw.jsonl")
-    if not normalized or not results:
+    raw_demo_path = args.data_dir / "raw" / "departments.raw.jsonl"
+    raw_demo = read_jsonl(raw_demo_path)
+    out_of_scope_path = work / "out_of_recommendation_scope.jsonl"
+    if not normalized or not results or not out_of_scope_path.exists() or not raw_demo_path.exists():
         print(f"정규화·분류 결과가 없습니다: {work}", file=sys.stderr)
         return 2
+    out_of_scope = read_jsonl(out_of_scope_path)
+
+    scope_by_record = {
+        r.get("source_record_id"): recommendation_scope(r)[0] for r in normalized
+    }
+    recommendation_results = [
+        r for r in results
+        if scope_by_record.get(r.get("source_record_id"), IN_RECOMMENDATION_SCOPE)
+        == IN_RECOMMENDATION_SCOPE
+    ]
 
     dup = build_duplicate_queue(normalized)
     dup = assign_review_batches(dup)
-    cls = build_classification_queue(results)
-    nce = build_nce_queue(results)
+    cls = build_classification_queue(recommendation_results)
+    nce = build_nce_queue(recommendation_results)
 
     # 한 학과가 두 Queue에 동시에 오를 수 있다. 버그가 아니라 **축이 다르기 때문**이다 —
     # "어느 전공군인가"(분류)와 "추천해도 되나"(적격성)는 별개 질문이고 둘 다 미결일 수 있다.
@@ -419,14 +451,19 @@ def main(argv: list[str] | None = None) -> int:
     write_jsonl(work / "classification_review_queue.jsonl", cls)
     write_jsonl(work / "unmapped_nce_queue.jsonl", nce)
     write_jsonl(work / "department_url_scope_audit.jsonl", urls)
-
     # A 결정: 24,422는 "주간 학사과정 정규화 데이터"이고, 그중 현재 상태 후보와
     # 실제 승인 가능 후보를 따로 센다. 셋을 한 숫자로 뭉치면 "몇 건을 추천할 수 있나"에
     # 답할 수 없다.
     status_counts = Counter(r.get("department_status") for r in normalized)
+    current_status_pool = [r for r in normalized if is_promotion_candidate(r)]
     promotion_pool = [r for r in results if is_promotion_candidate(r)]
-    approvable = [
+    recommendation_pool = [
         r for r in promotion_pool
+        if scope_by_record.get(r.get("source_record_id"), IN_RECOMMENDATION_SCOPE)
+        == IN_RECOMMENDATION_SCOPE
+    ]
+    approvable = [
+        r for r in recommendation_pool
         if r.get("eligibility_status") == "APPROVED"
         and r.get("mapping_status") == "AUTO_CANDIDATE"
     ]
@@ -435,7 +472,12 @@ def main(argv: list[str] | None = None) -> int:
         "survey_year": args.survey_year,
         "normalized_daytime_bachelor_total": len(normalized),
         "normalized_status_breakdown": dict(status_counts.most_common()),
-        "current_status_candidate_count": len(promotion_pool),
+        "current_status_candidate_count": len(current_status_pool),
+        "recommendation_candidate_count": len(recommendation_pool),
+        "out_of_recommendation_scope_count": len(out_of_scope),
+        "contract_department_exclusion_count": sum(
+            1 for r in out_of_scope if r.get("exclusion_reason") == CONTRACT_DEPARTMENT
+        ),
         "approvable_candidate_count": len(approvable),
         "approvable_note": (
             "EXISTING/NEW 중 예체능 제외·분류 REVIEW·N.C.E를 모두 통과한 수. "
@@ -446,11 +488,11 @@ def main(argv: list[str] | None = None) -> int:
         # Queue는 승격 후보(EXISTING/NEW)만 담는다. 정규화·분류 보고서는 전체를 세므로
         # 두 수치를 그대로 비교하면 어긋난다 — 후보 기준 수치를 함께 기록해 대조 기준을 맞춘다.
         "promotion_pool_nce_count": sum(
-            1 for r in promotion_pool
+            1 for r in recommendation_pool
             if (r.get("decision_reason") or "").startswith("공식 소계열이 미분류")
         ),
         "promotion_pool_classification_review_count": sum(
-            1 for r in promotion_pool if r.get("eligibility_status") == "REVIEW_REQUIRED"
+            1 for r in recommendation_pool if r.get("eligibility_status") == "REVIEW_REQUIRED"
         ),
         "duplicate_review_batch_breakdown": dict(Counter(q["review_batch"] for q in dup)),
         "duplicate_cause_breakdown": dict(
@@ -469,6 +511,7 @@ def main(argv: list[str] | None = None) -> int:
         "url_audit_breakdown": dict(Counter(u["audit_status"] for u in urls)),
         "url_scope_breakdown": dict(Counter(u["department_url_scope"] for u in urls)),
         "public_department_url_candidates": sum(1 for u in urls if u["eligible_for_public_department_url"]),
+        "review_queue_total_count": len(dup) + len(cls) + len(nce),
         "note": "전부 검토 대기다. 자동 승인·자동 대표 선정·강제 매핑을 하지 않았다.",
     }
     (work / "review_queue_report.json").write_text(
