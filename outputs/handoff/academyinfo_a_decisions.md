@@ -135,3 +135,142 @@ worker-c `641912a`에서 필요한 경로만 선별 반입). 이 문서는 A가 
    canonical_majors.jsonl`(현재 10개, 자유서술형 Alias·Keyword 구조)과의 관계를
    어떻게 재구성할지(대체/병합/공존) 결정 필요 — 이번 라운드는 둘을 완전히
    분리된 상태로 남겨뒀다.
+
+---
+
+# 추가 결정 (2026-08-24) — 서비스 추천 범위 확정
+
+C가 반영하고 실측을 기록한다. 정책 문장 자체는 A가 확정한 것이다.
+
+## 8. 추천 범위 = 4~7년제 학사과정의 **주간 과정**
+
+> **서비스 추천 범위는 4~7년제 학사과정의 주간 과정이며, 야간 과정은 원본·이력 감사에만
+> 보존하고 추천 Master에는 승격하지 않는다.**
+
+- `day_night_name == "주간"`인 행만 승격 후보다.
+- 야간은 **Raw·Lineage·Audit에 보존**하되 정규화된 승격 후보 / Canonical 분류 후보 /
+  Department Master 후보 / 중복 검토 Queue / 학생 추천·학과 조회에서 제외한다.
+  삭제하거나 없었던 것처럼 처리하지 않는다.
+- **주야간 값이 없으면 주간으로 추정하지 않는다.** 별도 상태(`EXCLUDED_UNKNOWN_DAY_NIGHT`)로 둔다.
+- `generate_department_id()`에 `day_night`를 **추가하지 않는다.** 야간을 승격하지 않으므로
+  기존 ID 규칙과 35개 시연 ID를 유지한다.
+- 폐지·통합·분리 상태에 대한 기존 Fail-Closed 정책은 그대로다.
+
+**구현:** `src/data_sources/academyinfo_codes.py::recommendation_scope_exclusion()`.
+승격 후보에서 빠진 행은 `data/academyinfo_work/<연도>/out_of_recommendation_scope.jsonl`에
+사유와 함께 남는다 — 정책이 바뀌면 이 파일만 다시 읽어 되돌릴 수 있다.
+
+**실측 (2025, 전국):**
+
+```
+승격 후보      25,389 → 24,422   (-967)
+  야간 제외                950
+  주간 아님·값 없음         17   (전량 '원격' 값)
+중복 그룹         588 →     16   (-572)
+```
+
+**중복 572건이 야간 제외만으로 사라졌다.** 앞서 C가 제안했던 `ids.py`에 주야간을 넣는
+변경(`worker-c-A승인대기-변경안.md` §1)은 **이제 불필요하다** — 야간을 승격하지 않으므로
+같은 학과의 주/야간이 한 id를 두고 다투는 상황 자체가 생기지 않는다. A가 §4에서 ID 규칙을
+건드리지 말라고 한 판단이 결과적으로 맞았다.
+
+## 9. 사이버·원격·방송통신대학 제외
+
+- **공식 대학 유형·학교 종류 코드로 판정한다.** 대학명·학과명 문자열로 자동 판정하지 않는다.
+- 일반 대학의 온라인 강의·디지털 관련 학과는 제외하지 않는다.
+- Raw·Lineage·Audit에는 보존하고, 승격 후보·Mapping 후보·검토 Queue·학생 조회에서 제외한다.
+- 제외 사유는 `EXCLUDED_DISTANCE_UNIVERSITY`로 기록한다.
+- 야간 제외와 겹치면 **두 사유가 모두 감사 가능**해야 한다 — 현재 구현은 원격대학 사유를
+  먼저 기록하고, 원본 행의 `day_night_name`이 그대로 남아 야간 여부도 확인할 수 있다.
+
+**구현:** `is_distance_university()` — `schlKndCd ∈ {04, 05}` 또는 학교종류명이
+`사이버대학(대학)`·`원격대학`·`방송통신대학`인 경우. **교명은 보지 않는다.**
+
+**실측 (2025, 전국) — 현재 데이터에는 해당 대학이 0건이다.**
+
+```
+대학 목록 377개 = 대학교 222 · 전문대학 144 · 교육대학 11
+사이버·원격·방송통신 교명            0건
+학교종류가 04/05인 행                 0건
+→ 제외 전후 대학 수·학과 수 변화 없음
+```
+
+`getComparisonUniversitySearchList`가 애초에 이 유형을 돌려주지 않는다. 즉 **이 정책은
+지금 0건을 거르지만, 향후 API가 이 유형을 포함하게 되면 자동으로 걸러지는 방어장치**로
+남는다. 테스트는 가상 행으로 동작을 고정했다.
+
+`dghtDivNm == "원격"` 17건이 있으나 이들은 **일반 대학(부산대·충북대·영남대 등)의 원격
+과정**이고 학교종류는 `03 대학교`다. A 결정("일반 대학의 온라인 관련 학과는 제외하지
+않음")에 따라 원격대학으로 분류하지 않았고, 대신 §8의 "주간이 아님" 사유로 제외했다.
+
+## 10. 승격 검토 Queue는 현재 상태(EXISTING/NEW)만 다룬다
+
+- `EXISTING`·`NEW`만 **현재 Master 승격 검토 후보**다.
+- `ABOLISHED`·`MERGED`·`SPLIT`는 **Raw·Lineage·Audit에 보존**하되 분류 REVIEW·N.C.E·중복
+  승격 검토 Queue에서 제외한다. 삭제가 아니라 "이번 검토 범위 밖"이다.
+- 24,422건은 **"주간 학사과정 정규화 데이터"**로 부른다. 승격 후보 수가 아니다.
+
+**세 층을 구분해 센다.** 하나로 뭉치면 "몇 건을 추천할 수 있나"에 답할 수 없다.
+
+```
+주간 학사과정 정규화 데이터   24,422
+  ├ ABOLISHED  14,268
+  ├ EXISTING    9,051
+  ├ NEW         1,012
+  ├ MERGED         57
+  └ SPLIT          34
+
+현재 상태 1차 후보 (EXISTING+NEW)        10,063
+실제 승인 가능 후보                        5,453
+  = 10,063 − 예체능 제외 − 분류 REVIEW − N.C.E
+```
+
+`approvable_candidate_count`는 **"승인된 수"가 아니라 "승인 가능 후보 수"**다. 사람 검토
+전이므로 이 5,453건도 아직 확정이 아니다.
+
+**Queue 감소 (상태 필터 적용 전후):**
+
+| Queue | 전 | 후 |
+|---|---|---|
+| 중복 그룹 | 16 | **6** |
+| 분류 REVIEW | 4,258 | **1,936** |
+| N.C.E | 3,539 | **1,903** |
+| URL 감사 | 37 | 37 (상태 무관) |
+
+폐지 학과가 검토 대기의 절반 이상이었다 — 어차피 승격 대상이 아니라 검토자가 고를 이유가
+없는 행들이었다.
+
+## 11. Clean clone 결정론성 — 입력이 없어도 검증한다
+
+생성 입력(`departments.normalized.jsonl`·`classification_results.jsonl`)은 `.gitignore`
+대상이라 **새로 clone한 사람에게는 없다.** 그래도 검증은 돌아야 한다.
+
+```
+항상 수행   커밋된 Queue의 행 수·Hash·상태·Secret 검사      (입력 불필요)
+항상 수행   작은 Fixture로 Queue 생성 결정론성 검증          (API·전국 데이터 불필요)
+Skip       전국 입력으로 재생성해 Byte 비교                  (입력이 있을 때만, 사유 출력)
+```
+
+- **API 재수집을 하는 테스트는 없다.**
+- 생성 입력이 없으면 스크립트가 **0이 아닌 코드로 종료하고 아무 파일도 쓰지 않는다** —
+  기존 Queue를 부분 덮어쓰지 않는다(테스트로 고정).
+- Fixture 실행은 `--data-dir`로 격리되어 저장소의 커밋된 Queue를 건드리지 않는다(테스트로 고정).
+
+구현: `tests/worker_c/test_academyinfo_queue_clean_clone.py` (12 tests).
+
+## 12. `department_url` 정본은 `origin/trait-vector-v2`다
+
+- **worker-c에 `Department.department_url` Schema를 추가하지 않는다.** C가 앞서 요청했던
+  "worker-c의 `src/schemas/major.py`에 필드 추가"는 **철회한다**
+  (`worker-c-A승인대기-변경안.md` §2).
+- **`origin/trait-vector-v2`의 기존 Department Schema가 정본이다.** Builder 배선은 추후
+  trait-vector-v2 기반 통합 브랜치에서 진행한다.
+- worker-c는 **값과 감사 결과만 보존**한다.
+
+```
+data/raw/departments.raw.jsonl                     department_url 37건 + scope + note
+data/academyinfo_work/2025/department_url_scope_audit.jsonl   scope 감사 (34 department / 3 college)
+```
+
+즉 worker-c 쪽 준비는 끝났고, 화면 반영은 통합 브랜치에서 이어진다. **B의 프론트 작업도
+그 통합 이후**에 값을 받는다.

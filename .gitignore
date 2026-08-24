@@ -37,3 +37,14 @@ data/academyinfo_work/*/*
 !data/academyinfo_work/*/classification_dry_run.json
 !data/academyinfo_work/*/year_comparison_report.json
 !data/academyinfo_work/*/file_dataset_import_report.json
+!data/academyinfo_work/*/review_queue_report.json
+# 검토 Queue는 커밋한다. 사람이 처리할 작업 목록이고, 생성 입력(normalized·classification
+# 결과)이 .gitignore 대상이라 클론한 사람이 재생성할 수 없기 때문이다. 총 9MB로
+# GitHub 파일당 100MB 제한에 한참 못 미치고, JSONL 텍스트라 git 델타 압축도 먹는다
+# (gz로 묶으면 크기는 1MB로 줄지만 검토자가 grep·열람을 못 한다).
+!data/academyinfo_work/*/duplicate_department_review_queue.jsonl
+!data/academyinfo_work/*/classification_review_queue.jsonl
+!data/academyinfo_work/*/unmapped_nce_queue.jsonl
+!data/academyinfo_work/*/department_url_scope_audit.jsonl
+# 야간·원격 제외분. "삭제하지 않았다"의 증빙이라 검토자가 열어볼 수 있어야 한다.
+!data/academyinfo_work/*/out_of_recommendation_scope.jsonl

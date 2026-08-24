@@ -52,6 +52,20 @@ def _unclassified_nce_count() -> int:
     return int(data.get("unclassified_nce_count", 0))
 
 
+def _excluded_arts_sports_count() -> int | None:
+    """`eligibility_breakdown.EXCLUDED_ARTS_SPORTS`를 매번 파일에서 직접 읽는다 —
+    이 값을 과거에 문자열로 하드코딩했다가 worker-c가 주간 학사과정만 추천 범위로
+    제한하면서(2026-08-24) 3667 -> 3588로 바뀐 걸 놓쳐 문서가 낡은 값을 계속
+    보여준 적이 있다(회귀 검증 중 발견). 같은 문제가 다시 생기지 않도록 항상
+    실측한다."""
+
+    if not _CLASSIFICATION_DRY_RUN_PATH.exists():
+        return None
+    data = json.loads(_CLASSIFICATION_DRY_RUN_PATH.read_text(encoding="utf-8"))
+    value = data.get("eligibility_breakdown", {}).get("EXCLUDED_ARTS_SPORTS")
+    return int(value) if value is not None else None
+
+
 def _render_markdown() -> str:
     report = load_canonical_major_group_bridge()
     groups_by_id = {g.canonical_major_id: g for g in load_canonical_major_groups_draft()}
@@ -133,11 +147,13 @@ def _render_markdown() -> str:
     lines.append("")
     lines.append(f"- EXCLUDED_RECOMMENDATION Group 수: {len(excluded_group_ids)}개 ({', '.join(excluded_group_ids)})")
     lines.append(f"- 그 Group들의 학과 후보 수 합계(`departments_per_canonical_group` 기준): {excluded_dept_total}")
-    lines.append(
-        f"- 참고: `classification_dry_run.json`의 `eligibility_breakdown.EXCLUDED_ARTS_SPORTS` = "
-        f"3667(분류 자격 판정 단계 집계, Group 배정 이후 집계인 위 {excluded_dept_total}과 집계 "
-        "시점이 달라 정확히 일치하지 않는다 — 두 수치를 그대로 병기한다)."
-    )
+    dry_run_excluded_arts_sports = _excluded_arts_sports_count()
+    if dry_run_excluded_arts_sports is not None:
+        lines.append(
+            f"- 참고: `classification_dry_run.json`의 `eligibility_breakdown.EXCLUDED_ARTS_SPORTS` = "
+            f"{dry_run_excluded_arts_sports}(분류 자격 판정 단계 집계, Group 배정 이후 집계인 위 "
+            f"{excluded_dept_total}과 집계 시점이 달라 정확히 일치하지 않는다 — 두 수치를 그대로 병기한다)."
+        )
     lines.append("")
 
     unmapped_rows = report.entries_by_status("UNMAPPED")

@@ -212,16 +212,22 @@ class NceExclusionTest(unittest.TestCase):
     결과에서도 N.C.E가 별도 버킷으로 빠졌는지 확인한다."""
 
     def test_classification_dry_run_counts_nce_separately_from_review_required(self) -> None:
+        # 2026-08-24 worker-c 정제 통합(d26213a) — 주간 학사과정만 추천 범위로
+        # 제한하면서 야간·원격 학과가 모수에서 빠져 아래 수치가 이전(3657)보다
+        # 줄었다. classification_dry_run.json 자체가 갱신된 결과이지, 이 테스트가
+        # 임의로 낮춘 값이 아니다.
         report = _load_json("data/academyinfo_work/2025/classification_dry_run.json")
-        self.assertEqual(report["unclassified_nce_count"], 3657)
+        self.assertEqual(report["unclassified_nce_count"], 3539)
         self.assertIn("N.C.E.", report["official_small_series_distribution"])
         # N.C.E는 UNMAPPED로 잡히지, APPROVED/REVIEW_REQUIRED로 섞이지 않는다.
         self.assertEqual(report["mapping_status_breakdown"]["UNMAPPED"] >= report["unclassified_nce_count"], True)
 
     def test_classification_dry_run_review_required_count_matches_report(self) -> None:
+        # 2026-08-24 worker-c 정제 통합(d26213a) — 위와 같은 이유로 4454/3667에서
+        # 갱신됐다.
         report = _load_json("data/academyinfo_work/2025/classification_dry_run.json")
-        self.assertEqual(report["eligibility_breakdown"]["REVIEW_REQUIRED"], 4454)
-        self.assertEqual(report["eligibility_breakdown"]["EXCLUDED_ARTS_SPORTS"], 3667)
+        self.assertEqual(report["eligibility_breakdown"]["REVIEW_REQUIRED"], 4258)
+        self.assertEqual(report["eligibility_breakdown"]["EXCLUDED_ARTS_SPORTS"], 3588)
 
 
 class SourceRecordIdAndDepartmentIdYearPolicyTest(unittest.TestCase):

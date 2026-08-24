@@ -27,27 +27,27 @@
 
 | major_id | 연결 Group(상태) | 그 Group의 학과 후보 수 | 비고 |
 |---|---|---|---|
-| media_communication | media_communication(EVIDENCED) | 352 | 확정 아님 — Bridge 자체가 draft |
-| industrial_engineering | industrial_engineering(EVIDENCED) | 343 | 확정 아님 — Bridge 자체가 draft |
-| hci_ux | computer_science(REVIEW_REQUIRED) | 1315 | 확정 아님 — 사람 검토 필요 |
-| hci_ux | fine_arts_design(EXCLUDED_RECOMMENDATION) | 1285 | 확정 아님 — Bridge 자체가 draft |
+| media_communication | media_communication(EVIDENCED) | 351 | 확정 아님 — Bridge 자체가 draft |
+| industrial_engineering | industrial_engineering(EVIDENCED) | 316 | 확정 아님 — Bridge 자체가 draft |
+| hci_ux | computer_science(REVIEW_REQUIRED) | 1284 | 확정 아님 — 사람 검토 필요 |
+| hci_ux | fine_arts_design(EXCLUDED_RECOMMENDATION) | 1262 | 확정 아님 — Bridge 자체가 draft |
 
 ### 1-3. REVIEW_REQUIRED로 인해 확정에서 제외되는 수
 
 - REVIEW_REQUIRED Bridge 행 수: 2
-- 그 행들이 가리키는 Group의 학과 후보 수 합계(중복 Group 있으면 중복 합산): 1591
+- 그 행들이 가리키는 Group의 학과 후보 수 합계(중복 Group 있으면 중복 합산): 1557
 
 ### 1-4. 예체능 제외 수
 
 - EXCLUDED_RECOMMENDATION Group 수: 4개 (fine_arts_design, music, performing_media_arts, sports_dance)
-- 그 Group들의 학과 후보 수 합계(`departments_per_canonical_group` 기준): 3238
-- 참고: `classification_dry_run.json`의 `eligibility_breakdown.EXCLUDED_ARTS_SPORTS` = 3667(분류 자격 판정 단계 집계, Group 배정 이후 집계인 위 3238과 집계 시점이 달라 정확히 일치하지 않는다 — 두 수치를 그대로 병기한다).
+- 그 Group들의 학과 후보 수 합계(`departments_per_canonical_group` 기준): 3168
+- 참고: `classification_dry_run.json`의 `eligibility_breakdown.EXCLUDED_ARTS_SPORTS` = 3588(분류 자격 판정 단계 집계, Group 배정 이후 집계인 위 3168과 집계 시점이 달라 정확히 일치하지 않는다 — 두 수치를 그대로 병기한다).
 
 ### 1-5. N.C.E / UNMAPPED 수
 
 - Bridge UNMAPPED Group 수(10개 서비스 전공 중 대응 항목 없음): 29개
-- 그 Group들의 학과 후보 수 합계: 11931
-- N.C.E(대학알리미 표준분류 미분류, 42개 Group 어디에도 배정되지 않음) 원본 학과 수: 3657건(`classification_dry_run.json`의 `unclassified_nce_count` — 이 수는 Bridge의 UNMAPPED와 별개다. Bridge UNMAPPED는 "42개 Group 중 하나로는 분류됐지만 10개 서비스 전공에는 대응이 없다"이고, N.C.E는 "애초에 42개 Group 중 어디에도 분류되지 않았다"이다.)
+- 그 Group들의 학과 후보 수 합계: 11462
+- N.C.E(대학알리미 표준분류 미분류, 42개 Group 어디에도 배정되지 않음) 원본 학과 수: 3539건(`classification_dry_run.json`의 `unclassified_nce_count` — 이 수는 Bridge의 UNMAPPED와 별개다. Bridge UNMAPPED는 "42개 Group 중 하나로는 분류됐지만 10개 서비스 전공에는 대응이 없다"이고, N.C.E는 "애초에 42개 Group 중 어디에도 분류되지 않았다"이다.)
 
 ## 2. 42개 Group 전체 — 연결 후보·근거·경계 사례
 
