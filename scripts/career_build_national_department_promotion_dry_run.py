@@ -4,6 +4,31 @@
 바꾸지 않는다.** 어떤 학과가 어떤 이유로 승격 가능하거나 차단되는지 **계산만** 한다
 (Fail-Closed — 검수 파일이 없으면 자동 승인하지 않고 해당 Gate를 BLOCKED로 계산한다).
 
+## 2026-08-25 지시서(a/final-integration-master-promotion) §3/§4 변경 요약
+
+1. **행 유일 Key가 `department_id`에서 `offering_id`로 바뀌었다**
+   (`src.ids.generate_offering_id(schl_id, source_schl_mjr_id)`, Offering Identity v2).
+   기존 16 Group·32행 identity-key 충돌(같은 department_id, 다른 실제 편제)이 서로 다른
+   offering_id를 받아 더 이상 하나로 뭉개지지 않는다. `department_id`는 `old_department_id`
+   로, 옛 표시명 그룹은 `display_group_id`로 출력에 남는다(UI 그룹화 전용, 유일 키 아님).
+2. **Canonical Major Group 승인 정본이 Draft의 정적 `review_status`에서
+   `canonical_major_group_review_status.jsonl`의 `decision`으로 바뀌었다** — 그 Store가
+   없거나 이 Group 항목이 없으면 여전히 Fail-Closed(`BLOCKED_GROUP_DRAFT`).
+3. **P1/N.C.E가 실제 검수 완료 상태를 반영한다.** 검토가 끝났지만 이번 1차 승격 범위
+   밖으로 결론난 행(P1의 NEEDS_OFFICIAL_CURRICULUM/KEEP_UNMAPPED, N.C.E의
+   REQUIRE_DEPARTMENT_LEVEL_REVIEW, 그리고 이번 연도 분류가 P1/N.C.E로 표시했지만 374/584
+   행 검수 범위 밖인 행)는 새 사유 `BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION`으로 집계한다
+   (정책상 정상 차단 — TBD/HOLD 같은 진짜 미결과 구분한다). N.C.E의
+   ACCEPT_GROUP_AS_REVIEW_CANDIDATE는 그 클러스터의 후보 Group에 이미 Bridge Mapping이
+   승인한 EVIDENCED 서비스 Major가 **정확히 1개**일 때만(그 뒤로도 AUTO_CANDIDATE와 완전히
+   같은 Group/Bridge/Scope Gate를 통과해야 한다 — 추측 Mapping 없음) READY로 이어질 수
+   있다 — 그 외에는 여전히 차단된다("N.C.E로 분류된 학과는 절대 READY로 풀리지 않는다"던
+   이전 설명은 이제 정확하지 않다, 이 조건부 예외가 그 이후 추가됐다).
+4. **계약학과·산업체위탁 제외가 넓어졌다** — 기존 `exclusion_reason==CONTRACT_DEPARTMENT`
+   (정규화 단계가 좁게 잡은 6건)에 더해, 각 행의 실제 `major_character_name`(Offering
+   Identity v2가 보존)이 "계약학과"/"산업체위탁"이면 직접 `BLOCKED_CONTRACT_DEPARTMENT`로
+   막는다(실측: 154건 추가 검출).
+
 ## 입력
 
 - `data/academyinfo_work/<year>/departments.normalized.jsonl` (필수 — 없으면 종료 코드 2,
@@ -126,6 +151,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.career_console import use_utf8_stdout  # noqa: E402
+from src.ids import generate_display_group_id, generate_offering_id  # noqa: E402
 from src.review_ui.academyinfo_p1_classification_review_service import p1_approve_eligible  # noqa: E402
 from src.schemas.academyinfo_nce_middle_series_cluster import AcademyInfoNceMiddleSeriesClusterEntry  # noqa: E402
 from src.schemas.academyinfo_nce_middle_series_cluster_review import AcademyInfoNceMiddleSeriesReview  # noqa: E402
@@ -137,6 +163,7 @@ from src.schemas.canonical_major_group_bridge_review import (  # noqa: E402
     bridge_review_key,
 )
 from src.schemas.canonical_major_group_bridge_scope_review import CanonicalMajorGroupBridgeScopeReview  # noqa: E402
+from src.schemas.canonical_major_group_review import CanonicalMajorGroupReview  # noqa: E402
 from src.schemas.major import Department  # noqa: E402
 from src.services.academyinfo_nce_middle_series_cluster_loader import (  # noqa: E402
     DEFAULT_NCE_CLUSTER_PATH,
@@ -160,6 +187,9 @@ from src.services.canonical_major_group_bridge_loader import (  # noqa: E402
     load_canonical_major_group_bridge,
 )
 from src.services.canonical_major_group_draft_loader import load_canonical_major_groups_draft  # noqa: E402
+from src.services.canonical_major_group_review_store import (  # noqa: E402
+    load_canonical_major_group_review_entries_by_key,
+)
 from src.services.department_url_promotion import resolve_department_url_for_promotion  # noqa: E402
 from src.services.major_exploration_service import EXCLUDED_RECOMMENDATION_MAJOR_IDS  # noqa: E402
 from src.engines.canonical_mapper import load_canonical_majors  # noqa: E402
@@ -179,6 +209,12 @@ _NIGHT_REMOTE_EXCLUSION_REASONS = frozenset(
 )
 
 # 결정론적 산출물이라 값을 셋으로 모았다가 정렬해서 쓴다(같은 입력이면 항상 같은 순서).
+#
+# 2026-08-25 지시서(a/final-integration-master-promotion) §3 — 검수가 실제로 끝난
+# 항목(P1 EXCLUDE 계열 결정 96/208/69/1건, N.C.E REQUIRE_DEPARTMENT_LEVEL_REVIEW
+# 9개)을 "아직 검수 중"인 BLOCKED_P1_REVIEW_UNRESOLVED/BLOCKED_NCE_UNRESOLVED로
+# 잘못 집계하지 않기 위해 새 사유를 추가한다 — "검수는 끝났지만 이번 1차 승격
+# 범위에서는 제외"라는 뜻이다(정책상 정상 차단, §5 "정상적으로 남을 수 있는 차단").
 ALL_BLOCKED_REASONS = (
     "BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR",
     "BLOCKED_ARTS_RECOMMENDATION",
@@ -188,6 +224,7 @@ ALL_BLOCKED_REASONS = (
     "BLOCKED_CLASSIFICATION_REVIEW",
     "BLOCKED_CONTRACT_DEPARTMENT",
     "BLOCKED_DUPLICATE_ID",
+    "BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION",
     "BLOCKED_GROUP_DRAFT",
     "BLOCKED_INACTIVE_STATUS",
     "BLOCKED_MISSING_CLASSIFICATION",
@@ -200,6 +237,19 @@ ALL_BLOCKED_REASONS = (
     "BLOCKED_P1_REVIEW_UNRESOLVED",
     "BLOCKED_URL_POLICY",
 )
+
+# P1 Schema의 6개 decision 중 "검토는 끝났지만 이번 라운드는 승격하지 않는다"에
+# 해당하는 값들 — TBD/REVISE_CANDIDATE/HOLD(진짜 미결)와 구분한다.
+_P1_EXCLUDED_FROM_INITIAL_PROMOTION_DECISIONS = frozenset({"NEEDS_OFFICIAL_CURRICULUM", "KEEP_UNMAPPED"})
+_P1_ARTS_DECISIONS = frozenset({"EXCLUDE_ARTS_RECOMMENDATION"})
+_P1_UNRESOLVED_DECISIONS = frozenset({"TBD", "REVISE_CANDIDATE", "HOLD"})
+
+# N.C.E Schema의 5개 decision 중 REQUIRE_DEPARTMENT_LEVEL_REVIEW(학과 단위 판단
+# 필요)는 "검토는 끝났지만 이번 라운드는 승격하지 않는다"에 해당한다 —
+# TBD/HOLD/INSUFFICIENT_OFFICIAL_EVIDENCE(진짜 미결·근거 없음)와 구분한다.
+_NCE_UNRESOLVED_DECISIONS = frozenset({"TBD", "HOLD", "INSUFFICIENT_OFFICIAL_EVIDENCE"})
+
+_CONTRACT_MAJOR_CHARACTERS = frozenset({"계약학과", "산업체위탁"})
 
 
 # ============================== 파일 IO 도우미 ==============================
@@ -261,6 +311,7 @@ class DryRunInputs:
     departments: list[dict[str, Any]]
     classification_by_department: dict[str, dict[str, Any]]
     groups_by_id: dict[str, CanonicalMajorGroupDraft]
+    group_reviews: dict[str, CanonicalMajorGroupReview]
     bridge_entries_by_group: dict[str, list[Any]]
     bridge_mapping_reviews: dict[str, CanonicalMajorGroupBridgeReview]
     bridge_scope_reviews: dict[str, CanonicalMajorGroupBridgeScopeReview]
@@ -276,6 +327,12 @@ class DryRunInputs:
     nce_reviews: dict[str, AcademyInfoNceMiddleSeriesReview]
     url_audit_by_department: dict[str, dict[str, Any]]
     service_major_ids: frozenset[str]
+    # 2026-08-25 지시서(a/final-integration-master-promotion) §4 — 행 유일 Key를
+    # department_id에서 offering_id로 바꾼다. offering_id_counts는 evaluate_department()
+    # 가 BLOCKED_DUPLICATE_ID를 department_id 기반 duplicate_group_size 대신 이
+    # 새 Key 기준으로 판정하는 데 쓴다(§4 "기존 16개 identity-key 충돌로 행을
+    # 버리지 않음" — offering_id는 설계상 그 16개도 서로 다른 값을 받는다).
+    offering_id_counts: dict[str, int] = field(default_factory=dict)
     input_hashes: dict[str, str] = field(default_factory=dict)
 
 
@@ -295,6 +352,7 @@ def load_inputs(
     survey_year: int,
     reviews_dir: Path | None = None,
     group_draft_path: Path | None = None,
+    group_review_path: Path | None = None,
     bridge_draft_path: Path | None = None,
     small_series_code_table_path: Path | None = None,
     canonical_majors_path: Path | None = None,
@@ -335,6 +393,23 @@ def load_inputs(
         by_department_id.setdefault(row["department_id"], row)
     departments = sorted(by_department_id.values(), key=lambda r: r["department_id"])
 
+    # 2026-08-25 지시서(a/final-integration-master-promotion) §4 — 24,422행 전부에
+    # offering_id/display_group_id를 계산해 붙인다(a/offering-identity-v2가 검수한
+    # 32행 Packet과 같은 공식(`generate_offering_id(schl_id, source_schl_mjr_id)`)을
+    # 그대로 재사용 — 실측 결과 두 계산이 정확히 같은 값을 낸다, 그 32행을 별도
+    # 취급하지 않아도 된다는 뜻이다). department_id 자체는 old_department_id로
+    # 보존해 Migration Map·기존 분류/N.C.E/URL 감사 파일과의 조인 Key로 계속 쓴다
+    # (그 파일들은 Identity v2 이전에 만들어져 department_id 키만 안다).
+    offering_id_counts: dict[str, int] = {}
+    for row in departments:
+        offering_id = generate_offering_id(row["schl_id"], row["source_schl_mjr_id"])
+        row["offering_id"] = offering_id
+        row["display_group_id"] = generate_display_group_id(
+            row["schl_id"], row.get("college_name") or "", row.get("department_name") or "",
+        )
+        row["old_department_id"] = row["department_id"]
+        offering_id_counts[offering_id] = offering_id_counts.get(offering_id, 0) + 1
+
     classification_rows = read_jsonl(classification_path)
     classification_by_department = {row["department_id"]: row for row in classification_rows}
 
@@ -343,6 +418,20 @@ def load_inputs(
     except Exception as exc:  # noqa: BLE001 — Fail-Fast를 그대로 전파하되 원인을 남긴다.
         raise MissingRequiredInputError(f"42개 Canonical Major Group Draft 로딩 실패: {exc}") from exc
     groups_by_id = {g.canonical_major_id: g for g in groups}
+
+    # 2026-08-25 지시서 §3 — Group 승인 정본은 Draft의 정적 review_status가 아니라
+    # 사람이 실제로 검수 UI에 저장한 이 Store다(canonical_major_group_review_status.
+    # jsonl, decision=APPROVE_AS_CLASSIFICATION_GROUP). 파일이 없거나 그 Group의
+    # 항목이 없으면 Fail-Closed(빈 dict — evaluate_department()가 "None"으로 취급해
+    # BLOCKED_GROUP_DRAFT를 그대로 유지한다).
+    #
+    # bridge_mapping_review_path/bridge_scope_review_path와 같은 원칙으로 reviews_dir
+    # 아래를 기본값으로 쓴다(전역 기본 경로로 조용히 떨어지면, 이 함수를 격리된 tmp
+    # reviews_dir로 호출하는 테스트가 실제 data/reviews/를 의도치 않게 읽는다 —
+    # a/final-mapping-review-closeout에서 P1/N.C.E가 겪은 것과 같은 격리 버그를
+    # 여기서는 처음부터 만들지 않는다).
+    group_review_path = group_review_path or (reviews / "canonical_major_group_review_status.jsonl")
+    group_reviews = load_canonical_major_group_review_entries_by_key(group_review_path)
 
     try:
         bridge_report = load_canonical_major_group_bridge(
@@ -426,6 +515,7 @@ def load_inputs(
         if audit is not None:
             url_audit_by_department[row["department_id"]] = audit
     input_hashes["department_url_scope_audit"] = hash_or_missing(url_audit_path)
+    input_hashes["canonical_major_group_review"] = hash_or_missing(group_review_path)
 
     majors = load_canonical_majors(canonical_majors_path or (data_dir / "master" / "canonical_majors.jsonl"))
     service_major_ids = frozenset(m.major_id for m in majors)
@@ -435,6 +525,7 @@ def load_inputs(
         departments=departments,
         classification_by_department=classification_by_department,
         groups_by_id=groups_by_id,
+        group_reviews=group_reviews,
         bridge_entries_by_group=bridge_entries_by_group,
         bridge_mapping_reviews=bridge_mapping_reviews,
         bridge_scope_reviews=bridge_scope_reviews,
@@ -446,6 +537,7 @@ def load_inputs(
         nce_reviews=nce_reviews,
         url_audit_by_department=url_audit_by_department,
         service_major_ids=service_major_ids,
+        offering_id_counts=offering_id_counts,
         input_hashes=input_hashes,
     )
 
@@ -477,7 +569,17 @@ def _validated_department_url(row: dict[str, Any], candidate_url: str) -> str | 
 
 
 def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, Any]:
-    department_id = row["department_id"]
+    # 2026-08-25 지시서 §4 — 행 유일 Key는 이제 department_id가 아니라 offering_id다
+    # (load_inputs()가 이미 모든 행에 계산해 붙였다). department_id는
+    # old_department_id로만 남아 classification/N.C.E/URL 감사처럼 아직
+    # department_id 키만 아는 다른 파일과의 조인에 계속 쓰인다 — 그 파일들은 Identity
+    # v2 이전에 만들어져 바꾸지 않는다(§4 "기존 Master 35건의 department_id는
+    # Migration 완료 전까지 그대로 유지"). `generate_offering_id()`는 순수 함수라 이
+    # 함수가 직접 계산한다 — `load_inputs()`가 미리 채워둔 값이 있으면 그대로 쓰고
+    # (재계산 낭비 없음), 없으면(예: 이 함수를 직접 호출하는 단위 테스트) 그 자리에서
+    # 계산한다 — 둘 다 같은 함수·같은 입력이라 항상 같은 값이 나온다.
+    offering_id = row.get("offering_id") or generate_offering_id(row["schl_id"], row["source_schl_mjr_id"])
+    department_id = row.get("old_department_id") or row["department_id"]
     reasons: set[str] = set()
     resolved_group_id: str | None = None
     resolved_major_id: str | None = None
@@ -495,7 +597,20 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
         else:
             reasons.add("BLOCKED_OUT_OF_RECOMMENDATION_SCOPE")
 
-    if int(row.get("duplicate_group_size") or 1) > 1:
+    # 2026-08-25 지시서 §6 "계약학과·산업체위탁 제외" — 기존 exclusion_reason=
+    # CONTRACT_DEPARTMENT는 정규화 단계가 "같은 department_id로 들어온 일반과정/
+    # 계약학과 쌍"만 좁게 잡은 것이었다(실측: 159개 계약학과·1개 산업체위탁 행 중
+    # 6개만 그 경로로 잡혔다). Offering Identity v2가 매 행의 실제 편제 성격
+    # (`major_character_name`)을 그대로 보존하므로, 이 필드로 직접 한 번 더 막아
+    # 나머지 154개도 놓치지 않는다(위 in_scope 분기와 같은 사유 이름을 그대로 쓴다 —
+    # "왜 막혔나"의 축이 다를 뿐 결과 의미는 같다).
+    if row.get("major_character_name") in _CONTRACT_MAJOR_CHARACTERS:
+        reasons.add("BLOCKED_CONTRACT_DEPARTMENT")
+
+    # 2026-08-25 지시서 §4 — department_id 기반 duplicate_group_size 대신 offering_id
+    # 중복 여부로 판정한다(§4 "기존 16개 identity-key 충돌로 행을 버리지 않음" —
+    # 그 32행은 offering_id가 서로 달라 이 검사를 그대로 통과한다).
+    if inputs.offering_id_counts.get(offering_id, 1) > 1:
         reasons.add("BLOCKED_DUPLICATE_ID")
 
     has_basic_lineage = bool(row.get("source_record_id")) and bool(row.get("schl_id"))
@@ -517,25 +632,41 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
             if eligibility_status == "EXCLUDED_ARTS_SPORTS":
                 reasons.add("BLOCKED_ARTS_RECOMMENDATION")
             elif eligibility_status == "REVIEW_REQUIRED":
-                # 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce) §6 — "APPROVE_
-                # PROPOSED_CANDIDATE만 조건부 통과, 나머지 Decision은 모두 차단".
-                # 검수 UI의 PATCH가 이미 저장 시점에 p1_approve_eligible()로
-                # 막았어도(§1), 이 파일이 그 파일을 그대로 신뢰하지 않고
-                # p1_approve_eligible()을 원본 Draft 행에 다시 적용해 재확인한다
-                # (Bridge Scope의 "Schema 우회 대비 Service 방어 검증"과 같은 원칙 —
-                # 검수 파일이 외부에서 수동으로 손상됐어도 이 Gate가 막는다).
+                # 2026-08-25 지시서(a/final-integration-master-promotion) §3 — P1
+                # Schema의 6개 decision을 실제 뜻대로 구분한다("검수 완료 항목을
+                # P1_REVIEW_UNRESOLVED로 집계하지 않는다"):
+                #   APPROVE_PROPOSED_CANDIDATE(+ eligible 재검증) → 통과, resolved_
+                #     group_id는 아래 mapping_status 분기가 그대로 채운다.
+                #   EXCLUDE_ARTS_RECOMMENDATION → BLOCKED_ARTS_RECOMMENDATION.
+                #   NEEDS_OFFICIAL_CURRICULUM/KEEP_UNMAPPED → BLOCKED_EXCLUDED_FROM_
+                #     INITIAL_PROMOTION(검토는 끝났지만 이번 라운드는 승격 대상 아님).
+                #   TBD/REVISE_CANDIDATE/HOLD(진짜 미결) → BLOCKED_P1_REVIEW_UNRESOLVED.
+                # p1_draft가 아예 없는 행(이번 연도 분류 REVIEW_REQUIRED 4,258건 중
+                # 374행 P1 패킷 범위 밖 — 실측 3,883건)도 "검토 대상에 없다"는 뜻이지
+                # "검토 중"이 아니므로 같은 EXCLUDED_FROM_INITIAL_PROMOTION으로 묶는다
+                # (P1_REVIEW_UNRESOLVED로 잘못 집계하지 않는다).
                 p1_draft = inputs.p1_draft_by_department_id.get(department_id)
                 if p1_draft is None:
-                    reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
+                    reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
                 else:
                     p1_candidate_id = p1_draft.candidate_id
                     p1_review = inputs.p1_reviews.get(p1_candidate_id)
                     p1_review_decision = p1_review.decision if p1_review is not None else "TBD"
-                    approve_and_eligible = (
+                    if (
                         p1_review_decision == "APPROVE_PROPOSED_CANDIDATE"
                         and p1_approve_eligible(p1_draft, inputs.service_major_ids)
-                    )
-                    if not approve_and_eligible:
+                    ):
+                        pass  # 통과 — resolved_group_id는 mapping_status 분기가 채운다.
+                    elif p1_review_decision in _P1_ARTS_DECISIONS:
+                        reasons.add("BLOCKED_ARTS_RECOMMENDATION")
+                    elif p1_review_decision in _P1_EXCLUDED_FROM_INITIAL_PROMOTION_DECISIONS:
+                        reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
+                    elif p1_review_decision in _P1_UNRESOLVED_DECISIONS:
+                        reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
+                    else:
+                        # decision==APPROVE_PROPOSED_CANDIDATE인데 p1_approve_eligible()
+                        # 재검증에 실패한 경우(검수 파일 손상 등 방어적 경로) — 자동
+                        # 승인하지 않고 미결로 되돌린다.
                         reasons.add("BLOCKED_P1_REVIEW_UNRESOLVED")
 
             mapping_status = classification_row.get("mapping_status")
@@ -552,26 +683,68 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
             elif mapping_status == "UNMAPPED":
                 decision_reason = classification_row.get("decision_reason") or ""
                 if decision_reason.startswith(_NCE_UNMAPPED_REASON_PREFIX):
-                    # 2026-08-24 지시서 §7 — "ACCEPT_GROUP_AS_REVIEW_CANDIDATE도
-                    # 학과 승격 승인이 아니다. 모든 N.C.E 행은 별도 학과 단위 승인
-                    # 전까지 차단한다." N.C.E 검수 상태가 무엇이든(TBD든
-                    # ACCEPT_GROUP_AS_REVIEW_CANDIDATE든) resolved_group_id를 절대
-                    # 채우지 않는다 — 무조건 BLOCKED_NCE_UNRESOLVED다. 클러스터 코드·
-                    # 검수 판단은 감사용으로만 출력 행에 남긴다(왜 막혔는지 추적
-                    # 가능하도록. §7이 요구한 학과 단위 Gate는 아직 이 저장소에
-                    # 없다 — 이 Dry Run이 대신 만들지 않는다).
+                    # 2026-08-25 지시서(a/final-integration-master-promotion) §3 —
+                    # N.C.E Schema의 5개 decision을 실제 뜻대로 구분한다("검수 완료
+                    # 항목을 NCE_UNRESOLVED로 집계하지 않는다". "추측 Mapping 금지"):
+                    #   ACCEPT_GROUP_AS_REVIEW_CANDIDATE → 그 클러스터의 후보 Group(들)
+                    #     중 "이미 Bridge Mapping이 승인한 EVIDENCED 서비스 Major"가
+                    #     정확히 1개일 때만 resolved_group_id를 채운다(그 뒤로는
+                    #     AUTO_CANDIDATE와 완전히 같은 Group/Bridge/Scope Gate를
+                    #     그대로 통과해야 한다 — 지름길 없음, "추측 Mapping 금지").
+                    #     0개 또는 2개 이상이면 BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION
+                    #     ("후보 없음 또는 복수 Bridge면 초기 승격 제외").
+                    #   REQUIRE_DEPARTMENT_LEVEL_REVIEW → BLOCKED_EXCLUDED_FROM_
+                    #     INITIAL_PROMOTION(학과 단위 판단이 필요하다는 사람의 결론 —
+                    #     이 Dry Run은 그 개별 판단을 대신하지 않는다).
+                    #   TBD/HOLD/INSUFFICIENT_OFFICIAL_EVIDENCE(진짜 미결·근거 없음)
+                    #     → BLOCKED_NCE_UNRESOLVED.
+                    #
+                    # 실측(2026-08-25): 이번 연도 분류가 N.C.E로 표시한 3,537건 중
+                    # 24개 검수 완료 클러스터(584건)에 속하는 건 584건뿐이다 — 나머지
+                    # 2,953건은 클러스터 자체가 없어 "검토가 아직 안 끝났다"가 아니라
+                    # "이번 라운드 검토 범위 밖"이다(P1 패킷 범위 밖 3,883건과 같은
+                    # 성격의 격차, §4 완료 보고에서 그대로 밝힌다). 그래서 이 두 경우를
+                    # 구분한다: 클러스터 자체를 못 찾으면 BLOCKED_EXCLUDED_FROM_INITIAL_
+                    # PROMOTION(검토 범위 밖), 클러스터는 있는데 decision이 TBD/HOLD/
+                    # INSUFFICIENT_OFFICIAL_EVIDENCE면 BLOCKED_NCE_UNRESOLVED(진짜 미결).
                     nce_middle_series_code = inputs.nce_middle_series_code_by_department.get(department_id)
-                    nce_review = inputs.nce_reviews.get(nce_middle_series_code) if nce_middle_series_code else None
-                    nce_review_decision = nce_review.decision if nce_review is not None else "TBD"
-                    reasons.add("BLOCKED_NCE_UNRESOLVED")
+                    cluster = inputs.nce_clusters_by_code.get(nce_middle_series_code) if nce_middle_series_code else None
+
+                    if cluster is None:
+                        reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
+                    else:
+                        nce_review = inputs.nce_reviews.get(nce_middle_series_code)
+                        nce_review_decision = nce_review.decision if nce_review is not None else "TBD"
+
+                        if nce_review_decision == "ACCEPT_GROUP_AS_REVIEW_CANDIDATE":
+                            approved_major_by_group: list[tuple[str, str]] = []
+                            for candidate in cluster.candidate_canonical_major_groups:
+                                for entry in inputs.bridge_entries_by_group.get(candidate.canonical_major_id, []):
+                                    if entry.mapping_status == "EVIDENCED":
+                                        approved_major_by_group.append((candidate.canonical_major_id, entry.canonical_major_id))
+                            if len(approved_major_by_group) == 1:
+                                resolved_group_id = approved_major_by_group[0][0]
+                            else:
+                                reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
+                        elif nce_review_decision == "REQUIRE_DEPARTMENT_LEVEL_REVIEW":
+                            reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
+                        else:
+                            reasons.add("BLOCKED_NCE_UNRESOLVED")
                 else:
                     reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
             else:
                 reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
 
     if resolved_group_id is not None:
-        group = inputs.groups_by_id.get(resolved_group_id)
-        if group is None or group.review_status != "approved":
+        # 2026-08-25 지시서 §3 — 승인 정본은 Draft 파일의 정적 review_status(worker-c
+        # 산출물, 이 저장소 어떤 코드도 "approved"로 바꾸지 않는다 — 영원히 "draft")가
+        # 아니라 사람이 검수 UI에서 실제로 저장한 canonical_major_group_review_status.
+        # jsonl의 decision이다. Group Review가 없거나 decision이 APPROVE_AS_
+        # CLASSIFICATION_GROUP이 아니면 Fail-Closed로 그대로 막는다(사유 이름은
+        # BLOCKED_GROUP_DRAFT를 유지 — "이 Group이 아직 분류 Ontology로 승인되지
+        # 않았다"는 뜻은 그대로다, 판정 근거만 바뀌었다).
+        group_review = inputs.group_reviews.get(resolved_group_id)
+        if group_review is None or group_review.decision != "APPROVE_AS_CLASSIFICATION_GROUP":
             reasons.add("BLOCKED_GROUP_DRAFT")
 
         entries = inputs.bridge_entries_by_group.get(resolved_group_id, [])
@@ -636,11 +809,18 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
 
     status = "READY_FOR_PROMOTION" if not reasons else "BLOCKED"
     return {
-        "department_id": department_id,
+        # 2026-08-25 지시서 §4 — 행 유일 Key. old_department_id/display_group_id는
+        # 감사·UI 그룹화 전용 참고 필드일 뿐 유일성이나 Gate 판정에 쓰이지 않는다.
+        "offering_id": offering_id,
+        "old_department_id": department_id,
+        "display_group_id": row.get("display_group_id") or generate_display_group_id(
+            row["schl_id"], row.get("college_name") or "", row.get("department_name") or "",
+        ),
         "university_name": row.get("university_name"),
         "department_name": row.get("department_name"),
         "college_name": row.get("college_name"),
         "department_status": row.get("department_status"),
+        "major_character_name": row.get("major_character_name"),
         "status": status,
         "blocked_reasons": sorted(reasons),
         "resolved_canonical_major_group_id": resolved_group_id,
@@ -654,8 +834,9 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
         "lineage_level": LINEAGE_LEVEL_ROW_IDENTITY_ONLY,
         # 감사용 참고 필드 — §7 "N.C.E는 절대 승격 승인이 아님"의 증거를 출력에도
         # 남긴다. None이 아니어도(예: nce_review_decision="ACCEPT_GROUP_AS_REVIEW_
-        # CANDIDATE") blocked_reasons에는 항상 BLOCKED_NCE_UNRESOLVED가 있다 —
-        # 이 두 필드가 승격 여부에 영향을 준 적이 없다.
+        # CANDIDATE") resolved_group_id가 채워졌더라도 그 뒤 Group/Bridge/Scope
+        # Gate를 전부 통과해야만 READY가 된다 — 이 두 필드 자체가 승격을 보장한
+        # 적은 없다.
         "p1_candidate_id": p1_candidate_id,
         "p1_review_decision": p1_review_decision,
         "nce_middle_series_code": nce_middle_series_code,
@@ -694,9 +875,12 @@ def build_summary(rows: list[dict[str, Any]], inputs: DryRunInputs) -> dict[str,
         "blocked_reason_counts": reason_counts,
         "blocked_only_by_current_review_state_count": blocked_only_by_review_state,
         "note": (
-            "0건이 정상일 수 있다 — Canonical Major Group Draft 42개가 전부 review_status="
-            "'draft'이고 Bridge Scope/P1/N.C.E 검수 정본이 아직 없어(Fail-Closed) 현재 "
-            "검수 상태로는 어떤 학과도 자동 승격되지 않는다. Master·API는 이 Dry Run으로 "
+            "2026-08-25(a/final-integration-master-promotion) 이후: Group 승인 정본은 "
+            "canonical_major_group_review_status.jsonl의 decision(Draft의 정적 "
+            "review_status가 아니다), Bridge Mapping/Scope/P1/N.C.E는 각 검수 UI Store가 "
+            "실제로 저장한 값을 그대로 쓴다 — 검수가 실제로 끝나면 READY_FOR_PROMOTION이 "
+            "0보다 클 수 있다(0건도 여전히 계산 결과로서는 정상일 수 있다 — 그 경우 "
+            "차단 사유별 실제 원인을 이 요약에서 확인한다). Master·API는 이 Dry Run으로 "
             "바뀌지 않는다."
         ),
     }
@@ -732,7 +916,7 @@ def build_summary_markdown(summary: dict[str, Any], rows: list[dict[str, Any]], 
     if ready_samples:
         for r in ready_samples:
             lines.append(
-                f"- {r['department_id']} — {r['university_name']} {r['department_name']} → "
+                f"- {r['offering_id']} — {r['university_name']} {r['department_name']} → "
                 f"{r['resolved_canonical_major_id']}"
             )
     else:
@@ -743,7 +927,7 @@ def build_summary_markdown(summary: dict[str, Any], rows: list[dict[str, Any]], 
     if blocked_samples:
         for r in blocked_samples:
             lines.append(
-                f"- {r['department_id']} — {r['university_name']} {r['department_name']}: "
+                f"- {r['offering_id']} — {r['university_name']} {r['department_name']}: "
                 f"{', '.join(r['blocked_reasons'])}"
             )
     else:
@@ -779,7 +963,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     rows = [evaluate_department(row, inputs) for row in inputs.departments]
-    rows.sort(key=lambda r: r["department_id"])
+    rows.sort(key=lambda r: r["offering_id"])
 
     candidates = [r for r in rows if r["status"] == "READY_FOR_PROMOTION"]
     blocked = [r for r in rows if r["status"] == "BLOCKED"]

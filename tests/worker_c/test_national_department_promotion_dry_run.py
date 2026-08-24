@@ -33,12 +33,14 @@ from scripts.career_build_national_department_promotion_dry_run import (  # noqa
     evaluate_department,
     load_inputs,
 )
+from src.ids import generate_offering_id  # noqa: E402
 from src.review_ui.academyinfo_nce_middle_series_review_service import (  # noqa: E402
     update_nce_middle_series_review,
 )
 from src.review_ui.academyinfo_p1_classification_review_service import (  # noqa: E402
     update_p1_classification_review,
 )
+from src.schemas.academyinfo_nce_middle_series_cluster import AcademyInfoNceMiddleSeriesClusterEntry  # noqa: E402
 from src.schemas.academyinfo_nce_middle_series_cluster_review import AcademyInfoNceMiddleSeriesReview  # noqa: E402
 from src.schemas.academyinfo_p1_classification import AcademyInfoP1ClassificationEntry  # noqa: E402
 from src.schemas.academyinfo_p1_classification_candidate_review import AcademyInfoP1ClassificationReview  # noqa: E402
@@ -197,6 +199,29 @@ def _approval_review_row(group_id: str, major_id: str) -> dict[str, Any]:
     }
 
 
+def _group_review_row(group_id: str, *, approved: bool = True) -> dict[str, Any]:
+    """2026-08-25 지시서(a/final-integration-master-promotion) §3 — Group 승인 정본이
+    Draft의 정적 review_status에서 canonical_major_group_review_status.jsonl의
+    decision으로 바뀌었다. `CanonicalMajorGroupReview`의 model_validator가
+    decision↔reviewer_1_status 대응을 강제하므로(APPROVE_AS_CLASSIFICATION_GROUP↔
+    APPROVE) 둘 다 함께 채운다."""
+
+    decision = "APPROVE_AS_CLASSIFICATION_GROUP" if approved else "TBD"
+    reviewer_1_status = "APPROVE" if approved else "TBD"
+    return {
+        "canonical_major_group_id": group_id, "decision": decision,
+        "reviewer_1_status": reviewer_1_status, "reviewer_1_comment": "테스트 승인",
+        "reviewer_2_status": "TBD", "reviewer_2_comment": "", "resolution_note": "", "revision": 0,
+    }
+
+
+def _write_group_reviews(reviews_dir: Path, group_ids, *, approved: bool = True) -> None:
+    _write_jsonl(
+        reviews_dir / "canonical_major_group_review_status.jsonl",
+        [_group_review_row(g, approved=approved) for g in sorted(group_ids)],
+    )
+
+
 def _p1_packet_row(
     department_id: str, candidate_id: str, *, judgment_evidence_sufficient: bool = True,
     candidate_canonical_major_ids: list[str] | None = None, p1_cluster: str = "CONTENT_MEDIA",
@@ -274,15 +299,21 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
         bridge_mapping_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
         _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_mapping_rows)
         _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_mapping_rows)
+        _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
+        # 2026-08-25 지시서(a/final-integration-master-promotion) §4 — offering_id는
+        # schl_id+source_schl_mjr_id로만 계산된다(department_name과 무관) — 이 6개
+        # 행에 서로 다른 source_schl_mjr_id를 명시하지 않으면 전부 같은 offering_id로
+        # 뭉개져 BLOCKED_DUPLICATE_ID가 잘못 걸린다(department_id 시절엔
+        # department_name이 Key 재료라 문제가 없었다).
         self.departments = [
-            _dept_row("dept_cs", department_name="컴퓨터공학과"),
-            _dept_row("dept_media", department_name="미디어커뮤니케이션학과"),
-            _dept_row("dept_ie_included", department_name="산업공학과"),
-            _dept_row("dept_ie_excluded", department_name="안전공학과"),
-            _dept_row("dept_biz_included", department_name="경영학과"),
-            _dept_row("dept_biz_excluded", department_name="경영정보학과"),
+            _dept_row("dept_cs", department_name="컴퓨터공학과", source_schl_mjr_id="mjr_cs"),
+            _dept_row("dept_media", department_name="미디어커뮤니케이션학과", source_schl_mjr_id="mjr_media"),
+            _dept_row("dept_ie_included", department_name="산업공학과", source_schl_mjr_id="mjr_ie_included"),
+            _dept_row("dept_ie_excluded", department_name="안전공학과", source_schl_mjr_id="mjr_ie_excluded"),
+            _dept_row("dept_biz_included", department_name="경영학과", source_schl_mjr_id="mjr_biz_included"),
+            _dept_row("dept_biz_excluded", department_name="경영정보학과", source_schl_mjr_id="mjr_biz_excluded"),
         ]
         self.classifications = [
             _cls_row("dept_cs", official_small_series_code="089", candidate_canonical_major_ids=["computer_science"]),
@@ -340,10 +371,16 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
 
     def test_flipping_group_draft_approval_alone_blocks_previously_ready_department(self) -> None:
         """"모든 Gate 승인 시에만 READY_FOR_PROMOTION" — 다른 건 그대로 두고 Group
-        Draft 승인만 빼면 다시 BLOCKED이어야 한다."""
+        승인만 빼면 다시 BLOCKED이어야 한다.
 
-        degraded = self.inputs.groups_by_id["computer_science"].model_copy(update={"review_status": "draft"})
-        inputs = self.inputs.__class__(**{**self.inputs.__dict__, "groups_by_id": {**self.inputs.groups_by_id, "computer_science": degraded}})
+        2026-08-25 지시서(a/final-integration-master-promotion) §3 정정 — 승인 정본이
+        Draft의 정적 review_status에서 Group Review Store(decision)로 바뀌었으므로,
+        이제는 `group_reviews` dict에서 그 Group의 항목을 빼서 재현한다(다른 두
+        flipping 테스트가 이미 쓰는 것과 같은 in-memory 패턴)."""
+
+        inputs_dict = dict(self.inputs.__dict__)
+        inputs_dict["group_reviews"] = {k: v for k, v in self.inputs.group_reviews.items() if k != "computer_science"}
+        inputs = self.inputs.__class__(**inputs_dict)
         result = evaluate_department(self.by_id["dept_cs"], inputs)
         self.assertEqual(result["status"], "BLOCKED")
         self.assertEqual(result["blocked_reasons"], ["BLOCKED_GROUP_DRAFT"])
@@ -443,6 +480,7 @@ class IndependentGateBlockingTest(unittest.TestCase):
         bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
         _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
         _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
+        _write_group_reviews(reviews_dir, _GROUP_CODES)
         work_dir = root / "academyinfo_work" / "2025"
         _write_jsonl(work_dir / "departments.normalized.jsonl", [_dept_row("dept_cs")])
         _write_jsonl(
@@ -483,9 +521,14 @@ class IndependentGateBlockingTest(unittest.TestCase):
         result = evaluate_department(row, inputs)
         self.assertEqual(result["blocked_reasons"], ["BLOCKED_ARTS_RECOMMENDATION"])
 
-    def test_p1_review_required_but_unresolved_blocks_alone(self) -> None:
-        """P1 Draft 자체가 없으면(REVIEW_REQUIRED인데 P1 패킷에 그 학과 행이 없음)
-        Fail-Closed로 막는다."""
+    def test_p1_review_required_but_no_packet_entry_is_excluded_not_unresolved(self) -> None:
+        """2026-08-25 지시서(a/final-integration-master-promotion) §3 정정 — P1 Draft
+        자체가 없는 행(REVIEW_REQUIRED인데 P1 패킷에 그 학과 행이 없음)은 "검토가
+        아직 안 끝났다"가 아니라 "이번 라운드 검토 범위 밖"이다(실측: 이번 연도
+        분류 REVIEW_REQUIRED 4,258건 중 374행 P1 패킷 범위 밖이 3,883건). 그래서
+        BLOCKED_P1_REVIEW_UNRESOLVED가 아니라 BLOCKED_EXCLUDED_FROM_INITIAL_
+        PROMOTION으로 막는다 — 여전히 Fail-Closed(자동 승인하지 않음)라는 결론은
+        그대로다."""
 
         row = _dept_row("dept_cs")
         cls = _cls_row(
@@ -496,7 +539,8 @@ class IndependentGateBlockingTest(unittest.TestCase):
         inputs_dict["classification_by_department"] = {"dept_cs": cls}
         inputs = self.inputs.__class__(**inputs_dict)
         result = evaluate_department(row, inputs)
-        self.assertEqual(result["blocked_reasons"], ["BLOCKED_P1_REVIEW_UNRESOLVED"])
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION"])
+        self.assertNotIn("BLOCKED_P1_REVIEW_UNRESOLVED", result["blocked_reasons"])
 
     def _p1_review_required_inputs(
         self, *, judgment_evidence_sufficient: bool = True, candidate_canonical_major_ids: list[str] | None = None,
@@ -559,17 +603,30 @@ class IndependentGateBlockingTest(unittest.TestCase):
         self.assertIn("BLOCKED_P1_REVIEW_UNRESOLVED", result["blocked_reasons"])
 
     def test_all_non_approve_p1_decisions_block(self) -> None:
-        """지시서 §6 "나머지 Decision은 모두 차단" — TBD/EXCLUDE_ARTS_RECOMMENDATION/
-        KEEP_UNMAPPED/NEEDS_OFFICIAL_CURRICULUM/REVISE_CANDIDATE/HOLD 전부 확인한다."""
+        """지시서(a/academyinfo-review-ui-p1-nce) §6 "나머지 Decision은 모두 차단" —
+        APPROVE_PROPOSED_CANDIDATE 외에는 전부 READY로 이어지지 않는다.
 
-        for decision in (
-            "TBD", "EXCLUDE_ARTS_RECOMMENDATION", "KEEP_UNMAPPED", "NEEDS_OFFICIAL_CURRICULUM",
-            "REVISE_CANDIDATE", "HOLD",
-        ):
+        2026-08-25 지시서(a/final-integration-master-promotion) §3 정정 — "모두
+        차단"은 여전히 참이지만, 어느 사유로 막히는지는 decision마다 다르게 구분
+        해야 한다("검수 완료 항목을 P1_REVIEW_UNRESOLVED로 집계하지 않는다"):
+        진짜 미결(TBD/REVISE_CANDIDATE/HOLD)만 BLOCKED_P1_REVIEW_UNRESOLVED,
+        예체능(EXCLUDE_ARTS_RECOMMENDATION)은 BLOCKED_ARTS_RECOMMENDATION,
+        검토 완료·이번 라운드 제외(KEEP_UNMAPPED/NEEDS_OFFICIAL_CURRICULUM)는
+        BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION."""
+
+        expected_reason_by_decision = {
+            "TBD": "BLOCKED_P1_REVIEW_UNRESOLVED",
+            "REVISE_CANDIDATE": "BLOCKED_P1_REVIEW_UNRESOLVED",
+            "HOLD": "BLOCKED_P1_REVIEW_UNRESOLVED",
+            "EXCLUDE_ARTS_RECOMMENDATION": "BLOCKED_ARTS_RECOMMENDATION",
+            "KEEP_UNMAPPED": "BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION",
+            "NEEDS_OFFICIAL_CURRICULUM": "BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION",
+        }
+        for decision, expected_reason in expected_reason_by_decision.items():
             with self.subTest(decision=decision):
                 row, inputs = self._p1_review_required_inputs(review_decision=decision)
                 result = evaluate_department(row, inputs)
-                self.assertIn("BLOCKED_P1_REVIEW_UNRESOLVED", result["blocked_reasons"])
+                self.assertIn(expected_reason, result["blocked_reasons"])
                 self.assertNotEqual(result["status"], "READY_FOR_PROMOTION")
 
     def test_no_p1_review_saved_at_all_blocks(self) -> None:
@@ -579,6 +636,30 @@ class IndependentGateBlockingTest(unittest.TestCase):
         self.assertEqual(result["p1_review_decision"], "TBD")
 
     def test_nce_unresolved_blocks_alone(self) -> None:
+        """진짜 미결(클러스터는 있지만 검수가 TBD)일 때만 BLOCKED_NCE_UNRESOLVED다
+        (2026-08-25 지시서 §3 — 클러스터 자체가 없는 경우는 별도 테스트에서 다룬다)."""
+
+        row = _dept_row("dept_cs")
+        cls = _cls_row(
+            "dept_cs", official_small_series_code=None, mapping_status="UNMAPPED",
+            decision_reason="공식 소계열이 미분류(N.C.E)라 근거가 없다",
+        )
+        cluster = AcademyInfoNceMiddleSeriesClusterEntry.model_validate(_nce_cluster_row("99", department_ids=["dept_cs"]))
+        inputs_dict = dict(self.inputs.__dict__)
+        inputs_dict["classification_by_department"] = {"dept_cs": cls}
+        inputs_dict["nce_middle_series_code_by_department"] = {"dept_cs": "99"}
+        inputs_dict["nce_clusters_by_code"] = {"99": cluster}
+        inputs_dict["nce_reviews"] = {}  # 검수 파일 자체가 없음 — decision은 기본값 TBD.
+        inputs = self.inputs.__class__(**inputs_dict)
+        result = evaluate_department(row, inputs)
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_NCE_UNRESOLVED"])
+
+    def test_nce_cluster_not_covered_by_review_scope_is_excluded_not_unresolved(self) -> None:
+        """2026-08-25 지시서 §3 정정 — 이번 연도 분류가 N.C.E로 표시했지만 24개
+        검수 완료 클러스터 어디에도 속하지 않는 행(실측 2,953건)은 "검토가 아직 안
+        끝났다"가 아니라 "이번 라운드 검토 범위 밖"이다 — BLOCKED_EXCLUDED_FROM_
+        INITIAL_PROMOTION으로 막는다."""
+
         row = _dept_row("dept_cs")
         cls = _cls_row(
             "dept_cs", official_small_series_code=None, mapping_status="UNMAPPED",
@@ -586,19 +667,28 @@ class IndependentGateBlockingTest(unittest.TestCase):
         )
         inputs_dict = dict(self.inputs.__dict__)
         inputs_dict["classification_by_department"] = {"dept_cs": cls}
+        inputs_dict["nce_middle_series_code_by_department"] = {}  # 어떤 클러스터에도 속하지 않음.
         inputs = self.inputs.__class__(**inputs_dict)
         result = evaluate_department(row, inputs)
-        self.assertEqual(result["blocked_reasons"], ["BLOCKED_NCE_UNRESOLVED"])
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION"])
+        self.assertNotIn("BLOCKED_NCE_UNRESOLVED", result["blocked_reasons"])
 
-    def test_nce_accept_as_review_candidate_still_blocks(self) -> None:
-        """2026-08-24 지시서 §7 핵심 — ACCEPT_GROUP_AS_REVIEW_CANDIDATE가 저장돼
-        있어도 학과 승격 승인이 아니다. 여전히 BLOCKED_NCE_UNRESOLVED이고
-        resolved_canonical_major_group_id는 절대 채워지지 않는다."""
+    def test_nce_accept_as_review_candidate_without_bridge_still_blocks(self) -> None:
+        """2026-08-25 지시서 §3 정정 — ACCEPT_GROUP_AS_REVIEW_CANDIDATE가 저장돼
+        있어도 그 자체로 학과 승격 승인이 되지는 않는다. 후보 Group에 아직 Bridge
+        Mapping이 승인한 EVIDENCED 서비스 Major가 없으면(이 테스트의 "law" Group —
+        `_GROUP_TO_MAJOR`에 없어 Bridge가 전혀 없다) BLOCKED_EXCLUDED_FROM_INITIAL_
+        PROMOTION으로 막힌다(추측 Mapping 금지) — resolved_canonical_major_group_id는
+        여전히 채워지지 않는다. (Bridge가 정확히 1개일 때 실제로 풀리는 성공 경로는
+        UiSavedReviewConsumedByDryRunTest가 별도로 검증한다.)"""
 
         row = _dept_row("dept_cs")
         cls = _cls_row(
             "dept_cs", official_small_series_code=None, mapping_status="UNMAPPED",
             decision_reason="공식 소계열이 미분류(N.C.E)라 근거가 없다",
+        )
+        cluster = AcademyInfoNceMiddleSeriesClusterEntry.model_validate(
+            _nce_cluster_row("99", department_ids=["dept_cs"], candidate_groups=[{"canonical_major_id": "law", "label": "법학"}])
         )
         nce_review = AcademyInfoNceMiddleSeriesReview(
             official_middle_series_code="99", decision="ACCEPT_GROUP_AS_REVIEW_CANDIDATE",
@@ -606,11 +696,12 @@ class IndependentGateBlockingTest(unittest.TestCase):
         inputs_dict = dict(self.inputs.__dict__)
         inputs_dict["classification_by_department"] = {"dept_cs": cls}
         inputs_dict["nce_middle_series_code_by_department"] = {"dept_cs": "99"}
+        inputs_dict["nce_clusters_by_code"] = {"99": cluster}
         inputs_dict["nce_reviews"] = {"99": nce_review}
         inputs = self.inputs.__class__(**inputs_dict)
         result = evaluate_department(row, inputs)
         self.assertEqual(result["status"], "BLOCKED")
-        self.assertIn("BLOCKED_NCE_UNRESOLVED", result["blocked_reasons"])
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION"])
         self.assertIsNone(result["resolved_canonical_major_group_id"])
         self.assertIsNone(result["resolved_canonical_major_id"])
         # 감사용 참고 필드에는 실제 판단이 남아 있다 — "왜 아직 막혔는지" 추적 가능.
@@ -618,18 +709,31 @@ class IndependentGateBlockingTest(unittest.TestCase):
         self.assertEqual(result["nce_review_decision"], "ACCEPT_GROUP_AS_REVIEW_CANDIDATE")
 
     def test_duplicate_id_blocks_alone(self) -> None:
-        row = _dept_row("dept_cs", duplicate_group_size=2)
-        result = evaluate_department(row, self.inputs)
+        """2026-08-25 지시서 §4 정정 — 유일 Key가 department_id에서 offering_id로
+        바뀌어, 이제 중복은 department_id 행의 duplicate_group_size가 아니라
+        offering_id_counts로 판정한다. 이 행의 offering_id를 직접 계산해
+        offering_id_counts에서 2로 주입해 진짜 충돌을 재현한다."""
+
+        row = _dept_row("dept_cs")
+        offering_id = generate_offering_id(row["schl_id"], row["source_schl_mjr_id"])
+        inputs_dict = dict(self.inputs.__dict__)
+        inputs_dict["offering_id_counts"] = {offering_id: 2}
+        inputs = self.inputs.__class__(**inputs_dict)
+        result = evaluate_department(row, inputs)
         self.assertEqual(result["blocked_reasons"], ["BLOCKED_DUPLICATE_ID"])
 
     def test_multiple_reasons_all_preserved(self) -> None:
         """복수 차단 사유 보존 — 첫 사유 하나만 남기지 않는다."""
 
         row = _dept_row(
-            "dept_cs", department_status="ABOLISHED", duplicate_group_size=3,
+            "dept_cs", department_status="ABOLISHED",
             recommendation_scope="OUT_OF_RECOMMENDATION_SCOPE", exclusion_reason="CONTRACT_DEPARTMENT",
         )
-        result = evaluate_department(row, self.inputs)
+        offering_id = generate_offering_id(row["schl_id"], row["source_schl_mjr_id"])
+        inputs_dict = dict(self.inputs.__dict__)
+        inputs_dict["offering_id_counts"] = {offering_id: 3}
+        inputs = self.inputs.__class__(**inputs_dict)
+        result = evaluate_department(row, inputs)
         self.assertEqual(
             result["blocked_reasons"],
             ["BLOCKED_CONTRACT_DEPARTMENT", "BLOCKED_DUPLICATE_ID", "BLOCKED_INACTIVE_STATUS"],
@@ -709,6 +813,7 @@ class UrlPolicyTest(unittest.TestCase):
         bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
         _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
         _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
+        _write_group_reviews(reviews_dir, _GROUP_CODES)
         self.root = root
         self.universe = universe
         self.reviews_dir = reviews_dir
@@ -781,12 +886,28 @@ class RealMasterAndReviewFilesUntouchedTest(unittest.TestCase):
     # 영원히 git-clean이어야 한다"가 아니다(Dry Run은 §8 "Master·API는 이 실행으로
     # 바뀌지 않는다"만 보장하면 된다 — Review 파일도 읽기만 한다). 그 5개만 제외
     # 하고 나머지는 여전히 무변경이어야 한다.
+    # 2026-08-25(a/final-integration-master-promotion §7)가 사용자 최종 결정("기존
+    # 코멘트로 수정 요청된 문항을 제외하고 수정 완료된 질문은 모두 통과")에 따라
+    # 12개 ContextPack 검수 상태 파일도 실제로 갱신했다 — 같은 이유로 허용 목록에
+    # 추가한다.
     _INTENTIONALLY_FINALIZED_REVIEW_FILES = (
         "data/reviews/canonical_major_group_review_status.jsonl",
         "data/reviews/canonical_major_group_bridge_review_status.json",
         "data/reviews/canonical_major_group_bridge_scope_review_status.jsonl",
         "data/reviews/academyinfo_p1_classification_review_status.jsonl",
         "data/reviews/academyinfo_nce_middle_series_review_status.jsonl",
+        "data/reviews/context_packs/art_design_review_status.json",
+        "data/reviews/context_packs/business_review_status.json",
+        "data/reviews/context_packs/cooking_review_status.json",
+        "data/reviews/context_packs/fashion_beauty_review_status.json",
+        "data/reviews/context_packs/history_humanities_review_status.json",
+        "data/reviews/context_packs/law_politics_review_status.json",
+        "data/reviews/context_packs/making_review_status.json",
+        "data/reviews/context_packs/science_review_status.json",
+        "data/reviews/context_packs/sports_review_status.json",
+        "data/reviews/context_packs/travel_review_status.json",
+        "data/reviews/context_packs/volunteer_review_status.json",
+        "data/reviews/context_packs/writing_review_status.json",
     )
 
     def test_real_review_files_unchanged(self) -> None:
@@ -874,6 +995,7 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
         bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
         _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
         _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
+        _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
         _write_jsonl(work_dir / "departments.normalized.jsonl", [_dept_row("dept_cs")])
@@ -904,8 +1026,14 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
         result = evaluate_department(_dept_row("dept_cs"), inputs)
         self.assertEqual(result["status"], "READY_FOR_PROMOTION")
 
-    def test_nce_ui_accept_does_not_flow_into_ready_for_promotion(self) -> None:
-        """같은 경로로 저장해도 N.C.E는 §7 규칙대로 절대 안 풀린다."""
+    def test_nce_ui_accept_flows_into_ready_when_bridge_is_unambiguous(self) -> None:
+        """2026-08-25 지시서(a/final-integration-master-promotion) §3 정정 — 이전
+        버전은 "N.C.E는 §7 규칙대로 절대 안 풀린다"고 단언했다. 실제 지시는
+        "ACCEPT_GROUP_AS_REVIEW_CANDIDATE는 그 후보 Group에 이미 Bridge Mapping이
+        승인한 EVIDENCED 서비스 Major가 정확히 1개일 때만" 그 뒤 Group/Bridge/Scope
+        Gate를 그대로 통과시킨다 — 이 시나리오(후보 Group 1개=computer_science,
+        FULL_GROUP이라 소계열 확인 불필요, Bridge 1개)가 정확히 그 경우라 이제는
+        READY_FOR_PROMOTION이 맞다."""
 
         root = self.root
         nce_row = _nce_cluster_row("99", department_ids=["dept_cs"])
@@ -914,6 +1042,54 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
         bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
         _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
         _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
+        _write_group_reviews(reviews_dir, _GROUP_CODES)
+
+        work_dir = root / "academyinfo_work" / "2025"
+        _write_jsonl(work_dir / "departments.normalized.jsonl", [_dept_row("dept_cs")])
+        _write_jsonl(
+            work_dir / "classification_results.jsonl",
+            [
+                _cls_row(
+                    "dept_cs", official_small_series_code=None, mapping_status="UNMAPPED",
+                    decision_reason="공식 소계열이 미분류(N.C.E)라 근거가 없다",
+                )
+            ],
+        )
+
+        nce_review_path = reviews_dir / "academyinfo_nce_middle_series_review_status.jsonl"
+        out = update_nce_middle_series_review(
+            "99", decision="ACCEPT_GROUP_AS_REVIEW_CANDIDATE", comment="UI에서 후보로 인정", resolution_note=None,
+            expected_revision=0, cluster_path=universe.nce_clusters_path, review_status_path=nce_review_path,
+        )
+        self.assertTrue(out.ok)
+
+        inputs = load_inputs(
+            data_dir=root, survey_year=2025, reviews_dir=reviews_dir,
+            group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
+            canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+            nce_clusters_path=universe.nce_clusters_path, nce_review_path=nce_review_path,
+        )
+        result = evaluate_department(_dept_row("dept_cs"), inputs)
+        self.assertEqual(result["status"], "READY_FOR_PROMOTION", result["blocked_reasons"])
+        self.assertEqual(result["resolved_canonical_major_id"], "computer_science")
+        self.assertEqual(result["nce_review_decision"], "ACCEPT_GROUP_AS_REVIEW_CANDIDATE")
+
+    def test_nce_ui_accept_blocked_when_no_bridge_or_ambiguous(self) -> None:
+        """§3 "후보 없음 또는 복수 Bridge면 초기 승격 제외" — 후보 Group이 아직
+        어떤 서비스 Major에도 Bridge Mapping이 없으면(0개), 승인 결정을 받았어도
+        BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION으로 막힌다(추측 Mapping 금지)."""
+
+        root = self.root
+        nce_row = _nce_cluster_row(
+            "99", department_ids=["dept_cs"],
+            candidate_groups=[{"canonical_major_id": "fine_arts_design", "label": "미술디자인"}],
+        )
+        universe = _build_universe(root, approved_group_ids=frozenset(_GROUP_CODES), nce_cluster_rows=[nce_row])
+        reviews_dir = root / "reviews"
+        bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
+        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
+        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
+        _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
         _write_jsonl(work_dir / "departments.normalized.jsonl", [_dept_row("dept_cs")])
@@ -942,8 +1118,8 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
         )
         result = evaluate_department(_dept_row("dept_cs"), inputs)
         self.assertEqual(result["status"], "BLOCKED")
-        self.assertIn("BLOCKED_NCE_UNRESOLVED", result["blocked_reasons"])
-        self.assertEqual(result["nce_review_decision"], "ACCEPT_GROUP_AS_REVIEW_CANDIDATE")
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION"])
+        self.assertNotIn("BLOCKED_NCE_UNRESOLVED", result["blocked_reasons"])
 
 
 class CleanCloneMissingInputTest(unittest.TestCase):
@@ -1025,24 +1201,22 @@ class CleanCloneMissingInputTest(unittest.TestCase):
 
 
 class RealVsFixtureRunDistinctionTest(unittest.TestCase):
-    """§10 "Fixture 검증과 실제 전국 실행을 완료 보고에서 구분" — 실제 저장소에
-    전국 규모 생성 입력이 없다는 사실 자체를 테스트로 남긴다. 이 사실이 참인 동안,
-    이 테스트 파일의 모든 READY_FOR_PROMOTION류 통과 테스트는 전부 합성
-    Fixture로만 검증된 것이지 실제 전국 데이터로 검증된 게 아니라는 뜻이다.
+    """§10 "Fixture 검증과 실제 전국 실행을 완료 보고에서 구분" — 이 파일의 나머지
+    READY_FOR_PROMOTION류 테스트가 합성 Fixture로만 검증된 것인지 실제 전국
+    데이터로도 검증된 것인지, 완료 보고 시점에 헷갈리지 않도록 그 사실을 테스트로
+    고정해둔다.
 
-    2026-08(a/final-mapping-review-closeout) 참고 — §8 "최종 Review 정본으로 전국
-    Dry Run을 실행"을 위해 실제로 대학알리미 API에서 377개 대학·36,866개 학과를
-    재수집하고 정규화·분류·전국 Dry Run까지 실행했다(완료 보고에 그 실측 결과를
-    남겼다). 그 두 생성 입력은 원래도 Git 제외 로컬 전용 산출물이라, 그 실행이 끝난
-    뒤 저장소를 이 테스트가 원래 전제하는 상태(생성 입력 없음)로 되돌렸다 — Dry
-    Run 자체의 증거(promotion_manifest.json/promotion_summary.json/.md, 입력
-    해시까지 포함된 커밋 대상 파일)는 그대로 남는다."""
+    2026-08-25(a/final-integration-master-promotion) 갱신 — §2 확정 Snapshot(SHA-256
+    검증 완료, 대학알리미 API 재호출 없음)으로 §5 전국 Dry Run과 §6 전국 Master
+    승격을 실제로 실행했다(완료 보고에 실측 결과를 남겼다). 두 생성 입력은 Git
+    제외 로컬 전용 산출물이라 그대로 남아 있다 — Dry Run 증거(promotion_manifest.
+    json/promotion_summary.json/.md)는 커밋 대상이다."""
 
-    def test_real_national_generation_inputs_are_absent_in_this_checkout(self) -> None:
+    def test_real_national_generation_inputs_are_present_for_this_integration_round(self) -> None:
         normalized = ROOT / "data" / "academyinfo_work" / "2025" / "departments.normalized.jsonl"
         classification = ROOT / "data" / "academyinfo_work" / "2025" / "classification_results.jsonl"
-        self.assertFalse(normalized.exists(), "실제 전국 정규화 결과가 있다 — 완료 보고에서 '실제 실행'으로 재분류해야 한다")
-        self.assertFalse(classification.exists(), "실제 전국 분류 결과가 있다 — 완료 보고에서 '실제 실행'으로 재분류해야 한다")
+        self.assertTrue(normalized.exists(), "실제 전국 정규화 결과가 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
+        self.assertTrue(classification.exists(), "실제 전국 분류 결과가 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
 
 
 class DeterminismTest(unittest.TestCase):
