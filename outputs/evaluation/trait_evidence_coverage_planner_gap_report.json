@@ -1,0 +1,1629 @@
+{
+  "alternatives": {
+    "A": [
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 2,
+          "SUFFICIENT": 1,
+          "SUPPORTED": 2,
+          "UNOBSERVED": 19
+        },
+        "scenario_key": "analytical",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.2,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.125,
+        "total_targeted_turns": 30,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 2,
+          "SUFFICIENT": 4,
+          "SUPPORTED": 2,
+          "UNOBSERVED": 16
+        },
+        "scenario_key": "mixed_cross_domain",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.2,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.375,
+        "total_targeted_turns": 24,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 5,
+          "SUFFICIENT": 0,
+          "SUPPORTED": 3,
+          "UNOBSERVED": 16
+        },
+        "scenario_key": "niche_interest",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.0,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.0,
+        "total_targeted_turns": 30,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 13,
+          "SUFFICIENT": 0,
+          "SUPPORTED": 8,
+          "UNOBSERVED": 3
+        },
+        "scenario_key": "coverage_maximizing",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.0,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.0,
+        "total_targeted_turns": 18,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      }
+    ],
+    "B": [
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 2,
+          "SUFFICIENT": 1,
+          "SUPPORTED": 2,
+          "UNOBSERVED": 19
+        },
+        "scenario_key": "analytical",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.2,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.125,
+        "total_targeted_turns": 30,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 3,
+          "SUFFICIENT": 3,
+          "SUPPORTED": 2,
+          "UNOBSERVED": 16
+        },
+        "scenario_key": "mixed_cross_domain",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.2,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.25,
+        "total_targeted_turns": 24,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 5,
+          "SUFFICIENT": 0,
+          "SUPPORTED": 3,
+          "UNOBSERVED": 16
+        },
+        "scenario_key": "niche_interest",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.0,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.0,
+        "total_targeted_turns": 30,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 13,
+          "SUFFICIENT": 0,
+          "SUPPORTED": 8,
+          "UNOBSERVED": 3
+        },
+        "scenario_key": "coverage_maximizing",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.0,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.0,
+        "total_targeted_turns": 18,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      }
+    ],
+    "C": [
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 3,
+          "SUFFICIENT": 2,
+          "SUPPORTED": 1,
+          "UNOBSERVED": 18
+        },
+        "scenario_key": "analytical",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.4,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.25,
+        "total_targeted_turns": 30,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 0
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 3,
+          "SUFFICIENT": 3,
+          "SUPPORTED": 2,
+          "UNOBSERVED": 16
+        },
+        "scenario_key": "mixed_cross_domain",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.2,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.25,
+        "total_targeted_turns": 24,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 12
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 5,
+          "SUFFICIENT": 0,
+          "SUPPORTED": 3,
+          "UNOBSERVED": 16
+        },
+        "scenario_key": "niche_interest",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.0,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.0,
+        "total_targeted_turns": 30,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 20
+      },
+      {
+        "backup_used_count": 0,
+        "coverage_status_breakdown": {
+          "CONFLICTED": 0,
+          "LIMITED": 13,
+          "SUFFICIENT": 0,
+          "SUPPORTED": 8,
+          "UNOBSERVED": 3
+        },
+        "scenario_key": "coverage_maximizing",
+        "top5_sufficient": false,
+        "top5_sufficient_fraction": 0.0,
+        "top8_sufficient": false,
+        "top8_sufficient_fraction": 0.0,
+        "total_targeted_turns": 18,
+        "trait_evidence_question_count": 35,
+        "wasted_slot_count": 6
+      }
+    ]
+  },
+  "baseline_personas": [
+    {
+      "anchor_by_context": {
+        "business": "feedback_reading",
+        "law_politics": "differing_claims",
+        "making": "assembling",
+        "science": "cause_exploring",
+        "sports": "individual_training"
+      },
+      "backup_used_count": 0,
+      "coverage_status_breakdown": {
+        "CONFLICTED": 0,
+        "LIMITED": 2,
+        "SUFFICIENT": 1,
+        "SUPPORTED": 2,
+        "UNOBSERVED": 19
+      },
+      "final_context_ids": [
+        "science",
+        "business",
+        "sports",
+        "law_politics",
+        "making"
+      ],
+      "routing_question_count": 5,
+      "scenario_key": "analytical",
+      "scenario_label": "분석형",
+      "stopped_by_planner_but_final_status_not_sufficient": [
+        "detail_orientation"
+      ],
+      "top5_sufficient": false,
+      "top5_sufficient_fraction": 0.2,
+      "top5_supported_or_better": false,
+      "top5_supported_or_better_fraction": 0.6,
+      "top8_sufficient": false,
+      "top8_sufficient_fraction": 0.125,
+      "top8_supported_or_better": false,
+      "top8_supported_or_better_fraction": 0.375,
+      "trait_evidence_question_count": 35,
+      "trait_termination": {
+        "aesthetic_sensitivity": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "audience_response_prediction": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "causal_analysis": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 2,
+          "final_frame_count": 1,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "challenge_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "change_adaptation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "collaboration_preference": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "creative_ideation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "detail_orientation": {
+          "coverage_status_at_stop_moment": "SUPPORTED",
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": 4,
+          "stopped_in_context": "making"
+        },
+        "emotional_interpretation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "immediate_execution": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "independent_judgment": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "information_comparison": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUFFICIENT",
+          "final_context_count": 2,
+          "final_frame_count": 4,
+          "final_primary_count": 4,
+          "final_related_count": 0,
+          "final_weight": 4.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "novelty_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_mediation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "pattern_finding": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 1,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "persistence_completion": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "personal_goal_priority": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "planning": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "systems_thinking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "tool_utilization": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "uncertainty_tolerance": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "verbal_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "visual_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        }
+      },
+      "wasted_slot_count_baseline_definition": 0
+    },
+    {
+      "anchor_by_context": {
+        "art_design": "direct_creation",
+        "cooking": "food_choice",
+        "game": "building_creation",
+        "law_politics": "differing_claims",
+        "science": "cause_exploring"
+      },
+      "backup_used_count": 0,
+      "coverage_status_breakdown": {
+        "CONFLICTED": 0,
+        "LIMITED": 3,
+        "SUFFICIENT": 3,
+        "SUPPORTED": 2,
+        "UNOBSERVED": 16
+      },
+      "final_context_ids": [
+        "game",
+        "cooking",
+        "law_politics",
+        "art_design",
+        "science"
+      ],
+      "routing_question_count": 5,
+      "scenario_key": "mixed_cross_domain",
+      "scenario_label": "혼합·교차형",
+      "stopped_by_planner_but_final_status_not_sufficient": [],
+      "top5_sufficient": false,
+      "top5_sufficient_fraction": 0.2,
+      "top5_supported_or_better": false,
+      "top5_supported_or_better_fraction": 0.4,
+      "top8_sufficient": false,
+      "top8_sufficient_fraction": 0.25,
+      "top8_supported_or_better": false,
+      "top8_supported_or_better_fraction": 0.5,
+      "trait_evidence_question_count": 35,
+      "trait_termination": {
+        "aesthetic_sensitivity": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "audience_response_prediction": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 1,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "causal_analysis": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUFFICIENT",
+          "final_context_count": 2,
+          "final_frame_count": 6,
+          "final_primary_count": 6,
+          "final_related_count": 0,
+          "final_weight": 6.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "challenge_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "change_adaptation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "collaboration_preference": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 1,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "creative_ideation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "detail_orientation": {
+          "coverage_status_at_stop_moment": "SUFFICIENT",
+          "coverage_status_final": "SUFFICIENT",
+          "final_context_count": 2,
+          "final_frame_count": 3,
+          "final_primary_count": 3,
+          "final_related_count": 0,
+          "final_weight": 3.0,
+          "retargeted_in_other_context_after_stop": true,
+          "stopped_at_turn_index": 10,
+          "stopped_in_context": "cooking"
+        },
+        "emotional_interpretation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "immediate_execution": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "independent_judgment": {
+          "coverage_status_at_stop_moment": "SUFFICIENT",
+          "coverage_status_final": "SUFFICIENT",
+          "final_context_count": 3,
+          "final_frame_count": 3,
+          "final_primary_count": 3,
+          "final_related_count": 0,
+          "final_weight": 3.0,
+          "retargeted_in_other_context_after_stop": true,
+          "stopped_at_turn_index": 13,
+          "stopped_in_context": "law_politics"
+        },
+        "information_comparison": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "novelty_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_mediation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "pattern_finding": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "persistence_completion": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "personal_goal_priority": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "planning": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "systems_thinking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 5,
+          "final_primary_count": 0,
+          "final_related_count": 5,
+          "final_weight": 2.5,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "tool_utilization": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "uncertainty_tolerance": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "verbal_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "visual_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        }
+      },
+      "wasted_slot_count_baseline_definition": 0
+    },
+    {
+      "anchor_by_context": {
+        "art_design": "direct_creation",
+        "cooking": "food_choice",
+        "fashion_beauty": "expression_choice",
+        "making": "assembling",
+        "travel": "companion_opinion"
+      },
+      "backup_used_count": 0,
+      "coverage_status_breakdown": {
+        "CONFLICTED": 0,
+        "LIMITED": 5,
+        "SUFFICIENT": 0,
+        "SUPPORTED": 3,
+        "UNOBSERVED": 16
+      },
+      "final_context_ids": [
+        "fashion_beauty",
+        "travel",
+        "cooking",
+        "art_design",
+        "making"
+      ],
+      "routing_question_count": 5,
+      "scenario_key": "niche_interest",
+      "scenario_label": "니치 관심형",
+      "stopped_by_planner_but_final_status_not_sufficient": [
+        "detail_orientation"
+      ],
+      "top5_sufficient": false,
+      "top5_sufficient_fraction": 0.0,
+      "top5_supported_or_better": false,
+      "top5_supported_or_better_fraction": 0.2,
+      "top8_sufficient": false,
+      "top8_sufficient_fraction": 0.0,
+      "top8_supported_or_better": false,
+      "top8_supported_or_better_fraction": 0.125,
+      "trait_evidence_question_count": 35,
+      "trait_termination": {
+        "aesthetic_sensitivity": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "audience_response_prediction": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "causal_analysis": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "challenge_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "change_adaptation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "collaboration_preference": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "creative_ideation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "detail_orientation": {
+          "coverage_status_at_stop_moment": "SUPPORTED",
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 1,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": true,
+          "stopped_at_turn_index": 3,
+          "stopped_in_context": "fashion_beauty"
+        },
+        "emotional_interpretation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 1,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "immediate_execution": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "independent_judgment": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "information_comparison": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "novelty_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_mediation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "pattern_finding": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "persistence_completion": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "personal_goal_priority": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "planning": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "systems_thinking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "tool_utilization": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "uncertainty_tolerance": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "verbal_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "visual_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        }
+      },
+      "wasted_slot_count_baseline_definition": 0
+    },
+    {
+      "anchor_by_context": {
+        "business": "feedback_reading",
+        "making": "assembling",
+        "media": "animation_webcontent",
+        "school_life": "academic_study",
+        "science": "cause_exploring"
+      },
+      "backup_used_count": 0,
+      "coverage_status_breakdown": {
+        "CONFLICTED": 0,
+        "LIMITED": 13,
+        "SUFFICIENT": 0,
+        "SUPPORTED": 8,
+        "UNOBSERVED": 3
+      },
+      "final_context_ids": [
+        "science",
+        "media",
+        "school_life",
+        "business",
+        "making"
+      ],
+      "routing_question_count": 5,
+      "scenario_key": "coverage_maximizing",
+      "scenario_label": "Coverage 최대화형",
+      "stopped_by_planner_but_final_status_not_sufficient": [
+        "creative_ideation"
+      ],
+      "top5_sufficient": false,
+      "top5_sufficient_fraction": 0.0,
+      "top5_supported_or_better": false,
+      "top5_supported_or_better_fraction": 0.6,
+      "top8_sufficient": false,
+      "top8_sufficient_fraction": 0.0,
+      "top8_supported_or_better": false,
+      "top8_supported_or_better_fraction": 0.5,
+      "trait_evidence_question_count": 35,
+      "trait_termination": {
+        "aesthetic_sensitivity": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 0,
+          "final_related_count": 1,
+          "final_weight": 0.5,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "audience_response_prediction": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "causal_analysis": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "challenge_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "change_adaptation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "collaboration_preference": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "creative_ideation": {
+          "coverage_status_at_stop_moment": "LIMITED",
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": true,
+          "stopped_at_turn_index": 2,
+          "stopped_in_context": "business"
+        },
+        "detail_orientation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 1,
+          "final_related_count": 1,
+          "final_weight": 1.5,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "emotional_interpretation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "immediate_execution": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "independent_judgment": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "information_comparison": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "novelty_seeking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 0,
+          "final_related_count": 2,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 1,
+          "final_related_count": 1,
+          "final_weight": 1.5,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "opinion_mediation": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "pattern_finding": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "persistence_completion": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 0,
+          "final_related_count": 1,
+          "final_weight": 0.5,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "personal_goal_priority": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "planning": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "SUPPORTED",
+          "final_context_count": 2,
+          "final_frame_count": 2,
+          "final_primary_count": 2,
+          "final_related_count": 0,
+          "final_weight": 2.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "systems_thinking": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 2,
+          "final_primary_count": 0,
+          "final_related_count": 2,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "tool_utilization": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "uncertainty_tolerance": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 0,
+          "final_related_count": 1,
+          "final_weight": 0.5,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "verbal_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "UNOBSERVED",
+          "final_context_count": 0,
+          "final_frame_count": 0,
+          "final_primary_count": 0,
+          "final_related_count": 0,
+          "final_weight": 0.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        },
+        "visual_expression": {
+          "coverage_status_at_stop_moment": null,
+          "coverage_status_final": "LIMITED",
+          "final_context_count": 1,
+          "final_frame_count": 1,
+          "final_primary_count": 1,
+          "final_related_count": 0,
+          "final_weight": 1.0,
+          "retargeted_in_other_context_after_stop": false,
+          "stopped_at_turn_index": null,
+          "stopped_in_context": null
+        }
+      },
+      "wasted_slot_count_baseline_definition": 0
+    }
+  ],
+  "comparison": {
+    "A": {
+      "top5_sufficient_fraction_avg": 0.1,
+      "top5_sufficient_rate": 0.0,
+      "top8_sufficient_fraction_avg": 0.125,
+      "top8_sufficient_rate": 0.0,
+      "total_trait_evidence_questions": 140,
+      "total_wasted_slots": 0
+    },
+    "B": {
+      "top5_sufficient_fraction_avg": 0.1,
+      "top5_sufficient_rate": 0.0,
+      "top8_sufficient_fraction_avg": 0.09375,
+      "top8_sufficient_rate": 0.0,
+      "total_trait_evidence_questions": 140,
+      "total_wasted_slots": 0
+    },
+    "C": {
+      "top5_sufficient_fraction_avg": 0.15000000000000002,
+      "top5_sufficient_rate": 0.0,
+      "top8_sufficient_fraction_avg": 0.125,
+      "top8_sufficient_rate": 0.0,
+      "total_trait_evidence_questions": 140,
+      "total_wasted_slots": 38
+    },
+    "D_supported_headline": {
+      "note": "재실행 없음 — Baseline과 완전히 동일한 실행, SUPPORTED 이상을 헤드라인으로 재집계.",
+      "top5_fraction_avg": 0.45,
+      "top8_fraction_avg": 0.375,
+      "total_trait_evidence_questions": 140
+    },
+    "baseline": {
+      "top5_sufficient_fraction_avg": 0.1,
+      "top5_sufficient_rate": 0.0,
+      "top5_supported_or_better_fraction_avg": 0.45,
+      "top8_sufficient_fraction_avg": 0.09375,
+      "top8_sufficient_rate": 0.0,
+      "top8_supported_or_better_fraction_avg": 0.375,
+      "total_trait_evidence_questions": 140
+    }
+  },
+  "flow": "실제 4+1 세션(관심도 15개 → 선호 4개 → Contrast 1개 → 최종 5개 → Context마다 Routing 1개·Anchor 1개·Seed 1개·Adaptive Tail 4~6개). ENABLE_CONTEXT_SELECTION_4_PLUS_1이 네이티브로 배선돼 있어 실제 /assessment/context-select·/assessment/context-confirm Endpoint를 우회 없이 그대로 호출한다(a/trait-evidence-coverage-shadow 라운드와 다른 점 — 그때는 main.py가 아직 2/3 하드코딩이라 순수 함수를 직접 불러야 했다).",
+  "note": "생성 시각·메모리 값 없음 — byte-identical 재실행. data/reviews/는 이 스크립트가 읽지도 쓰지도 않는다(12개 Pack·공용 Adaptive Probe 승인은 전부 tempfile Fixture).",
+  "planner_and_coverage_definitions": {
+    "coverage_sufficient_condition": {
+      "min_context_count": 2,
+      "min_directional_consistency": 0.7,
+      "min_effective_weight": 3.0,
+      "min_frame_count": 2,
+      "min_primary_count": 2
+    },
+    "planner_gap_condition": "opportunity_count==0 또는 support_count<2 (Context 단위, select_pack_adaptive_target._is_evidence_gap, 수정 안 함)",
+    "structural_mismatch": "Primary 2개만으로는 weight가 정확히 2.0 — SUFFICIENT의 weight>=3.0을 못 넘는다. Planner는 support_count>=2에서 그 Context 안 목표를 내려놓으므로, 다른 Context에서 같은 Trait를 다시 목표 삼지 않는 한 weight는 2.0에서 멈춘다."
+  },
+  "recommendation": {
+    "caveat": "C도 24개 전체를 SUFFICIENT로 만들지 못한다(애초에 그게 목표가 아니다) — 상위 8개 밖의 Trait는 이 세션에서 UNOBSERVED/LIMITED에 머무를 수 있고, 이는 의도된 결과다(§5 '24개 전체를 SUFFICIENT로 만드는 것을 목표로 삼지 말 것'). 다만 낭비 슬롯 수는 C=38로 다른 대안보다 많다(§0 정의 — top_traits 안에서도 이미 SUFFICIENT인 Trait에 슬롯이 배정된 경우를 낭비로 센다. 참고: A=0, B=0) — 상위 Trait 안에서의 재확인 비용이 더 든다는 뜻이지, top_traits 밖으로 슬롯이 샌다는 뜻은 아니다.",
+    "chosen": "C",
+    "combined_top5_top8_fraction_avg_by_alt": {
+      "A": 0.1125,
+      "B": 0.096875,
+      "C": 0.1375,
+      "baseline": 0.096875
+    },
+    "justification": "(상위5 비율+상위8 비율)/2 결합 점수 실측값은 baseline(상위5 0.100/상위8 0.094/평균 0.097) → A(상위5 0.100/상위8 0.125/평균 0.113) → B(상위5 0.100/상위8 0.094/평균 0.097) → C(상위5 0.150/상위8 0.125/평균 0.138) 순으로, C가 가장 높다. Coverage 기준(weight>=3.0·Context>=2·Frame>=2) 자체는 세 대안 모두 전혀 완화하지 않았다 — 대안마다 바뀌는 건 Planner가 '무엇을 목표로 삼을지'뿐이고, 그 결과 같은 질문 예산(Context당 4~6개, Stop Condition 불변) 안에서 C가 상위 5~8개 Trait에 더 효과적으로 슬롯을 배분했다.",
+    "top5_sufficient_fraction_avg_by_alt": {
+      "A": 0.1,
+      "B": 0.1,
+      "C": 0.15000000000000002,
+      "baseline": 0.1
+    },
+    "top8_sufficient_fraction_avg_by_alt": {
+      "A": 0.125,
+      "B": 0.09375,
+      "C": 0.125,
+      "baseline": 0.09375
+    },
+    "total_wasted_slots_by_alt": {
+      "A": 0,
+      "B": 0,
+      "C": 38,
+      "baseline": null
+    }
+  }
+}
