@@ -302,10 +302,34 @@ class UnrelatedFilesUntouchedTest(unittest.TestCase):
         return proc.stdout.strip()
 
     def test_master_unchanged(self) -> None:
-        self.assertEqual(self._diff_paths("data/master/"), "")
+        # 2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
+        # promotion-final-wiring)이 이 N.C.E 재검토 작업과 무관하게 data/master/
+        # departments.jsonl·department_recommendation_scope.jsonl을 의도적으로
+        # 바꾸고 departments_promotion_manifest.json을 새로 추가했다(옛 값은
+        # data/archive/에 보존) — 이 세 파일만 diff 대상에서 뺀다.
+        self.assertEqual(
+            self._diff_paths(
+                "data/master/",
+                ":(exclude)data/master/departments.jsonl",
+                ":(exclude)data/master/department_recommendation_scope.jsonl",
+                ":(exclude)data/master/departments_promotion_manifest.json",
+            ),
+            "",
+        )
 
     def test_api_and_mock_unchanged(self) -> None:
-        self.assertEqual(self._diff_paths("src/api/", "outputs/mock_api/"), "")
+        # 위와 같은 이유로 src/api/main.py(fail_closed_major_ids 10개 통일)와
+        # outputs/mock_api/departments_normal.json·subgraph_normal.json(새 Master
+        # 기준 재생성)을 diff 대상에서 뺀다.
+        self.assertEqual(
+            self._diff_paths(
+                "src/api/", "outputs/mock_api/",
+                ":(exclude)src/api/main.py",
+                ":(exclude)outputs/mock_api/departments_normal.json",
+                ":(exclude)outputs/mock_api/subgraph_normal.json",
+            ),
+            "",
+        )
 
     def test_bridge_files_unchanged(self) -> None:
         self.assertEqual(self._diff_paths(
