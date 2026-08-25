@@ -1,4 +1,5 @@
-"""정적 Knowledge Subgraph 생성 — 2026-08-25 지시서(a/subgraph-rag-frontend-38-majors) §1.
+"""정적 Knowledge Subgraph 생성 — 2026-08-25 지시서(a/subgraph-rag-frontend-38-majors §1,
+a/final-39-major-integration §5 최종 재생성).
 
 `src/services/knowledge_subgraph_service.py`(Runtime, 세션별 동적 Subgraph)를 건드리지
 않는다 — "Runtime 중앙 파일 수정 금지". 이 스크립트는 그 파일과 완전히 별개로,
@@ -11,6 +12,34 @@ docstring에 있다.
 추천 점수는 어디에도 저장하지 않는다(지시서 §1). 모든 Edge는 evidence_refs를
 최소 1개 갖는다 — Schema의 `model_validator`가 강제하므로, 근거 없는 Edge를 만들면
 이 스크립트 실행 자체가 즉시 실패한다(Fail-Fast).
+
+## 2026-08-25 재생성(a/final-39-major-integration) — 입력을 최종 병합본으로 교체
+
+최초 버전(a/subgraph-rag-frontend-38-majors)은 그 시점에 있던 데이터만 썼다 —
+Trait→Major는 `major_trait_mapping_evidence_v2.jsonl`의 EVIDENCED 3개 Major뿐이었고
+(나머지 36개는 Major→Group으로만 고아를 면했다), Department는 옛 1,072건·8개 Major,
+Subject는 옛 `subjects.jsonl` 18개·`subject_major_link_evidence.jsonl` 16행이었다.
+
+4개 upstream 브랜치(Profile v2·Subject Mapping v2·전국 학과 38개 재분류·이 Subgraph
+자신)가 전부 병합된 지금은 그 산출물을 "최종값"으로 보지 않는다(지시서 §5 명시) —
+다음처럼 전부 최종 정본으로 바꿨다.
+
+- **Trait→Major**: `data/master/major_profiles_v2.jsonl`(39개 Major 전부, 4개
+  Vector Group)의 0이 아닌 모든 (trait_id, major_id) 쌍. evidence_refs는 그 Profile
+  행의 `source_ids`(이미 실제 공식 데이터 포털 URL) 그대로 — Major→Group과 마찬가지로
+  "이미 있는 관계를 그대로 옮긴 것"이라 지어낸 게 아니다. 이제 39개 Major 전부가
+  이 Edge만으로도 고아가 아니다(Major→Group은 38개 FULL_GROUP Major에 여전히 추가
+  근거로 남긴다 — 있어서 나쁠 게 없는 추가 grounding이다).
+- **Major→Department**: `data/master/departments.jsonl`이 같은 경로에서 그대로
+  5,595건·38개 Major로 교체됐다 — 이 스크립트 코드는 바뀌지 않는다.
+- **Major→Subject**: `data/master/subject_major_link_evidence_v2.jsonl`(71건 RELATED,
+  35개 Major 정식 검토 근거)을 우선 쓰고, 거기 없는 4개 Major(education·hci_ux·
+  industrial_engineering·psychology)만 `data/master/subject_profiles_v2.jsonl`(41개
+  과목)의 related_major_ids + 그 과목 자신의 source_id로 보완한다 — 이전 버전과
+  같은 "정식 근거 우선, 없으면 과목 자체 근거로 보완" 원칙을 그대로 유지한다.
+  hci_ux는 이 41개 과목 중 "정보"·"소프트웨어와 생활" 2개에만 이미 연결돼 있고
+  (subject-mapping-38-majors 자체 테스트가 새 hci_ux 연결 0건을 보장), 이 스크립트가
+  새로 만들지 않는다.
 
 실행:
     PYTHONPATH=. ./.venv/bin/python scripts/career_build_knowledge_subgraph.py
@@ -38,9 +67,12 @@ TRAITS_PATH = ROOT / "data" / "master" / "trait_ontology_v2.jsonl"
 GROUPS_PATH = ROOT / "data" / "canonical_major_groups.draft.jsonl"
 BRIDGE_PATH = ROOT / "data" / "master" / "canonical_major_group_to_service_major_v2.jsonl"
 DEPARTMENTS_PATH = ROOT / "data" / "master" / "departments.jsonl"
-SUBJECTS_PATH = ROOT / "data" / "master" / "subjects.jsonl"
-TRAIT_MAJOR_EVIDENCE_PATH = ROOT / "data" / "master" / "major_trait_mapping_evidence_v2.jsonl"
-SUBJECT_MAJOR_EVIDENCE_PATH = ROOT / "data" / "master" / "subject_major_link_evidence.jsonl"
+MAJOR_PROFILES_PATH = ROOT / "data" / "master" / "major_profiles_v2.jsonl"
+SUBJECTS_PATH = ROOT / "data" / "master" / "subject_profiles_v2.jsonl"
+SUBJECT_MAJOR_EVIDENCE_PATH = ROOT / "data" / "master" / "subject_major_link_evidence_v2.jsonl"
+_VECTOR_GROUP_FIELDS = (
+    "interest_vector", "cognitive_vector", "work_style_vector", "environment_vector",
+)
 
 
 def _read_jsonl(path: Path) -> list[dict]:
@@ -95,22 +127,28 @@ def build_subject_nodes(subjects: list[dict]) -> list[StaticSubgraphNode]:
     ]
 
 
-def build_trait_to_major_edges(major_ids: set[str]) -> list[StaticSubgraphEdge]:
-    rows = [r for r in _read_jsonl(TRAIT_MAJOR_EVIDENCE_PATH) if r["mapping_status"] == "EVIDENCED"]
+def build_trait_to_major_edges(major_profiles: list[dict], major_ids: set[str]) -> list[StaticSubgraphEdge]:
+    """`major_profiles_v2.jsonl`(39개 Major 전부)의 0이 아닌 (trait_id, major_id) 쌍
+    전부를 Edge로 옮긴다 — 근거는 그 Profile 행 자신의 source_ids다."""
+
     edges = []
-    for row in sorted(rows, key=lambda r: (r["major_id"], r["trait_id"])):
-        if row["major_id"] not in major_ids:
+    for profile in sorted(major_profiles, key=lambda p: p["major_id"]):
+        if profile["major_id"] not in major_ids:
             continue
-        refs = sorted({ev["source_url"] for ev in row["evidence"]})
-        edges.append(
-            StaticSubgraphEdge(
-                source_node_id=f"trait_{row['trait_id']}",
-                target_node_id=f"major_{row['major_id']}",
-                relation_type="TRAIT_TO_MAJOR",
-                evidence_refs=refs,
-                mapping_version=row["mapping_version"],
+        trait_ids: set[str] = set()
+        for field in _VECTOR_GROUP_FIELDS:
+            trait_ids.update(profile[field])
+        refs = sorted(profile["source_ids"])
+        for trait_id in sorted(trait_ids):
+            edges.append(
+                StaticSubgraphEdge(
+                    source_node_id=f"trait_{trait_id}",
+                    target_node_id=f"major_{profile['major_id']}",
+                    relation_type="TRAIT_TO_MAJOR",
+                    evidence_refs=refs,
+                    mapping_version=profile["profile_version"],
+                )
             )
-        )
     return edges
 
 
@@ -153,10 +191,11 @@ def build_major_to_department_edges(departments: list[dict], major_ids: set[str]
 
 
 def build_major_to_subject_edges(subjects: list[dict], major_ids: set[str]) -> list[StaticSubgraphEdge]:
-    """근거 우선순위: 정식 검토를 거친 `subject_major_link_evidence.jsonl`의 RELATED
-    행이 있으면 그걸 쓰고, 없으면 `subjects.jsonl` 자체의 related_major_ids +
-    그 과목의 source_id(교육부 공식 교육과정)를 근거로 쓴다 — 둘 다 이미 committed된
-    실제 데이터라 어느 쪽도 지어낸 게 아니다."""
+    """근거 우선순위: 정식 검토를 거친 `subject_major_link_evidence_v2.jsonl`(71건,
+    35개 Major)의 RELATED 행이 있으면 그걸 쓰고, 거기 없는 4개 Major(education·
+    hci_ux·industrial_engineering·psychology)만 `subject_profiles_v2.jsonl` 자체의
+    related_major_ids + 그 과목의 source_id(교육부 공식 교육과정)를 근거로 쓴다 —
+    둘 다 이미 committed된 실제 데이터라 어느 쪽도 지어낸 게 아니다."""
 
     formal = {
         (r["major_id"], r["subject_id"]): r
@@ -197,6 +236,7 @@ def build() -> tuple[list[StaticSubgraphNode], list[StaticSubgraphEdge]]:
     groups_by_id = {g["canonical_major_id"]: g for g in _read_jsonl(GROUPS_PATH)}
     departments = _read_jsonl(DEPARTMENTS_PATH)
     subjects = _read_jsonl(SUBJECTS_PATH)
+    major_profiles = _read_jsonl(MAJOR_PROFILES_PATH)
 
     nodes = (
         build_trait_nodes()
@@ -206,7 +246,7 @@ def build() -> tuple[list[StaticSubgraphNode], list[StaticSubgraphEdge]]:
         + build_subject_nodes(subjects)
     )
     edges = (
-        build_trait_to_major_edges(major_ids)
+        build_trait_to_major_edges(major_profiles, major_ids)
         + build_major_to_group_edges(majors)
         + build_major_to_department_edges(departments, major_ids)
         + build_major_to_subject_edges(subjects, major_ids)

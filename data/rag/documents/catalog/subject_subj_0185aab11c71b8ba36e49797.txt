@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+경제 수학 과목
+
+활동 요약: 여러 경제 자료를 수학적으로 비교·분석하는 과목 목표
+Trait 연관: information_comparison, planning
+관련 서비스 Major: economics, trade_logistics
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

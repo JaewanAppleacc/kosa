@@ -2,8 +2,8 @@
 
 인간과 심리 과목
 
-활동 요약:
+활동 요약: 행동과 정서를 해석하는 과목 목표
 Trait 연관: audience_response_prediction, causal_analysis, emotional_interpretation
-관련 서비스 Major: education, psychology
+관련 서비스 Major: education, psychology, social_welfare
 대체 표기(별칭): 심리학, 인간과심리
 공식 출처: https://ncic.re.kr/mobile.kri.org4.inventoryList.do

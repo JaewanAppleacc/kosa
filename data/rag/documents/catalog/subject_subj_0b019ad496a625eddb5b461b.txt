@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+행성우주과학 과목
+
+활동 요약: 행성·항성 현상이 일어나는 원인을 물리 법칙으로 설명하는 활동
+Trait 연관: causal_analysis, information_comparison, pattern_finding
+관련 서비스 Major: physics_astronomy
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

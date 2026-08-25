@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+문학 과목
+
+활동 요약: 작품 속 사건이 전개되는 원인과 결과를 파악하는 활동
+Trait 연관: causal_analysis, emotional_interpretation, information_comparison
+관련 서비스 Major: humanities, korean_literature
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+기하 과목
+
+활동 요약: 평면·공간 도형에서 반복되는 성질을 찾아 증명하는 과목 목표
+Trait 연관: pattern_finding, tool_utilization, visual_expression
+관련 서비스 Major: civil_architecture, mechanical_engineering
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

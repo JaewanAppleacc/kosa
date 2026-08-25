@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+대수 과목
+
+활동 요약: 다항식·방정식·부등식에서 반복되는 구조를 찾아 일반화하는 과목 목표
+Trait 연관: information_comparison, pattern_finding
+관련 서비스 Major: mathematics_statistics
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

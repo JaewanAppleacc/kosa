@@ -4,6 +4,6 @@
 
 활동 요약: 변화 현상을 수학적으로 해석하는 활동
 Trait 연관: causal_analysis, pattern_finding
-관련 서비스 Major: computer_science, life_science, mechanical_engineering
+관련 서비스 Major: computer_science, life_science, mathematics_statistics, mechanical_engineering
 대체 표기(별칭): 미적분, 미적분 II, 미적분2
 공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

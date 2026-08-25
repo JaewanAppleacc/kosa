@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+기후변화와 지속가능한 세계 과목
+
+활동 요약: 기후변화를 일으키는 자연·인위적 원인을 자료로 규명하는 과목 목표
+Trait 연관: causal_analysis, opinion_mediation, planning
+관련 서비스 Major: agriculture_fisheries, earth_environment
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

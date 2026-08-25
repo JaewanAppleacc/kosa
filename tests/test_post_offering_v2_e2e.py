@@ -131,6 +131,17 @@ class PostOfferingV2FullFlowEndToEndTest(unittest.TestCase):
         pre_survey_core_ids = {
             item["subject_id"] for item in pre_survey["recommendations"] if item["category"] == "core"
         }
+        # 2026-08-25 지시서(a/final-39-major-integration) 정정 — Catalog가 39개 Major로
+        # 커지면서 이 고정 답변 패턴으로 선택되는 major_id가 바뀌었고("education"), 그
+        # 결과 PRE_SURVEY의 explore 카테고리 과목 중에도 실제로 미개설인 것이 나온다
+        # (예전엔 우연히 항상 다 개설돼 있어 이 경로가 한 번도 실행되지 않았다).
+        # `compute_post_offering_recommendations_v2`는 core뿐 아니라 explore 미개설
+        # 과목도 unavailable_subjects에 넣는다(Legacy
+        # `subject_matching_engine.compute_post_offering_recommendations()`와 동일한
+        # 절차 — 엔진 자체의 의도된 동작, 이 테스트가 잘못 좁혀서 검증하고 있었다).
+        pre_survey_explore_ids = {
+            item["subject_id"] for item in pre_survey["recommendations"] if item["category"] == "explore"
+        }
         for item in pre_survey["recommendations"]:
             self.assertIsNone(item["is_actually_offered"])
             self.assertIn(item["subject_id"], _ALL_SUBJECT_IDS)
@@ -175,7 +186,10 @@ class PostOfferingV2FullFlowEndToEndTest(unittest.TestCase):
 
         # 미개설 희망(core)이었던 과목은 unavailable_subjects로 정직하게 옮겨졌는지.
         unavailable_ids = {u["subject_id"] for u in post_offering["unavailable_subjects"]}
-        self.assertEqual(unavailable_ids, pre_survey_core_ids - set(confirmed_ids))
+        self.assertEqual(
+            unavailable_ids,
+            (pre_survey_core_ids | pre_survey_explore_ids) - set(confirmed_ids),
+        )
 
         # unresolved_candidates 유지 — unmatched 후보는 이번에도 사라지지 않는다.
         unmatched_candidates_from_upload = [c for c in candidates if c["matched_subject_id"] is None]

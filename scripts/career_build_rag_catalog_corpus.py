@@ -1,7 +1,16 @@
 """RAG 코퍼스 확장 — 39개 서비스 Major·학과·과목 공식 근거 (2026-08-25 지시서
-"38개 Major Knowledge Subgraph/RAG 재생성" §2). `career_build_rag_corpus.py`(기존
-KEDI 통계 1건 + 학과 샘플 5건)는 건드리지 않는다 — 이 스크립트는 그 파일의 출력을
-그대로 읽어 뒤에 새 항목만 더한다.
+"38개 Major Knowledge Subgraph/RAG 재생성" §2, a/final-39-major-integration §5 최종
+재생성). `career_build_rag_corpus.py`(기존 KEDI 통계 1건 + 학과 샘플 5건)는 건드리지
+않는다 — 이 스크립트는 그 파일의 출력을 그대로 읽어 뒤에 새 항목만 더한다.
+
+## 2026-08-25 재생성(a/final-39-major-integration) — 입력을 최종 병합본으로 교체
+
+최초 버전(a/subgraph-rag-frontend-38-majors)은 옛 1,072건·8개 Major
+`departments.jsonl`과 옛 18개 `subjects.jsonl`을 썼다. c/national-departments-38-majors·
+a/subject-mapping-38-majors가 병합된 지금은 그 산출물을 "최종값"으로 보지 않는다
+(지시서 §5 명시) — `departments.jsonl`은 같은 경로에서 5,595건·38개 Major로 이미
+교체됐고(이 스크립트 코드는 안 바뀐다), 과목 정본은 `subjects.jsonl`(18개, Legacy)
+대신 `subject_profiles_v2.jsonl`(41개, v2)로 바꿨다.
 
 ## 무엇을 새 문서로 만드는가, 무엇을 만들지 않는가
 
@@ -15,22 +24,24 @@ document_id로 충돌한다(`generate_document_id`는 URL 하나에 문서 하�
 포털 자체는 실제 출처이고, fragment는 "그 포털 안에서 이 Major를 가리킨다"는 앵커일
 뿐 새 URL을 지어내는 게 아니다.
 
-**학과** — `data/master/departments.jsonl` 1,072행 중 실제 개별 URL(`department_url`)이
+**학과** — `data/master/departments.jsonl` 5,595행 중 실제 개별 URL(`department_url`)이
 있는 19곳만 학과 단위 문서로 만든다(각 학과의 진짜 고유 출처가 있는 경우만). 나머지
-1,053곳은 전부 같은 포털(`https://www.academyinfo.go.kr/`)만 인용하고 있어, 그걸
+5,576곳은 전부 같은 포털(`https://www.academyinfo.go.kr/`)만 인용하고 있어, 그걸
 학과 수만큼 복제하면 "출처가 풍부해 보이지만 실제로는 같은 URL을 붙여넣기한" 상태가
 된다 — 그건 §27 정신(근거 없는 걸 있어 보이게 만들지 않는다)에 어긋난다. 대신 실제
-canonical_major_id가 잡힌 8개 Major마다 "이 Major에 연결된 학과 목록" 문서 1건을
+canonical_major_id가 잡힌 38개 Major마다 "이 Major에 연결된 학과 목록" 문서 1건을
 만든다 — 대학명·학과명·department_id·지역을 있는 그대로 나열만 하고(설명 문장을
-새로 짓지 않는다), 포털 URL에 `#{major_id}_departments` fragment를 붙여 Major별로
-구분한다. hci_ux는 어느 목록에도 없다 — 개별 학과 검토가 아직 없기 때문이다
-(rationale_c/08-service-canonical-major-v2.md의 hci_ux 절과 같은 이유).
+새로 짓지 않는다, 8줄씩 빈 줄로 묶어 Chunk 크기 상한을 지킨다), 포털 URL에
+`#{major_id}_departments` fragment를 붙여 Major별로 구분한다. hci_ux는 어느 목록에도
+없다 — 개별 학과 검토가 아직 없기 때문이다(rationale_c/08-service-canonical-major-v2.md의
+hci_ux 절과 같은 이유).
 
-**과목(18개)** — `data/master/subjects.jsonl`의 label·activity_summary·trait_vector
-키·related_major_ids(39개 활성 Catalog에 있는 것만)를 그대로 옮기고, 같은 과목의
-표기 변형은 `data/master/subject_aliases.jsonl`에서 가져온다. source_id가 여러 과목
-사이에 겹치는 경우(교육부 같은 게시글 URL)가 있어 major와 같은 이유로 `#{subject_id}`
-fragment를 붙인다.
+**과목(41개)** — `data/master/subject_profiles_v2.jsonl`의 label·activity_summary·
+trait_vector 키·related_major_ids(39개 활성 Catalog에 있는 것만)를 그대로 옮기고,
+같은 과목의 표기 변형은 `data/master/subject_aliases.jsonl`(옛 18개 과목만 커버 —
+새 23개 과목은 별칭 없이 "(없음)"으로 정직하게 남는다)에서 가져온다. source_id가
+여러 과목 사이에 겹치는 경우(교육부 같은 게시글 URL)가 있어 major와 같은 이유로
+`#{subject_id}` fragment를 붙인다.
 
 ## 재생성
 
@@ -39,7 +50,7 @@ fragment를 붙인다.
 `career_build_rag_corpus.py`가 이미 쓴 `data/rag/sources.jsonl`을 줄 단위 그대로
 읽어 보존하고(재직렬화하지 않는다 — 기존 6줄이 한 바이트도 안 바뀐다), 새 문서만
 뒤에 덧붙인 뒤 전체 목록으로 `data/rag/manifest.jsonl`을 다시 만든다. 입력이 전부
-정적 정본이라 몇 번을 다시 돌려도 byte-identical하다.
+정적 정본이라 몇 번을 다시 돌려도, PYTHONHASHSEED가 달라도 byte-identical하다.
 """
 
 from __future__ import annotations
@@ -60,7 +71,7 @@ from src.services.service_canonical_major_v2_loader import (  # noqa: E402
 
 CATALOG_DOCS_DIR = DOCS_DIR / "catalog"
 DEPARTMENTS_PATH = ROOT / "data" / "master" / "departments.jsonl"
-SUBJECTS_PATH = ROOT / "data" / "master" / "subjects.jsonl"
+SUBJECTS_PATH = ROOT / "data" / "master" / "subject_profiles_v2.jsonl"
 SUBJECT_ALIASES_PATH = ROOT / "data" / "master" / "subject_aliases.jsonl"
 GROUPS_PATH = ROOT / "data" / "canonical_major_groups.draft.jsonl"
 
@@ -181,15 +192,25 @@ def build_department_sources() -> list[dict]:
             roster_by_major[major_id],
             key=lambda d: (d["university_name"], d["department_name"], d["department_id"]),
         )
+        # 8줄씩 빈 줄로 묶는다 — education처럼 500건이 넘는 Major는 한 줄(약
+        # 50~60자)씩만 잇달아 쌓으면 src/rag/chunk.py의 겹침(overlap) 재조립이
+        # chunk_size(700자)를 살짝 넘기는 경우가 실측된다(chunk.py는 공유
+        # Runtime 인프라라 이 라운드가 고치지 않는다). 8줄(약 400~500자)을 한
+        # 문단으로 묶으면 각 조각이 그 자체로 chunk_size보다 충분히 작아서
+        # 겹침 재조립이 넘칠 여지가 없다.
+        _ROSTER_BATCH_SIZE = 8
         body_lines = [
             f"{major_id} 전공에 연결된 학과 목록 ({len(rows)}개, 대학알리미 2025년 조사 기준)",
-            "",
         ]
-        for row in rows:
-            body_lines.append(
+        for batch_start in range(0, len(rows), _ROSTER_BATCH_SIZE):
+            batch = rows[batch_start : batch_start + _ROSTER_BATCH_SIZE]
+            paragraph_lines = [
                 f"- {row['university_name']} {row['department_name']} "
                 f"({row['region']}, {row['department_id']})"
-            )
+                for row in batch
+            ]
+            body_lines.append("")
+            body_lines.append("\n".join(paragraph_lines))
         header = "※ 학과 목록 정본 재게시 문서입니다(대학알리미 공식 데이터).\n\n"
         text_path = _write_document(
             f"department_roster_{major_id}", header, "\n".join(body_lines)

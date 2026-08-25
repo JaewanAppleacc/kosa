@@ -2,8 +2,8 @@
 
 물리학 과목
 
-활동 요약:
+활동 요약: 실험으로 원인-결과를 규명하는 과목 목표
 Trait 연관: causal_analysis, pattern_finding, tool_utilization
-관련 서비스 Major: computer_science, mechanical_engineering
+관련 서비스 Major: computer_science, electrical_electronic, mechanical_engineering, physics_astronomy, semiconductor_materials
 대체 표기(별칭): 물리, 물리학1, 물리학I
 공식 출처: https://ncic.re.kr/mobile.kri.org4.inventoryList.do

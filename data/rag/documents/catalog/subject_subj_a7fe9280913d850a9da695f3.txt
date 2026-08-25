@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+생활과학 탐구 과목
+
+활동 요약: 일상생활 속 과학적 원리를 실험으로 설명하는 활동
+Trait 연관: causal_analysis, information_comparison, tool_utilization
+관련 서비스 Major: clothing_housing, food_nutrition, health_science
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

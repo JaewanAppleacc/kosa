@@ -2,7 +2,7 @@
 
 통합과학1 과목
 
-활동 요약:
+활동 요약: 현상의 원리를 관찰·설명하는 공통과목 목표
 Trait 연관: causal_analysis, pattern_finding
 관련 서비스 Major: life_science, mechanical_engineering
 대체 표기(별칭): 과학, 통합과학

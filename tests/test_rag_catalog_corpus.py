@@ -85,19 +85,25 @@ class RealCorpusInvariantsTest(unittest.TestCase):
     def test_department_roster_covers_only_majors_with_real_department_data(self) -> None:
         roster_docs = [s for s in self.sources if s["document_type"] == "학과 목록(대학알리미 공식 데이터)"]
         covered = {doc["title"].split(" ")[0] for doc in roster_docs}
-        self.assertEqual(
-            covered,
-            {
-                "business_administration", "computer_science", "education",
-                "industrial_engineering", "life_science", "mechanical_engineering",
-                "media_communication", "psychology",
-            },
-        )
+        # 2026-08-25 지시서(a/final-39-major-integration) — c/national-departments-38-majors
+        # 병합 이후 departments.jsonl이 8개가 아니라 38개(Group 기반 FULL_GROUP Major
+        # 전부)를 커버한다. 하드코딩 대신 실제 마스터 파일에서 그대로 유도해, Master가
+        # 또 갱신돼도 이 테스트가 저절로 따라가게 한다.
+        departments_path = _REPO_ROOT / "data" / "master" / "departments.jsonl"
+        expected = {
+            json.loads(line)["canonical_major_id"]
+            for line in departments_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        }
+        self.assertEqual(covered, expected)
+        self.assertEqual(len(expected), 38)
         self.assertNotIn("hci_ux", covered, "hci_ux는 개별 학과 검토가 없어 학과 목록에 나오면 안 된다")
 
-    def test_exactly_18_subject_documents(self) -> None:
+    def test_exactly_41_subject_documents(self) -> None:
+        # 2026-08-25 지시서(a/final-39-major-integration) — subjects.jsonl(18개, Legacy)
+        # 대신 subject_profiles_v2.jsonl(41개, v2)을 최종 정본으로 쓴다.
         subject_docs = [s for s in self.sources if s["document_type"] == "과목 정보(교육부 공식 교육과정)"]
-        self.assertEqual(len(subject_docs), 18)
+        self.assertEqual(len(subject_docs), 41)
 
     def test_all_source_urls_are_globally_unique(self) -> None:
         urls = [s["source_url"] for s in self.sources]
@@ -139,6 +145,22 @@ class GenerationDeterminismTest(unittest.TestCase):
             cwd=_REPO_ROOT, capture_output=True, text=True,
         )
         self.assertEqual(before_status, proc_after.stdout, "재생성이 추적되지 않은 파일 변화를 남겼다")
+
+    def test_regeneration_is_independent_of_pythonhashseed(self) -> None:
+        """지시서(a/final-39-major-integration) §5 "서로 다른 PYTHONHASHSEED에서
+        byte-identical" — set/dict 순회가 출력 순서에 새어 들어가지 않는지 확인한다."""
+
+        before_sources = _SOURCES_PATH.read_bytes()
+        before_manifest = _MANIFEST_PATH.read_bytes()
+
+        result = subprocess.run(
+            ["./.venv/bin/python", "scripts/career_build_rag_catalog_corpus.py"],
+            cwd=_REPO_ROOT, capture_output=True, text=True,
+            env={"PYTHONPATH": ".", "PATH": "/usr/bin:/bin", "PYTHONHASHSEED": "999"},
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(before_sources, _SOURCES_PATH.read_bytes())
+        self.assertEqual(before_manifest, _MANIFEST_PATH.read_bytes())
 
 
 class OfflineRetrievalTest(unittest.TestCase):

@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+로봇과 공학세계 과목
+
+활동 요약: 센서·구동장치 등 공학 도구를 다뤄 로봇을 제작하는 과목 목표
+Trait 연관: causal_analysis, planning, tool_utilization
+관련 서비스 Major: electrical_electronic, mechanical_engineering, semiconductor_materials
+대체 표기(별칭): (없음)
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

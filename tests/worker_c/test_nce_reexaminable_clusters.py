@@ -309,6 +309,14 @@ class UnrelatedFilesUntouchedTest(unittest.TestCase):
         # data/archive/에 보존) — 이 세 파일만 diff 대상에서 뺀다.
         # 2026-08-25 Service Canonical Major v2(a/service-major-catalog-v2)도
         # 이 N.C.E 재검토 작업과 무관하게 새 파일 2개를 추가했다 — 같은 이유로 뺀다.
+        # 2026-08-25 39개 Major 최종 통합(a/final-39-major-integration)이 이 N.C.E
+        # 재검토 작업과 무관한 4개 upstream 브랜치(Profile v2·Subject Mapping v2·
+        # 전국 학과 38개 재분류)를 병합하며 추가·재분류한 파일들도 같은 이유로 뺀다 —
+        # major_profiles_v2.jsonl(a/major-profiles-v2-38), subject_profiles_v2.jsonl·
+        # subject_major_link_evidence_v2.jsonl·subject_trait_mapping_evidence_v2.jsonl
+        # (a/subject-mapping-38-majors), departments_promotion_manifest_38majors.json
+        # (c/national-departments-38-majors — departments.jsonl/department_recommendation_
+        # scope.jsonl는 이미 위에서 빠져 있다).
         self.assertEqual(
             self._diff_paths(
                 "data/master/",
@@ -317,6 +325,11 @@ class UnrelatedFilesUntouchedTest(unittest.TestCase):
                 ":(exclude)data/master/departments_promotion_manifest.json",
                 ":(exclude)data/master/service_canonical_majors_v2.jsonl",
                 ":(exclude)data/master/canonical_major_group_to_service_major_v2.jsonl",
+                ":(exclude)data/master/departments_promotion_manifest_38majors.json",
+                ":(exclude)data/master/major_profiles_v2.jsonl",
+                ":(exclude)data/master/subject_profiles_v2.jsonl",
+                ":(exclude)data/master/subject_major_link_evidence_v2.jsonl",
+                ":(exclude)data/master/subject_trait_mapping_evidence_v2.jsonl",
             ),
             "",
         )

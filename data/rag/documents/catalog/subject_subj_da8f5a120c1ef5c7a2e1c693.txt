@@ -4,6 +4,6 @@
 
 활동 요약: 경우의 수를 순열·조합으로 체계화하는 활동
 Trait 연관: pattern_finding
-관련 서비스 Major: computer_science, mechanical_engineering
+관련 서비스 Major: civil_architecture, computer_science, mathematics_statistics, mechanical_engineering
 대체 표기(별칭): 공통수학, 수학
 공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

@@ -152,13 +152,34 @@ class RealSubgraphInvariantsTest(unittest.TestCase):
         major_node_ids = {n.node_id for n in self.nodes if n.node_type == "Major"}
         self.assertNotIn("major_design", major_node_ids)
 
-    def test_trait_to_major_edges_only_reference_evidenced_rows(self) -> None:
+    def test_trait_to_major_edges_reflect_final_39_major_profiles(self) -> None:
+        """지시서(a/final-39-major-integration) §5 "TRAIT_TO_MAJOR가 최종 Profile
+        39개를 반영" — 옛 3개 Major(EVIDENCED 근거 파일 시절)만 남아 있으면 안 된다."""
+
         trait_edges = [e for e in self.edges if e.relation_type == "TRAIT_TO_MAJOR"]
         majors_with_trait_edges = {e.target_node_id.removeprefix("major_") for e in trait_edges}
-        self.assertEqual(
-            majors_with_trait_edges,
-            {"media_communication", "hci_ux", "industrial_engineering"},
-        )
+        self.assertEqual(majors_with_trait_edges, {m.major_id for m in self.majors})
+        for edge in trait_edges:
+            self.assertEqual(edge.mapping_version, "major_profile_v2.0")
+
+    def test_major_to_department_edges_reflect_final_5595_row_master(self) -> None:
+        """지시서 §5 "MAJOR_TO_DEPARTMENT가 최종 Master를 반영" — 옛 1,072건/8개
+        Major 산출물이 남아 있으면 안 된다."""
+
+        dept_edges = [e for e in self.edges if e.relation_type == "MAJOR_TO_DEPARTMENT"]
+        self.assertEqual(len(dept_edges), 5595)
+        majors_with_dept_edges = {e.source_node_id.removeprefix("major_") for e in dept_edges}
+        self.assertEqual(len(majors_with_dept_edges), 38)
+
+    def test_major_to_subject_edges_reflect_final_subject_mapping_v2(self) -> None:
+        """지시서 §5 "MAJOR_TO_SUBJECT가 최종 Subject Mapping을 반영" — 옛
+        subjects.jsonl(18개)·subject_major_link_evidence.jsonl(Legacy) 산출물이
+        남아 있으면 안 된다."""
+
+        subject_nodes = {n.node_id for n in self.nodes if n.node_type == "Subject"}
+        self.assertEqual(len(subject_nodes), 41, "과목 노드는 subject_profiles_v2.jsonl(41개) 기준이어야 한다")
+        subject_edges = [e for e in self.edges if e.relation_type == "MAJOR_TO_SUBJECT"]
+        self.assertTrue(all(e.target_node_id in subject_nodes for e in subject_edges))
 
 
 class GenerationDeterminismTest(unittest.TestCase):
@@ -186,17 +207,38 @@ class GenerationDeterminismTest(unittest.TestCase):
         )
         self.assertEqual(before_status, proc_after.stdout)
 
+    def test_regeneration_is_independent_of_pythonhashseed(self) -> None:
+        """지시서 §5 "서로 다른 PYTHONHASHSEED에서 byte-identical"."""
+
+        before_nodes = _NODES_PATH.read_bytes()
+        before_edges = _EDGES_PATH.read_bytes()
+
+        result = subprocess.run(
+            ["./.venv/bin/python", "scripts/career_build_knowledge_subgraph.py"],
+            cwd=_REPO_ROOT, capture_output=True, text=True,
+            env={"PYTHONPATH": ".", "PATH": "/usr/bin:/bin", "PYTHONHASHSEED": "999"},
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(before_nodes, _NODES_PATH.read_bytes())
+        self.assertEqual(before_edges, _EDGES_PATH.read_bytes())
+
 
 class RuntimeUntouchedTest(unittest.TestCase):
     """지시서 "Runtime 중앙 파일 수정 금지" — 이 작업이 다음 파일을 전혀 바꾸지 않았는지
-    origin/trait-vector-v2 대비 확인한다."""
+    origin/trait-vector-v2 대비 확인한다.
+
+    2026-08-25 갱신(a/final-39-major-integration, 5-way 병합) — a/major-profiles-v2-38이
+    이 Subgraph 브랜치 위에 합쳐지면서 `src/api/main.py`가 39개 MajorProfile 배선으로
+    실제로 바뀌었다(Major Matching/Course Upload 검증 — Knowledge Subgraph와 무관, git
+    diff로 직접 확인함). 그 작업 자체의 "Runtime 배선" 범위이므로 이 목록에서 뺀다 —
+    Subgraph가 실제로 절대 건드리면 안 되는 두 파일(Runtime의 세션별 동적 Subgraph
+    서비스·그 계약 Schema)만 계속 검사한다."""
 
     def test_runtime_wiring_files_have_zero_diff(self) -> None:
         proc = subprocess.run(
             [
                 "git", "diff", "--name-only", "origin/trait-vector-v2...HEAD", "--",
                 "src/services/knowledge_subgraph_service.py",
-                "src/api/main.py",
                 "src/schemas/graph.py",
             ],
             cwd=_REPO_ROOT, capture_output=True, text=True,
