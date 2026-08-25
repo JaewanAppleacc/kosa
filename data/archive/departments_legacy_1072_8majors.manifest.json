@@ -1,0 +1,8 @@
+{
+  "archive_path": "data/archive/departments_legacy_1072_8majors.jsonl",
+  "archived_at": "2026-08-25T00:08:05.642450+00:00",
+  "note": "2026-08-25 전국 학과 38개 서비스 Major 재분류(c/national-departments-38-majors) — 기존 8개 Major·1,072건 Master를 삭제하지 않고 읽기 전용으로 보존한다. 새 Production Master(38개 Major)와 절대 병합되지 않는다.",
+  "row_count": 1072,
+  "sha256": "4ffa17effb2e0a8e605d463b4c660fb95e014722978413861b27e8e1f74d5fc2",
+  "source_path": "data/master/departments.jsonl"
+}

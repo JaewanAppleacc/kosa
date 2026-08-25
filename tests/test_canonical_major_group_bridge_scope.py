@@ -476,7 +476,16 @@ class DepartmentCountsUnchangedTest(unittest.TestCase):
 
     def test_existing_national_results_unchanged_with_real_data(self) -> None:
         """2026-08-25 전국 학과 1,072건 전환 — 옛 데모 4/3/1/0 대신 실제 전국
-        기준값을 확인한다(archive에 옛 값은 그대로 보존돼 있다)."""
+        기준값을 확인한다(archive에 옛 값은 그대로 보존돼 있다).
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 —
+        industrial_engineering만 53→100으로 갱신한다: 이 라운드가 Group→Major
+        연결을 옛 Bridge Mapping/Scope Review(소계열 102만 포함하던 INCLUDED_
+        SMALL_SERIES_ONLY 제한)에서 Service Canonical Major v2 Bridge(Group
+        하나당 정확히 한 확정 행, 소계열 Scope 제한 없음)로 바꿨다 —
+        industrial_engineering Group의 공식 소계열 102/103/104가 전부 포함된다.
+        media_communication/hci_ux/design은 이 Group에 소계열 제한이 없었으므로
+        그대로다."""
         from src.engines.canonical_mapper import load_canonical_majors
         from src.repositories.department_repository import JsonlDepartmentRepository
         from src.services.canonical_major_group_bridge_loader import DEFAULT_CANONICAL_MAJORS_PATH
@@ -485,7 +494,7 @@ class DepartmentCountsUnchangedTest(unittest.TestCase):
         repo = JsonlDepartmentRepository()
         service = MajorExplorationService(repo)
         self.assertEqual(len(service.list_departments_for_major("media_communication")), 133)
-        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 53)
+        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 100)
         self.assertEqual(len(service.list_departments_for_major("hci_ux")), 0)
         self.assertEqual(len(service.list_departments_for_major("design")), 0)
         self.assertEqual(len(load_canonical_majors(DEFAULT_CANONICAL_MAJORS_PATH)), 10)

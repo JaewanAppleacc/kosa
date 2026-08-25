@@ -4,6 +4,24 @@
 바꾸지 않는다.** 어떤 학과가 어떤 이유로 승격 가능하거나 차단되는지 **계산만** 한다
 (Fail-Closed — 검수 파일이 없으면 자동 승인하지 않고 해당 Gate를 BLOCKED로 계산한다).
 
+## 2026-08-25 지시서(c/national-departments-38-majors) 변경 요약
+
+기존 8개 서비스 Major(`data/master/canonical_majors.jsonl`)에만 연결되던 Group→Major
+Bridge를 39개 Service Canonical Major v2(`data/master/service_canonical_majors_v2.jsonl`
+FULL_GROUP 38 + DEPARTMENT_LEVEL_ONLY `hci_ux` 1) + 그 42개 Group 전부의 확정 Bridge
+(`data/master/canonical_major_group_to_service_major_v2.jsonl`, ACTIVE 38 + EXCLUDED_
+RECOMMENDATION 4, Group 누락 0)로 바꾼다. 이 v2 Bridge는 **이미 확정된 정본**이라
+(Schema에 `reviewer_1_status`/`TBD` 같은 필드 자체가 없다) 옛 Bridge Mapping/Scope
+사람 검수 두 단계(`canonical_major_group_bridge_review_status.json`/
+`..._scope_review_status.jsonl`, Key마다 EVIDENCED 후보가 몇 개인지 세던 방식)가 전부
+사라진다 — Group 하나당 정확히 한 행(ACTIVE엔 `service_major_id` 필수, EXCLUDED_
+RECOMMENDATION엔 금지)이라 "후보 0개/2개 이상" 모호함 자체가 구조적으로 없다.
+`hci_ux`는 어느 Group의 "기본 서비스 Major"도 아니므로(source_group_ids는 참고용 출처일
+뿐 소속 선언이 아니다) 이 Group 기반 파이프라인으로는 절대 도달하지 않는다 — 이번
+라운드는 그 개별 학과 단위 판정을 하지 않으므로 hci_ux는 항상 0건이다(지시서 "hci_ux는
+DEPARTMENT_LEVEL_ONLY" "computer_science Group 전체를 hci_ux로 연결 금지" "fine_arts_
+design 자동 연결 금지" 요구를 이 구조 자체가 만족한다 — 별도 코드가 필요 없다).
+
 ## 2026-08-25 지시서(a/final-integration-master-promotion) §3/§4 변경 요약
 
 1. **행 유일 Key가 `department_id`에서 `offering_id`로 바뀌었다**
@@ -39,13 +57,11 @@
   원격 학과를 `departments.normalized.jsonl`에 아예 넣지 않고 이 파일에만 남기므로, 이 파일이
   없으면 야간·원격 차단 사유를 계산할 수 없다 — 없어도 실패하지 않지만 그만큼 덜 본다)
 - `data/canonical_major_groups.draft.jsonl` (42개 Canonical Major Group Draft)
-- `data/master/canonical_major_group_bridge.draft.jsonl` (Bridge Mapping, Scope 필드 포함)
-- `data/master/canonical_majors.jsonl` (10개 서비스 Canonical Major)
-- `data/academyinfo_raw/<year>/codes/getCodeBySmallSeries.jsonl.gz` (Bridge Scope 소계열
-  코드 교차검증용 공식 코드표 — `canonical_major_group_bridge_loader.py`와 동일)
-- `data/reviews/canonical_major_group_bridge_review_status.json` (Bridge Mapping 사람 검수)
-- `data/reviews/canonical_major_group_bridge_scope_review_status.jsonl` (Bridge Scope 사람
-  검수 — 2026-08-24 시점 아직 존재하지 않는다. 없으면 전부 BLOCKED_BRIDGE_SCOPE_REVIEW)
+- `data/master/service_canonical_majors_v2.jsonl` (39개 Service Canonical Major v2 — 38
+  FULL_GROUP ACTIVE + `hci_ux` DEPARTMENT_LEVEL_ONLY ACTIVE)
+- `data/master/canonical_major_group_to_service_major_v2.jsonl` (42개 Group 전부의 확정
+  Bridge — ACTIVE 38 + EXCLUDED_RECOMMENDATION 4, Group 누락 0. 이미 확정된 정본이라
+  이 파일 자체에는 사람 검수 대기 상태가 없다)
 - `data/academyinfo_work/<year>/packets/p1_classification_review.jsonl` (P1 분류 REVIEW
   Draft 패킷, 374행, `academyinfo_p1_classification_loader.py`가 Fail-Fast로 읽는다 —
   검수 UI GET Endpoint와 같은 정본. 필수 — 없으면 종료 코드 2)
@@ -74,9 +90,9 @@
 department_status ∈ {EXISTING, NEW} · recommendation_scope=IN_RECOMMENDATION_SCOPE ·
 야간·원격·계약학과 아님 · 예체능 추천 제외 정책 통과 · N.C.E 미해결 아님 ·
 classification REVIEW 미해결 아님(그룹 충돌 + P1 예체능 애매 둘 다) · Canonical Major
-Group 검수 승인 · Bridge Mapping 승인 · Bridge Scope 승인 · Scope에 포함된 공식 소계열 ·
-서비스 Canonical Major 10개 중 하나로 연결 · 중복 department_id 없음 · 필수 대학알리미
-Lineage 존재 · URL 정책 통과.
+Group 검수 승인 · Service Canonical Major v2 Bridge가 이 Group을 ACTIVE로 확정(EXCLUDED_
+RECOMMENDATION이면 예체능 제외) · 39개 Service Canonical Major v2(ACTIVE) 중 하나로
+연결 · 중복 offering_id 없음 · 필수 대학알리미 Lineage 존재 · URL 정책 통과.
 
 하나라도 어긋나면 `promotion_blocked.jsonl`로 가고, **적용되는 모든 사유**를 보존한다
 (첫 번째 사유만 남기지 않는다). 다음 두 가지는 지시서가 준 12개 예시 밖에 추가한
@@ -91,31 +107,23 @@ Gate다(지시서 §3 "예:"가 예시일 뿐이라고 명시했으므로, 실�
   트랙이 막았는지 명확히 남긴다.
 - `BLOCKED_OUT_OF_RECOMMENDATION_SCOPE`: 야간·원격·계약학과 외의 알 수 없는 추천범위
   제외 사유(방어적 Fallback, 현재 데이터에서는 등장하지 않는다).
-- `BLOCKED_BRIDGE_EXCLUDED_RECOMMENDATION`: Bridge mapping_status가
-  EXCLUDED_RECOMMENDATION인데 예체능 4개 Group이 아닌 경우(방어적 Fallback).
 - `BLOCKED_URL_POLICY`: URL 감사에서 API Key 포함이 확인됐거나 `Department.department_url`
   자체 검증(§18)을 통과하지 못하는 URL.
-- `BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR`: 2026-08-24 지시서(a/academyinfo-review-ui-
-  p1-nce 정본 채택) §8 — "Bridge 후보 없음"과 "복수 후보"를 구분한다. 아래 "설계상 명시적
-  한계" 참고.
+- `BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR`: `classification_results.jsonl`의
+  `mapping_status == "AUTO_CANDIDATE"`가 애초에 후보 Group을 2개 이상 반환하는 경우
+  (분류 단계 자체의 모호함 — Group Bridge V2는 Group 하나당 정확히 한 행이라 이 모호함이
+  Bridge 단계에서는 더 이상 발생하지 않는다, 아래 참고).
 
-## Bridge 후보 없음 vs 복수 후보(지시서 §8, 2026-08-24)
+## Group→Service Major Bridge V2는 후보 모호함이 없다
 
-같은 Group에 서비스 Major로 이어지는 EVIDENCED Bridge 행이 몇 개인지에 따라 사유가
-갈린다 — 둘 다 자동으로 후보를 고르지 않고 막지만, 사람이 봐야 할 일이 다르다.
-
-- **0개** → `BLOCKED_NO_SERVICE_CANONICAL_MAJOR`: 이 Group을 어떤 서비스 Major에도
-  연결한 EVIDENCED 행이 아직 없다(UNMAPPED 전용이거나 Bridge가 이 Group을 다루지
-  않았다) — Bridge 자체를 새로 만들어야 한다.
-- **2개 이상** → `BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR`(예: 실제 데이터의
-  `computer_science` Group이 `computer_science`/`hci_ux` 두 Major 후보를 가짐 — 다만
-  실제로는 `hci_ux`가 REVIEW_REQUIRED라 지금 데이터에서는 해당 없음) — Bridge는 이미
-  있지만 이 Dry Run이 어느 쪽이 맞는지 자동으로 고르지 않는다. 개별 학과 교육과정
-  검토(`department_recommendation_scope.jsonl`류)로 넘긴다 — 이 Dry Run은 그 정본을
-  입력으로 쓰지 않는다(지시서가 나열한 입력 목록에 없다).
-
-`classification_results.jsonl`의 `mapping_status == "AUTO_CANDIDATE"`가 애초에 후보
-0개/2개 이상을 반환하는 경우도 같은 두 사유로 나눈다(분류 단계 자체의 모호함).
+옛 Bridge(`canonical_major_group_bridge.draft.jsonl`, `mapping_status` 여러 개 가능)와
+달리, `canonical_major_group_to_service_major_v2.jsonl`은 42개 Group 전부가 정확히 한
+행만 가진다 — ACTIVE는 `service_major_id` 정확히 1개, EXCLUDED_RECOMMENDATION은 0개.
+그래서 "Bridge 후보 0개/2개 이상"이라는 옛 구분 자체가 이 단계에서는 사라졌다(Group 자체가
+Bridge에 없는 경우만 방어적으로 `BLOCKED_NO_SERVICE_CANONICAL_MAJOR`로 남는다 — 42개
+Group 완전성 불변식이 지켜지는 한 실제로는 발생하지 않아야 한다). 남은 유일한 모호함은
+분류(classify) 단계 자체가 "이 학과가 어느 Group인지" 확신하지 못하는 경우
+(`BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR`, Group 후보 자체가 2개 이상)뿐이다.
 
 ## 설계상 명시적 한계(감사 필요 항목)
 
@@ -127,14 +135,13 @@ Gate다(지시서 §3 "예:"가 예시일 뿐이라고 명시했으므로, 실�
   각 출력 행의 `lineage_level`은 항상 `"ROW_IDENTITY_ONLY"`다 — 실제 여러 조사연도를
   비교해 같은 학과인지 확인하는 코드(`"CROSS_YEAR_LINEAGE_VERIFIED"`)는 이 저장소에
   아직 없고, 이 파일도 그 값을 만들지 않는다(2026-08-24 지시서 §9).
-- N.C.E(공식 소계열 미분류)로 걸린 학과는 N.C.E 검수 상태가 무엇이든(TBD든
-  `ACCEPT_GROUP_AS_REVIEW_CANDIDATE`든) 이 Dry Run 혼자서는 절대 READY_FOR_PROMOTION에
-  도달할 수 없다(2026-08-24 지시서 §7). `ACCEPT_GROUP_AS_REVIEW_CANDIDATE`는 "이
-  중계열에서 이 전공군을 검토 후보로 쓸 수 있다"는 1차 판단일 뿐, 그 중계열에 속한
-  학과들의 승격 승인이 아니다 — 학과 단위로 실제 교육과정을 확인하는 별도 Gate가
-  이 저장소에 생기기 전까지는 `BLOCKED_NCE_UNRESOLVED`가 항상 남는다(출력 행의
-  `nce_middle_series_code`/`nce_review_decision`은 감사·추적용 참고 필드일 뿐, 이
-  Gate 결과에 영향을 주지 않는다).
+- N.C.E(공식 소계열 미분류)로 걸린 학과는 N.C.E 검수 상태가 TBD/HOLD/
+  INSUFFICIENT_OFFICIAL_EVIDENCE(진짜 미결)나 REQUIRE_DEPARTMENT_LEVEL_REVIEW(검토는
+  끝났지만 이번 라운드는 제외)면 여전히 절대 READY_FOR_PROMOTION에 도달하지 않는다.
+  유일한 예외는 §3에 적은 대로 `ACCEPT_GROUP_AS_REVIEW_CANDIDATE`이면서 그 클러스터의
+  후보 Group 중 실제로 Group 승인·Bridge V2 ACTIVE까지 전부 통과하는 Group이 정확히
+  1개인 경우뿐이다(추측 없이 같은 Gate를 그대로 통과해야 한다) — "N.C.E는 절대
+  READY로 풀리지 않는다"는 예전 설명은 이제 정확하지 않다(위 §3 참고).
 """
 
 from __future__ import annotations
@@ -158,13 +165,9 @@ from src.schemas.academyinfo_nce_middle_series_cluster_review import AcademyInfo
 from src.schemas.academyinfo_p1_classification import AcademyInfoP1ClassificationEntry  # noqa: E402
 from src.schemas.academyinfo_p1_classification_candidate_review import AcademyInfoP1ClassificationReview  # noqa: E402
 from src.schemas.canonical_major_group import CanonicalMajorGroupDraft  # noqa: E402
-from src.schemas.canonical_major_group_bridge_review import (  # noqa: E402
-    CanonicalMajorGroupBridgeReview,
-    bridge_review_key,
-)
-from src.schemas.canonical_major_group_bridge_scope_review import CanonicalMajorGroupBridgeScopeReview  # noqa: E402
 from src.schemas.canonical_major_group_review import CanonicalMajorGroupReview  # noqa: E402
 from src.schemas.major import Department  # noqa: E402
+from src.schemas.service_canonical_major_v2 import CanonicalMajorGroupServiceMajorBridgeV2  # noqa: E402
 from src.services.academyinfo_nce_middle_series_cluster_loader import (  # noqa: E402
     DEFAULT_NCE_CLUSTER_PATH,
     load_nce_middle_series_clusters,
@@ -181,18 +184,17 @@ from src.services.academyinfo_p1_classification_review_store import (  # noqa: E
     load_p1_review_entries_by_key,
     p1_review_path as default_p1_review_path,
 )
-from src.services.canonical_major_group_bridge_loader import (  # noqa: E402
-    ARTS_EXCLUDED_GROUP_IDS,
-    BridgeValidationError,
-    load_canonical_major_group_bridge,
-)
 from src.services.canonical_major_group_draft_loader import load_canonical_major_groups_draft  # noqa: E402
 from src.services.canonical_major_group_review_store import (  # noqa: E402
     load_canonical_major_group_review_entries_by_key,
 )
 from src.services.department_url_promotion import resolve_department_url_for_promotion  # noqa: E402
-from src.services.major_exploration_service import EXCLUDED_RECOMMENDATION_MAJOR_IDS  # noqa: E402
-from src.engines.canonical_mapper import load_canonical_majors  # noqa: E402
+from src.services.service_canonical_major_v2_loader import (  # noqa: E402
+    DEFAULT_CANONICAL_MAJOR_GROUP_BRIDGE_V2_PATH,
+    DEFAULT_SERVICE_CANONICAL_MAJORS_V2_PATH,
+    load_canonical_major_group_to_service_major_bridge_v2,
+    load_service_canonical_majors_v2,
+)
 
 # 지시서(a/academyinfo-review-ui-p1-nce, 이후 이 Dry Run이 그 정본을 채택하기로 한
 # 지시서) §9 — 연도 간 실제 대조 없이 이 값을 절대 쓰지 않는다. 지금 계산하는 것은
@@ -218,9 +220,6 @@ _NIGHT_REMOTE_EXCLUSION_REASONS = frozenset(
 ALL_BLOCKED_REASONS = (
     "BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR",
     "BLOCKED_ARTS_RECOMMENDATION",
-    "BLOCKED_BRIDGE_EXCLUDED_RECOMMENDATION",
-    "BLOCKED_BRIDGE_MAPPING_REVIEW",
-    "BLOCKED_BRIDGE_SCOPE_REVIEW",
     "BLOCKED_CLASSIFICATION_REVIEW",
     "BLOCKED_CONTRACT_DEPARTMENT",
     "BLOCKED_DUPLICATE_ID",
@@ -232,7 +231,6 @@ ALL_BLOCKED_REASONS = (
     "BLOCKED_NCE_UNRESOLVED",
     "BLOCKED_NIGHT_OR_REMOTE",
     "BLOCKED_NO_SERVICE_CANONICAL_MAJOR",
-    "BLOCKED_OUTSIDE_SMALL_SERIES_SCOPE",
     "BLOCKED_OUT_OF_RECOMMENDATION_SCOPE",
     "BLOCKED_P1_REVIEW_UNRESOLVED",
     "BLOCKED_URL_POLICY",
@@ -312,9 +310,10 @@ class DryRunInputs:
     classification_by_department: dict[str, dict[str, Any]]
     groups_by_id: dict[str, CanonicalMajorGroupDraft]
     group_reviews: dict[str, CanonicalMajorGroupReview]
-    bridge_entries_by_group: dict[str, list[Any]]
-    bridge_mapping_reviews: dict[str, CanonicalMajorGroupBridgeReview]
-    bridge_scope_reviews: dict[str, CanonicalMajorGroupBridgeScopeReview]
+    # 2026-08-25 지시서(c/national-departments-38-majors) — Group 하나당 정확히 한 행
+    # (canonical_major_group_id를 Key로 하는 dict, list가 아니다 — 옛 Bridge와 달리
+    # 후보가 여럿일 수 없다).
+    service_major_bridge_by_group: dict[str, CanonicalMajorGroupServiceMajorBridgeV2]
     # 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce 정본 채택) — Key를
     # candidate_id(P1)/official_middle_series_code(N.C.E)로 통일했다. 검수 UI의
     # PATCH Endpoint가 저장하는 파일과 정확히 같은 Key 규칙이라, 사람이 UI에서
@@ -353,11 +352,8 @@ def load_inputs(
     reviews_dir: Path | None = None,
     group_draft_path: Path | None = None,
     group_review_path: Path | None = None,
-    bridge_draft_path: Path | None = None,
-    small_series_code_table_path: Path | None = None,
-    canonical_majors_path: Path | None = None,
-    bridge_mapping_review_path: Path | None = None,
-    bridge_scope_review_path: Path | None = None,
+    service_canonical_majors_v2_path: Path | None = None,
+    canonical_major_group_bridge_v2_path: Path | None = None,
     p1_packet_path: Path | None = None,
     p1_review_path: Path | None = None,
     nce_clusters_path: Path | None = None,
@@ -433,38 +429,21 @@ def load_inputs(
     group_review_path = group_review_path or (reviews / "canonical_major_group_review_status.jsonl")
     group_reviews = load_canonical_major_group_review_entries_by_key(group_review_path)
 
-    try:
-        bridge_report = load_canonical_major_group_bridge(
-            bridge_draft_path,
-            group_draft_path=group_draft_path,
-            majors_path=canonical_majors_path,
-            small_series_code_table_path=small_series_code_table_path,
-        )
-    except BridgeValidationError as exc:
-        raise MissingRequiredInputError(f"Bridge Mapping/Scope 로딩·검증 실패: {exc}") from exc
-    bridge_entries_by_group: dict[str, list[Any]] = {}
-    for entry in bridge_report.entries:
-        bridge_entries_by_group.setdefault(entry.canonical_major_group_id, []).append(entry)
-
-    bridge_mapping_review_path = bridge_mapping_review_path or (
-        reviews / "canonical_major_group_bridge_review_status.json"
+    # 2026-08-25 지시서(c/national-departments-38-majors) — 옛 Bridge Mapping/Scope
+    # 사람 검수 두 단계를 이미 확정된 Service Canonical Major v2 Bridge로 대체한다(모듈
+    # docstring 참고). 이 Loader가 이미 Fail-Fast로 공식 Group 존재·중복 Key·예체능
+    # ACTIVE 금지를 강제하므로 여기서 다시 검증하지 않는다.
+    service_canonical_majors_v2_path = service_canonical_majors_v2_path or DEFAULT_SERVICE_CANONICAL_MAJORS_V2_PATH
+    canonical_major_group_bridge_v2_path = (
+        canonical_major_group_bridge_v2_path or DEFAULT_CANONICAL_MAJOR_GROUP_BRIDGE_V2_PATH
     )
-    bridge_mapping_reviews = {
-        bridge_review_key(row["canonical_major_group_id"], row.get("canonical_major_id")):
-            CanonicalMajorGroupBridgeReview.model_validate(row)
-        for row in read_json_list(bridge_mapping_review_path)
-    }
-    input_hashes["bridge_mapping_review"] = hash_or_missing(bridge_mapping_review_path)
-
-    bridge_scope_review_path = bridge_scope_review_path or (
-        reviews / "canonical_major_group_bridge_scope_review_status.jsonl"
+    valid_group_ids = frozenset(groups_by_id)
+    majors_v2 = load_service_canonical_majors_v2(service_canonical_majors_v2_path, valid_group_ids=valid_group_ids)
+    service_major_bridge_by_group = load_canonical_major_group_to_service_major_bridge_v2(
+        canonical_major_group_bridge_v2_path
     )
-    bridge_scope_reviews = {
-        bridge_review_key(row["canonical_major_group_id"], row.get("canonical_major_id")):
-            CanonicalMajorGroupBridgeScopeReview.model_validate(row)
-        for row in read_jsonl(bridge_scope_review_path)
-    }
-    input_hashes["bridge_scope_review"] = hash_or_missing(bridge_scope_review_path)
+    input_hashes["service_canonical_majors_v2"] = hash_or_missing(service_canonical_majors_v2_path)
+    input_hashes["canonical_major_group_to_service_major_v2"] = hash_or_missing(canonical_major_group_bridge_v2_path)
 
     # 2026-08-24 지시서(a/academyinfo-review-ui-p1-nce 정본 채택) — P1은 검수 UI가
     # 쓰는 바로 그 Loader/Store를 그대로 재사용한다(candidate_id 키, .jsonl 파일,
@@ -517,8 +496,7 @@ def load_inputs(
     input_hashes["department_url_scope_audit"] = hash_or_missing(url_audit_path)
     input_hashes["canonical_major_group_review"] = hash_or_missing(group_review_path)
 
-    majors = load_canonical_majors(canonical_majors_path or (data_dir / "master" / "canonical_majors.jsonl"))
-    service_major_ids = frozenset(m.major_id for m in majors)
+    service_major_ids = frozenset(m.major_id for m in majors_v2 if m.recommendation_status == "ACTIVE")
 
     return DryRunInputs(
         survey_year=survey_year,
@@ -526,9 +504,7 @@ def load_inputs(
         classification_by_department=classification_by_department,
         groups_by_id=groups_by_id,
         group_reviews=group_reviews,
-        bridge_entries_by_group=bridge_entries_by_group,
-        bridge_mapping_reviews=bridge_mapping_reviews,
-        bridge_scope_reviews=bridge_scope_reviews,
+        service_major_bridge_by_group=service_major_bridge_by_group,
         p1_draft_by_candidate_id=p1_draft_by_candidate_id,
         p1_draft_by_department_id=p1_draft_by_department_id,
         p1_reviews=p1_reviews,
@@ -687,12 +663,12 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
                     # N.C.E Schema의 5개 decision을 실제 뜻대로 구분한다("검수 완료
                     # 항목을 NCE_UNRESOLVED로 집계하지 않는다". "추측 Mapping 금지"):
                     #   ACCEPT_GROUP_AS_REVIEW_CANDIDATE → 그 클러스터의 후보 Group(들)
-                    #     중 "이미 Bridge Mapping이 승인한 EVIDENCED 서비스 Major"가
+                    #     중 Service Canonical Major v2 Bridge가 ACTIVE로 확정한 Group이
                     #     정확히 1개일 때만 resolved_group_id를 채운다(그 뒤로는
-                    #     AUTO_CANDIDATE와 완전히 같은 Group/Bridge/Scope Gate를
-                    #     그대로 통과해야 한다 — 지름길 없음, "추측 Mapping 금지").
+                    #     AUTO_CANDIDATE와 완전히 같은 Group/Bridge Gate를 그대로
+                    #     통과해야 한다 — 지름길 없음, "추측 Mapping 금지").
                     #     0개 또는 2개 이상이면 BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION
-                    #     ("후보 없음 또는 복수 Bridge면 초기 승격 제외").
+                    #     ("후보 없음 또는 복수 ACTIVE Group이면 초기 승격 제외").
                     #   REQUIRE_DEPARTMENT_LEVEL_REVIEW → BLOCKED_EXCLUDED_FROM_
                     #     INITIAL_PROMOTION(학과 단위 판단이 필요하다는 사람의 결론 —
                     #     이 Dry Run은 그 개별 판단을 대신하지 않는다).
@@ -717,13 +693,15 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
                         nce_review_decision = nce_review.decision if nce_review is not None else "TBD"
 
                         if nce_review_decision == "ACCEPT_GROUP_AS_REVIEW_CANDIDATE":
-                            approved_major_by_group: list[tuple[str, str]] = []
-                            for candidate in cluster.candidate_canonical_major_groups:
-                                for entry in inputs.bridge_entries_by_group.get(candidate.canonical_major_id, []):
-                                    if entry.mapping_status == "EVIDENCED":
-                                        approved_major_by_group.append((candidate.canonical_major_id, entry.canonical_major_id))
-                            if len(approved_major_by_group) == 1:
-                                resolved_group_id = approved_major_by_group[0][0]
+                            active_candidate_groups = [
+                                candidate.canonical_major_id
+                                for candidate in cluster.candidate_canonical_major_groups
+                                if (bridge_entry := inputs.service_major_bridge_by_group.get(candidate.canonical_major_id))
+                                is not None
+                                and bridge_entry.recommendation_status == "ACTIVE"
+                            ]
+                            if len(active_candidate_groups) == 1:
+                                resolved_group_id = active_candidate_groups[0]
                             else:
                                 reasons.add("BLOCKED_EXCLUDED_FROM_INITIAL_PROMOTION")
                         elif nce_review_decision == "REQUIRE_DEPARTMENT_LEVEL_REVIEW":
@@ -747,51 +725,22 @@ def evaluate_department(row: dict[str, Any], inputs: DryRunInputs) -> dict[str, 
         if group_review is None or group_review.decision != "APPROVE_AS_CLASSIFICATION_GROUP":
             reasons.add("BLOCKED_GROUP_DRAFT")
 
-        entries = inputs.bridge_entries_by_group.get(resolved_group_id, [])
-        evidenced = [e for e in entries if e.mapping_status == "EVIDENCED"]
-        excluded_entries = [e for e in entries if e.mapping_status == "EXCLUDED_RECOMMENDATION"]
-
-        if excluded_entries:
-            if resolved_group_id in ARTS_EXCLUDED_GROUP_IDS:
-                reasons.add("BLOCKED_ARTS_RECOMMENDATION")
-            else:
-                reasons.add("BLOCKED_BRIDGE_EXCLUDED_RECOMMENDATION")
-        elif len(evidenced) == 1:
-            entry = evidenced[0]
-            resolved_major_id = entry.canonical_major_id
-            key = bridge_review_key(resolved_group_id, resolved_major_id)
-
-            mapping_review = inputs.bridge_mapping_reviews.get(key)
-            if mapping_review is None or mapping_review.reviewer_1_status != "APPROVE":
-                reasons.add("BLOCKED_BRIDGE_MAPPING_REVIEW")
-
-            scope_review = inputs.bridge_scope_reviews.get(key)
-            if scope_review is None or scope_review.reviewer_1_status != "APPROVE":
-                reasons.add("BLOCKED_BRIDGE_SCOPE_REVIEW")
-
-            dept_small_series = (classification_row or {}).get("official_small_series_code")
-            if entry.scope_type == "INCLUDED_SMALL_SERIES_ONLY":
-                if dept_small_series not in entry.included_small_series_codes:
-                    reasons.add("BLOCKED_OUTSIDE_SMALL_SERIES_SCOPE")
-            elif entry.scope_type == "DEPARTMENT_REVIEW_REQUIRED":
-                reasons.add("BLOCKED_OUTSIDE_SMALL_SERIES_SCOPE")
-            # FULL_GROUP: classify()가 Group의 공식 소계열로만 후보를 만들었으므로
-            # 구조적으로 항상 포함된다 — 별도 확인이 필요 없다.
-
-            if resolved_major_id in EXCLUDED_RECOMMENDATION_MAJOR_IDS:
-                reasons.add("BLOCKED_ARTS_RECOMMENDATION")
-            elif resolved_major_id not in inputs.service_major_ids:
-                reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
-        elif len(evidenced) == 0:
-            # 2026-08-24 지시서 §8 — "Bridge 후보 없음"과 "복수 후보"를 구분한다.
-            # 0개: 이 Group을 어떤 서비스 Major에도 연결한 EVIDENCED 행이 없다
-            # (UNMAPPED 전용 행만 있거나 아직 Bridge가 이 Group을 다루지 않았다).
+        # 2026-08-25 지시서(c/national-departments-38-majors) — Service Canonical
+        # Major v2 Bridge는 Group 하나당 정확히 한 행이다(옛 Bridge의 EVIDENCED
+        # 0개/1개/2개 이상 구분이 이 단계에서는 더 이상 존재하지 않는다, 모듈
+        # docstring "Group→Service Major Bridge V2는 후보 모호함이 없다" 참고).
+        bridge_entry = inputs.service_major_bridge_by_group.get(resolved_group_id)
+        if bridge_entry is None:
+            # 42개 Group 완전성 불변식이 지켜지는 한 실제로는 도달하지 않아야
+            # 하는 방어적 경로다 — Group이 Bridge에 아예 없으면 이 Group을 어떤
+            # 서비스 Major에도 연결할 수 없다.
             reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
+        elif bridge_entry.recommendation_status == "EXCLUDED_RECOMMENDATION":
+            reasons.add("BLOCKED_ARTS_RECOMMENDATION")
         else:
-            # 2개 이상: 이 Dry Run은 어느 Major가 맞는지 자동으로 고르지 않는다
-            # (모듈 docstring "설계상 명시적 한계" 참고) — "후보가 없다"와는 다른
-            # 사유라 따로 구분해 사람이 무엇을 검토해야 하는지 명확히 남긴다.
-            reasons.add("BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR")
+            resolved_major_id = bridge_entry.service_major_id
+            if resolved_major_id not in inputs.service_major_ids:
+                reasons.add("BLOCKED_NO_SERVICE_CANONICAL_MAJOR")
 
     resolved_department_url: str | None = None
     audit_row = inputs.url_audit_by_department.get(department_id)
@@ -857,10 +806,11 @@ def build_summary(rows: list[dict[str, Any]], inputs: DryRunInputs) -> dict[str,
         for reason in row["blocked_reasons"]:
             reason_counts[reason] = reason_counts.get(reason, 0) + 1
 
-    # 현재 검수 상태(전부 TBD/미존재) 때문에만 막힌 건 — Group Draft·Bridge Mapping·
-    # Bridge Scope·P1·N.C.E 검수 관련 사유만 걸리고 다른 구조적 사유가 없는 행.
+    # 현재 검수 상태(전부 TBD/미존재) 때문에만 막힌 건 — Group Draft·P1·N.C.E 검수
+    # 관련 사유만 걸리고 다른 구조적 사유가 없는 행. Bridge V2는 이미 확정된 정본이라
+    # (사람 검수 대기 상태 자체가 없다) 더 이상 이 집합에 없다.
     review_only_reasons = {
-        "BLOCKED_GROUP_DRAFT", "BLOCKED_BRIDGE_MAPPING_REVIEW", "BLOCKED_BRIDGE_SCOPE_REVIEW",
+        "BLOCKED_GROUP_DRAFT",
         "BLOCKED_P1_REVIEW_UNRESOLVED", "BLOCKED_NCE_UNRESOLVED", "BLOCKED_CLASSIFICATION_REVIEW",
     }
     blocked_only_by_review_state = sum(
@@ -875,13 +825,15 @@ def build_summary(rows: list[dict[str, Any]], inputs: DryRunInputs) -> dict[str,
         "blocked_reason_counts": reason_counts,
         "blocked_only_by_current_review_state_count": blocked_only_by_review_state,
         "note": (
-            "2026-08-25(a/final-integration-master-promotion) 이후: Group 승인 정본은 "
+            "2026-08-25(c/national-departments-38-majors) 이후: Group→Major 연결은 "
+            "canonical_major_group_to_service_major_v2.jsonl(42개 Group 전부, ACTIVE 38 + "
+            "EXCLUDED_RECOMMENDATION 4, 이미 확정된 정본)만 쓴다 — 옛 Bridge Mapping/Scope "
+            "사람 검수 두 단계는 더 이상 이 Gate에 없다. Group 승인 정본은 여전히 "
             "canonical_major_group_review_status.jsonl의 decision(Draft의 정적 "
-            "review_status가 아니다), Bridge Mapping/Scope/P1/N.C.E는 각 검수 UI Store가 "
-            "실제로 저장한 값을 그대로 쓴다 — 검수가 실제로 끝나면 READY_FOR_PROMOTION이 "
-            "0보다 클 수 있다(0건도 여전히 계산 결과로서는 정상일 수 있다 — 그 경우 "
-            "차단 사유별 실제 원인을 이 요약에서 확인한다). Master·API는 이 Dry Run으로 "
-            "바뀌지 않는다."
+            "review_status가 아니다), P1/N.C.E는 각 검수 UI Store가 실제로 저장한 값을 "
+            "그대로 쓴다 — 검수가 실제로 끝나면 READY_FOR_PROMOTION이 0보다 클 수 있다"
+            "(0건도 여전히 계산 결과로서는 정상일 수 있다 — 그 경우 차단 사유별 실제 "
+            "원인을 이 요약에서 확인한다). Master·API는 이 Dry Run으로 바뀌지 않는다."
         ),
     }
 

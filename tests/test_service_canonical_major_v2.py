@@ -573,15 +573,17 @@ class ForbiddenScopeUntouchedTest(unittest.TestCase):
     후속 작업의 명시적 소유 범위(`src/api/main.py`의 Major Profile 로딩 구간,
     `matching_engine_v2.py`, `vertical_slice_major_profiles_v2.py` 자리를 대체한
     `service_major_profiles_v2.py`)는 더 이상 "이번 작업이 건드리면 안 되는" 파일이
-    아니다 — 그래서 세 항목을 이 목록에서 뺐다(Catalog 확정 라운드 자체의 범위
-    보장은 §5의 나머지 항목으로 여전히 지킨다). Legacy Matching·Department Master는
-    어느 라운드에서도 건드리지 않으므로 그대로 남긴다."""
+    아니다 — 그래서 이 목록에서 뺐다.
 
-    _FORBIDDEN_PATHS = (
-        "src/engines/matching_engine.py",
-        "data/master/departments.jsonl",
-        "data/master/department_recommendation_scope.jsonl",
-    )
+    2026-08-25 재갱신(a/final-39-major-integration, 5-way 병합) — c/national-
+    departments-38-majors(전국 학과 재분류)도 이 Catalog 위에 병합됐다. 그 작업의
+    명시적 소유 범위(`data/master/departments.jsonl`·
+    `department_recommendation_scope.jsonl`)도 더 이상 "건드리면 안 되는" 파일이
+    아니라 이 목록에서 뺀다 — 두 라운드 다 각자의 §5(자기 작업 자체의 금지 목록)는
+    이 테스트가 아니라 각 라운드 자신의 완료 시점에 이미 검증했다. 이 통합 브랜치가
+    실제로 절대 건드리지 않는 것은 Legacy(v1) Matching Engine 하나뿐이다."""
+
+    _FORBIDDEN_PATHS = ("src/engines/matching_engine.py",)
 
     def test_forbidden_paths_have_no_diff_from_merge_base_with_origin(self) -> None:
         merge_base = subprocess.run(
