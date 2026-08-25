@@ -46,6 +46,13 @@ MINIMUM_SCORE_FOR_HIGH_RELEVANCE = 0.6
 # 동일 임계값 0.67, §15 Rubric과 일치).
 NOTABLE_TRAIT_WEIGHT_THRESHOLD = 0.67
 
+# 2026-08-25 지시서(a/major-profiles-v2-38) §3 — 39개 Major 전체를 내부 계산 대상으로
+# 넓히면서, 학생에게 노출하는 카드 수까지 함께 늘리지 않기 위한 상한이다. 내부 계산
+# 자체(compute_major_match_v2)는 이 상수와 무관하게 여전히 39개 전부에 대해 수행된다 —
+# 이 상수는 rank_major_relevance_v2()가 반환하는 두 목록의 "길이"만 자른다.
+MAX_RELEVANT_MAJORS = 3
+MAX_EXPLORE_TOGETHER_MAJORS = 3
+
 INSUFFICIENT_EVIDENCE_MESSAGE_V2 = "아직 v2 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이 필요합니다."
 
 
@@ -153,7 +160,15 @@ def rank_major_relevance_v2(
     2026-08-24 A3 지시서 §6/§7: `descriptions_by_major_id`도 Legacy와 완전히 같은
     Fail-Fast 규칙을 따른다(`MissingMajorDescriptionError`) — 호출부는 Legacy와
     v2가 서로 다른 설명을 만들지 않도록 항상 같은 `CANONICAL_MAJOR_DESCRIPTIONS_BY_ID`
-    를 넘겨야 한다."""
+    를 넘겨야 한다.
+
+    2026-08-25 지시서(a/major-profiles-v2-38) §3 — `results`는 39개 전체에 대해
+    이미 계산된 값을 그대로 받는다(내부 계산은 39개 전부에 수행한다는 요구는
+    호출부가 39개 MajorProfile을 그대로 넘기는 것으로 충족된다). 이 함수는 그
+    결과를 사용자에게 보여줄 두 목록으로 좁히는 마지막 단계에서
+    `MAX_RELEVANT_MAJORS`/`MAX_EXPLORE_TOGETHER_MAJORS`로 자른다 — "근거가
+    제한적이면 관련성 높음으로 승격 금지"(위 `relevance_label_for`의 기존 방어)
+    로직보다 뒤에 적용해, 승격 방어를 우회해 카드 수만 늘리는 경로가 없게 한다."""
 
     computed = [r for r in results if r.status == "computed"]
     if not computed:
@@ -192,4 +207,10 @@ def rank_major_relevance_v2(
             relevant.append(item)
         else:
             explore_together.append(item)
-    return relevant, explore_together, None
+
+    # §3 "학생 API에는 과도한 카드가 나오지 않도록" — computed 순회 순서가 이미
+    # (-score, major_id) 정렬이라(위), 각 목록도 그 순서를 그대로 유지한 채 앞에서부터
+    # 자른다. 잘린 나머지는 그냥 버린다 — 다른 목록으로 옮기지 않는다(관련성 높음에서
+    # 넘친 항목을 함께 탐색으로 승격시키면 그 자체가 새로운 "관련성 높음" 승격 우회
+    # 경로가 된다).
+    return relevant[:MAX_RELEVANT_MAJORS], explore_together[:MAX_EXPLORE_TOGETHER_MAJORS], None

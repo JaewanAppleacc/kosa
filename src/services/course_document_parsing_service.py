@@ -212,11 +212,19 @@ class CourseDocumentParsingService:
         content: bytes,
         filename: str,
         content_type: str | None,
+        # 2026-08-25 지시서(a/major-profiles-v2-38) — PRIMARY Flag가 켜진 세션은
+        # v2 39개 Catalog로 major_id를 검증해야 한다(Legacy는 여전히 자기 자신의
+        # 3개 Vertical Slice 대표 전공만 안다 — v2가 39개로 늘어도 Legacy의
+        # `_selectable_major_ids`는 하나도 안 늘어난다). None이면(기본값, 하위
+        # 호환) 지금까지와 동일하게 Legacy로만 검증한다 — 업로드 Parser 자체
+        # (course_document_parser.py)는 이 변경과 여전히 무관하다.
+        v2_snapshot_entries: dict[str, TraitVectorEntry] | None = None,
     ) -> tuple[list[ParsedSubjectCandidate], list[CourseParseWarning]]:
         """§1/§2/§3 전체 흐름. 성공하면 새 `CoursePlanningSessionState`를 저장하고(§4
         "새 파일을 다시 업로드하면 이전 미확정 결과를 명시적으로 교체") 후보·경고 목록을
-        반환한다. `MajorNotSelectableError`/`CourseEvidenceNotReadyError`는 그대로
-        전파한다(main.py가 PRE_SURVEY 조회와 동일한 오류 코드로 매핑한다).
+        반환한다. `MajorNotSelectableError`/`CourseEvidenceNotReadyError`(또는 v2
+        세션이면 그 V2 버전)는 그대로 전파한다(main.py가 PRE_SURVEY 조회와 동일한
+        오류 코드로 매핑한다).
 
         검증 순서: 파일 자체의 구조적 문제(빈 파일·용량 초과·형식 불일치)를 먼저
         가볍게 걸러내고(상태 계산이 필요 없는 저렴한 검사), 그다음에 selected_major_id
@@ -234,7 +242,13 @@ class CourseDocumentParsingService:
         suffix = _validate_suffix_and_content_type(filename, content_type)
 
         # §2: PRE_SURVEY와 동일한 규칙으로 selected_major_id를 검증한다(로직 복제 없음).
-        self._course_planning_service.validate_selectable_major(state, selected_major_id)
+        # v2 PRIMARY 세션(v2_snapshot_entries가 주어짐)은 v2 전용 검증(39개 Catalog·v2
+        # Matching 결과 기준)을 쓴다 — Legacy 검증(3개 고정)을 v2 세션에 쓰면 이번에
+        # 확장된 36개 신규 Major가 전부 부당하게 거부된다.
+        if self._course_planning_service_v2 is not None and v2_snapshot_entries is not None:
+            self._course_planning_service_v2.validate_selectable_major(v2_snapshot_entries, selected_major_id)
+        else:
+            self._course_planning_service.validate_selectable_major(state, selected_major_id)
 
         # Path Traversal 방지: 사용자 filename은 여기까지만 쓰이고(확장자 판별), 실제
         # 임시 파일 경로는 tempfile이 전부 새로 만든다.

@@ -427,8 +427,13 @@ class ExistingMatchingAndMockUnaffectedTest(unittest.TestCase):
         # promotion-final-wiring)이 data/master/departments.jsonl을 의도적으로
         # 바꾼다 — 이 Bridge 작업 자체와는 무관한 변경이라 이 목록에서 뺀다(기존
         # 35건은 data/archive/departments_legacy_demo_35.jsonl로 보존됐다).
+        #
+        # 2026-08-25 추가 갱신(a/major-profiles-v2-38 병합) — major_profiles_v2.jsonl
+        # (당시 3개)은 그 후속 작업이 39개로 정당하게 확장하는 파일이라 같은 이유로
+        # 이 목록에서 뺐다(§ 위 departments.jsonl과 동일한 원칙 — 이 Bridge 작업
+        # 자체와 무관한, 다른 라운드의 의도된 변경).
         for rel_path in (
-            "data/master/canonical_majors.jsonl", "data/master/major_profiles_v2.jsonl",
+            "data/master/canonical_majors.jsonl",
         ):
             result = subprocess.run(
                 ["git", "diff", "--exit-code", "HEAD", "--", rel_path],

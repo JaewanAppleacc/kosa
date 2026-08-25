@@ -21,13 +21,16 @@ from fastapi.testclient import TestClient
 
 import src.api.main as main_module
 from src.api.main import app
+from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
 from src.repositories.subject_repository import load_subjects
 from src.tracing.tracer import Tracer
 
 client = TestClient(app)
 _ALL_SUBJECT_IDS = {s.subject_id for s in load_subjects()}
 _SUBJECT_LABEL_BY_ID = {s.subject_id: s.label for s in load_subjects()}
-_V2_MAJOR_IDS = {"media_communication", "hci_ux", "industrial_engineering"}
+# 2026-08-25 지시서(a/major-profiles-v2-38) — v2 Matching 후보가 3개에서 39개
+# Service Catalog 전체로 확장됐다.
+_V2_MAJOR_IDS = {m.major_id for m in SERVICE_MAJOR_PROFILES_V2}
 
 _FIXTURE_PATH = (
     Path(__file__).resolve().parents[1]

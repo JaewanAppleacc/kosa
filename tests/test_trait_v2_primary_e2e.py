@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient
 
 import src.api.main as main_module
 from src.api.main import app
+from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
 from src.repositories.subject_repository import load_subjects
 from src.tracing.tracer import Tracer
 
@@ -184,8 +185,13 @@ class PrimaryTrueV2PathTest(TraitV2PrimaryE2ETestBase):
         self.assertTrue(major_attrs)
         self.assertEqual(major_attrs[-1]["matching_engine_version"], "matching_engine_v2")
 
+        # 2026-08-25 지시서(a/major-profiles-v2-38) — v2 Matching 후보가 3개
+        # (media_communication/hci_ux/industrial_engineering)에서 39개 Service
+        # Catalog 전체로 확장됐다. 이 E2E는 "v2 Major Matching이 실제로 동작해
+        # 무언가를 추천한다"를 확인하는 것이 목적이지 특정 3개로 제한하는 것이
+        # 목적이 아니었다 — 39개 Catalog 전체를 허용 집합으로 넓힌다.
         selected_major_id = recommended[0]["major_id"]
-        self.assertIn(selected_major_id, {"media_communication", "hci_ux", "industrial_engineering"})
+        self.assertIn(selected_major_id, {m.major_id for m in SERVICE_MAJOR_PROFILES_V2})
 
         r = client.get(f"/subjects/{session_id}", params={"selected_major_id": selected_major_id})
         self.assertEqual(r.status_code, 200, r.text)

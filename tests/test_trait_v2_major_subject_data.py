@@ -11,7 +11,7 @@ from scripts.career_build_major_trait_mapping_evidence_v2 import TARGET_MAJOR_ID
 from scripts.career_build_major_trait_mapping_evidence_v2 import build as build_major_evidence_v2
 from scripts.career_build_subject_profiles_v2 import build as build_subject_profiles_v2
 from scripts.career_build_subject_trait_mapping_evidence_v2 import build as build_subject_evidence_v2
-from src.data.majors.vertical_slice_major_profiles_v2 import VERTICAL_SLICE_MAJOR_PROFILES_V2
+from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
 from src.data.trait_ontology.vertical_slice_traits import VERTICAL_SLICE_TRAIT_IDS
 from src.services.major_trait_mapping_evidence import load_major_trait_mapping_evidence
 from src.services.subject_trait_mapping_evidence import load_subject_trait_mapping_evidence
@@ -83,13 +83,19 @@ class MajorTraitMappingEvidenceV2Test(unittest.TestCase):
 
 
 class MajorProfilesV2Test(unittest.TestCase):
-    def test_three_majors_present(self) -> None:
-        self.assertEqual({p.major_id for p in VERTICAL_SLICE_MAJOR_PROFILES_V2}, set(MAJOR_LABELS))
+    """2026-08-25 지시서(a/major-profiles-v2-38) — 3개 고정 구조를 제거하고 39개
+    Service Catalog 전체를 다룬다. `MAJOR_LABELS`는 더 이상 3개 하드코딩이 아니라
+    39개 Service Catalog에서 그대로 가져온 값이다(career_build_major_profiles_v2.py)."""
+
+    def test_39_majors_present(self) -> None:
+        self.assertEqual(len(MAJOR_LABELS), 39)
+        self.assertEqual({p.major_id for p in SERVICE_MAJOR_PROFILES_V2}, set(MAJOR_LABELS))
 
     def test_vectors_do_not_force_fill_all_24_traits(self) -> None:
-        """§6 "24개 Trait를 억지로 모두 채우지 않음"."""
+        """§6 "24개 Trait를 억지로 모두 채우지 않음" — Evidence 기반 3개·수동
+        큐레이션 36개 모두에 적용되는 불변식이다."""
 
-        for profile in VERTICAL_SLICE_MAJOR_PROFILES_V2:
+        for profile in SERVICE_MAJOR_PROFILES_V2:
             total = (
                 len(profile.interest_vector) + len(profile.cognitive_vector)
                 + len(profile.work_style_vector) + len(profile.environment_vector)
@@ -99,6 +105,12 @@ class MajorProfilesV2Test(unittest.TestCase):
                 self.assertGreater(total, 0)
 
     def test_review_required_traits_never_appear_in_vectors(self) -> None:
+        """Evidence 파일(major_trait_mapping_evidence_v2.jsonl)은 여전히 Evidence
+        기반 3개만 담는다 — 수동 큐레이션 36개는 이 파일에 레코드가 없으므로
+        `review_required_by_major.get(...)`가 빈 집합을 돌려줘 아래 검사가
+        공집합 교집합으로 자동 통과한다(그 36개는 애초에 이 Evidence 파일의
+        대상이 아니다)."""
+
         from scripts.career_build_major_trait_mapping_evidence_v2 import OUTPUT_PATH
 
         records = load_major_trait_mapping_evidence(OUTPUT_PATH)
@@ -107,7 +119,7 @@ class MajorProfilesV2Test(unittest.TestCase):
             if r.mapping_status in ("UNMAPPED", "REVIEW_REQUIRED"):
                 review_required_by_major.setdefault(r.major_id, set()).add(r.trait_id)
 
-        for profile in VERTICAL_SLICE_MAJOR_PROFILES_V2:
+        for profile in SERVICE_MAJOR_PROFILES_V2:
             all_vector_traits = (
                 set(profile.interest_vector) | set(profile.cognitive_vector)
                 | set(profile.work_style_vector) | set(profile.environment_vector)
@@ -117,7 +129,7 @@ class MajorProfilesV2Test(unittest.TestCase):
                 self.assertEqual(all_vector_traits & excluded, set())
 
     def test_review_status_not_auto_promoted(self) -> None:
-        for profile in VERTICAL_SLICE_MAJOR_PROFILES_V2:
+        for profile in SERVICE_MAJOR_PROFILES_V2:
             self.assertEqual(profile.review_status, "draft")
 
     def test_build_is_deterministic(self) -> None:
