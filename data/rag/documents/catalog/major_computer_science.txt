@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+컴퓨터·소프트웨어 전공
+
+컴퓨터 시스템과 소프트웨어가 동작하는 원리를 배우고, 프로그래밍과 알고리즘을 활용해 문제를 해결하는 전공 분야입니다.
+
+별칭: 컴퓨터공학, 컴퓨터과학, 컴퓨터학, 소프트웨어, 소프트웨어학, 컴퓨터소프트웨어, 정보컴퓨터공학, 컴퓨터융합, 전산학, 컴퓨터공학전공, 인공지능
+관련 키워드(공식 표준분류 소계열 이름): 프로그래밍, 알고리즘, 자료구조, 소프트웨어, 컴퓨터, 데이터, 시스템
+분류 근거: 대학알리미 표준분류 Group '컴퓨터·소프트웨어·AI'(computer_science), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/, https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do

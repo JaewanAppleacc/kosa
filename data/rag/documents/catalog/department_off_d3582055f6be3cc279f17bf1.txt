@@ -1,0 +1,12 @@
+※ 학과 정본 재게시 문서입니다(대학알리미 공식 데이터).
+
+숭실대학교 산업·정보시스템공학과
+
+소속 대학: 공과대학
+캠퍼스: (정보 없음)
+지역: 서울
+연결 서비스 Major: industrial_engineering
+학과 상태: EXISTING
+조사 기준연도: 2025
+department_id: off_d3582055f6be3cc279f17bf1
+공식 출처: https://iise.ssu.ac.kr/

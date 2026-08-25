@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+미디어·커뮤니케이션 전공
+
+미디어 콘텐츠가 만들어지고 전달되는 과정과 사람·사회에 미치는 영향을 탐구하는 전공 분야입니다.
+
+별칭: 미디어, 미디어학, 미디어커뮤니케이션, 신문방송학, 언론정보학, 커뮤니케이션, 방송영상
+관련 키워드(공식 표준분류 소계열 이름): 미디어, 콘텐츠, 저널리즘, 영상, 여론, 커뮤니케이션
+분류 근거: 대학알리미 표준분류 Group '미디어·광고'(media_communication), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/, https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do

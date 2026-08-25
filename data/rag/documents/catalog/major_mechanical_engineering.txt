@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+기계공학 전공
+
+기계와 장치가 힘과 운동의 원리로 동작하는 방식을 배우고, 설계와 실험을 통해 이를 구현하는 전공 분야입니다.
+
+별칭: 기계공학, 기계, 기계시스템, 기계설계
+관련 키워드(공식 표준분류 소계열 이름): 기계, 설계, 역학, 제작, 실험, 장치
+분류 근거: 대학알리미 표준분류 Group '기계·자동차·항공·조선'(mechanical_transport), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/, https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do

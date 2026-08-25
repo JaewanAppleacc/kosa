@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+확률과 통계 과목
+
+활동 요약: 자료를 수집·처리해 합리적으로 의사 결정하는 활동
+Trait 연관: causal_analysis, information_comparison
+관련 서비스 Major: business_administration, industrial_engineering, life_science, psychology
+대체 표기(별칭): 확률과통계, 확통
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

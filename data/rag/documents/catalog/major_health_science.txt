@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+보건·재활 전공
+
+건강을 지키고 회복을 돕는 전공 분야입니다.
+
+별칭: 보건, 재활, 보건·재활
+관련 키워드(공식 표준분류 소계열 이름): 보건학, 재활치료, 임상보건, 보건관리, 동물보건
+분류 근거: 대학알리미 표준분류 Group '보건·재활'(health_science), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/

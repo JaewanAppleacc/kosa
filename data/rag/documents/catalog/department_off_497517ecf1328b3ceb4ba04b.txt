@@ -1,0 +1,12 @@
+※ 학과 정본 재게시 문서입니다(대학알리미 공식 데이터).
+
+서울대학교 컴퓨터공학부
+
+소속 대학: 공과대학
+캠퍼스: (정보 없음)
+지역: 서울
+연결 서비스 Major: computer_science
+학과 상태: EXISTING
+조사 기준연도: 2025
+department_id: off_497517ecf1328b3ceb4ba04b
+공식 출처: https://cse.snu.ac.kr/

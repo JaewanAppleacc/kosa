@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+행정·정책 전공
+
+공공기관이 일하는 방식과 정책을 다루는 전공 분야입니다.
+
+별칭: 행정, 정책, 행정·정책
+관련 키워드(공식 표준분류 소계열 이름): 행정학
+분류 근거: 대학알리미 표준분류 Group '행정·정책'(public_administration), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/

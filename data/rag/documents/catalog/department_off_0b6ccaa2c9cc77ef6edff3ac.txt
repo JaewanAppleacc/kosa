@@ -1,0 +1,12 @@
+※ 학과 정본 재게시 문서입니다(대학알리미 공식 데이터).
+
+부산대학교 정보컴퓨터공학부
+
+소속 대학: 정보의생명공학대학
+캠퍼스: (정보 없음)
+지역: 부산
+연결 서비스 Major: computer_science
+학과 상태: EXISTING
+조사 기준연도: 2025
+department_id: off_0b6ccaa2c9cc77ef6edff3ac
+공식 출처: https://cse.pusan.ac.kr/cse/index.do

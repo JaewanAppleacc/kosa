@@ -1,0 +1,12 @@
+※ 학과 정본 재게시 문서입니다(대학알리미 공식 데이터).
+
+부산대학교 기계공학부
+
+소속 대학: 공과대학
+캠퍼스: (정보 없음)
+지역: 부산
+연결 서비스 Major: mechanical_engineering
+학과 상태: EXISTING
+조사 기준연도: 2025
+department_id: off_e6fcd6095ab6e5866f8f44a5
+공식 출처: http://me.pusan.ac.kr/new/main/

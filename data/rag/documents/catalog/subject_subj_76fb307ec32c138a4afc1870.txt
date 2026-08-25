@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+물리학 과목
+
+활동 요약:
+Trait 연관: causal_analysis, pattern_finding, tool_utilization
+관련 서비스 Major: computer_science, mechanical_engineering
+대체 표기(별칭): 물리, 물리학1, 물리학I
+공식 출처: https://ncic.re.kr/mobile.kri.org4.inventoryList.do

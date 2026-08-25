@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+철학·역사·종교 전공
+
+사람이 무엇을 생각하고 어떻게 살아왔는지 다루는 전공 분야입니다.
+
+별칭: 철학, 역사, 종교, 철학·역사·종교
+관련 키워드(공식 표준분류 소계열 이름): 철학·윤리학, 역사·고고학, 종교학, 문화·민속·미술사학, 인류학
+분류 근거: 대학알리미 표준분류 Group '철학·역사·종교'(humanities), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/

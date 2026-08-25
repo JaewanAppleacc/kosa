@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+경영학 전공
+
+조직이 시장에서 마케팅·재무·전략을 통해 운영되는 원리를 배우고 경영 문제를 분석하는 전공 분야입니다.
+
+별칭: 경영학, 글로벌경영학, 경영, 경영정보, 마케팅
+관련 키워드(공식 표준분류 소계열 이름): 경영, 마케팅, 조직, 재무, 전략, 시장
+분류 근거: 대학알리미 표준분류 Group '경영학'(business), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/, https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do

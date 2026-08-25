@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+데이터 과학 과목
+
+활동 요약: 데이터가 분석 대상으로 가치 있는지 판단하는 활동
+Trait 연관: causal_analysis, information_comparison, pattern_finding, tool_utilization
+관련 서비스 Major: business_administration, computer_science, industrial_engineering
+대체 표기(별칭): 데이터과학, 빅데이터
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458

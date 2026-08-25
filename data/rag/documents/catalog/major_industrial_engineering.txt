@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+산업공학 전공
+
+생산과 운영 과정을 데이터로 분석해 더 효율적으로 만드는 방법과 의사결정 원리를 배우는 전공 분야입니다.
+
+별칭: 산업공학, 산업경영공학, 시스템경영공학, 정보산업공학, 산업시스템공학, 산업·정보시스템공학
+관련 키워드(공식 표준분류 소계열 이름): 최적화, 운영관리, 생산관리, 품질관리, 의사결정, 인간공학, 정보시스템, 데이터분석
+분류 근거: 대학알리미 표준분류 Group '산업공학·안전'(industrial_engineering), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/, https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do

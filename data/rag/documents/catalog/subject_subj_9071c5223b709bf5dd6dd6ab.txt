@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+창의 공학 설계 과목
+
+활동 요약: 문제 정의부터 설계·개선까지 공학 설계 과정을 탐구하는 활동
+Trait 연관: planning, tool_utilization, visual_expression
+관련 서비스 Major: mechanical_engineering
+대체 표기(별칭): 공학일반, 창의공학설계
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458
