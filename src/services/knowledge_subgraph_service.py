@@ -40,7 +40,7 @@ from src.schemas.evidence import EvidenceOrigin, TraitState
 from src.schemas.graph import SubgraphEdge, SubgraphNode
 from src.schemas.major import MajorProfile
 from src.schemas.trait import TraitDefinition
-from src.services.course_planning_service import CoursePlanningService
+from src.services.course_planning_service import CoursePlanningService, MajorNotSelectableError
 from src.services.major_exploration_service import MajorExplorationService
 from src.services.major_trait_mapping_evidence import MajorTraitMappingRecord
 from src.services.subject_trait_mapping_evidence import SubjectTraitMappingRecord
@@ -274,10 +274,22 @@ class KnowledgeSubgraphService:
         # 있는 부분 Subgraph를 그대로 반환). ---
         planning_state = self._course_planning_store.load(state.session_id)
         if planning_state is not None and planning_state.upload_status == "CONFIRMED":
-            course_profile = self._course_planning_service.get_course_profile(
-                state, planning_state.selected_major_id
-            )
-            if course_profile.source == "POST_OFFERING":
+            # 2026-08-25(a/final-39-major-integration 마무리): 이 Service는 Legacy
+            # CoursePlanningService(Vertical Slice 3개)를 주입받는다. Service Canonical
+            # Major가 39개로 늘면서, 그 3개 밖의 전공(예: social_welfare)이 확정된 세션에서
+            # MajorNotSelectableError가 그대로 올라와 GET /subgraph 전체가 500으로 죽었다
+            # (/subjects·/course/upload·/course/confirm에는 v2 분기가 이미 있어 이 경로만
+            # 남아 있었다). 이 블록의 계약은 바로 위 주석대로 "없으면 지어내지 않고 Trait·
+            # 전공·학과까지만 있는 부분 Subgraph를 그대로 반환"이므로, 과목 경로가 이
+            # 전공을 지원하지 않는 경우도 같은 처리로 보낸다 — 과목 Node를 만들지 않을
+            # 뿐이고, 없는 과목을 지어내지 않는다.
+            try:
+                course_profile = self._course_planning_service.get_course_profile(
+                    state, planning_state.selected_major_id
+                )
+            except MajorNotSelectableError:
+                course_profile = None
+            if course_profile is not None and course_profile.source == "POST_OFFERING":
                 major_node_id = f"major_{planning_state.selected_major_id}"
                 for item in course_profile.recommendations:
                     add_node(
