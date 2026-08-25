@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+정치외교·국제학 전공
+
+권력과 국가 간 관계를 연구하는 전공 분야입니다.
+
+별칭: 정치외교, 국제학, 정치외교·국제학
+관련 키워드(공식 표준분류 소계열 이름): 정치외교학, 군사·국방·안보, 국제지역학, 국제학
+분류 근거: 대학알리미 표준분류 Group '정치외교·국제학'(political_science), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/

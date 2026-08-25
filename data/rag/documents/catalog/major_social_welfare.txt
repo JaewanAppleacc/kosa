@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+사회복지·아동가족 전공
+
+도움이 필요한 사람과 가족을 지원하는 전공 분야입니다.
+
+별칭: 사회복지, 아동가족, 사회복지·아동가족
+관련 키워드(공식 표준분류 소계열 이름): 아동·가족학, 사회복지학
+분류 근거: 대학알리미 표준분류 Group '사회복지·아동가족'(social_welfare), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/

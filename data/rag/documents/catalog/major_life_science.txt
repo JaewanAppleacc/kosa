@@ -1,0 +1,11 @@
+※ 서비스 Major 정본 재게시 문서입니다(service_canonical_major_v2.0).
+
+생명과학 전공
+
+세포와 유전 등 생명 현상을 관찰과 실험으로 분석하며 그 원리를 탐구하는 전공 분야입니다.
+
+별칭: 생명과학, 생물과학, 생명시스템과학, 생물학
+관련 키워드(공식 표준분류 소계열 이름): 생명, 실험, 관찰, 세포, 유전, 분석
+분류 근거: 대학알리미 표준분류 Group '생명과학'(life_science), mapping_scope=FULL_GROUP
+Catalog 버전: service_canonical_major_v2.0
+공식 출처: https://www.data.go.kr/data/15158963/openapi.do, https://www.academyinfo.go.kr/, https://www.career.go.kr/cnet/front/base/major/FunivMajorView.do

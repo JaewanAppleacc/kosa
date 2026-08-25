@@ -1,0 +1,9 @@
+※ 과목 정본 재게시 문서입니다(교육부 공식 교육과정).
+
+소프트웨어와 생활 과목
+
+활동 요약: 프로그램을 시뮬레이션하고 구현·개선하는 활동
+Trait 연관: information_comparison, tool_utilization, visual_expression
+관련 서비스 Major: computer_science, hci_ux
+대체 표기(별칭): SW와 생활, 소프트웨어와생활
+공식 출처: https://www.moe.go.kr/boardCnts/viewRenew.do?boardID=141&lev=0&statusYN=W&s=moe&m=0404&opType=N&boardSeq=93458
