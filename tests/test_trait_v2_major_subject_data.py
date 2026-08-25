@@ -152,20 +152,88 @@ class SubjectTraitMappingEvidenceV2Test(unittest.TestCase):
 
 
 class SubjectProfilesV2Test(unittest.TestCase):
-    def test_six_target_subjects_present(self) -> None:
+    def test_original_six_target_subjects_still_present(self) -> None:
+        """2026-08-25 a/subject-mapping-38-majors 확장 이후에도 원래 Vertical Slice
+        6개 과목(media_communication/hci_ux/industrial_engineering 대표 전공용)은
+        그대로 남아 있어야 한다 — 확장이 기존 것을 지우지 않는다는 회귀 검증."""
+
         from scripts.career_build_subject_trait_mapping_evidence_v2 import _target_subject_ids
 
         profiles = build_subject_profiles_v2()
-        self.assertEqual({p.subject_id for p in profiles}, set(_target_subject_ids()))
+        profile_ids = {p.subject_id for p in profiles}
+        self.assertTrue(set(_target_subject_ids()).issubset(profile_ids))
+
+    def test_covers_all_39_service_majors(self) -> None:
+        """39개 서비스 Major(38개 Group 기반 + hci_ux) 전부가 v2 후보 과목을
+        최소 1개(core 후보 자격은 최소 2개 EVIDENCED/NO_DIRECT_EVIDENCE Trait) 갖는지
+        확인한다 — a/subject-mapping-38-majors 지시서의 핵심 목표."""
+
+        from src.services.service_canonical_major_v2_loader import load_service_canonical_majors_v2
+
+        profiles = build_subject_profiles_v2()
+        catalog_major_ids = {m.major_id for m in load_service_canonical_majors_v2()}
+
+        by_major: dict[str, list[int]] = {}
+        for p in profiles:
+            for major_id in p.related_major_ids:
+                by_major.setdefault(major_id, []).append(len(p.trait_vector))
+
+        for major_id in sorted(catalog_major_ids):
+            with self.subTest(major_id=major_id):
+                self.assertIn(major_id, by_major, f"{major_id}: 후보 과목이 0건이다")
+                self.assertTrue(
+                    any(count >= 2 for count in by_major[major_id]),
+                    f"{major_id}: core 후보 자격(2개 이상 Trait Evidence)을 만족하는 과목이 없다",
+                )
 
     def test_activity_summary_reused_from_legacy_not_invented(self) -> None:
+        """원래 Vertical Slice 6개 과목은 Legacy `subjects.jsonl`의 검토된 값을 그대로
+        재사용해야 한다(그 6개는 이번 확장이 activity_summary 계산 방식을 바꾸지 않은
+        범위다 — 우연히 값이 같아서 통과하는 게 아니라 Legacy 값 자체를 근거로 삼는다)."""
+
+        from scripts.career_build_subject_trait_mapping_evidence_v2 import TARGET_MAJOR_IDS
         from src.repositories.subject_repository import load_subjects
 
         legacy_by_id = {s.subject_id: s for s in load_subjects()}
+        original_six_ids = {
+            s.subject_id for s in legacy_by_id.values()
+            if any(m in s.related_major_ids for m in TARGET_MAJOR_IDS)
+        }
         profiles = build_subject_profiles_v2()
         for p in profiles:
+            if p.subject_id not in original_six_ids:
+                continue
             with self.subTest(subject_id=p.subject_id):
                 self.assertEqual(p.activity_summary, legacy_by_id[p.subject_id].activity_summary)
+
+    def test_expanded_activity_summary_matches_highest_grade_evidence(self) -> None:
+        """2026-08-25 확장분(원래 6개 밖의 과목)은 activity_summary를 v2 Trait
+        Evidence에서 직접 계산한다(Legacy에 값이 아예 없다) — EVIDENCED 중 grade가
+        가장 높은 것(동점이면 trait_id 알파벳순)의 reason과 같아야 하고, 임의로 지어낸
+        문장이면 안 된다."""
+
+        from scripts.career_build_subject_trait_mapping_evidence_v2 import OUTPUT_PATH, TARGET_MAJOR_IDS
+        from src.repositories.subject_repository import load_subjects
+
+        original_six_ids = {
+            s.subject_id for s in load_subjects()
+            if any(m in s.related_major_ids for m in TARGET_MAJOR_IDS)
+        }
+        expanded_evidence_records = load_subject_trait_mapping_evidence(OUTPUT_PATH)
+        by_subject: dict[str, list] = {}
+        for r in expanded_evidence_records:
+            if r.mapping_status == "EVIDENCED":
+                by_subject.setdefault(r.subject_id, []).append(r)
+
+        profiles = build_subject_profiles_v2()
+        for p in profiles:
+            if p.subject_id in original_six_ids:
+                continue  # 위 테스트가 이미 확인한다.
+            with self.subTest(subject_id=p.subject_id):
+                candidates = by_subject.get(p.subject_id, [])
+                self.assertTrue(candidates, f"{p.subject_id}: EVIDENCED Trait가 하나도 없다")
+                best = min(candidates, key=lambda r: (-r.grade, r.trait_id))
+                self.assertEqual(p.activity_summary, best.activity_summary)
 
     def test_build_is_deterministic(self) -> None:
         first = build_subject_profiles_v2()
