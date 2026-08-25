@@ -40,7 +40,14 @@ _FIXED_GENERATED_AT = datetime(2026, 8, 22, 0, 0, 0)
 
 def _write(name: str, payload: dict) -> None:
     path = OUT_DIR / f"{name}.json"
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    # newline="\n"을 명시한다 — 기본값(None)이면 Windows에서 개행이 CRLF로 번역돼,
+    # 계산 결과가 하나도 안 바뀐 재실행에서도 27개 파일 전부가 통째로 diff에 잡힌다
+    # (2026-08-25 확인: 내용 변경 0건인데 +8879/-8879). 이 스크립트의 목적은
+    # "실제 계산 결과가 바뀌었을 때만 git diff가 발생"하게 만드는 것이므로,
+    # 개행도 실행 환경과 무관하게 고정한다.
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n"
+    )
     print(f"wrote {path.relative_to(OUT_DIR.parent.parent)}")
 
 
