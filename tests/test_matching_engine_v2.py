@@ -142,5 +142,84 @@ class NoInternalScoreInApiOutputTest(unittest.TestCase):
         self.assertIn(dumped["relevance_label"], ("관련성 높음", "함께 탐색해볼 분야", "비교해볼 만한 분야"))
 
 
+class OutputCountCapTest(unittest.TestCase):
+    """2026-08-25 지시서(a/major-profiles-v2-38) §3 — 내부 계산은 전체 Major에
+    수행하되(여기서는 합성 20개 Major로 재현), 학생에게 노출하는 목록은
+    관련성 높음 최대 3개·함께 탐색 최대 3개로 잘라야 한다."""
+
+    def _many_majors_all_high_score_but_distinct(self, count: int) -> list[MajorProfile]:
+        """서로 다른 점수를 받도록 Major마다 조금씩 다른 4-Trait 조합을 준다(완전히
+        같은 점수로 전부 묶이면 "몇 개나 관련성 높음으로 승격되는가"를 캡이 아니라
+        우연한 동점 처리로 확인하게 돼 캡 자체를 검증하지 못한다)."""
+
+        majors = []
+        for i in range(count):
+            majors.append(
+                _major(
+                    f"m{i}",
+                    cognitive={"t1": 1.0, "t2": 1.0},
+                    work_style={"t3": 1.0, f"extra{i}": 0.33},
+                    interest={"t4": 1.0},
+                )
+            )
+        return majors
+
+    def test_relevant_capped_at_3_even_with_many_computed_majors(self) -> None:
+        majors = self._many_majors_all_high_score_but_distinct(20)
+        states = {tid: _entry(tid, tendency=1.0) for tid in ("t1", "t2", "t3", "t4")}
+        for i in range(20):
+            states[f"extra{i}"] = _entry(f"extra{i}", tendency=1.0)
+        results = [compute_major_match_v2(states, m) for m in majors]
+        computed_count = sum(1 for r in results if r.status == "computed")
+        self.assertGreaterEqual(computed_count, 4, "테스트 전제 — 최소 4개는 계산 가능해야 캡을 검증할 수 있다")
+
+        labels = {f"m{i}": f"전공{i}" for i in range(20)}
+        descriptions = {f"m{i}": f"설명{i}" for i in range(20)}
+        relevant, explore, _msg = rank_major_relevance_v2(results, labels, descriptions)
+
+        self.assertLessEqual(len(relevant), 3)
+        self.assertLessEqual(len(explore), 3)
+
+    def test_no_major_appears_in_both_relevant_and_explore(self) -> None:
+        majors = self._many_majors_all_high_score_but_distinct(20)
+        states = {tid: _entry(tid, tendency=1.0) for tid in ("t1", "t2", "t3", "t4")}
+        for i in range(20):
+            states[f"extra{i}"] = _entry(f"extra{i}", tendency=1.0)
+        results = [compute_major_match_v2(states, m) for m in majors]
+        labels = {f"m{i}": f"전공{i}" for i in range(20)}
+        descriptions = {f"m{i}": f"설명{i}" for i in range(20)}
+        relevant, explore, _msg = rank_major_relevance_v2(results, labels, descriptions)
+
+        overlap = {r.major_id for r in relevant} & {r.major_id for r in explore}
+        self.assertEqual(overlap, set())
+
+    def test_internal_computation_still_runs_over_every_supplied_major(self) -> None:
+        """§3 "내부 계산은 38개[전체] 전체에 수행한다" — compute_major_match_v2는
+        capping과 무관하게 넘겨받은 Major 전부에 대해 결과를 낸다(잘림은
+        rank_major_relevance_v2 마지막 단계에서만 일어난다)."""
+
+        majors = self._many_majors_all_high_score_but_distinct(20)
+        states = {tid: _entry(tid, tendency=1.0) for tid in ("t1", "t2", "t3", "t4")}
+        for i in range(20):
+            states[f"extra{i}"] = _entry(f"extra{i}", tendency=1.0)
+        results = [compute_major_match_v2(states, m) for m in majors]
+        self.assertEqual(len(results), 20)
+
+    def test_limited_evidence_never_promoted_to_relevant_even_under_cap(self) -> None:
+        """§3 "근거가 제한적이면 관련성 높음으로 승격 금지" — 캡으로 자르는 로직을
+        추가해도 이 기존 방어가 여전히 먼저 적용되는지 확인한다."""
+
+        major = _major("m1", cognitive={"t1": 1.0}, work_style={"t2": 1.0}, interest={"t3": 1.0})
+        # notable(weight>=0.67) Trait 3개 중 STRONG이 0개·usable 1개뿐이라 "제한적".
+        states = {
+            "t1": _entry("t1", tendency=0.9, status="LIMITED"),
+            "t2": _entry("t2", tendency=None),
+            "t3": _entry("t3", tendency=None),
+        }
+        result = compute_major_match_v2(states, major)
+        relevant, explore, _msg = rank_major_relevance_v2([result], {"m1": "전공"}, {"m1": "설명"})
+        self.assertEqual(len(relevant), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

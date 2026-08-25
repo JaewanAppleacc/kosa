@@ -14,8 +14,9 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+from src.data.majors.service_canonical_major_v2_descriptions import SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID
+from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
-from src.data.majors.vertical_slice_major_profiles_v2 import VERTICAL_SLICE_MAJOR_PROFILES_V2
 from src.engines.canonical_mapper import CanonicalMajorEntry, CanonicalMapper, load_canonical_majors
 from src.engines.matching_engine import MajorMatchResult, MissingMajorDescriptionError, rank_major_relevance
 from src.engines.matching_engine_v2 import MajorMatchResultV2, rank_major_relevance_v2
@@ -85,8 +86,10 @@ class CanonicalMajorDataTest(unittest.TestCase):
     def test_all_vertical_slice_major_profiles_have_a_description(self) -> None:
         for profile in VERTICAL_SLICE_MAJOR_PROFILES:
             self.assertIn(profile.major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID, profile.major_id)
-        for profile in VERTICAL_SLICE_MAJOR_PROFILES_V2:
-            self.assertIn(profile.major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID, profile.major_id)
+        # 2026-08-25 지시서(a/major-profiles-v2-38) — v2는 이제 39개 Service Catalog를
+        # 다룬다(Legacy 10개와 더 이상 부분집합 관계가 아니다). v2 전용 설명 사전을 쓴다.
+        for profile in SERVICE_MAJOR_PROFILES_V2:
+            self.assertIn(profile.major_id, SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID, profile.major_id)
 
     def test_description_is_a_separate_field_from_keywords(self) -> None:
         for entry in self.entries:

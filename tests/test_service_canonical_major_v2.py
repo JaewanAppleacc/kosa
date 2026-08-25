@@ -564,14 +564,21 @@ class GenerationDeterminismTest(unittest.TestCase):
 
 
 class ForbiddenScopeUntouchedTest(unittest.TestCase):
-    """§5 "금지" — 이번 작업이 건드리면 안 되는 파일들이 실제로 git 이력상
-    무변경인지 확인한다(origin/trait-vector-v2 대비, 이 브랜치의 커밋 전체 기준)."""
+    """§5 "금지" — 이번 작업(a/service-major-catalog-v2, Catalog 확정)이 건드리면
+    안 되는 파일들이 실제로 git 이력상 무변경인지 확인한다(origin/trait-vector-v2
+    대비, 이 브랜치의 커밋 전체 기준).
+
+    2026-08-25 갱신(a/major-profiles-v2-38 병합) — 이 Catalog 브랜치는
+    a/major-profiles-v2-38(39개 MajorProfile 확장) 작업의 기준으로 병합됐다. 그
+    후속 작업의 명시적 소유 범위(`src/api/main.py`의 Major Profile 로딩 구간,
+    `matching_engine_v2.py`, `vertical_slice_major_profiles_v2.py` 자리를 대체한
+    `service_major_profiles_v2.py`)는 더 이상 "이번 작업이 건드리면 안 되는" 파일이
+    아니다 — 그래서 세 항목을 이 목록에서 뺐다(Catalog 확정 라운드 자체의 범위
+    보장은 §5의 나머지 항목으로 여전히 지킨다). Legacy Matching·Department Master는
+    어느 라운드에서도 건드리지 않으므로 그대로 남긴다."""
 
     _FORBIDDEN_PATHS = (
-        "src/api/main.py",
         "src/engines/matching_engine.py",
-        "src/engines/matching_engine_v2.py",
-        "src/data/majors/vertical_slice_major_profiles_v2.py",
         "data/master/departments.jsonl",
         "data/master/department_recommendation_scope.jsonl",
     )

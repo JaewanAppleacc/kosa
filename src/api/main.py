@@ -52,8 +52,9 @@ from src.data.contexts.context_definitions import CONTEXT_DEFINITIONS, CONTEXT_I
 from src.data.contexts.context_trait_coverage import CONTEXT_TRAIT_COVERAGE
 from src.data.contexts.context_vectors import CONTEXT_VECTORS
 from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+from src.data.majors.service_canonical_major_v2_descriptions import SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID
+from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
 from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
-from src.data.majors.vertical_slice_major_profiles_v2 import VERTICAL_SLICE_MAJOR_PROFILES_V2
 from src.data.question_frames.frame_role_map import QUESTION_FRAME_TEXT
 from src.data.questions.context_routing_blueprints import (
     CONTEXT_ROUTING_BLUEPRINTS_BY_CONTEXT,
@@ -322,7 +323,7 @@ _subject_repository_v2 = JsonlSubjectRepository(
 )
 _course_planning_service_v2 = CoursePlanningServiceV2(
     _subject_repository_v2,
-    major_profiles=VERTICAL_SLICE_MAJOR_PROFILES_V2,
+    major_profiles=SERVICE_MAJOR_PROFILES_V2,
     trait_definitions=TRAIT_DEFINITIONS_V2_BY_ID,
 )
 
@@ -1870,10 +1871,15 @@ def get_majors(session_id: str) -> MajorsResponse:
     # 아예 호출하지 않는다.
     if trait_vector_v2_primary_enabled():
         snapshot_entries, _primary_evidence = _compute_v2_primary_snapshot(state)
-        results_v2 = [compute_major_match_v2(snapshot_entries, major) for major in VERTICAL_SLICE_MAJOR_PROFILES_V2]
-        labels_by_major_id_v2 = {m.major_id: m.label for m in VERTICAL_SLICE_MAJOR_PROFILES_V2}
+        # 2026-08-25 지시서(a/major-profiles-v2-38) §1/§2 — 내부 계산은 39개 전체에
+        # 수행한다(SERVICE_MAJOR_PROFILES_V2). description은 반드시 v2 전용 39개
+        # Catalog 사전(SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID)을 쓴다 — Legacy의
+        # 10개 CANONICAL_MAJOR_DESCRIPTIONS_BY_ID를 쓰면 새 36개 Major에서
+        # MissingMajorDescriptionError가 난다(두 Catalog는 더 이상 부분집합 관계가 아니다).
+        results_v2 = [compute_major_match_v2(snapshot_entries, major) for major in SERVICE_MAJOR_PROFILES_V2]
+        labels_by_major_id_v2 = {m.major_id: m.label for m in SERVICE_MAJOR_PROFILES_V2}
         relevant_v2, explore_together_v2, insufficient_message_v2 = rank_major_relevance_v2(
-            results_v2, labels_by_major_id_v2, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+            results_v2, labels_by_major_id_v2, SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID
         )
         gate = gate_primary_eligible_evidence(state.evidence_ledger, state.context_anchor_choices, _context_pack_registry)
         _tracer.record_stage(
@@ -2048,16 +2054,23 @@ async def upload_course_document(
             detail=APIError(error_code=APIErrorCode.VALIDATION_ERROR, message=str(exc)).model_dump(),
         ) from exc
 
+    # 2026-08-25 지시서(a/major-profiles-v2-38) — v2 Matching 후보가 39개로 늘면서
+    # Legacy 검증(3개 고정)만으로는 새 36개 Major를 전부 부당하게 거부하게 된다.
+    # PRIMARY Flag가 켜진 세션은 /subjects·/course/confirm과 같은 방식으로 v2
+    # snapshot을 계산해 v2 전용 검증 경로를 함께 태운다(§ "관련 main.py 로딩 구간").
+    v2_snapshot_entries = _compute_v2_primary_snapshot(state)[0] if trait_vector_v2_primary_enabled() else None
+
     try:
         candidates, warnings = _course_document_parsing_service.parse_upload(
-            state, selected_major_id, content, file.filename or "", file.content_type
+            state, selected_major_id, content, file.filename or "", file.content_type,
+            v2_snapshot_entries=v2_snapshot_entries,
         )
-    except CourseEvidenceNotReadyError as exc:
+    except (CourseEvidenceNotReadyError, CourseEvidenceNotReadyErrorV2) as exc:
         raise HTTPException(
             status_code=422,
             detail=APIError(error_code=APIErrorCode.EVIDENCE_NOT_READY, message=str(exc)).model_dump(),
         ) from exc
-    except MajorNotSelectableError as exc:
+    except (MajorNotSelectableError, MajorNotSelectableErrorV2) as exc:
         raise HTTPException(
             status_code=422,
             detail=APIError(error_code=APIErrorCode.MAJOR_NOT_SELECTABLE, message=str(exc)).model_dump(),

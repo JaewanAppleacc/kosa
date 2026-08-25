@@ -16,7 +16,7 @@ candidates`·`is_actually_offered` 의미·Policy Guard는 전부 Legacy와 동�
 
 from __future__ import annotations
 
-from src.data.majors.canonical_major_descriptions import CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+from src.data.majors.service_canonical_major_v2_descriptions import SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID
 from src.engines.matching_engine_v2 import compute_major_match_v2, rank_major_relevance_v2
 from src.engines.policy_guard import guard_offered_status_matches_core_category, guard_subject_must_be_offered
 from src.engines.subject_matching_engine import to_course_recommendation_items
@@ -74,7 +74,7 @@ class CoursePlanningServiceV2:
 
         labels_by_major_id = {m.major_id: m.label for m in self._major_profiles}
         relevant, explore_together, _message = rank_major_relevance_v2(
-            major_results, labels_by_major_id, CANONICAL_MAJOR_DESCRIPTIONS_BY_ID
+            major_results, labels_by_major_id, SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID
         )
         recommended_major_ids = {r.major_id for r in relevant} | {r.major_id for r in explore_together}
         if selected_major_id not in recommended_major_ids:

@@ -36,6 +36,11 @@ from src.services.course_document_parsing_service import (
     read_upload_with_limit,
 )
 from src.services.course_planning_service import CoursePlanningService
+from src.services.course_planning_service_v2 import (
+    CourseEvidenceNotReadyErrorV2,
+    CoursePlanningServiceV2,
+    MajorNotSelectableErrorV2,
+)
 
 _TRAIT_DEFS = {t.trait_id: t for t in VERTICAL_SLICE_TRAITS}
 
@@ -554,6 +559,100 @@ class DedupeCandidatesConfidencePriorityTest(unittest.TestCase):
         self.assertEqual([c.raw_text for c in first_run], [c.raw_text for c in second_run])
         self.assertEqual([c.raw_text for c in first_run], ["정체불명 과목A", "확률과 통계", "정체불명 과목B"])
         self.assertEqual(first_run[1].confidence, "high")
+
+
+class V2SnapshotValidationBranchTest(unittest.TestCase):
+    """2026-08-25 지시서(a/major-profiles-v2-38) — v2_snapshot_entries가 주어지면
+    v2 39개 Catalog 기준으로 검증하고, 주어지지 않으면(기본값) 지금까지처럼
+    Legacy 3개 고정 기준으로만 검증한다."""
+
+    def setUp(self) -> None:
+        from datetime import datetime, timezone
+
+        from src.schemas.major import MajorProfile
+        from src.schemas.trait_vector_snapshot import TraitVectorEntry
+
+        self.repository = FakeSubjectRepository([])
+        self.course_planning_store = InMemoryCoursePlanningStore()
+        self.legacy_service = CoursePlanningService(
+            self.repository, major_profiles=VERTICAL_SLICE_MAJOR_PROFILES,
+            trait_definitions=_TRAIT_DEFS, course_planning_store=self.course_planning_store,
+        )
+        # Legacy 3개 대표 전공에 없는 실제 신규 Major(39개 Service Catalog에는
+        # 있음, SERVICE_CANONICAL_MAJOR_V2_DESCRIPTIONS_BY_ID가 실제 description을
+        # 갖고 있어야 rank_major_relevance_v2가 MissingMajorDescriptionError 없이
+        # 통과한다 — 합성 ID를 쓰면 이 모듈 상수와 어긋난다).
+        self.new_major_id = "earth_environment"
+        self.v2_major_profile = MajorProfile(
+            major_id=self.new_major_id, label="테스트용 신규 Major",
+            interest_vector={}, cognitive_vector={"causal_analysis": 1.0, "pattern_finding": 1.0},
+            work_style_vector={"planning": 0.67}, environment_vector={},
+            source_ids=[], extraction_method="manual", review_status="draft",
+            profile_version="test", updated_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        self.v2_service = CoursePlanningServiceV2(
+            self.repository, major_profiles=[self.v2_major_profile], trait_definitions=_TRAIT_DEFS,
+        )
+        self.alias_index = SubjectAliasIndex([])
+        self.parsing_service = CourseDocumentParsingService(
+            self.alias_index, self.repository, self.legacy_service, self.course_planning_store,
+            course_planning_service_v2=self.v2_service,
+        )
+        self.state = _state_with_ie_evidence()
+
+        def entry(trait_id: str, tendency: float | None) -> TraitVectorEntry:
+            return TraitVectorEntry(
+                trait_id=trait_id, primary_signal_sum=1.0, related_signal_sum=0.0,
+                confirmed_related_signal_sum=0.0, primary_evidence_count=3, related_evidence_count=0,
+                context_count=2, frame_count=2, question_count=3, tendency_score=tendency,
+                evidence_confidence="primary_evidence" if tendency is not None else "no_evidence",
+                status="STRONG" if tendency is not None else "NOT_PROBED",
+            )
+
+        strong = {"causal_analysis", "pattern_finding", "planning"}
+        self.v2_snapshot = {t.trait_id: entry(t.trait_id, 1.0 if t.trait_id in strong else None) for t in VERTICAL_SLICE_TRAITS}
+
+    def test_new_major_rejected_by_legacy_only_validation(self) -> None:
+        """v2_snapshot_entries를 안 주면(기본값) Legacy만 봐서, Legacy가 모르는
+        신규 Major는 지금까지처럼 거부된다 — 이번 수정이 하위 호환을 깨지 않았다는
+        증거."""
+
+        from src.services.course_planning_service import MajorNotSelectableError
+
+        with self.assertRaises(MajorNotSelectableError):
+            self.parsing_service.parse_upload(
+                self.state, self.new_major_id, b"0" * 10, "x.xlsx", _XLSX_CONTENT_TYPE,
+            )
+
+    def test_new_major_accepted_when_v2_snapshot_provided(self) -> None:
+        """v2_snapshot_entries를 주면 v2 39개 Catalog 기준으로 검증해, Legacy가
+        모르는 신규 Major도 정상적으로 통과한다(§ "36개 신규 Major도 실제로
+        업로드·확정까지 이어진다")."""
+
+        try:
+            self.parsing_service.parse_upload(
+                self.state, self.new_major_id, b"not a real xlsx but past the major gate", "x.xlsx",
+                _XLSX_CONTENT_TYPE, v2_snapshot_entries=self.v2_snapshot,
+            )
+        except (MajorNotSelectableErrorV2, CourseEvidenceNotReadyErrorV2):
+            self.fail("v2_snapshot_entries를 줬는데도 v2 신규 Major 검증이 실패했다")
+        except CourseParsingFailedError:
+            pass  # 가짜 xlsx라 파싱 자체는 실패해도 된다 — major 검증만 통과하면 충분하다.
+
+    def test_v2_snapshot_without_v2_service_falls_back_to_legacy(self) -> None:
+        """course_planning_service_v2가 주입되지 않은 경우(하위 호환 경로)는
+        v2_snapshot_entries를 줘도 무시하고 Legacy만 본다."""
+
+        from src.services.course_planning_service import MajorNotSelectableError
+
+        parsing_service_without_v2 = CourseDocumentParsingService(
+            self.alias_index, self.repository, self.legacy_service, self.course_planning_store,
+        )
+        with self.assertRaises(MajorNotSelectableError):
+            parsing_service_without_v2.parse_upload(
+                self.state, self.new_major_id, b"0" * 10, "x.xlsx", _XLSX_CONTENT_TYPE,
+                v2_snapshot_entries=self.v2_snapshot,
+            )
 
 
 if __name__ == "__main__":

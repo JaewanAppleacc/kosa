@@ -1,0 +1,1090 @@
+{
+  "appearance_counts_by_major_id": {
+    "agriculture_fisheries": 4,
+    "bio_medical_engineering": 6,
+    "business_administration": 3,
+    "chemical_energy": 5,
+    "chemistry": 2,
+    "civil_architecture": 1,
+    "clothing_housing": 1,
+    "computer_science": 2,
+    "dentistry": 2,
+    "earth_environment": 1,
+    "economics": 5,
+    "education": 1,
+    "electrical_electronic": 2,
+    "food_nutrition": 2,
+    "foreign_language": 1,
+    "hci_ux": 3,
+    "health_science": 2,
+    "humanities": 3,
+    "industrial_engineering": 3,
+    "korean_literature": 1,
+    "korean_medicine": 3,
+    "law": 1,
+    "life_science": 1,
+    "mathematics_statistics": 2,
+    "mechanical_engineering": 1,
+    "media_communication": 6,
+    "medicine": 1,
+    "nursing": 2,
+    "pharmacy": 1,
+    "physics_astronomy": 1,
+    "political_science": 2,
+    "psychology": 1,
+    "public_administration": 1,
+    "semiconductor_materials": 1,
+    "social_welfare": 2,
+    "sociology": 2,
+    "tourism": 1,
+    "trade_logistics": 1,
+    "veterinary": 1
+  },
+  "coverage_appeared_major_count": 39,
+  "coverage_never_appeared_major_ids": [],
+  "persona_count": 48,
+  "personas": [
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "agriculture_fisheries 자기 전공형",
+      "persona_id": "self_agriculture_fisheries",
+      "rationale": "agriculture_fisheries Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "agriculture_fisheries"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "detail_orientation",
+        "persistence_completion",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "agriculture_fisheries"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "bio_medical_engineering 자기 전공형",
+      "persona_id": "self_bio_medical_engineering",
+      "rationale": "bio_medical_engineering Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "bio_medical_engineering",
+        "chemical_energy"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "systems_thinking"
+      ],
+      "target_major_ids": [
+        "bio_medical_engineering"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "business_administration 자기 전공형",
+      "persona_id": "self_business_administration",
+      "rationale": "business_administration Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "business_administration"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "information_comparison",
+        "opinion_expression",
+        "planning"
+      ],
+      "target_major_ids": [
+        "business_administration"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "chemical_energy 자기 전공형",
+      "persona_id": "self_chemical_energy",
+      "rationale": "chemical_energy Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "bio_medical_engineering",
+        "chemical_energy"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "systems_thinking"
+      ],
+      "target_major_ids": [
+        "chemical_energy"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "chemistry 자기 전공형",
+      "persona_id": "self_chemistry",
+      "rationale": "chemistry Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "chemistry"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "pattern_finding"
+      ],
+      "target_major_ids": [
+        "chemistry"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "civil_architecture 자기 전공형",
+      "persona_id": "self_civil_architecture",
+      "rationale": "civil_architecture Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "civil_architecture"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "planning",
+        "systems_thinking",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "civil_architecture"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "clothing_housing 자기 전공형",
+      "persona_id": "self_clothing_housing",
+      "rationale": "clothing_housing Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "clothing_housing"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "aesthetic_sensitivity",
+        "detail_orientation",
+        "information_comparison"
+      ],
+      "target_major_ids": [
+        "clothing_housing"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "computer_science 자기 전공형",
+      "persona_id": "self_computer_science",
+      "rationale": "computer_science Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "computer_science",
+        "electrical_electronic"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "systems_thinking",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "computer_science"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "dentistry 자기 전공형",
+      "persona_id": "self_dentistry",
+      "rationale": "dentistry Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "dentistry",
+        "food_nutrition"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "dentistry"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "earth_environment 자기 전공형",
+      "persona_id": "self_earth_environment",
+      "rationale": "earth_environment Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "earth_environment"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "change_adaptation",
+        "information_comparison",
+        "pattern_finding",
+        "systems_thinking"
+      ],
+      "target_major_ids": [
+        "earth_environment"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "economics 자기 전공형",
+      "persona_id": "self_economics",
+      "rationale": "economics Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "economics",
+        "humanities",
+        "korean_medicine"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "independent_judgment",
+        "information_comparison",
+        "pattern_finding"
+      ],
+      "target_major_ids": [
+        "economics"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "education 자기 전공형",
+      "persona_id": "self_education",
+      "rationale": "education Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "education"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "collaboration_preference",
+        "emotional_interpretation",
+        "opinion_expression",
+        "planning"
+      ],
+      "target_major_ids": [
+        "education"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "electrical_electronic 자기 전공형",
+      "persona_id": "self_electrical_electronic",
+      "rationale": "electrical_electronic Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "computer_science",
+        "electrical_electronic"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "systems_thinking",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "electrical_electronic"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "food_nutrition 자기 전공형",
+      "persona_id": "self_food_nutrition",
+      "rationale": "food_nutrition Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "dentistry",
+        "food_nutrition"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "food_nutrition"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "foreign_language 자기 전공형",
+      "persona_id": "self_foreign_language",
+      "rationale": "foreign_language Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "foreign_language"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "information_comparison",
+        "pattern_finding",
+        "verbal_expression"
+      ],
+      "target_major_ids": [
+        "foreign_language"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "health_science 자기 전공형",
+      "persona_id": "self_health_science",
+      "rationale": "health_science Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "health_science"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "collaboration_preference",
+        "emotional_interpretation",
+        "persistence_completion"
+      ],
+      "target_major_ids": [
+        "health_science"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "humanities 자기 전공형",
+      "persona_id": "self_humanities",
+      "rationale": "humanities Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "economics",
+        "humanities"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "independent_judgment",
+        "information_comparison"
+      ],
+      "target_major_ids": [
+        "humanities"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "korean_literature 자기 전공형",
+      "persona_id": "self_korean_literature",
+      "rationale": "korean_literature Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "korean_literature"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "creative_ideation",
+        "emotional_interpretation",
+        "verbal_expression"
+      ],
+      "target_major_ids": [
+        "korean_literature"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "korean_medicine 자기 전공형",
+      "persona_id": "self_korean_medicine",
+      "rationale": "korean_medicine Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "economics",
+        "korean_medicine"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "independent_judgment",
+        "pattern_finding"
+      ],
+      "target_major_ids": [
+        "korean_medicine"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "law 자기 전공형",
+      "persona_id": "self_law",
+      "rationale": "law Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "law"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "independent_judgment",
+        "opinion_expression"
+      ],
+      "target_major_ids": [
+        "law"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "life_science 자기 전공형",
+      "persona_id": "self_life_science",
+      "rationale": "life_science Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "life_science"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "pattern_finding",
+        "persistence_completion"
+      ],
+      "target_major_ids": [
+        "life_science"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "mathematics_statistics 자기 전공형",
+      "persona_id": "self_mathematics_statistics",
+      "rationale": "mathematics_statistics Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "mathematics_statistics",
+        "sociology"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "independent_judgment",
+        "pattern_finding",
+        "systems_thinking"
+      ],
+      "target_major_ids": [
+        "mathematics_statistics"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "mechanical_engineering 자기 전공형",
+      "persona_id": "self_mechanical_engineering",
+      "rationale": "mechanical_engineering Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "mechanical_engineering"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "persistence_completion",
+        "systems_thinking",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "mechanical_engineering"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "medicine 자기 전공형",
+      "persona_id": "self_medicine",
+      "rationale": "medicine Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "medicine"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "independent_judgment",
+        "systems_thinking"
+      ],
+      "target_major_ids": [
+        "medicine"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "nursing 자기 전공형",
+      "persona_id": "self_nursing",
+      "rationale": "nursing Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "nursing"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "collaboration_preference",
+        "emotional_interpretation",
+        "immediate_execution"
+      ],
+      "target_major_ids": [
+        "nursing"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "pharmacy 자기 전공형",
+      "persona_id": "self_pharmacy",
+      "rationale": "pharmacy Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "pharmacy"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "persistence_completion"
+      ],
+      "target_major_ids": [
+        "pharmacy"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "physics_astronomy 자기 전공형",
+      "persona_id": "self_physics_astronomy",
+      "rationale": "physics_astronomy Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "physics_astronomy"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "systems_thinking",
+        "uncertainty_tolerance"
+      ],
+      "target_major_ids": [
+        "physics_astronomy"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "political_science 자기 전공형",
+      "persona_id": "self_political_science",
+      "rationale": "political_science Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "political_science"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "information_comparison",
+        "opinion_expression",
+        "opinion_mediation"
+      ],
+      "target_major_ids": [
+        "political_science"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "psychology 자기 전공형",
+      "persona_id": "self_psychology",
+      "rationale": "psychology Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "psychology"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "emotional_interpretation",
+        "pattern_finding",
+        "uncertainty_tolerance"
+      ],
+      "target_major_ids": [
+        "psychology"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "public_administration 자기 전공형",
+      "persona_id": "self_public_administration",
+      "rationale": "public_administration Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "public_administration"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "information_comparison",
+        "opinion_mediation",
+        "planning"
+      ],
+      "target_major_ids": [
+        "public_administration"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "semiconductor_materials 자기 전공형",
+      "persona_id": "self_semiconductor_materials",
+      "rationale": "semiconductor_materials Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "semiconductor_materials"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "persistence_completion",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "semiconductor_materials"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "social_welfare 자기 전공형",
+      "persona_id": "self_social_welfare",
+      "rationale": "social_welfare Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "social_welfare"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "collaboration_preference",
+        "emotional_interpretation",
+        "opinion_mediation"
+      ],
+      "target_major_ids": [
+        "social_welfare"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "sociology 자기 전공형",
+      "persona_id": "self_sociology",
+      "rationale": "sociology Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "economics",
+        "mathematics_statistics",
+        "sociology"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "independent_judgment",
+        "information_comparison",
+        "pattern_finding",
+        "systems_thinking"
+      ],
+      "target_major_ids": [
+        "sociology"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "tourism 자기 전공형",
+      "persona_id": "self_tourism",
+      "rationale": "tourism Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "media_communication",
+        "tourism"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "audience_response_prediction",
+        "collaboration_preference",
+        "planning"
+      ],
+      "target_major_ids": [
+        "tourism"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "trade_logistics 자기 전공형",
+      "persona_id": "self_trade_logistics",
+      "rationale": "trade_logistics Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "trade_logistics"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "detail_orientation",
+        "information_comparison",
+        "planning"
+      ],
+      "target_major_ids": [
+        "trade_logistics"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "veterinary 자기 전공형",
+      "persona_id": "self_veterinary",
+      "rationale": "veterinary Profile이 가진 Trait 전부(핵심+구분)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "veterinary"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "emotional_interpretation"
+      ],
+      "target_major_ids": [
+        "veterinary"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "hci_ux 자기 전공형",
+      "persona_id": "self_hci_ux",
+      "rationale": "hci_ux Profile이 가진 Trait 전부(EVIDENCED, grade>=1)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "hci_ux",
+        "media_communication"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "audience_response_prediction",
+        "tool_utilization",
+        "visual_expression"
+      ],
+      "target_major_ids": [
+        "hci_ux"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "industrial_engineering 자기 전공형",
+      "persona_id": "self_industrial_engineering",
+      "rationale": "industrial_engineering Profile이 가진 Trait 전부(EVIDENCED, grade>=1)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "industrial_engineering",
+        "media_communication"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "information_comparison",
+        "pattern_finding",
+        "planning",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "industrial_engineering"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "media_communication 자기 전공형",
+      "persona_id": "self_media_communication",
+      "rationale": "media_communication Profile이 가진 Trait 전부(EVIDENCED, grade>=1)를 STRONG으로 답한 학생",
+      "relevant_major_ids": [
+        "hci_ux",
+        "industrial_engineering",
+        "media_communication"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "audience_response_prediction",
+        "causal_analysis",
+        "collaboration_preference",
+        "information_comparison",
+        "pattern_finding",
+        "planning",
+        "tool_utilization",
+        "visual_expression"
+      ],
+      "target_major_ids": [
+        "media_communication"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "돌봄·지원 계열 혼동형",
+      "persona_id": "confusion_caring_cluster",
+      "rationale": "간호·사회복지·보건재활 Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "health_science",
+        "nursing",
+        "social_welfare"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "collaboration_preference",
+        "emotional_interpretation",
+        "immediate_execution",
+        "opinion_mediation",
+        "persistence_completion"
+      ],
+      "target_major_ids": [
+        "nursing",
+        "social_welfare",
+        "health_science"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "공학 계열 전반 혼동형",
+      "persona_id": "confusion_engineering_cluster",
+      "rationale": "컴퓨터·전자·기계·건축·반도체·의공학 Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "agriculture_fisheries",
+        "bio_medical_engineering",
+        "chemical_energy"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "persistence_completion",
+        "planning",
+        "systems_thinking",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "computer_science",
+        "electrical_electronic",
+        "mechanical_engineering",
+        "civil_architecture",
+        "semiconductor_materials",
+        "bio_medical_engineering"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "HCI·미디어 혼동형",
+      "persona_id": "confusion_hci_design_cluster",
+      "rationale": "hci_ux·media_communication Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "hci_ux",
+        "industrial_engineering",
+        "media_communication"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "audience_response_prediction",
+        "causal_analysis",
+        "collaboration_preference",
+        "information_comparison",
+        "pattern_finding",
+        "planning",
+        "tool_utilization",
+        "visual_expression"
+      ],
+      "target_major_ids": [
+        "hci_ux",
+        "media_communication"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "의료 계열 전반 혼동형",
+      "persona_id": "confusion_medical_cluster",
+      "rationale": "의학·치의학·약학·한의학·수의학 Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "agriculture_fisheries",
+        "bio_medical_engineering",
+        "chemical_energy"
+      ],
+      "self_major_in_relevant": false,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "detail_orientation",
+        "emotional_interpretation",
+        "independent_judgment",
+        "pattern_finding",
+        "persistence_completion",
+        "systems_thinking",
+        "tool_utilization"
+      ],
+      "target_major_ids": [
+        "medicine",
+        "dentistry",
+        "pharmacy",
+        "korean_medicine",
+        "veterinary"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "자연과학 계열 혼동형",
+      "persona_id": "confusion_natural_science_cluster",
+      "rationale": "화학·물리·생명과학·지구환경·수학통계 Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "bio_medical_engineering",
+        "chemical_energy",
+        "chemistry"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "change_adaptation",
+        "detail_orientation",
+        "independent_judgment",
+        "information_comparison",
+        "pattern_finding",
+        "persistence_completion",
+        "systems_thinking",
+        "uncertainty_tolerance"
+      ],
+      "target_major_ids": [
+        "chemistry",
+        "physics_astronomy",
+        "life_science",
+        "earth_environment",
+        "mathematics_statistics"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "기획·행정 계열 혼동형",
+      "persona_id": "confusion_planning_cluster",
+      "rationale": "경영·행정·무역·관광 Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "business_administration",
+        "media_communication",
+        "political_science"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "audience_response_prediction",
+        "collaboration_preference",
+        "detail_orientation",
+        "information_comparison",
+        "opinion_expression",
+        "opinion_mediation",
+        "planning"
+      ],
+      "target_major_ids": [
+        "business_administration",
+        "public_administration",
+        "trade_logistics",
+        "tourism"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "사회과학 계열 혼동형",
+      "persona_id": "confusion_social_science_cluster",
+      "rationale": "사회학·정치외교·인문학·심리학 Profile이 쓰는 Trait 전체를 답한 학생",
+      "relevant_major_ids": [
+        "economics",
+        "humanities",
+        "korean_medicine"
+      ],
+      "self_major_in_relevant": true,
+      "strong_trait_ids": [
+        "causal_analysis",
+        "emotional_interpretation",
+        "independent_judgment",
+        "information_comparison",
+        "opinion_expression",
+        "opinion_mediation",
+        "pattern_finding",
+        "systems_thinking",
+        "uncertainty_tolerance"
+      ],
+      "target_major_ids": [
+        "sociology",
+        "political_science",
+        "humanities",
+        "psychology"
+      ]
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": "아직 v2 관련도를 계산하기에 답변이 부족합니다. 추가 탐색이 필요합니다.",
+      "label": "근거 부족형",
+      "persona_id": "sparse_low_evidence",
+      "rationale": "Trait 1개만 STRONG — 어느 Major도 MINIMUM_USABLE_TRAITS를 못 채워야 정상(대조군)",
+      "relevant_major_ids": [],
+      "self_major_in_relevant": null,
+      "strong_trait_ids": [
+        "tool_utilization"
+      ],
+      "target_major_ids": []
+    },
+    {
+      "explore_together_major_ids": [],
+      "insufficient_evidence_message": null,
+      "label": "전체 Trait 강한형",
+      "persona_id": "all_traits_strong",
+      "rationale": "24개 Trait 전부 STRONG — 특정 3개 Major가 쏠리는지 관찰하는 대조군",
+      "relevant_major_ids": [
+        "agriculture_fisheries",
+        "bio_medical_engineering",
+        "business_administration"
+      ],
+      "self_major_in_relevant": null,
+      "strong_trait_ids": [
+        "aesthetic_sensitivity",
+        "audience_response_prediction",
+        "causal_analysis",
+        "challenge_seeking",
+        "change_adaptation",
+        "collaboration_preference",
+        "creative_ideation",
+        "detail_orientation",
+        "emotional_interpretation",
+        "immediate_execution",
+        "independent_judgment",
+        "information_comparison",
+        "novelty_seeking",
+        "opinion_expression",
+        "opinion_mediation",
+        "pattern_finding",
+        "persistence_completion",
+        "personal_goal_priority",
+        "planning",
+        "systems_thinking",
+        "tool_utilization",
+        "uncertainty_tolerance",
+        "verbal_expression",
+        "visual_expression"
+      ],
+      "target_major_ids": []
+    }
+  ],
+  "self_major_top3_hit_count": 45,
+  "self_major_top3_targeted_count": 46,
+  "top3_most_frequent_majors": [
+    {
+      "count": 6,
+      "major_id": "bio_medical_engineering"
+    },
+    {
+      "count": 6,
+      "major_id": "media_communication"
+    },
+    {
+      "count": 5,
+      "major_id": "chemical_energy"
+    }
+  ],
+  "top3_share_of_all_appearances": 0.2099,
+  "total_major_count": 39
+}

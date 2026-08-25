@@ -397,12 +397,15 @@ class BuildDeterminismAndImmutabilityTest(unittest.TestCase):
 
     def test_existing_master_files_unchanged_from_head_except_bridge_draft(self) -> None:
         # canonical_major_group_bridge.draft.jsonl 자체는 이번 작업의 대상이므로
-        # 제외하고, 나머지 정본(Major 10개·major_profiles_v2)은 무변경이어야 한다.
+        # 제외하고, 나머지 정본(Major 10개)은 무변경이어야 한다.
         # data/master/departments.jsonl은 2026-08-25 전국 학과 1,072건 Production
         # Master 전환(a/national-master-promotion-final-wiring)이 이 Bridge 작업과
         # 무관하게 의도적으로 바꾼다 — 옛 35건은 archive로 보존됐다.
+        # major_profiles_v2.jsonl(당시 3개)도 같은 원칙으로 뺐다 — 2026-08-25
+        # a/major-profiles-v2-38 병합이 그 파일을 39개로 정당하게 확장한다(이
+        # Bridge 작업 자체와는 무관한 다른 라운드의 의도된 변경).
         for rel_path in (
-            "data/master/canonical_majors.jsonl", "data/master/major_profiles_v2.jsonl",
+            "data/master/canonical_majors.jsonl",
             "data/canonical_major_groups.draft.jsonl",
         ):
             result = subprocess.run(

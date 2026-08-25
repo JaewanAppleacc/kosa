@@ -148,8 +148,9 @@ class ArtsAndSportsGroupsTest(unittest.TestCase):
         self.assertEqual(leaked, set(), f"예체능 전공군이 추천 정본에 이미 들어감: {leaked}")
 
     def test_arts_and_sports_groups_not_in_vertical_slice_major_profiles(self) -> None:
-        """`data/master/major_profiles_v2.jsonl`(실제 매칭 엔진이 계산하는 3개 정본)에도
-        예체능 전공군이 없는지 확인한다."""
+        """`data/master/major_profiles_v2.jsonl`(실제 매칭 엔진이 계산하는 정본 —
+        2026-08-25 a/major-profiles-v2-38 이후 39개)에도 예체능 전공군이 없는지
+        확인한다."""
 
         promoted_ids: set[str] = set()
         path = _REPO_ROOT / "data" / "master" / "major_profiles_v2.jsonl"
@@ -164,10 +165,17 @@ class ArtsAndSportsGroupsTest(unittest.TestCase):
 
 
 class ExistingMasterFilesUnchangedTest(unittest.TestCase):
-    """기존 `data/master/canonical_majors.jsonl`(10개)·`major_profiles_v2.jsonl`
-    (3개)가 이 브랜치에서 조금도 바뀌지 않았는지 이 Repo의 기준 커밋(HEAD)과 직접
-    `git diff`로 비교해 확인한다 — 줄 개수만 세는 것보다 엄격하다(내용이 바뀌고 줄
-    수만 같은 경우도 잡는다)."""
+    """기존 `data/master/canonical_majors.jsonl`(10개)이 이 브랜치(Canonical Major
+    Group Draft 라운드)에서 조금도 바뀌지 않았는지 이 Repo의 기준 커밋(HEAD)과
+    직접 `git diff`로 비교해 확인한다 — 줄 개수만 세는 것보다 엄격하다(내용이
+    바뀌고 줄 수만 같은 경우도 잡는다).
+
+    2026-08-25 갱신(a/major-profiles-v2-38 병합) — `major_profiles_v2.jsonl`
+    (당시 3개)은 그 후속 작업이 39개 Service Catalog 전체로 정당하게 확장하는
+    파일이다(§2 "3개 고정 구조를 제거하고 39개 Profile을 자동 로드"). 그래서 이
+    파일의 "무변경" 검사는 더 이상 여기 두지 않는다 — 대신
+    `tests/test_service_major_profiles_v2.py`가 39개·Catalog 1:1 일치라는 그
+    라운드의 실제 새 불변식을 고정한다."""
 
     def _assert_unchanged_since_head(self, relative_path: str) -> None:
         result = subprocess.run(
@@ -184,12 +192,6 @@ class ExistingMasterFilesUnchangedTest(unittest.TestCase):
         lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
         self.assertEqual(len(lines), 10)
         self._assert_unchanged_since_head("data/master/canonical_majors.jsonl")
-
-    def test_major_profiles_v2_jsonl_unchanged(self) -> None:
-        path = _REPO_ROOT / "data" / "master" / "major_profiles_v2.jsonl"
-        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        self.assertEqual(len(lines), 3)
-        self._assert_unchanged_since_head("data/master/major_profiles_v2.jsonl")
 
     def test_departments_jsonl_unchanged(self) -> None:
         """A 결정사항 §1 "현재 시연 Master 35개 유지" — 이 Canonical Major Group
