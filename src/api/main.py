@@ -128,7 +128,7 @@ from src.services.knowledge_subgraph_service import (
     KnowledgeSubgraphService,
     SubgraphEvidenceNotReadyError,
 )
-from src.services.major_exploration_service import DEFAULT_SERVICE_MAJOR_IDS, MajorExplorationService
+from src.services.major_exploration_service import MajorExplorationService
 from src.services.feature_flags import (
     MAX_V2_DIRECT_PROBE_QUESTIONS,
     context_pack_runtime_enabled,
@@ -287,15 +287,27 @@ if len(_department_repository) == 0:
 # 2026-08-25 지시서(a/national-master-promotion-final-wiring) §4: 전국 학과 1,072건
 # 승격으로 fail_closed_major_ids를 VERTICAL_SLICE_MAJOR_PROFILES(3개)로 좁혀 둘 이유가
 # 사라졌다 — 1,072건 전부가 이미 Group/Bridge/P1/N.C.E 검수를 통과했고,
-# department_recommendation_scope.jsonl에 그 승인 근거가 기록돼 있다. 실제 서비스가
-# 추천하는 10개 Canonical Major(DEFAULT_SERVICE_MAJOR_IDS, allowed_major_ids와 같은
-# 정본) 전부를 Fail-Closed로 묶는다 — Scope 기록이 없는 Major(hci_ux·design)는 계속
-# 빈 목록을 반환한다(허위로 만들어내지 않는다, §4 "hci_ux 0건을 임의로 만들지 않음").
+# department_recommendation_scope.jsonl에 그 승인 근거가 기록돼 있다.
+#
+# 2026-08-25 갱신(a/final-39-major-integration §4/§6) — c/national-departments-38-majors가
+# departments.jsonl·department_recommendation_scope.jsonl을 5,595건·38개 Major로
+# 다시 승격하면서, allowed_major_ids를 옛 DEFAULT_SERVICE_MAJOR_IDS(10개)에 그대로
+# 두면 새 29개 Major(예: trade_logistics)의 `/departments/{major_id}`가 실제
+# Master에 학과가 있어도 이 바깥쪽 허용 목록 관문에서 막혀 무조건 빈 목록을 반환한다
+# (department_recommendation_scope.jsonl 자체는 5,595건 전부 APPROVED라 안쪽
+# Scope 검사는 이미 통과할 준비가 돼 있었다 — 바깥쪽 게이트만 안 열려 있었다).
+# 허용 집합을 39개 서비스 Major 전부(SERVICE_MAJOR_PROFILES_V2 — 이미 로드돼 있어
+# 파일을 또 읽지 않는다)로 넓히고, department_recommendation_scope.jsonl이 실제로
+# 승인 기록을 가진 major_id에만 Fail-Closed 학과 단위 재확인을 적용한다(같은 집합 —
+# hci_ux는 Scope 기록이 아예 없으므로 이 목록에 있어도 계속 빈 목록이다, §4
+# "hci_ux 0건을 임의로 만들지 않음"은 그대로 지켜진다).
+_SERVICE_MAJOR_V2_IDS = frozenset(p.major_id for p in SERVICE_MAJOR_PROFILES_V2)
 _department_recommendation_scope_policy = JsonlDepartmentRecommendationScopePolicy()
 _major_exploration_service = MajorExplorationService(
     _department_repository,
     recommendation_scope_policy=_department_recommendation_scope_policy,
-    fail_closed_major_ids=DEFAULT_SERVICE_MAJOR_IDS,
+    fail_closed_major_ids=_SERVICE_MAJOR_V2_IDS,
+    allowed_major_ids=_SERVICE_MAJOR_V2_IDS,
 )
 
 # 2026-08-24 14차 리뷰: GET /subjects/{session_id}?selected_major_id=... — 과목 데이터도

@@ -872,6 +872,33 @@ class DepartmentsEndpointTest(unittest.TestCase):
         for dept in body["departments"]:
             self.assertEqual(dept["canonical_major_id"], "computer_science")
 
+    def test_returns_real_repository_departments_for_a_new_39_major_catalog_major(self) -> None:
+        """2026-08-25 지시서(a/final-39-major-integration) §4/§6 — c/national-departments-
+        38-majors가 departments.jsonl을 5,595건·38개 Major로 다시 승격한 뒤에도
+        `_major_exploration_service`의 allowed_major_ids가 옛 10개 Major
+        (DEFAULT_SERVICE_MAJOR_IDS)에 묶여 있으면, 새 29개 Major(예: trade_logistics)는
+        Master에 학과가 있어도 이 바깥쪽 허용 목록 관문에서 막혀 무조건 빈 목록을
+        반환한다 — 이 테스트가 그 회귀를 잡는다."""
+
+        r = client.get("/departments/trade_logistics")
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["major_id"], "trade_logistics")
+        # data/master/departments_promotion_manifest_38majors.json의 major_breakdown
+        # 실측값(trade_logistics: 123)과 일치해야 한다.
+        self.assertEqual(len(body["departments"]), 123)
+        for dept in body["departments"]:
+            self.assertEqual(dept["canonical_major_id"], "trade_logistics")
+
+    def test_hci_ux_still_returns_empty_list_not_error(self) -> None:
+        """hci_ux는 39개 서비스 Major 허용 목록에는 있지만(ACTIVE, DEPARTMENT_LEVEL_ONLY)
+        department_recommendation_scope.jsonl에 승인 기록이 아예 없다 — 빈 목록이
+        지어낸 데이터 없이 정직하게 나와야 한다(§4 "hci_ux 0건을 임의로 만들지 않음")."""
+
+        r = client.get("/departments/hci_ux")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {"major_id": "hci_ux", "departments": []})
+
     def test_response_contains_no_mock_department_id(self) -> None:
         r = client.get("/departments/media_communication")
         body_text = r.text
