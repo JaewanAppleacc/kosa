@@ -16,6 +16,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from pathlib import Path
+
 import src.api.main as main_module
 from src.api.main import app
 from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
@@ -23,7 +25,15 @@ from src.repositories.subject_repository import load_subjects
 from src.tracing.tracer import Tracer
 
 client = TestClient(app)
-_ALL_SUBJECT_IDS = {s.subject_id for s in load_subjects()}
+# v2 Primary 경로는 subject_profiles_v2.jsonl(2026-08-25 a/subject-mapping-38-majors
+# 확장분 포함)에서 후보를 뽑는다 — Legacy subjects.jsonl만 보면 확장분 신규 과목이
+# 빠져 오탐(False positive AssertionError)이 난다.
+_V2_SUBJECT_PROFILES_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "master" / "subject_profiles_v2.jsonl"
+)
+_ALL_SUBJECT_IDS = {s.subject_id for s in load_subjects()} | {
+    s.subject_id for s in load_subjects(_V2_SUBJECT_PROFILES_PATH)
+}
 _MAX_TURNS = 40
 
 _FORBIDDEN_KEY_SUBSTRINGS = ("score", "tendency", "confidence", "weight")
