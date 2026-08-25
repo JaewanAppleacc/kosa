@@ -28,6 +28,9 @@ import src.agents.assessment.profile_generator as profile_generator_module
 import src.api.main as main_module
 import src.api.mock_data as mock_data_module
 from src.api.main import app
+from src.data.majors.service_major_profiles_v2 import SERVICE_MAJOR_PROFILES_V2
+from src.data.majors.vertical_slice_major_profiles import VERTICAL_SLICE_MAJOR_PROFILES
+from src.services.feature_flags import trait_vector_v2_primary_enabled
 from src.tracing.tracer import Tracer
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "outputs" / "mock_api"
@@ -97,7 +100,32 @@ def _run(client: TestClient) -> None:
 
     # 2026-08-30 20차 리뷰: GET /contexts는 session_id가 필요 없다 — 실제 Endpoint를
     # 그대로 호출해서 만든다(스크립트에 15개 Context를 다시 하드코딩하지 않는다).
-    _write("contexts_normal", client.get("/contexts").json())
+    contexts_payload = client.get("/contexts").json()
+    _write("contexts_normal", contexts_payload)
+
+    # 2026-08-25(a/final-39-major-integration 마무리): 고를 Context 개수를 스크립트에
+    # 하드코딩하지 않고 방금 받은 selection_policy에서 읽는다.
+    #
+    # 이전에는 선호 2개·최종 3개가 상수로 박혀 있어서 ENABLE_CONTEXT_SELECTION_4_PLUS_1을
+    # 켜면 /assessment/context-select가 422로 거부했다("선호 Context는 최소 4개 이상이어야
+    # 합니다 (현재 2개)"). 그 시점에 스크립트가 멈춰 majors·departments·subjects·subgraph
+    # Mock이 아예 생성되지 않았다. 정책을 읽어서 맞추면 Flag ON/OFF 어느 쪽이든 돈다.
+    _policy = contexts_payload["selection_policy"]
+    _supported = [c["context_id"] for c in contexts_payload["contexts"] if c["assessment_supported"]]
+    _preferred_count = _policy["preferred_context_max_count"]
+    if len(_supported) < _preferred_count:
+        raise RuntimeError(
+            f"검수 통과한 Context가 {len(_supported)}개뿐이라 정책이 요구하는 "
+            f"선호 {_preferred_count}개를 고를 수 없다 — ENABLE_CONTEXT_PACK_RUNTIME과 "
+            f"ENABLE_CONTEXT_SELECTION_4_PLUS_1 조합을 확인한다."
+        )
+    # 정렬은 /contexts가 준 순서를 그대로 쓴다 — 재실행마다 같은 Context가 뽑혀야 한다.
+    preferred_context_ids = _supported[:_preferred_count]
+    # 선호로 고른 Context는 높게, 나머지는 중간으로 준다. Contrast 선택기가 관심도 차이를
+    # 보고 대비 Context를 고르므로 전부 같은 점수를 주면 안 된다.
+    interest_ratings = {
+        context_id: (5 if context_id in preferred_context_ids else 3) for context_id in _supported
+    }
 
     # --- 정상 흐름 ---
     r = client.post("/assessment/session")
@@ -107,19 +135,26 @@ def _run(client: TestClient) -> None:
 
     r = client.post(
         "/assessment/interest-rating",
-        json={"session_id": session_id, "ratings": {"game": 5, "media": 5, "school_life": 4}},
+        json={"session_id": session_id, "ratings": interest_ratings},
     )
     _write("interest_rating_normal", r.json())
 
     r = client.post(
         "/assessment/context-select",
-        json={"session_id": session_id, "selected_preferred_context_ids": ["game", "media"]},
+        json={"session_id": session_id, "selected_preferred_context_ids": preferred_context_ids},
     )
     _write("context_select_normal", r.json())
 
+    # 최종 Context는 선호 + 서버가 제안한 Contrast다 — 대비 Context를 스크립트가 고르지
+    # 않는다(어느 것이 대비인지는 ContrastContextSelector의 판단이다).
+    contrast_context_id = r.json().get("contrast_context_id")
+    final_context_ids = [*preferred_context_ids]
+    if contrast_context_id and contrast_context_id not in final_context_ids:
+        final_context_ids.append(contrast_context_id)
+
     r = client.post(
         "/assessment/context-confirm",
-        json={"session_id": session_id, "final_context_ids": ["game", "media", "school_life"]},
+        json={"session_id": session_id, "final_context_ids": final_context_ids},
     )
     _write("context_confirm_normal", r.json())
 
@@ -171,14 +206,48 @@ def _run(client: TestClient) -> None:
     majors_response = client.get(f"/majors/{session_id}").json()
     _write("profile_normal", client.get(f"/profile/{session_id}").json())
     _write("majors_normal", majors_response)
-    _write("departments_normal", client.get("/departments/media_communication").json())
+
     # 2026-08-24 14차 리뷰: selected_major_id는 이 세션이 실제로 추천받은 전공이어야
-    # 한다(§5 검증 규칙) — majors_normal 응답의 1위 전공을 그대로 재사용한다.
-    selected_major_id = majors_response["relevant_majors"][0]["major_id"]
-    _write(
-        "subjects_normal",
-        client.get(f"/subjects/{session_id}", params={"selected_major_id": selected_major_id}).json(),
+    # 한다(§5 검증 규칙) — majors_normal 응답의 전공만 후보로 쓴다.
+    #
+    # 2026-08-25(a/final-39-major-integration 마무리): 1위 전공을 무조건 쓰던 것을
+    # "추천 목록 순서대로 보되, /subjects가 실제로 받아주는 첫 전공"으로 바꿨다.
+    # Context 조합이 달라지면 1위 전공도 달라지는데(4+1에서는 social_welfare가 1위였다),
+    # 과목 경로는 아직 Vertical Slice 전공만 받으므로 MajorNotSelectableError로 스크립트가
+    # 통째로 중단됐다. 순서를 지키므로 받아주는 전공이 1위면 §5는 그대로 지켜진다.
+    # 과목 경로가 받아주는 전공 집합은 PRIMARY Flag에 따라 다르다 — Flag가 켜지면
+    # v2(39개 Service Major), 꺼지면 Legacy Vertical Slice 3개다. 스크립트가 어느 쪽을
+    # 고를지도 같은 기준을 따라야 한다.
+    _course_selectable = {
+        profile.major_id
+        for profile in (
+            SERVICE_MAJOR_PROFILES_V2
+            if trait_vector_v2_primary_enabled()
+            else VERTICAL_SLICE_MAJOR_PROFILES
+        )
+    }
+    selected_major_id = next(
+        (
+            major["major_id"]
+            for major in majors_response["relevant_majors"]
+            if major["major_id"] in _course_selectable
+        ),
+        None,
     )
+    if selected_major_id is None:
+        raise RuntimeError(
+            "추천된 전공 중 과목 경로가 받아주는 것이 하나도 없다 — 추천 결과"
+            f"({[m['major_id'] for m in majors_response['relevant_majors']]})와 과목 선택 가능 "
+            f"전공({sorted(_course_selectable)})이 어긋났다. 과목 Mapping 범위를 확인한다."
+        )
+    subjects_response = client.get(
+        f"/subjects/{session_id}", params={"selected_major_id": selected_major_id}
+    ).json()
+
+    # 학과 목록은 이 세션이 고른 전공을 따라간다 — 전공과 학과가 어긋난 Mock을 만들지
+    # 않는다(예전에는 media_communication이 상수로 박혀 있었다).
+    _write("departments_normal", client.get(f"/departments/{selected_major_id}").json())
+    _write("subjects_normal", subjects_response)
 
     # 2026-08-26 16차 리뷰: 실제 Parser로 연결된 뒤로는 텍스트를 추출할 수 없는 가짜
     # PDF("%PDF-1.4 fake content")를 올리면 이제 성공(200)이 아니라 PARSE_FAILED(422)가
