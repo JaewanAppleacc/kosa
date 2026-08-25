@@ -474,14 +474,33 @@ class SubjectNodeTest(unittest.TestCase):
             # 취급) — Edge가 하나만 생겨야 한다.
         ]
 
-    def _confirm(self, store: InMemoryCoursePlanningStore, *, status: str = "CONFIRMED") -> None:
+    def _confirm(
+        self,
+        store: InMemoryCoursePlanningStore,
+        *,
+        status: str = "CONFIRMED",
+        selected_major_id: str = "industrial_engineering",
+    ) -> None:
         store.save(
             CoursePlanningSessionState(
-                session_id="sess_test", selected_major_id="industrial_engineering",
+                session_id="sess_test", selected_major_id=selected_major_id,
                 parsed_candidates=[], confirmed_offered_subject_ids=["subj_core_offered"],
                 upload_status=status,
             )
         )
+
+    def test_major_the_legacy_course_path_cannot_plan_yields_partial_subgraph(self) -> None:
+        """Service Canonical Major가 39개로 늘어난 뒤, Vertical Slice 3개 밖의 전공이
+        확정된 세션에서도 build()가 죽지 않아야 한다(예전에는 MajorNotSelectableError가
+        그대로 올라가 GET /subgraph가 500이었다). 과목 Node만 빠지고 Trait/전공은 남는다."""
+
+        service, store = _build_service(
+            subjects=[self.subj_core_offered], subject_trait_records=self.subject_trait_records,
+        )
+        self._confirm(store, selected_major_id="social_welfare")
+        nodes, _edges = service.build(_base_state())
+        self.assertEqual([n for n in nodes if n.node_type == "HighSchoolSubject"], [])
+        self.assertTrue(any(n.node_type == "CanonicalMajor" for n in nodes))
 
     def test_subject_nodes_included_only_when_confirmed(self) -> None:
         service, store = _build_service(
