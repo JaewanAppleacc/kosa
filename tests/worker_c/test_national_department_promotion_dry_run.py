@@ -91,17 +91,17 @@ class _Universe:
 
 def _build_universe(
     root: Path, *, approved_group_ids: frozenset[str] = frozenset(),
-    scope_by_group: dict[str, tuple[str, list[str]]] | None = None,
+    excluded_group_ids: frozenset[str] = frozenset(),
     survey_year: int = 2025,
     p1_packet_rows: list[dict[str, Any]] | None = None,
     nce_cluster_rows: list[dict[str, Any]] | None = None,
 ) -> _Universe:
-    """4개 Group·Bridge·Major·공식 소계열 코드표·P1/N.C.E Draft 패킷을 만든다.
-
-    `scope_by_group`은 `{group_id: (scope_type, included_small_series_codes)}` —
-    기본은 실제 데이터와 같은 값(computer_science/media_communication=FULL_GROUP,
-    industrial_engineering=INCLUDED_SMALL_SERIES_ONLY[102],
-    business=INCLUDED_SMALL_SERIES_ONLY[033])이다.
+    """4개 Group·Bridge V2·Service Canonical Major v2·공식 소계열 코드표·P1/N.C.E
+    Draft 패킷을 만든다. 2026-08-25 지시서(c/national-departments-38-majors) —
+    Bridge V2는 Group 하나당 정확히 한 행이라(scope_type·EVIDENCED 여러 개 개념
+    자체가 없다) 옛 `scope_by_group` 파라미터는 더 이상 의미가 없다 —
+    `excluded_group_ids`(그 Group을 EXCLUDED_RECOMMENDATION으로 만들 Group 집합,
+    기본은 없음)로 대체한다.
 
     `p1_packet_rows`/`nce_cluster_rows`를 생략하면 빈 목록(0행)을 쓴다 — 두 Draft
     패킷 다 2026-08-24부터 필수 입력이라(§6/§7 재검증에 필요) 파일 자체는 항상
@@ -109,13 +109,6 @@ def _build_universe(
     (그 경우 REVIEW_REQUIRED/N.C.E로 분류되는 학과가 아예 없으므로)."""
 
     universe = _Universe(root, survey_year)
-    default_scope = {
-        "computer_science": ("FULL_GROUP", []),
-        "media_communication": ("FULL_GROUP", []),
-        "industrial_engineering": ("INCLUDED_SMALL_SERIES_ONLY", ["102"]),
-        "business": ("INCLUDED_SMALL_SERIES_ONLY", ["033"]),
-    }
-    scope_by_group = scope_by_group or default_scope
 
     groups = [
         {
@@ -130,24 +123,31 @@ def _build_universe(
 
     bridge_rows = []
     for group_id, major_id in _GROUP_TO_MAJOR.items():
-        scope_type, included = scope_by_group[group_id]
-        bridge_rows.append(
-            {
-                "canonical_major_group_id": group_id, "canonical_major_id": major_id, "mapping_status": "EVIDENCED",
-                "evidence": ["테스트 근거"], "decision_reason": "테스트 사유", "boundary_notes": "",
-                "review_status": "draft", "reviewer_id": None, "reviewed_at": None,
-                "scope_type": scope_type, "included_small_series_codes": included, "excluded_small_series_codes": [],
-                "scope_decision_reason": "테스트 Scope 사유", "scope_review_status": "draft",
-            }
-        )
+        if group_id in excluded_group_ids:
+            bridge_rows.append(
+                {
+                    "canonical_major_group_id": group_id, "service_major_id": None,
+                    "recommendation_status": "EXCLUDED_RECOMMENDATION", "decision_reason": "테스트 예체능 제외 사유",
+                }
+            )
+        else:
+            bridge_rows.append(
+                {
+                    "canonical_major_group_id": group_id, "service_major_id": major_id,
+                    "recommendation_status": "ACTIVE", "decision_reason": "테스트 Bridge V2 사유",
+                }
+            )
     _write_jsonl(universe.bridge_draft_path, bridge_rows)
 
     majors = [
         {
             "major_id": major_id, "label": major_id, "description": f"{major_id} 학생 설명 문장입니다.",
-            "aliases": [], "keywords": [], "source_url": "https://academyinfo.go.kr", "as_of_date": "2025-01-01",
+            "aliases": [], "keywords": [], "canonical_major_group_id": group_id, "source_group_ids": [],
+            "mapping_scope": "FULL_GROUP", "recommendation_status": "ACTIVE",
+            "official_source_urls": ["https://academyinfo.go.kr"], "catalog_version": "test_fixture_v1",
         }
-        for major_id in sorted(set(_GROUP_TO_MAJOR.values()))
+        for group_id, major_id in sorted(_GROUP_TO_MAJOR.items(), key=lambda kv: kv[1])
+        if group_id not in excluded_group_ids
     ]
     _write_jsonl(universe.majors_path, majors)
 
@@ -189,13 +189,6 @@ def _cls_row(
         "department_id": department_id, "official_small_series_code": official_small_series_code,
         "mapping_status": mapping_status, "candidate_canonical_major_ids": candidate_canonical_major_ids or [],
         "eligibility_status": eligibility_status, "decision_reason": decision_reason,
-    }
-
-
-def _approval_review_row(group_id: str, major_id: str) -> dict[str, Any]:
-    return {
-        "canonical_major_group_id": group_id, "canonical_major_id": major_id,
-        "reviewer_1_status": "APPROVE", "reviewer_1_comment": "테스트 승인", "resolution_note": "",
     }
 
 
@@ -284,9 +277,13 @@ def _nce_review_row(code: str, decision: str, *, comment: str = "", revision: in
 
 
 class FullyApprovedGateSuccessTest(unittest.TestCase):
-    """지시서 §6 — computer_science FULL_GROUP·media_communication·industrial_engineering
-    102 소계열만·business 033만, 4개 시나리오가 전부 승인됐을 때만 READY_FOR_PROMOTION이
-    되는지 확인한다. 실제 Review JSON은 전혀 건드리지 않는다(전부 tempfile 안)."""
+    """지시서(c/national-departments-38-majors) — computer_science·media_communication·
+    industrial_engineering·business 4개 Group이 전부 승인(Group Review APPROVE +
+    Bridge V2 ACTIVE)됐을 때만 READY_FOR_PROMOTION이 되는지 확인한다. 2026-08-25
+    (c/national-departments-38-majors) — Bridge V2는 소계열 단위 Scope 제한이 없다
+    (Group 하나당 정확히 한 행, FULL_GROUP뿐) — 옛 "포함된 소계열만 통과" 개념이
+    사라졌으므로, 같은 Group 안의 서로 다른 소계열 학과가 전부 READY가 되는지도
+    같이 확인한다. 실제 Review JSON은 전혀 건드리지 않는다(전부 tempfile 안)."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -296,9 +293,6 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
             root, approved_group_ids=frozenset(_GROUP_CODES),
         )
         reviews_dir = root / "reviews"
-        bridge_mapping_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_mapping_rows)
-        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_mapping_rows)
         _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
@@ -310,27 +304,26 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
         self.departments = [
             _dept_row("dept_cs", department_name="컴퓨터공학과", source_schl_mjr_id="mjr_cs"),
             _dept_row("dept_media", department_name="미디어커뮤니케이션학과", source_schl_mjr_id="mjr_media"),
-            _dept_row("dept_ie_included", department_name="산업공학과", source_schl_mjr_id="mjr_ie_included"),
-            _dept_row("dept_ie_excluded", department_name="안전공학과", source_schl_mjr_id="mjr_ie_excluded"),
-            _dept_row("dept_biz_included", department_name="경영학과", source_schl_mjr_id="mjr_biz_included"),
-            _dept_row("dept_biz_excluded", department_name="경영정보학과", source_schl_mjr_id="mjr_biz_excluded"),
+            _dept_row("dept_ie_102", department_name="산업공학과", source_schl_mjr_id="mjr_ie_102"),
+            _dept_row("dept_ie_103", department_name="안전공학과", source_schl_mjr_id="mjr_ie_103"),
+            _dept_row("dept_biz_033", department_name="경영학과", source_schl_mjr_id="mjr_biz_033"),
+            _dept_row("dept_biz_035", department_name="경영정보학과", source_schl_mjr_id="mjr_biz_035"),
         ]
         self.classifications = [
             _cls_row("dept_cs", official_small_series_code="089", candidate_canonical_major_ids=["computer_science"]),
             _cls_row("dept_media", official_small_series_code="027", candidate_canonical_major_ids=["media_communication"]),
-            _cls_row("dept_ie_included", official_small_series_code="102", candidate_canonical_major_ids=["industrial_engineering"]),
-            _cls_row("dept_ie_excluded", official_small_series_code="103", candidate_canonical_major_ids=["industrial_engineering"]),
-            _cls_row("dept_biz_included", official_small_series_code="033", candidate_canonical_major_ids=["business"]),
-            _cls_row("dept_biz_excluded", official_small_series_code="035", candidate_canonical_major_ids=["business"]),
+            _cls_row("dept_ie_102", official_small_series_code="102", candidate_canonical_major_ids=["industrial_engineering"]),
+            _cls_row("dept_ie_103", official_small_series_code="103", candidate_canonical_major_ids=["industrial_engineering"]),
+            _cls_row("dept_biz_033", official_small_series_code="033", candidate_canonical_major_ids=["business"]),
+            _cls_row("dept_biz_035", official_small_series_code="035", candidate_canonical_major_ids=["business"]),
         ]
         _write_jsonl(work_dir / "departments.normalized.jsonl", self.departments)
         _write_jsonl(work_dir / "classification_results.jsonl", self.classifications)
 
         self.inputs = load_inputs(
             data_dir=root, survey_year=2025, reviews_dir=reviews_dir,
-            group_draft_path=self.universe.group_draft_path, bridge_draft_path=self.universe.bridge_draft_path,
-            canonical_majors_path=self.universe.majors_path,
-            small_series_code_table_path=self.universe.code_table_path,
+            group_draft_path=self.universe.group_draft_path, canonical_major_group_bridge_v2_path=self.universe.bridge_draft_path,
+            service_canonical_majors_v2_path=self.universe.majors_path,
             p1_packet_path=self.universe.p1_packet_path, nce_clusters_path=self.universe.nce_clusters_path,
         )
         self.by_id = {r["department_id"]: r for r in self.departments}
@@ -338,7 +331,7 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
     def _evaluate(self, department_id: str) -> dict[str, Any]:
         return evaluate_department(self.by_id[department_id], self.inputs)
 
-    def test_computer_science_full_group_ready(self) -> None:
+    def test_computer_science_ready(self) -> None:
         result = self._evaluate("dept_cs")
         self.assertEqual(result["status"], "READY_FOR_PROMOTION")
         self.assertEqual(result["blocked_reasons"], [])
@@ -349,25 +342,21 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
         self.assertEqual(result["status"], "READY_FOR_PROMOTION")
         self.assertEqual(result["resolved_canonical_major_id"], "media_communication")
 
-    def test_industrial_engineering_included_small_series_ready(self) -> None:
-        result = self._evaluate("dept_ie_included")
-        self.assertEqual(result["status"], "READY_FOR_PROMOTION")
-        self.assertEqual(result["resolved_canonical_major_id"], "industrial_engineering")
+    def test_industrial_engineering_ready_regardless_of_small_series(self) -> None:
+        """Bridge V2는 소계열 Scope 제한이 없다 — 같은 Group의 서로 다른 소계열
+        (102/103)이 둘 다 READY여야 한다(옛 BLOCKED_OUTSIDE_SMALL_SERIES_SCOPE는
+        더 이상 존재하지 않는다)."""
 
-    def test_industrial_engineering_excluded_small_series_blocked(self) -> None:
-        result = self._evaluate("dept_ie_excluded")
-        self.assertEqual(result["status"], "BLOCKED")
-        self.assertIn("BLOCKED_OUTSIDE_SMALL_SERIES_SCOPE", result["blocked_reasons"])
+        for department_id in ("dept_ie_102", "dept_ie_103"):
+            result = self._evaluate(department_id)
+            self.assertEqual(result["status"], "READY_FOR_PROMOTION", department_id)
+            self.assertEqual(result["resolved_canonical_major_id"], "industrial_engineering", department_id)
 
-    def test_business_included_small_series_ready(self) -> None:
-        result = self._evaluate("dept_biz_included")
-        self.assertEqual(result["status"], "READY_FOR_PROMOTION")
-        self.assertEqual(result["resolved_canonical_major_id"], "business_administration")
-
-    def test_business_excluded_small_series_blocked(self) -> None:
-        result = self._evaluate("dept_biz_excluded")
-        self.assertEqual(result["status"], "BLOCKED")
-        self.assertIn("BLOCKED_OUTSIDE_SMALL_SERIES_SCOPE", result["blocked_reasons"])
+    def test_business_ready_regardless_of_small_series(self) -> None:
+        for department_id in ("dept_biz_033", "dept_biz_035"):
+            result = self._evaluate(department_id)
+            self.assertEqual(result["status"], "READY_FOR_PROMOTION", department_id)
+            self.assertEqual(result["resolved_canonical_major_id"], "business_administration", department_id)
 
     def test_flipping_group_draft_approval_alone_blocks_previously_ready_department(self) -> None:
         """"모든 Gate 승인 시에만 READY_FOR_PROMOTION" — 다른 건 그대로 두고 Group
@@ -375,7 +364,7 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
 
         2026-08-25 지시서(a/final-integration-master-promotion) §3 정정 — 승인 정본이
         Draft의 정적 review_status에서 Group Review Store(decision)로 바뀌었으므로,
-        이제는 `group_reviews` dict에서 그 Group의 항목을 빼서 재현한다(다른 두
+        이제는 `group_reviews` dict에서 그 Group의 항목을 빼서 재현한다(다른
         flipping 테스트가 이미 쓰는 것과 같은 in-memory 패턴)."""
 
         inputs_dict = dict(self.inputs.__dict__)
@@ -385,25 +374,35 @@ class FullyApprovedGateSuccessTest(unittest.TestCase):
         self.assertEqual(result["status"], "BLOCKED")
         self.assertEqual(result["blocked_reasons"], ["BLOCKED_GROUP_DRAFT"])
 
-    def test_flipping_bridge_mapping_review_alone_blocks(self) -> None:
-        inputs_dict = dict(self.inputs.__dict__)
-        inputs_dict["bridge_mapping_reviews"] = {
-            k: v for k, v in self.inputs.bridge_mapping_reviews.items() if not k.startswith("computer_science::")
-        }
-        inputs = self.inputs.__class__(**inputs_dict)
-        result = evaluate_department(self.by_id["dept_cs"], inputs)
-        self.assertEqual(result["status"], "BLOCKED")
-        self.assertEqual(result["blocked_reasons"], ["BLOCKED_BRIDGE_MAPPING_REVIEW"])
+    def test_flipping_bridge_v2_to_excluded_recommendation_alone_blocks(self) -> None:
+        """2026-08-25 지시서(c/national-departments-38-majors) — Bridge V2에서 이
+        Group의 recommendation_status만 EXCLUDED_RECOMMENDATION으로 바꾸면(다른 건
+        그대로) BLOCKED_ARTS_RECOMMENDATION 하나만 남아야 한다(옛 Bridge Mapping/
+        Scope Review 두 단계를 대체한 자리)."""
 
-    def test_flipping_bridge_scope_review_alone_blocks(self) -> None:
         inputs_dict = dict(self.inputs.__dict__)
-        inputs_dict["bridge_scope_reviews"] = {
-            k: v for k, v in self.inputs.bridge_scope_reviews.items() if not k.startswith("computer_science::")
-        }
+        bridge = dict(self.inputs.service_major_bridge_by_group)
+        excluded_entry = bridge["computer_science"].model_copy(
+            update={"service_major_id": None, "recommendation_status": "EXCLUDED_RECOMMENDATION"}
+        )
+        bridge["computer_science"] = excluded_entry
+        inputs_dict["service_major_bridge_by_group"] = bridge
         inputs = self.inputs.__class__(**inputs_dict)
         result = evaluate_department(self.by_id["dept_cs"], inputs)
         self.assertEqual(result["status"], "BLOCKED")
-        self.assertEqual(result["blocked_reasons"], ["BLOCKED_BRIDGE_SCOPE_REVIEW"])
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_ARTS_RECOMMENDATION"])
+
+    def test_flipping_bridge_v2_group_missing_alone_blocks(self) -> None:
+        """이 Group이 Bridge V2에 아예 없으면(42개 Group 완전성이 깨진 방어적 경로)
+        BLOCKED_NO_SERVICE_CANONICAL_MAJOR 하나만 남아야 한다."""
+
+        inputs_dict = dict(self.inputs.__dict__)
+        bridge = {k: v for k, v in self.inputs.service_major_bridge_by_group.items() if k != "computer_science"}
+        inputs_dict["service_major_bridge_by_group"] = bridge
+        inputs = self.inputs.__class__(**inputs_dict)
+        result = evaluate_department(self.by_id["dept_cs"], inputs)
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_NO_SERVICE_CANONICAL_MAJOR"])
 
     def test_lineage_level_is_row_identity_only_for_every_row(self) -> None:
         """2026-08-24 지시서 §9 — 실제 연도 간 대조가 없는 한 모든 행이
@@ -434,8 +433,8 @@ class NoReviewBaselineTest(unittest.TestCase):
         )
         self.inputs = load_inputs(
             data_dir=root, survey_year=2025, reviews_dir=root / "reviews",  # 존재하지 않음 — Fail-Closed
-            group_draft_path=self.universe.group_draft_path, bridge_draft_path=self.universe.bridge_draft_path,
-            canonical_majors_path=self.universe.majors_path, small_series_code_table_path=self.universe.code_table_path,
+            group_draft_path=self.universe.group_draft_path, canonical_major_group_bridge_v2_path=self.universe.bridge_draft_path,
+            service_canonical_majors_v2_path=self.universe.majors_path,
             p1_packet_path=self.universe.p1_packet_path, nce_clusters_path=self.universe.nce_clusters_path,
             # 2026-08(a/final-mapping-review-closeout) 정정 — load_inputs()의
             # p1_review_path/nce_review_path 기본값은 (bridge_mapping_review_path/
@@ -451,19 +450,24 @@ class NoReviewBaselineTest(unittest.TestCase):
             nce_review_path=root / "reviews" / "academyinfo_nce_middle_series_review_status.jsonl",
         )
 
-    def test_no_review_files_means_no_approval_ever_reached(self) -> None:
-        self.assertEqual(self.inputs.bridge_mapping_reviews, {})
-        self.assertEqual(self.inputs.bridge_scope_reviews, {})
+    def test_no_review_files_means_no_group_approval_ever_reached(self) -> None:
+        """Bridge V2는 이미 확정된 정본이라(사람 검수 대기 상태가 없다)
+        `service_major_bridge_by_group`는 이 Fixture에서도 항상 채워져 있다 —
+        비어 있어야 하는 건 실제 사람 검수가 필요한 Group/P1/N.C.E뿐이다."""
+
+        self.assertEqual(self.inputs.group_reviews, {})
         self.assertEqual(self.inputs.p1_reviews, {})
         self.assertEqual(self.inputs.nce_reviews, {})
 
-    def test_department_blocked_by_group_draft_and_both_bridge_reviews(self) -> None:
+    def test_department_blocked_by_group_draft_alone(self) -> None:
+        """2026-08-25 지시서(c/national-departments-38-majors) 정정 — Bridge V2는
+        이미 확정된 정본이라(사람 검수 대기 상태가 없다) Group 승인만 안 됐다면
+        BLOCKED_GROUP_DRAFT 하나만 남는다(옛 Bridge Mapping/Scope Review 미결
+        사유는 더 이상 없다)."""
+
         result = evaluate_department(self.dept, self.inputs)
         self.assertEqual(result["status"], "BLOCKED")
-        self.assertEqual(
-            result["blocked_reasons"],
-            ["BLOCKED_BRIDGE_MAPPING_REVIEW", "BLOCKED_BRIDGE_SCOPE_REVIEW", "BLOCKED_GROUP_DRAFT"],
-        )
+        self.assertEqual(result["blocked_reasons"], ["BLOCKED_GROUP_DRAFT"])
 
 
 class IndependentGateBlockingTest(unittest.TestCase):
@@ -477,9 +481,6 @@ class IndependentGateBlockingTest(unittest.TestCase):
         root = Path(self._tmp.name)
         universe = _build_universe(root, approved_group_ids=frozenset(_GROUP_CODES))
         reviews_dir = root / "reviews"
-        bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
-        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
         _write_group_reviews(reviews_dir, _GROUP_CODES)
         work_dir = root / "academyinfo_work" / "2025"
         _write_jsonl(work_dir / "departments.normalized.jsonl", [_dept_row("dept_cs")])
@@ -489,8 +490,8 @@ class IndependentGateBlockingTest(unittest.TestCase):
         )
         self.inputs = load_inputs(
             data_dir=root, survey_year=2025, reviews_dir=reviews_dir,
-            group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
-            canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+            group_draft_path=universe.group_draft_path, canonical_major_group_bridge_v2_path=universe.bridge_draft_path,
+            service_canonical_majors_v2_path=universe.majors_path,
             p1_packet_path=universe.p1_packet_path, nce_clusters_path=universe.nce_clusters_path,
         )
 
@@ -744,10 +745,14 @@ class IndependentGateBlockingTest(unittest.TestCase):
         result = evaluate_department(row, self.inputs)
         self.assertIn("BLOCKED_MISSING_LINEAGE", result["blocked_reasons"])
 
-    def test_ambiguous_multiple_evidenced_bridge_candidates_distinct_from_no_candidate(self) -> None:
-        """2026-08-24 지시서 §8 — Group에 EVIDENCED 후보가 0개면
-        BLOCKED_NO_SERVICE_CANONICAL_MAJOR, 2개 이상이면
-        BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR로 서로 다른 사유가 나와야 한다."""
+    def test_group_missing_from_bridge_v2_blocks_as_no_service_canonical_major(self) -> None:
+        """2026-08-25 지시서(c/national-departments-38-majors) 정정 — Bridge V2는
+        Group 하나당 정확히 한 행이라 옛 "0개/2개 이상 EVIDENCED" 구분 자체가
+        사라졌다(모듈 docstring 참고). 남은 방어적 경로는 이 Group이 Bridge V2에
+        아예 없는 경우뿐이고, 그때는 BLOCKED_NO_SERVICE_CANONICAL_MAJOR 하나만
+        나와야 한다(BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR는 classification
+        단계의 후보 Group 자체가 2개 이상일 때만 쓴다 —
+        test_ambiguous_multiple_auto_candidates_distinct_from_zero_candidates 참고)."""
 
         row = _dept_row("dept_cs")
         cls = _cls_row(
@@ -756,28 +761,12 @@ class IndependentGateBlockingTest(unittest.TestCase):
         inputs_dict = dict(self.inputs.__dict__)
         inputs_dict["classification_by_department"] = {"dept_cs": cls}
 
-        # 0개 EVIDENCED (Group을 아예 안 다룬 상태로 흉내) — 기존 Bridge Entry 목록에서 지운다.
         no_candidate_inputs = self.inputs.__class__(
-            **{**inputs_dict, "bridge_entries_by_group": {}},
+            **{**inputs_dict, "service_major_bridge_by_group": {}},
         )
         result_no_candidate = evaluate_department(row, no_candidate_inputs)
         self.assertIn("BLOCKED_NO_SERVICE_CANONICAL_MAJOR", result_no_candidate["blocked_reasons"])
         self.assertNotIn("BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR", result_no_candidate["blocked_reasons"])
-
-        # 2개 EVIDENCED — 같은 Group에 두 번째 Major 후보를 추가한다.
-        second_entry = self.inputs.bridge_entries_by_group["computer_science"][0].model_copy(
-            update={"canonical_major_id": "media_communication"}
-        )
-        two_candidate_entries = {
-            **self.inputs.bridge_entries_by_group,
-            "computer_science": [*self.inputs.bridge_entries_by_group["computer_science"], second_entry],
-        }
-        two_candidate_inputs = self.inputs.__class__(
-            **{**inputs_dict, "bridge_entries_by_group": two_candidate_entries},
-        )
-        result_ambiguous = evaluate_department(row, two_candidate_inputs)
-        self.assertIn("BLOCKED_AMBIGUOUS_SERVICE_CANONICAL_MAJOR", result_ambiguous["blocked_reasons"])
-        self.assertNotIn("BLOCKED_NO_SERVICE_CANONICAL_MAJOR", result_ambiguous["blocked_reasons"])
 
     def test_ambiguous_multiple_auto_candidates_distinct_from_zero_candidates(self) -> None:
         """같은 구분을 classification 단계(AUTO_CANDIDATE의 candidate_canonical_
@@ -810,9 +799,6 @@ class UrlPolicyTest(unittest.TestCase):
         root = Path(self._tmp.name)
         universe = _build_universe(root, approved_group_ids=frozenset(_GROUP_CODES))
         reviews_dir = root / "reviews"
-        bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
-        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
         _write_group_reviews(reviews_dir, _GROUP_CODES)
         self.root = root
         self.universe = universe
@@ -829,8 +815,8 @@ class UrlPolicyTest(unittest.TestCase):
         _write_jsonl(work_dir / "department_url_scope_audit.jsonl", [audit_row])
         return load_inputs(
             data_dir=self.root, survey_year=2025, reviews_dir=self.reviews_dir,
-            group_draft_path=self.universe.group_draft_path, bridge_draft_path=self.universe.bridge_draft_path,
-            canonical_majors_path=self.universe.majors_path, small_series_code_table_path=self.universe.code_table_path,
+            group_draft_path=self.universe.group_draft_path, canonical_major_group_bridge_v2_path=self.universe.bridge_draft_path,
+            service_canonical_majors_v2_path=self.universe.majors_path,
             p1_packet_path=self.universe.p1_packet_path, nce_clusters_path=self.universe.nce_clusters_path,
         )
 
@@ -1006,9 +992,6 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
             root, approved_group_ids=frozenset(_GROUP_CODES), p1_packet_rows=[p1_packet_row],
         )
         reviews_dir = root / "reviews"
-        bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
-        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
         _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
@@ -1033,8 +1016,8 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
 
         inputs = load_inputs(
             data_dir=root, survey_year=2025, reviews_dir=reviews_dir,
-            group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
-            canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+            group_draft_path=universe.group_draft_path, canonical_major_group_bridge_v2_path=universe.bridge_draft_path,
+            service_canonical_majors_v2_path=universe.majors_path,
             p1_packet_path=universe.p1_packet_path, p1_review_path=p1_review_path,
         )
         result = evaluate_department(_dept_row("dept_cs"), inputs)
@@ -1053,9 +1036,6 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
         nce_row = _nce_cluster_row("99", department_ids=["dept_cs"])
         universe = _build_universe(root, approved_group_ids=frozenset(_GROUP_CODES), nce_cluster_rows=[nce_row])
         reviews_dir = root / "reviews"
-        bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
-        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
         _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
@@ -1079,8 +1059,8 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
 
         inputs = load_inputs(
             data_dir=root, survey_year=2025, reviews_dir=reviews_dir,
-            group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
-            canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+            group_draft_path=universe.group_draft_path, canonical_major_group_bridge_v2_path=universe.bridge_draft_path,
+            service_canonical_majors_v2_path=universe.majors_path,
             nce_clusters_path=universe.nce_clusters_path, nce_review_path=nce_review_path,
         )
         result = evaluate_department(_dept_row("dept_cs"), inputs)
@@ -1100,9 +1080,6 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
         )
         universe = _build_universe(root, approved_group_ids=frozenset(_GROUP_CODES), nce_cluster_rows=[nce_row])
         reviews_dir = root / "reviews"
-        bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-        _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
-        _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
         _write_group_reviews(reviews_dir, _GROUP_CODES)
 
         work_dir = root / "academyinfo_work" / "2025"
@@ -1126,8 +1103,8 @@ class UiSavedReviewConsumedByDryRunTest(unittest.TestCase):
 
         inputs = load_inputs(
             data_dir=root, survey_year=2025, reviews_dir=reviews_dir,
-            group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
-            canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+            group_draft_path=universe.group_draft_path, canonical_major_group_bridge_v2_path=universe.bridge_draft_path,
+            service_canonical_majors_v2_path=universe.majors_path,
             nce_clusters_path=universe.nce_clusters_path, nce_review_path=nce_review_path,
         )
         result = evaluate_department(_dept_row("dept_cs"), inputs)
@@ -1189,8 +1166,8 @@ class CleanCloneMissingInputTest(unittest.TestCase):
             with self.assertRaises(MissingRequiredInputError):
                 load_inputs(
                     data_dir=root, survey_year=2025, reviews_dir=root / "reviews",
-                    group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
-                    canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+                    group_draft_path=universe.group_draft_path, canonical_major_group_bridge_v2_path=universe.bridge_draft_path,
+                    service_canonical_majors_v2_path=universe.majors_path,
                     p1_packet_path=universe.p1_packet_path, nce_clusters_path=universe.nce_clusters_path,
                 )
 
@@ -1208,8 +1185,8 @@ class CleanCloneMissingInputTest(unittest.TestCase):
             with self.assertRaises(MissingRequiredInputError):
                 load_inputs(
                     data_dir=root, survey_year=2025, reviews_dir=root / "reviews",
-                    group_draft_path=universe.group_draft_path, bridge_draft_path=universe.bridge_draft_path,
-                    canonical_majors_path=universe.majors_path, small_series_code_table_path=universe.code_table_path,
+                    group_draft_path=universe.group_draft_path, canonical_major_group_bridge_v2_path=universe.bridge_draft_path,
+                    service_canonical_majors_v2_path=universe.majors_path,
                     p1_packet_path=universe.p1_packet_path, nce_clusters_path=universe.nce_clusters_path,
                 )
 
@@ -1234,7 +1211,11 @@ class RealVsFixtureRunDistinctionTest(unittest.TestCase):
         이 테스트 자체가 세션마다 뒤집힌다. 실제로 커밋되는, 재현 가능한 증거는 전국
         1,072건 승격 산출물이다: national_master_promotion_candidates.jsonl(1,072건)·
         national_master_promotion_report.json과, 그 결과로 실제 교체된 운영 Master
-        (data/master/departments.jsonl, 1,072건)."""
+        (data/master/departments.jsonl, 1,072건).
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+        Major·1,072건을 38개 Major·5,595건으로 다시 교체했다(national_master_
+        promotion_candidates.jsonl도 이 라운드 결과로 재생성됐다)."""
         candidates = (
             ROOT / "data" / "academyinfo_work" / "2025" / "promotion_dry_run"
             / "national_master_promotion_candidates.jsonl"
@@ -1248,8 +1229,8 @@ class RealVsFixtureRunDistinctionTest(unittest.TestCase):
         self.assertTrue(report.exists(), "전국 승격 보고서가 없다 — §5/§6이 실제 데이터로 실행되지 않았다")
         candidate_rows = [l for l in candidates.read_text(encoding="utf-8").splitlines() if l.strip()]
         master_rows = [l for l in master.read_text(encoding="utf-8").splitlines() if l.strip()]
-        self.assertEqual(len(candidate_rows), 1072)
-        self.assertEqual(len(master_rows), 1072)
+        self.assertEqual(len(candidate_rows), 5595)
+        self.assertEqual(len(master_rows), 5595)
 
 
 class DeterminismTest(unittest.TestCase):
@@ -1260,9 +1241,6 @@ class DeterminismTest(unittest.TestCase):
             root = Path(tmp)
             universe = _build_universe(root, approved_group_ids=frozenset(_GROUP_CODES))
             reviews_dir = root / "reviews"
-            bridge_rows = [_approval_review_row(g, m) for g, m in _GROUP_TO_MAJOR.items()]
-            _write_json_list(reviews_dir / "canonical_major_group_bridge_review_status.json", bridge_rows)
-            _write_jsonl(reviews_dir / "canonical_major_group_bridge_scope_review_status.jsonl", bridge_rows)
             work_dir = root / "academyinfo_work" / "2025"
             _write_jsonl(
                 work_dir / "departments.normalized.jsonl",

@@ -564,16 +564,21 @@ class GenerationDeterminismTest(unittest.TestCase):
 
 
 class ForbiddenScopeUntouchedTest(unittest.TestCase):
-    """§5 "금지" — 이번 작업이 건드리면 안 되는 파일들이 실제로 git 이력상
-    무변경인지 확인한다(origin/trait-vector-v2 대비, 이 브랜치의 커밋 전체 기준)."""
+    """§5 "금지" — 이번 작업(a/service-major-catalog-v2)이 건드리면 안 되는 파일들이
+    실제로 git 이력상 무변경인지 확인한다(origin/trait-vector-v2 대비, 이 브랜치의
+    커밋 전체 기준).
+
+    2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 이 Catalog
+    브랜치를 merge한 뒤, 별도의 명시적 라운드(38개 Major 재분류)가 `data/master/
+    departments.jsonl`·`department_recommendation_scope.jsonl` 두 파일만 의도적으로
+    바꿨다(그 라운드 자체의 "금지" 목록에는 main.py·Matching Engine이 여전히 있고,
+    이 테스트도 그 둘은 그대로 검증한다) — 그래서 이 두 파일은 이 목록에서 뺀다."""
 
     _FORBIDDEN_PATHS = (
         "src/api/main.py",
         "src/engines/matching_engine.py",
         "src/engines/matching_engine_v2.py",
         "src/data/majors/vertical_slice_major_profiles_v2.py",
-        "data/master/departments.jsonl",
-        "data/master/department_recommendation_scope.jsonl",
     )
 
     def test_forbidden_paths_have_no_diff_from_merge_base_with_origin(self) -> None:

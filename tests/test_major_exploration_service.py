@@ -339,14 +339,19 @@ class AllowedServiceMajorIdFailClosedTest(unittest.TestCase):
         """실제 Repository·실제 canonical_majors.jsonl 기반 기본 Allowlist로,
         전국 학과 1,072건 전환(2026-08-25) 이후 실제 기준값이 그대로인지 End-to-End로
         확인한다 — 옛 데모 4/3/1/0은 archive로 옮겨졌다. `fail_closed_major_ids`를
-        지정하지 않아 학과 단위 Scope 정책은 적용되지 않는다(상태·출처 필터만)."""
+        지정하지 않아 학과 단위 Scope 정책은 적용되지 않는다(상태·출처 필터만).
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 —
+        industrial_engineering만 53→100으로 갱신한다(모듈
+        tests/test_canonical_major_group_bridge_scope.py의 같은 갱신과 동일한
+        이유 — Bridge V2는 소계열 Scope 제한이 없다)."""
 
         from src.repositories.department_repository import JsonlDepartmentRepository
 
         repo = JsonlDepartmentRepository()
         service = MajorExplorationService(repo)
         self.assertEqual(len(service.list_departments_for_major("media_communication")), 133)
-        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 53)
+        self.assertEqual(len(service.list_departments_for_major("industrial_engineering")), 100)
         self.assertEqual(len(service.list_departments_for_major("hci_ux")), 0)
         self.assertEqual(len(service.list_departments_for_major("design")), 0)
 

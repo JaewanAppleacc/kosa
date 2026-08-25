@@ -232,16 +232,19 @@ class QueueImpactTest(unittest.TestCase):
 
 
 class MasterUnchangedTest(unittest.TestCase):
-    def test_demo_master_still_1072(self) -> None:
+    def test_demo_master_still_5595(self) -> None:
         """2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
         promotion-final-wiring) — 이 recommendation-scope 라운드 자체와 무관하게
         Master가 의도적으로 교체됐다. 옛 35건은
-        data/archive/departments_legacy_demo_35.jsonl로 보존됐다."""
+        data/archive/departments_legacy_demo_35.jsonl로 보존됐다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+        Major·1,072건을 38개 Major·5,595건으로 다시 교체했다."""
         rows = [
             l for l in (ROOT / "data" / "master" / "departments.jsonl")
             .read_text(encoding="utf-8").splitlines() if l.strip()
         ]
-        self.assertEqual(len(rows), 1072)
+        self.assertEqual(len(rows), 5595)
 
     def test_generate_department_id_signature_unchanged(self) -> None:
         """§4: generate_department_id()에 day_night를 추가하지 않는다."""

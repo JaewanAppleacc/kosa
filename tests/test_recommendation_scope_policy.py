@@ -250,10 +250,15 @@ class DepartmentLevelPolicyTest(unittest.TestCase):
 
     def test_industrial_engineering_departments_are_exposed(self) -> None:
         """2026-08-25 전국 학과 1,072건 전환 — industrial_engineering 기준값이 옛
-        데모 3건에서 실제 전국 53건으로 바뀌었다."""
+        데모 3건에서 실제 전국 53건으로 바뀌었다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 53→100.
+        Bridge V2는 소계열 Scope 제한이 없어(모듈 tests/test_canonical_major_group_
+        bridge_scope.py의 같은 갱신과 동일한 이유) 이 Group의 공식 소계열
+        102/103/104가 전부 포함된다."""
         r = client.get("/departments/industrial_engineering")
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(len(r.json()["departments"]), 53)
+        self.assertEqual(len(r.json()["departments"]), 100)
 
     def test_media_communication_departments_are_exposed(self) -> None:
         r = client.get("/departments/media_communication")
@@ -374,8 +379,11 @@ class CrossMajorApprovalRegressionTest(unittest.TestCase):
 
     def test_recommendable_majors_api_result_counts_unchanged(self) -> None:
         """2026-08-25 전국 학과 1,072건 전환 — 옛 데모 기준값(4/3/1/0)을 실제 전국
-        기준값으로 갱신한다. hci_ux는 승격 후보가 0건이라(§4) 정당하게 0이다."""
-        expected = {"media_communication": 133, "industrial_engineering": 53, "hci_ux": 0, "design": 0}
+        기준값으로 갱신한다. hci_ux는 승격 후보가 0건이라(§4) 정당하게 0이다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 —
+        industrial_engineering만 53→100(Bridge V2는 소계열 Scope 제한이 없다)."""
+        expected = {"media_communication": 133, "industrial_engineering": 100, "hci_ux": 0, "design": 0}
         for major_id, count in expected.items():
             r = client.get(f"/departments/{major_id}")
             self.assertEqual(r.status_code, 200)
@@ -661,8 +669,24 @@ class ScopeDataFullConsistencyTest(unittest.TestCase):
                 self.assertIn(department.department_id, self.scope_records)
 
     def test_no_orphan_scope_records_pointing_to_non_recommendable_or_missing_majors(self) -> None:
+        """2026-08-25 지시서(c/national-departments-38-majors) 정정 — 이 라운드는
+        Scope 데이터를 38개 Service Canonical Major v2(ACTIVE) 기준으로 재생성했다
+        (§4). `RECOMMENDABLE_MAJOR_IDS`(=`DEFAULT_SERVICE_MAJOR_IDS`, 옛 10개)는
+        main.py를 건드리지 않는다는 이 라운드의 명시적 제약 때문에 아직 그대로다 —
+        그래서 "Scope canonical_major_id가 RECOMMENDABLE_MAJOR_IDS 안"이라는 옛
+        검사는 더 이상 이 데이터의 실제 계약이 아니다. 대신 "Service Canonical
+        Major v2(ACTIVE, 39개 — 38 FULL_GROUP + hci_ux DEPARTMENT_LEVEL_ONLY) 중
+        하나"인지로 검증한다 — 데이터 계층(Master·Scope)이 이미 지원하는 진짜
+        상한이 이것이다. Major 노출 정책을 실제로 38개로 넓히는 것은 별도 배선
+        라운드의 몫이다."""
+
+        from src.services.service_canonical_major_v2_loader import load_service_canonical_majors_v2
+
+        active_major_ids = frozenset(
+            m.major_id for m in load_service_canonical_majors_v2() if m.recommendation_status == "ACTIVE"
+        )
         for department_id, record in self.scope_records.items():
-            self.assertIn(record.canonical_major_id, RECOMMENDABLE_MAJOR_IDS)
+            self.assertIn(record.canonical_major_id, active_major_ids)
 
 
 class ContextIndependenceTest(unittest.TestCase):

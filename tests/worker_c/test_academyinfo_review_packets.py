@@ -358,14 +358,17 @@ class MissingInputSafetyTest(unittest.TestCase):
 class ExistingArtifactsUnchangedTest(unittest.TestCase):
     """§7: 기존 Master·검수 파일을 건드리지 않는다."""
 
-    def test_demo_master_still_1072(self) -> None:
+    def test_demo_master_still_5595(self) -> None:
         """2026-08-25 전국 학과 1,072건 Production Master 전환(a/national-master-
         promotion-final-wiring) — 이 패킷 생성 라운드 자체와 무관하게 Master가
         의도적으로 교체됐다. 옛 35건은 data/archive/departments_legacy_demo_35.jsonl
-        로 보존됐다."""
+        로 보존됐다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+        Major·1,072건을 38개 Major·5,595건으로 다시 교체했다."""
         rows = [l for l in (ROOT / "data" / "master" / "departments.jsonl")
                 .read_text(encoding="utf-8").splitlines() if l.strip()]
-        self.assertEqual(len(rows), 1072)
+        self.assertEqual(len(rows), 5595)
 
     def test_canonical_majors_untouched(self) -> None:
         self.assertTrue((ROOT / "data" / "master" / "canonical_majors.jsonl").exists())

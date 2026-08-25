@@ -198,11 +198,15 @@ class ExistingMasterFilesUnchangedTest(unittest.TestCase):
         final-wiring)이 별도로, 의도적으로 Master를 교체했다 — 옛 35건은
         data/archive/departments_legacy_demo_35.jsonl로 보존됐다. git diff
         무변경 확인은 더 이상 의미가 없어 제거하고, 행 수만 실제 전국 기준값으로
-        갱신한다."""
+        갱신한다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+        Major·1,072건 Master를 38개 Major·5,595건으로 다시 교체했다(옛 1,072건은
+        data/archive/departments_legacy_1072_8majors.jsonl로 보존)."""
 
         path = _REPO_ROOT / "data" / "master" / "departments.jsonl"
         lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        self.assertEqual(len(lines), 1072)
+        self.assertEqual(len(lines), 5595)
 
 
 class SchemaValidationRejectsBadRowsTest(unittest.TestCase):

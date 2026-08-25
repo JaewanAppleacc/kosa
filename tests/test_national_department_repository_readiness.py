@@ -99,17 +99,21 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
             after_hash = _sha256(_REPO_ROOT / path)
             self.assertEqual(before_hash, after_hash, f"{path}의 SHA-256이 Harness 실행 후 바뀜")
 
-    def test_departments_jsonl_has_1072_rows(self) -> None:
+    def test_departments_jsonl_has_5595_rows(self) -> None:
         """2026-08-25(a/national-master-promotion-final-wiring) §7: 전국 학과 1,072건
         Production Master 전환 이후 이 값은 더 이상 35(데모)가 아니다 — 기존 35건은
         `data/archive/departments_legacy_demo_35.jsonl`로 보존됐다(§3). "git-clean"
         조건은 이 승격 라운드 자체가 `data/master/departments.jsonl`을 바꾸는 커밋이라
         의미가 없어져 제거한다 — Harness가 이 파일을 추가로 건드리지 않는지는 위
         `test_master_and_public_schema_sha256_unchanged_after_harness_run`이 이미
-        (하드코딩된 값이 아니라 실행 시점 SHA-256으로) 확인한다."""
+        (하드코딩된 값이 아니라 실행 시점 SHA-256으로) 확인한다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+        Major·1,072건을 38개 Major·5,595건으로 다시 교체했다(옛 1,072건은
+        `data/archive/departments_legacy_1072_8majors.jsonl`로 보존)."""
         path = _REPO_ROOT / "data" / "master" / "departments.jsonl"
         lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-        self.assertEqual(len(lines), 1072)
+        self.assertEqual(len(lines), 5595)
 
     def test_legacy_35_department_archive_exists_and_is_readonly(self) -> None:
         archive_path = _REPO_ROOT / "data" / "archive" / "departments_legacy_demo_35.jsonl"
@@ -171,26 +175,32 @@ class OperationalMasterUnchangedTest(unittest.TestCase):
         unexpected = [p for p in changed if p not in self._INTENTIONALLY_FINALIZED_REVIEW_FILES]
         self.assertEqual(unexpected, [], f"data/reviews/ 아래 의도하지 않은 변경: {unexpected}")
 
-    def test_current_1072_department_api_counts_unchanged(self) -> None:
+    def test_current_5595_department_api_counts_unchanged(self) -> None:
         """2026-08-25(a/national-master-promotion-final-wiring) §7: 전국 학과 1,072건
         승격 이후의 실제 /departments 기준값으로 갱신한다 — 옛 데모 35건 기준값
         (media_communication=4·industrial_engineering=3·hci_ux=1)은
         `data/archive/departments_legacy_demo_35.jsonl`에만 남아 있고 더 이상 이
-        Harness가 건드리지 않는 실제 Repository 값이 아니다."""
+        Harness가 건드리지 않는 실제 Repository 값이 아니다.
+
+        2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+        Major·1,072건을 38개 Major·5,595건으로 다시 교체했다(옛 1,072건은
+        `data/archive/departments_legacy_1072_8majors.jsonl`로 보존). hci_ux/design은
+        여전히 0/None이다(이 라운드도 main.py의 DEFAULT_SERVICE_MAJOR_IDS를 바꾸지
+        않는다 — 여기서는 Repository 원본 개수만 확인한다)."""
 
         repo = JsonlDepartmentRepository()
-        self.assertEqual(len(repo), 1072)
+        self.assertEqual(len(repo), 5595)
         counts = {}
         for d in repo.all():
             if d.canonical_major_id:
                 counts[d.canonical_major_id] = counts.get(d.canonical_major_id, 0) + 1
-        self.assertEqual(counts.get("business_administration"), 271)
+        self.assertEqual(counts.get("business_administration"), 371)
         self.assertEqual(counts.get("media_communication"), 133)
         self.assertEqual(counts.get("life_science"), 134)
-        self.assertEqual(counts.get("mechanical_engineering"), 114)
+        self.assertEqual(counts.get("mechanical_engineering"), 299)
         self.assertEqual(counts.get("computer_science"), 209)
-        self.assertEqual(counts.get("education"), 78)
-        self.assertEqual(counts.get("industrial_engineering"), 53)
+        self.assertEqual(counts.get("education"), 540)
+        self.assertEqual(counts.get("industrial_engineering"), 100)
         self.assertEqual(counts.get("psychology"), 80)
         self.assertIsNone(counts.get("hci_ux"))
         self.assertIsNone(counts.get("design"))

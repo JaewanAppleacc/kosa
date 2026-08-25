@@ -239,11 +239,14 @@ class RepositoryLoadTest(unittest.TestCase):
     department_url 없음)은 `data/archive/departments_legacy_demo_35.jsonl`로
     보존됐다. 실제 Repository는 이제 1,072건이고, 그중 일부는 대학알리미 URL
     정책 감사(department_url_scope_audit.jsonl)를 통과한 실제 department_url을
-    갖는다 — "전부 None"은 더 이상 사실이 아니다."""
+    갖는다 — "전부 None"은 더 이상 사실이 아니다.
 
-    def test_existing_1072_national_departments_load_and_validate_department_url_policy(self) -> None:
+    2026-08-25 지시서(c/national-departments-38-majors) 후속 정정 — 8개
+    Major·1,072건을 38개 Major·5,595건으로 다시 교체했다."""
+
+    def test_existing_5595_national_departments_load_and_validate_department_url_policy(self) -> None:
         repo = JsonlDepartmentRepository()
-        self.assertEqual(len(repo), 1072)
+        self.assertEqual(len(repo), 5595)
         for dept in repo.all():
             if dept.department_url is not None:
                 self.assertTrue(dept.department_url.startswith(("http://", "https://")))
